@@ -4,7 +4,7 @@ Creature-breeding tower defense for mobile (portrait). Relocatable base, allianc
 
 ## Design docs
 
-All current design specifications live in [`Spcs/`](Spcs/). Start with [`Spcs/README.md`](Spcs/README.md), then read [`Spcs/broodline_bible.md`](Spcs/broodline_bible.md) for the full design.
+All current design specifications live in [`spec/`](spec/). Start with [`spec/README.md`](spec/README.md), then read [`spec/broodline_bible.md`](spec/broodline_bible.md) for the full design.
 
 ## Status
 
