@@ -2,7 +2,7 @@
 
 *Technical spec, how many players share thirty regions*
 
-> **CURRENT — technical spec.** `broodline_region_roster.md` §11 and
+> **CURRENT — technical spec.** `broodline_region_roster.md` §10 and
 > `broodline_region_graph.md` §11 both close on the same open question: thirty
 > regions across how many concurrent players. This answers it.
 
@@ -35,10 +35,14 @@ If depletion is a six-day timer that runs regardless of who is on the node, then
 > **Depletion tracks total extraction. Six days is the figure for a single harvester.**
 >
 > `remaining_yield -= rate × harvester_count` per tick.
+>
+> **Floor 24 hours, ceiling the weekly tick.** A deposit never dies before a player who relocated for it can arrive, and never survives the rotation that clears it.
 
 That is the only version where `broodline_region_roster.md` §4's inverse rule means anything — the best nodes sit on the worst ground *and* draw competition, and both halves of that need the second to be real.
 
 **It also makes server population a derived quantity rather than a guess**, because it puts a hard ceiling on how many players a node can usefully support before it stops being worth travelling to.
+
+**Adopted into bible §5.3**, with the two bounds. The bible previously set six days as a flat timer explicitly to sync with the weekly rotation; the ceiling preserves that sync without the timer.
 
 ---
 
@@ -137,7 +141,7 @@ Per `broodline_data_model.md` §7, most of the map is content rather than data.
 
 ## 8. Guardrails
 
-- Depletion tracks total extraction, never a wall-clock timer
+- Depletion tracks total extraction, never a wall-clock timer, bounded by a 24-hour floor and the weekly tick
 - Server population stays inside 500–1,500 daily active; a new server opens on the upper trigger
 - No server closes while it has active players
 - A merge clears all territory; claims re-open at the first tick after

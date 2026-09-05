@@ -47,7 +47,7 @@ If you read one document, read the bible. If you are about to build something, c
 | **`broodline_accessibility.md`** | The audit, the four gaps, the settings list, the palette finding | Design, art |
 | **`broodline_store_iap.md`** | Entitlement, validation, refunds, offer placement, and why there are no ads | Engineering, monetization |
 | **`broodline_offers.md`** | What triggers a pack promotion, frequency caps, and what the algorithm may know | Monetization, engineering |
-| **`broodline_gap_register.md`** | The design audit and its twelve passes. Historical now — every gap it tracked is closed | Anyone tracking how the design got here |
+| **`broodline_design_audit.md`** | What the audit found, how it closed, and six patterns worth not relearning | Anyone tracking how the design got here |
 | **`design_handoff_broodline/`** | 20 interactive screen prototypes, design tokens, Character Bible | Design, engineering, illustration |
 
 ### Companions — current, and each owns something the bible does not
@@ -126,7 +126,7 @@ Ten bible sections, nineteen settled decisions, ten derived constraints, eightee
 
 Against that: **fifty-nine screens of which eight exist**, thirty-six character assets of which none are modelled, twenty animation clips and eleven behaviour previews of which none are produced, and two procurement items with external lead times that nobody has started.
 
-**`broodline_build_order.md` is the document that says what to do about it.** In short: start the moderation filter and CJK font procurement now, prove the creature rig on one species before anything large begins, and instrument three things from the first playable build — the Litter question, Skirmisher's spawn interval, and whether anyone picks Screen at wave 50.
+**`broodline_build_order.md` is the document that says what to do about it.** In short: start the English moderation filter procurement now from a vendor that covers the full language list, prove the creature rig on two species before anything large begins, and instrument three things from the first playable build — the Litter question, Skirmisher's spawn interval, and whether anyone picks Screen at wave 50.
 
 **Authoring the campaign found ten errors in the specs it was written against**, including three raider locks that were not locks. None would have been found by reading. The same argument applies to the seasonal chapters: author them before the season is scheduled.
 
@@ -141,4 +141,4 @@ If a change would break one of these, it needs a conversation rather than a comm
 3. **Waves escalate by volume, never by resistance.** No raider is ever immune to a tier-I answer.
 4. **No creature is ever lost involuntarily.** Combat, raids and assaults never remove one. Only splicing and retirement do, and both are the player's choice.
 5. **Control confers advantage, never exclusion.** Common Veins are permanently unclaimable and never carry the non-ally penalty, the penalty itself is capped, and there are no base attacks.
-6. **No third-party advertising.** No rewarded video, no interstitials, no ad SDK. The charges an ad would have granted were surplus, so the free path loses nothing and gains an uninterrupted one. Broodline promotes its own packs at most once a week, plus a shortfall offer the player triggered, on an engine that never prices by what a player has spent.
+6. **No third-party advertising.** No rewarded video, no interstitials, no ad SDK. The charges an ad would have granted were surplus, so the free path loses nothing and gains an uninterrupted one. Broodline promotes its own packs only when a player runs short of something, never unprompted, on an engine that never prices by what a player has spent.

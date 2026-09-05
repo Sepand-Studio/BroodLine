@@ -2,7 +2,7 @@
 
 *The state of the project, and the only document that says what is not done*
 
-> **CURRENT.** Replaces `broodline_gap_register.md` as the working list. That
+> **CURRENT.** Replaces `broodline_design_audit.md` as the working list. That
 > file tracked gaps in the design and closed all of them; this tracks what
 > remains across the whole set, which is a different kind of list.
 
@@ -16,7 +16,7 @@
 
 | Kind | Count | Closes when |
 |---|---|---|
-| **Decisions** | 0 | All taken |
+| **Decisions** | 0 | All taken — §2 |
 | **Procurement and commissioning** | 8 | Something external is bought or briefed |
 | **Bench tests** | 11 | A build exists, no players needed |
 | **Playtest** | 63 | Players play |
@@ -26,34 +26,22 @@
 
 ---
 
-## 2. Decisions — 22
+## 2. Decisions — all taken
 
-**All twenty-two are taken**, with the picks shown, and applied in their home documents. Veto any of them and it reverses. Nothing on this list is open.
+**Twenty-two, all taken, all applied in their home documents.** Veto any and it reverses.
 
-| # | Decision | Where | My pick |
-|---|---|---|---|
-| ~~1~~ | ~~Does the offer engine's unprompted slot exist at all?~~ | `offers` §2.1 | **Taken — cut.** Shortfall-only, two a week maximum |
-| ~~2~~ | ~~Seven launch languages, or five?~~ | `localization` §2 | **Taken — English only.** Then one language at a time, Japanese first |
-| ~~3~~ | ~~Telemetry analysis window~~ | `telemetry` §10 | **Taken — 90 days** of raw events, aggregates indefinite |
-| ~~4~~ | ~~Rig proof duration~~ | `rig_proof` §8 | **Taken — three weeks** |
-| ~~5~~ | ~~Raid verification: every raid, or sampled?~~ | `combat_engine` §2.1 | **Taken — every raid** |
-| ~~6~~ | ~~Arabic's deferral date~~ | `localization` §2 | **Taken — position 13**, after the layout has stopped changing |
-| ~~7~~ | ~~Server merge rule~~ | `server_topology` §9.3 | **Taken.** Clear territory, re-open at next tick. Cruel and legible |
-| ~~8~~ | ~~Suppress the raid alert overnight?~~ | `notifications` §10.1 | **Taken.** Yes. It costs nothing and delivering it costs goodwill |
-| ~~9~~ | ~~Region names — transliterate or native equivalents?~~ | `localization` §11.2 | **Taken.** Transliterate, same rule as species |
-| ~~10~~ | ~~Cross-promote future titles inside Broodline?~~ | `offers` §9.4 | **Taken.** No. Same answer as third-party ads |
-| ~~11~~ | ~~Freeze coverage values before translation?~~ | `localization` §11.3 | **Taken.** Yes, and accept it constrains tuning |
-| ~~12~~ | ~~Convoy Rig visible on the Transit Board as a Rig?~~ | `alliance` §12.7 | **Taken.** Visible, with contributor count |
-| ~~13~~ | ~~Screen-reader scope — menus only, or attempt combat?~~ | `accessibility` §8.3 | **Taken.** Menus, properly. Be honest about combat |
-| ~~14~~ | ~~Under-13 chat: canned phrases, or none?~~ | `moderation` §12.2 | **Taken.** None |
-| ~~15~~ | ~~Moderation staffing model~~ | `moderation` §12.3 | **Taken.** Automated-first with human escalation |
-| ~~16~~ | ~~Chat log retention~~ | `moderation` §12.4 | **Taken.** 30 days |
-| ~~17~~ | ~~Skittish reposition — random pocket, or nearest safe?~~ | `combat_engine` §11.4 | **Taken.** Nearest safe. Reduces RNG to tie-breaks only |
-| ~~18~~ | ~~Replay on a superseded engine — old rules, or recorded outcome?~~ | `combat_engine` §11.3 | **Taken.** Recorded outcome with a notice. Retaining old engines is a maintenance burden |
-| ~~19~~ | ~~Retirement cooldown?~~ | `sample_economy` §13.5 | **Taken.** None until playtest shows the locker exploit is real |
-| ~~20~~ | ~~Transit Board shows cargo value?~~ | `raiding` §15.1 | **Taken.** Yes, banded rather than exact |
-| ~~21~~ | ~~Pale grant on defeat, or on retry?~~ | `campaign` §12.4 | **Taken.** Defeat. Immediate, and bible §9.3 asks for immediate |
-| ~~22~~ | ~~Inner Reach ever claimable in a late season?~~ | `region_roster` §11.3 | **Taken.** No, firmly |
+Six changed how something behaves rather than settling a number, and those are worth knowing:
+
+| | |
+|---|---|
+| **Offers are shortfall-only** | No unprompted offer exists. Progression, temporal and lifecycle offers were cut — an engine that fires only when a player runs short is one the player asked for |
+| **English at launch**, then one language at a time | Japanese first, German fourth, Arabic thirteenth. Not waves |
+| **Every raid is verified**, not sampled | Determinism makes it one re-run; sampling lets cheating through during the window where PvP reputation is set |
+| **The game is silent 22:00–08:00**, alerts included | An unanswered raid alert auto-resolves identically, so waking a player buys nothing |
+| **Skittish repositions deterministically** | Nearest free pocket away from the threat. Reduces the engine's whole RNG surface to two tie-breaks |
+| **Screen readers: menus properly, combat honestly** | Full support on every static list; combat placement does not claim it |
+
+The other sixteen, in one line each: telemetry raw events expire at 90 days · the rig proof runs three weeks · a server merge clears all territory and re-opens claims at the next tick · region names are transliterated · coverage values freeze before a Codex is translated · no cross-promotion of other titles including your own · Convoy Rigs are visible as Rigs with contributor count · under-13 accounts have no chat at all · moderation is automated-first with human escalation · chat logs retain 30 days · superseded replays show their recorded outcome and never re-simulate · no retirement cooldown until playtest shows the exploit is real · the Transit Board bands cargo value rather than stating it · the Pale grant fires on defeat · the Inner Reach is never claimable in any season.
 
 ---
 

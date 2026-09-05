@@ -495,10 +495,17 @@ Transit speed and the exposure window scale with the **Drive** facility.
 | Tier | Yield | Lifespan | Character |
 |---|---|---|---|
 | **Common Vein** | 1× | Never fully depletes; yield decays ~30% after a week of continuous harvesting | Safe fallback, low competition, **never claimable** |
-| **Rich Deposit** | 3× | Depletes in ~6 days of active harvesting | Worth relocating for, draws competition |
+| **Rich Deposit** | 3× | Depletes by **total extraction** — ~6 days at one harvester, faster with more | Worth relocating for, draws competition |
 | **Apex Vein** | 8× | Burns out in 48–72 hours | High-value, high-contest, alliance-scale |
 
-**Rich Deposit depletion is set at six days to sync with the weekly rotation.** A deposit runs dry roughly a day before the map refreshes, producing a short window of pressure to move rather than several days of dead ground. The original specs said 5–7 days and the design prototypes said four; four leaves too long a gap before the refresh.
+**Depletion tracks total extraction, not wall-clock time.** Six days is the figure for a *single* harvester; two harvesters exhaust it in three days, four in a day and a half. A six-day timer that ran regardless of who was on the node would mean fifty harvesters extracting fifty times the yield over the same six days, and a contested node that is not contested. This is the single interaction that sets server population — `broodline_server_topology.md` §2.
+
+**Bounded at both ends, and the bounds are what the timer used to do.**
+
+- **A deposit always survives at least 24 hours.** Relocating for one and finding it dry on arrival would make the map's central decision a gamble
+- **A deposit never survives the weekly tick.** Rotation clears it regardless, so the map still refreshes cleanly and there is never a week of dead ground
+
+An earlier draft set six days as a flat timer *in order to* sync with the weekly rotation. The sync is preserved by the ceiling instead, and it no longer costs the mechanic that makes rich ground worth fighting over.
 
 **Apex Veins yield high-tier species samples plus a catalyst** that raises the Aberrant sub-roll on the next splice. This is what makes an Apex Vein the route to an Aberrant — it grants the chance, never the trait, which is what keeps Aberrants unbuyable.
 
@@ -959,7 +966,7 @@ The practical form of §8.1. Three separate systems have already leaked trait ac
 
 - Charges never fully block progress — there is always something playable at zero
 - **No third-party advertising of any kind.** No rewarded video, no interstitials, no ad SDK
-- **Broodline may promote its own packs**, at most once a week plus a shortfall offer the player triggered. The algorithm chooses which offer, never what it costs, and never uses lifetime spend — `broodline_offers.md`
+- **Broodline promotes its own packs only when a player runs short of something** — the smallest pack that covers the shortfall, at most twice a week, with the free path shown beside it. Never unprompted. The algorithm chooses which pack, never what it costs, and never uses lifetime spend — `broodline_offers.md`
 - Every trait is obtainable free; money buys attempts, never outcomes
 - Top Geneticist Tier perks stay convenience and cosmetic
 - Odds are displayed before any charge or spin is spent

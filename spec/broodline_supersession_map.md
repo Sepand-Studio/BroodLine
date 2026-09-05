@@ -29,7 +29,7 @@ The design was written in two waves. Nine specs came first, against an unsettled
 | `broodline_bible.md` | ✅ | **The design, §1–10.** Everything else defers to it |
 | `broodline_screen_inventory_v2.md` | ✅ | 59 screens, build priority, what the prototypes still need |
 | `broodline_supersession_map.md` | ✅ | This file |
-| `broodline_gap_register.md` | ✅ | The design audit, twelve passes. Historical — every gap closed |
+| `broodline_design_audit.md` | ✅ | What the design audit found and how it closed. Historical |
 | `broodline_whats_left.md` | ✅ | **The working list.** Every open question in the set, classified by who can close it |
 | `broodline_reconciliation.md` | ✅ | The decision register — *why*, not *what* |
 | `README.md` | ✅ | The front door |
@@ -50,7 +50,7 @@ The design was written in two waves. Nine specs came first, against an unsettled
 | `broodline_alliance_territory.md` | ⚙️ | Alliances, Stakes, garrisons, convoy staging, the weekly tick |
 | `broodline_live_ops_events.md` | ⚙️ | Event mechanics, Roulette odds, the Apex Cup, the calendar |
 | `broodline_monetization.md` | ⚙️ | Offer structure, the never-sold list, no third-party advertising |
-| `broodline_offers.md` | ⚙️ | The offer engine — one a week plus a shortfall offer, and what it may know |
+| `broodline_offers.md` | ⚙️ | The shortfall offer — the only promotion in the game, and what it may know |
 | `broodline_moderation_ugc.md` | ⚙️ | UGC surfaces, filtering, age gating, the 12+ decision |
 | `broodline_midgame_arc.md` | ⚙️ | Days 14–90 |
 | `broodline_seasonal_chapters.md` | ⚙️ | Authoring past wave 60, the shape vocabulary, the cost of a ninth raider |

@@ -175,7 +175,7 @@ Sixty slots across six species, range 9 to 11. **Every species appears in every 
 
 Bible §4.8 lists region defence as a wave type and gives it no rules. It is the rent, against the campaign's ladder.
 
-**Cadence.** A region defence wave fires roughly every **eight hours of active harvesting**, more often in richer regions:
+**Cadence.** A region defence wave fires roughly every **eight hours an Ark is parked in the region**, more often in richer regions. This is wall-clock time present, not extraction — unlike node depletion at bible §5.3, which tracks total yield taken:
 
 | Richest node present | Interval |
 |---|---|
@@ -248,10 +248,10 @@ What the screen needs, against this schema.
 ## 10. Open questions
 
 1. **Are four gates per band boundary enough?** Fewer makes raiding sharper and route choice more meaningful; it also funnels every Outer convoy through predictable ground, which may cross from tense into miserable.
-2. **Full adjacency has not been authored.** Each region borders two to four others, and which ones is a level-design artifact rather than a design decision — but the Route Plotter cannot be built without the graph, and the gate regions above constrain it.
-3. **Should the Inner Reach ever open to claiming** in a late-game season? It would give veteran alliances somewhere new to fight and it would break the guarantee new players depend on. Leaning firmly no.
+2. ~~**Full adjacency has not been authored.**~~ **Authored — `broodline_region_graph.md`.**
+3. ~~**Should the Inner Reach ever open to claiming**~~ **Resolved — never. Eight regions no alliance can hold is the guarantee every new, solo, or alliance-less player depends on, and no late season is worth trading it.**
 4. **Weir may be the wrong shape.** It is the only family whose difficulty is about damage rate rather than counter breadth, which makes it interesting and also makes it the one that could invalidate the design's central claim that composition beats numbers. Worth testing before the second Weir region is authored.
-5. **Thirty regions across how many concurrent servers?** Affects whether the Outer Reach feels contested or empty. A live-ops decision more than a design one.
+5. ~~**Thirty regions across how many concurrent servers?**~~ **Derived: 500–1,500 daily active per server** — `broodline_server_topology.md` §3. Node depletion sets it, and the binding constraint turns out to be the low end rather than the high one: below 500 the Transit Board empties and territory goes uncontested.
 6. **Does the weekly Rich Deposit rotation move deposits between regions, or only reroll which slots are active?** Bible §5.4 says a portion shifts to new regions; the slot counts above are capacity, not guaranteed occupancy, and the distinction needs stating before the rotation is built.
 
 ---
