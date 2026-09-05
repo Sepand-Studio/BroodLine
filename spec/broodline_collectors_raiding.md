@@ -4,9 +4,17 @@
 
 ---
 
+> **CURRENT — companion to the design bible.** This document is live and should
+> be built from. It owns detail that `broodline_bible.md` deliberately does not
+> duplicate. Where the two conflict, the bible is current and this document
+> needs an edit.
+>
+> Last brought into line with the bible: 4 Sep 2026.
+
+
 ## 1. Core Concept
 
-Four documents cite this system by name. The node spec requires a Collector present at Apex Veins. The combat spec inverts its engine for raids. The alliance spec draws a hard line between raiding and territory. The FTUE schedules raid exposure at day 14. None of them define what a Collector is or how a raid resolves.
+The bible names this system in §4.9 and §5.6 and carries none of its rules. This document owns them: what a Collector is, how a route is exposed, how a raid resolves, what it can take, and what it can never take.
 
 Raiding is the **only system in Broodline where one player's action costs another player something.** That makes it the highest-risk system in the set, and the design is shaped almost entirely around containing that risk.
 
@@ -18,9 +26,9 @@ Raiding is the **only system in Broodline where one player's action costs anothe
 
 Your Ark harvests its **home region** passively. Collectors extend that reach.
 
-This is the load-bearing decision in the document, and it's a change in emphasis from the node spec, which treats Collectors as an Apex-only requirement. Apex Veins are rare; if they were the only source of convoys, raiding would have almost no targets and the whole Marks economy would starve.
+This was carried as an open sign-off for some time and is now settled in bible §5.5 in favour of general purpose. Apex Veins are rare; if they were the only source of convoys, raiding would have almost no targets and the whole Marks economy would starve.
 
-Instead: **a Collector is how you harvest anything outside your current region.** That gives the map a second answer to "there's a better node over there."
+So: **a Collector is how you harvest anything outside your current region.** That gives the map a second answer to "there's a better node over there."
 
 | Option | Cost | Risk |
 |---|---|---|
@@ -38,9 +46,11 @@ Apex Veins retain their special rule: a Collector must be **physically present f
 | Class | Cargo | Escorts | Transit speed | Unlock |
 |---|---|---|---|---|
 | **Scout Collector** | 500 | 1 | 1.5× | Default |
-| **Hauler** | 2,000 | 2 | 1.0× | Vault Drive T3 |
-| **Deep Hauler** | 5,000 | 3 | 0.7× | Vault Drive T7 |
+| **Hauler** | 2,000 | 2 | 1.0× | Campaign milestone |
+| **Deep Hauler** | 5,000 | 3 | 0.7× | Campaign milestone |
 | **Convoy Rig** | 12,000 | 5 | 0.6× | Alliance tech, Convoy branch |
+
+**Classes unlock through campaign milestones and alliance tech — never through the Drive facility.** Drive shortens Collector transit, which shortens the exposure window, which is a defensive PvP advantage bought with shards. Bible §7.7 forbids that, and §7.2 now restricts Drive to Ark relocation. This closes an open question that sat in two earlier specs.
 
 Cargo figures are set against the economy model: a Deep Hauler at 5,000 is roughly one full Apex Vein capture, so the top solo class matches the top solo node. The Convoy Rig exceeds any one player's realistic haul, which is the point — it only pays off when an alliance stages a multi-member run from controlled territory.
 
@@ -81,7 +91,7 @@ Raiders browse a **Transit Board** listing in-transit convoys within three regio
 
 Each entry shows estimated cargo value, escort count, and time remaining in the exposure window. It does **not** show escort creature stats, traits, or generation. The attacker commits on incomplete information, which is what stops raiding from collapsing into risk-free arbitrage against the weakest visible target.
 
-**Matchmaking band:** only convoys from players within **±2 Vault Core tiers** appear. A Core T10 player never sees a Core T3 player's convoy. This is the primary anti-predation mechanism and it should be enforced server-side, not as a UI filter.
+**Matchmaking band:** only convoys from players within **±2 Core tiers** appear. A Core T10 player never sees a Core T3 player's convoy. This is the primary anti-predation mechanism and it should be enforced server-side, not as a UI filter.
 
 **Cooldowns:**
 - **2 raids per player per day.** Deliberately low. Raiding is a supplementary pressure system, not a primary loop — if it competed with splicing for session time, it would be pulling players away from the thing the game is actually about.
@@ -96,7 +106,8 @@ Per the combat spec, the engine runs with roles inverted.
 
 - The **defender's escorts** are placed as towers along a short lane derived from the ambush terrain
 - The **attacker's three-creature raid party** is the incoming wave
-- Attacker creatures use their full loadout **including Instinct** — a Skittish attacker really will retreat, and that is a genuine drawback the attacker must plan around
+- Attacker creatures use their full loadout — two combat traits and one Instinct, per bible §1.1 — **including Instinct.** A Skittish attacker really will retreat, and that is a genuine drawback the attacker must plan around
+- **The counter system applies unchanged.** A raid party carrying no answer to what the escorts are built around loses regardless of raw power, exactly as a wave does
 - Terrain is generated from the segment where interception occurred, so raiding through mountains differs from raiding across open ground
 
 **Target win rate: neither side above 55% at equal investment.** Defenders hold terrain and emplacements; attackers choose the moment and the target. If either side drifts past 55% in soft launch, escort slot counts are the cleanest lever.
@@ -113,7 +124,7 @@ The numbers that decide whether day 14 is a churn cliff.
 
 The destruction split is deliberate and does two jobs. It makes raiding a **net shard sink** rather than a pure transfer, which keeps the economy from inflating as raid volume grows. And it means the attacker's gain is visibly smaller than the defender's loss, which is the honest shape of the transaction — nobody should be able to farm another player efficiently.
 
-**Note on the −40% collision.** The alliance spec's non-ally harvest penalty is also −40%. These are unrelated constants that happen to share a value, and they will be tuned independently. They should be given distinct names in implementation before someone changes one and moves both.
+**Note on the −40% collision.** The non-ally harvest penalty at bible §6.6 is also −40%. These are unrelated constants that happen to share a value, and they will be tuned independently. They should be given distinct names in implementation before someone changes one and moves both.
 
 ---
 
@@ -133,7 +144,7 @@ The defender experience is where this system lives or dies.
 
 ## 10. Protection Systems
 
-- **New-player immunity: 14 days** from account creation, per the FTUE drip schedule. Expiry is announced as an event with advance warning, paired with an escort tutorial. Never a silent flag flip.
+- **New-player immunity steps down, per bible §5.6.** Full immunity for fourteen days; days 15–21 the loss shield triggers after one loss instead of two; standard rules from day 22. Expiry is announced as an event with advance warning, paired with the day-15 escort tutorial. Never a silent flag flip.
 - **Loss shield:** losing two raids within 24 hours triggers an automatic **8-hour immunity**. The most important line in this document. A bad night can't become a bad week.
 - **Revenge token:** losing a raid grants a 24-hour token permitting one raid on that attacker, ignoring the per-target cooldown. Converts a loss into agency, and makes raiding a large convoy a decision with consequences.
 - **Offline players are raidable.** This is an async game and pretending otherwise would break it — but every mechanic above exists to make offline loss bounded and legible.
@@ -167,7 +178,7 @@ Making Marks unpurchasable is the structural guarantee that raiding stays an eff
 - No creature is ever lost; escorts and raid parties regenerate
 - Hard cap of 40% cargo loss, with 50% of the take destroyed
 - One raid per target per 24 hours, 2 raids per player per day
-- ±2 Vault Core tier matchmaking band, enforced server-side
+- ±2 Core tier matchmaking band, enforced server-side
 - Loss shield after two defeats in 24 hours
 - Marks are never purchasable
 - Auto-resolve uses the live engine and always produces a replay
@@ -204,10 +215,10 @@ This holds, but only because the daily cap is 2. **Raising the cap to 3 pushes a
 
 1. **Should the Transit Board show cargo value at all?** Hiding it makes raids a gamble and reduces target-farming, but it also makes the raid decision arbitrary and the mode less strategic. Leaning toward showing it, with paid obfuscation as the counter.
 2. **Is 2 raids/day too few to sustain a raider identity?** It's correct for economy balance and possibly wrong for player fantasy. The Marks Shop may need to carry more of that identity.
-3. **Does the Drive module's transit speed edge into PvP advantage?** The Vault spec flags this. Faster transit is a smaller exposure window, which is a defensive buff bought with shards. May need Drive to affect relocation only.
-4. **Apex Vein Collectors are stationary for 48+ hours.** Are they raidable the whole time, or only on the return leg? Whole-time is dramatic and probably brutal.
+3. ~~**Does the Drive module's transit speed edge into PvP advantage?**~~ **Resolved: yes, so Drive is restricted to the Ark.** See §3.
+4. ~~**Apex Vein Collectors are stationary for 48+ hours.**~~ **Resolved: the return leg only.** A stationed Collector is not a convoy in transit, and raiding it would be an attack on a player's position rather than on cargo moving through open ground — which is the line bible §6.8 draws. It also makes an Apex window a coordination problem rather than a 48-hour siege nobody can sleep through. Contest for the Vein happens at the node, through presence and Stake Assault; the cargo becomes raidable the moment it starts moving.
 5. **Alliance convoy staging mechanics.** Multi-member Convoy Rigs need a contribution and payout structure that hasn't been designed.
 
 ---
 
-*Remaining undocumented: the Trait Codex, mail and notification centre, player profile, and settings.*
+*Screens this document requires that the inventory now carries: Collector Dispatch, Route Plotter, Convoy Status, Transit Board, Raid Party Select, Marks Shop, Collector Intercept, Replay Viewer.*

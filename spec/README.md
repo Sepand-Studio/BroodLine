@@ -12,9 +12,11 @@ Splice two creatures into a hybrid. Place hybrids to hold tower-defense waves. R
 
 ## Start here
 
-**`broodline_bible.md`** is the design. Ten sections, complete, current. Everything else in this repository is either a companion to it or a historical record of how it was reached.
+**`broodline_bible.md`** is the design. Ten sections, complete, current.
 
-If you read one document, read that one.
+It does not carry every number. Sixteen companion documents hold detail it deliberately does not duplicate, and they are current alongside it. Everything else is either a decision record or a historical one.
+
+If you read one document, read the bible. If you are about to build something, check whether a companion owns it.
 
 ---
 
@@ -23,41 +25,64 @@ If you read one document, read that one.
 | Document | What it is | Who needs it |
 |---|---|---|
 | **`broodline_bible.md`** | The design, §1–10. Current truth. | Everyone |
-| **`broodline_screen_inventory_v2.md`** | 32 screens, build priority, what the designed prototypes still need | Design, engineering, production |
-| **`broodline_splice_confirm_spec.md`** | Full copy and interaction states for the splice confirmation flow. Referenced by bible §2.7. | Whoever builds the splice screen |
-| **`design_handoff_broodline/`** | 20 interactive screen prototypes, design tokens, Character Bible. Visual language and layout. | Design, engineering, illustration |
+| **`broodline_screen_inventory_v2.md`** | 56 screens, build priority, what the designed prototypes still need | Design, engineering, production |
+| **`broodline_build_order.md`** | What to build and in what order, the procurement to start now, and what playtest has to answer | **Production. Start here after the bible** |
+| **`broodline_waves_01_12.md`** | Chapters 1 and 2 authored — waves 1 to 12, the wave schema, and the designed Courser loss | Design, engineering, anyone authoring waves 21+ |
+| **`broodline_waves_13_20.md`** | Chapter 3 authored — Brood, the two-lane transition, and the four-type cap first reached | The same |
+| **`broodline_waves_21_28.md`** | Chapter 4 authored — Drift, the four-species worst case, and the three Wave Defeat states | The same |
+| **`broodline_waves_29_36.md`** | Chapter 5 authored — Bulwark, and the shield lock correction | The same |
+| **`broodline_waves_37_44.md`** | Chapter 6 authored — Delver, the third lane, and the budget formula ceasing to bind | The same |
+| **`broodline_waves_45_52.md`** | Chapter 7 authored — Breaker, Delta terrain, and the first wave a utility trait answers | The same |
+| **`broodline_gap_register.md`** | The design audit and its twelve passes. Historical now — every gap it tracked is closed | Anyone tracking how the design got here |
+| **`design_handoff_broodline/`** | 20 interactive screen prototypes, design tokens, Character Bible | Design, engineering, illustration |
 
-**Where the bible and the prototypes disagree, the bible is current.** The screen inventory names every case.
+### Companions — current, and each owns something the bible does not
+
+| Document | Owns |
+|---|---|
+| **`broodline_economy_model.md`** | Shard income by archetype, the twelve-tier facility curve, sinks, the payer ceiling, Calibration |
+| **`broodline_collectors_raiding.md`** | The full raid ruleset: Collector classes, routes, exposure, loss caps, protection systems, Marks |
+| **`broodline_live_ops_events.md`** | Event mechanics, Roulette cost and odds and pity, the Apex Cup gauntlet format |
+| **`broodline_monetization.md`** | Offer structure, the pack ladder, and the consolidated never-sold list |
+| **`broodline_moderation_ugc.md`** | UGC surfaces, filtering, reporting, blocking, age gating, the 12+ rating decision |
+| **`broodline_midgame_arc.md`** | Days 14 to 90 — the arc the bible's onboarding section stops short of |
+| **`broodline_combat_numbers.md`** | Species stat profiles, all twelve traits at three coverage tiers, Instinct numbers, eight raider profiles, the generation ceiling, the wave budget |
+| **`broodline_sample_economy.md`** | Sample sources and rates, weighting, fusing, the Gene Vault capacity curve, retirement yield, the catalyst and the Aberrant sub-roll |
+| **`broodline_base_stock.md`** | Where creatures come from: supply rates, species distribution, the Founder and milestone guarantees, the scarcity ratchet, Instinct roll weights |
+| **`broodline_campaign_structure.md`** | Sixty waves in eight chapters, the twelve Core milestones, raider introduction order, the designed Courser loss, replay economy, seasonal extension |
+| **`broodline_region_roster.md`** | All thirty regions authored, the eight terrain families, band profiles, species weighting, region defence cadence and composition |
+| **`broodline_trait_codex.md`** | The 34-entry Codex pool, four entry schemas, the threat board, disclosure and discovery policy, behaviour previews, the collection layer |
+| **`broodline_raider_roster.md`** | Raider fiction, the four-body art budget, recognition rules, telegraphing, spawn patterns, the Sunder capstone |
+| **`broodline_alliance_territory.md`** | Alliance structure, Stakes and Hold, Stake Assault, garrisons, alliance tech, convoy staging, the weekly tick |
+| **`broodline_localization.md`** | Launch language set, naming policy, translation scope and cost, per-storefront pricing, filter procurement, font coverage, age thresholds |
+| **`broodline_splice_confirm_spec.md`** | Full copy and interaction states for the splice confirmation flow |
+
+**Where a companion contradicts the bible, the bible is current and the companion needs an edit.**
 
 ---
 
-## Historical documents
+## Decision records
 
-Kept for provenance. Do not build from these.
+Not designs. Kept because they hold reasoning the current documents deliberately omit.
 
 | Document | Why it still exists |
 |---|---|
-| **`broodline_reconciliation.md`** | The decision register — nineteen decisions with the reasoning behind each. The bible states what is true; this states *why*. Worth keeping: when someone proposes reopening a decision, Part 4 shows what falls over. |
-| **`broodline_supersession_map.md`** | Maps each original spec section to what replaced it. Useful only for tracing where an idea came from. |
-| **The nine original specs** | Superseded in full by the bible. See below. |
+| **`broodline_reconciliation.md`** | The decision register — nineteen decisions with the reasoning behind each. The bible states what is true; this states *why*. Part 4 shows what falls over if any decision is reopened. |
+| **`broodline_supersession_map.md`** | What replaced what, document by document and section by section. Read it before opening anything below this line. |
 
 ---
 
-## The nine original specs
+## Superseded — do not build from these
 
-These were written one system at a time against an unsettled design. They are superseded and should carry a deprecation header.
+Every file below carries a header saying so.
 
-`broodline_genetics_system.md` · `broodline_combat_system.md` · `broodline_gene_vault.md` · `broodline_art_direction.md` · `broodline_alliance_territory.md` · `broodline_ftue.md` · `broodline_screen_inventory.md` · `splice_monetization_spec.md` · `splice_resource_node_system.md`
+**Queued for rewrite.** One document remains. `broodline_chassis_roster.md` describes ten chassis with armour types and footprints; its sidegrade envelope has already been rescued into `broodline_combat_numbers.md` §3.1, so what is left of it is small.
 
-**Header to prepend to each:**
+**Superseded outright.** `broodline_spec_reconciliation.md` — an earlier register, replaced by `broodline_reconciliation.md`. Its constants ledger is wrong on most rows and must not be used.
 
-```
-> **SUPERSEDED.** This document is no longer current and should not be
-> built from. The design lives in `broodline_bible.md`.
->
-> Kept for historical reference. See `broodline_supersession_map.md`
-> for a section-by-section map of what replaced what.
-```
+**The eight original specs still superseded.** Written one system at a time against an unsettled design. A ninth, `broodline_alliance_territory.md`, has since been brought current and moved up.
+
+`broodline_genetics_system.md` · `broodline_combat_system.md` · `broodline_gene_vault.md` · `broodline_art_direction.md` · `broodline_ftue.md` · `broodline_screen_inventory.md` · `splice_monetization_spec.md` · `splice_resource_node_system.md`
 
 The two files still named `splice_*` predate the project rename; Splice was the working title.
 
@@ -65,29 +90,34 @@ The two files still named `splice_*` predate the project rename; Splice was the 
 
 ## Reading order by role
 
-**Engineer** — bible §1–4 for the core loop, then the screen inventory for what to build in what order, then the splice confirm spec before touching that screen. Note the Splice Chamber prototype is a static file with no logic; it is built from spec, not ported.
+**Engineer** — bible §1–4 for the core loop, then the screen inventory for build order, then the splice confirm spec before touching that screen. `broodline_collectors_raiding.md` before anything in the PvP layer. Note the Splice Chamber prototype is a static file with no logic; it is built from spec, not ported.
 
-**Designer** — bible in full, then the screen inventory's rework column. Eleven designed screens are wrong in ways not visible from the prototype.
+**Designer** — bible in full, then the screen inventory's rework column. Twelve designed screens are wrong in ways not visible from the prototype, and thirty-five screens have never been designed at all.
 
-**Illustrator** — bible §10, then §1.2 for the six species and §4.4 for the eight raiders. The Character Bible in the handoff bundle is the commission reference. Total roster is 24 assets.
+**Illustrator** — bible §10, then §1.2 for the six species and `broodline_raider_roster.md` for the eight raiders. The Character Bible in the handoff bundle is the commission reference. **Thirty-six assets total** — 24 creature, 12 raider. Creatures are 3D; rig one species as a pipeline proof first.
 
-**Economy / live-ops** — bible §7.6 and §8. Every number in §7.6 is a soft-launch starting point, not a decision. §8.6 is the list to check any new offer against.
+**Economy / live-ops** — bible §7.6 and §8, then `broodline_economy_model.md` and `broodline_live_ops_events.md`, which hold the actual numbers. Every value is a soft-launch starting point. Bible §8.6 is the list to check any new offer against.
 
-**New to the project** — this file, then the bible, then skim the reconciliation register's summary table to see what was decided and what it replaced.
+**Production** — this file, then `broodline_build_order.md`. Two procurement items should be in motion before the first screen is built.
+
+**New to the project** — this file, then the bible, then skim the reconciliation register's summary table.
 
 ---
 
 ## Project status
 
-**Design: complete.** Ten bible sections, nineteen settled decisions, ten derived constraints.
+**The design is done. Almost none of the game is made.**
 
-**Not done:**
+Ten bible sections, nineteen settled decisions, ten derived constraints, seventeen current companions. Every mechanic specified, every constant set to a soft-launch starting value. The open questions that remain in those documents are tuning questions, and tuning questions are answered by playtest rather than by writing.
 
-- **Economy tuning.** Sample drop rates, fusing costs, capacity curve, catalyst frequency, charge regen. Structure is settled; every value needs session data.
-- **Trait utility balance.** Four of twelve traits counter nothing — Carapace, Litter, Regrow, Screen. If they are weak, four of six species become delivery vehicles for a single counter and the roster collapses toward Ember and Hollow. This is the most under-specified thing in the design.
-- **Instinct source weighting.** Gen-1 base stock rolls an Instinct weighted by species; the weights are unset.
-- **Season length.** Six or eight weeks.
-- **Convoy interception grace period.** Day 14 by default, unconfirmed.
+Against that: fifty-nine screens of which nine exist, sixty campaign waves of which fifty-two are authored, thirty-six character assets of which none are modelled, and two procurement items with external lead times that nobody has started.
+
+**`broodline_build_order.md` is the document that says what to do about it.** In short: start the moderation filter and CJK font procurement now, prove the creature rig on one species before anything large begins, and instrument the Litter question and Skirmisher's spawn interval from the first playable build.
+4. **Trait utility balance.** Carapace, Litter, Regrow and Screen have effects now, and Litter is confirmed too *strong* rather than too weak — at six creatures a day it supplies over half a core player's base stock from one trait slot. First thing to check in playtest.
+5. **Alliance convoy staging**, and the weekly tick hour across timezones.
+6. **Localization plan.** Blocks regional pricing and the moderation filter's language coverage.
+
+Tracked in full, with dependencies, in `broodline_gap_register.md`.
 
 ---
 
@@ -95,8 +125,8 @@ The two files still named `splice_*` predate the project rename; Splice was the 
 
 If a change would break one of these, it needs a conversation rather than a commit.
 
-1. **No purchase grants trait access.** Packs, pulls, tier perks and alliance tech grant coverage only. This is the sole thing keeping hard counters from being a paywall, and it has already leaked in three separate systems.
-2. **Acquiring all six species yields all eight counters**, and campaign milestones guarantee species so luck cannot lock anyone out.
+1. **No purchase grants trait access.** Packs, pulls, tier perks and alliance tech grant coverage only. This is the sole thing keeping hard counters from being a paywall, and it has already leaked in four separate systems.
+2. **Acquiring all six species yields all eight counters.** A Gen-1 creature always carries its species' trait pair, never rolled, so acquiring the species is acquiring its counters. Five Founders and one campaign milestone deliver all six inside the first week.
 3. **Waves escalate by volume, never by resistance.** No raider is ever immune to a tier-I answer.
 4. **No creature is ever lost involuntarily.** Combat, raids and assaults never remove one. Only splicing and retirement do, and both are the player's choice.
-5. **Control confers advantage, never exclusion.** Common Veins are permanently unclaimable, the non-ally penalty is capped, and there are no base attacks.
+5. **Control confers advantage, never exclusion.** Common Veins are permanently unclaimable and never carry the non-ally penalty, the penalty itself is capped, and there are no base attacks.

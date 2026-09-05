@@ -4,13 +4,21 @@
 
 ---
 
+> **CURRENT — companion to the design bible.** This document is live and should
+> be built from. It owns detail that `broodline_bible.md` deliberately does not
+> duplicate. Where the two conflict, the bible is current and this document
+> needs an edit.
+>
+> Last brought into line with the bible: 4 Sep 2026.
+
+
 ## 1. Why This Document Exists
 
-The FTUE is detailed through day 14 and then stops. Week 3 says only "Apex Veins, Stake mechanics, garrison — requires an alliance and a mature roster," and nothing since has said what a mature roster is or how a player gets one.
+Bible §9 is detailed through day 14 and then stops. Its drip schedule says only "Week 3+: Apex Veins, catalysts, Stakes, garrisons — requires an alliance and a mature roster," and nothing says what a mature roster is or how a player gets one.
 
 This is the most dangerous kind of gap, because the genre's own literature — cited in the monetization spec's evidence base — puts the worst churn window at weeks three through eight, well past the window any onboarding document covers. A player who survives the FTUE is not safe. They're standing at the edge of the part of the game nobody designed.
 
-Three systems already point at this arc without owning it: the Vault gives a shard-spending goal, the campaign's milestone gating creates a waiting period between Core tiers, and the alliance layer gives a social one. This document is what connects them into a sequence instead of three unrelated systems a player discovers by accident.
+Three systems already point at this arc without owning it: the Gene Lab gives a shard-spending goal, the campaign's milestone gating creates a waiting period between Core tiers, and the alliance layer gives a social one. This document is what connects them into a sequence instead of three unrelated systems a player discovers by accident.
 
 ---
 
@@ -18,14 +26,14 @@ Three systems already point at this arc without owning it: the Vault gives a sha
 
 The FTUE names this as the metric to watch and doesn't resolve it. Raid immunity ends, exactly when a player has had two weeks to accumulate cargo worth taking and has not yet built a defensive escort roster or joined an alliance that would rally around them.
 
-**This document's answer: immunity doesn't end on a single day. It steps down.**
+**Immunity doesn't end on a single day. It steps down.** Adopted into bible §5.6.
 
 | Days 1–14 | Full immunity |
 |---|---|
 | Days 15–21 | Raidable, but **loss shield triggers after one loss instead of two** |
 | Day 22+ | Standard rules — loss shield after two losses in 24 hours |
 
-A one-week soft landing turns a cliff into a slope. The FTUE's own instruction — announce immunity's expiry as an event with a warning, paired with an escort tutorial — now has somewhere to point: the week 3 escort tutorial (§4) exists specifically to be ready before day 15.
+A one-week soft landing turns a cliff into a slope. The standing instruction — announce expiry as an event with a warning, paired with an escort tutorial — now has somewhere to point: the day-15 escort tutorial at §4 exists specifically to land before exposure begins.
 
 ---
 
@@ -40,7 +48,7 @@ Four phases, each with one job.
 | **Commitment** | 36–60 | First alliance investment, first real Vault goal |
 | **Arrival** | 61–90 | Player has an identity — raider, builder, or optimiser |
 
-The FTUE's rule was one new system per session. This arc's rule is different because the pace has to change: **one new system per week**, with everything else in service of depth on systems already introduced. A day-40 player doesn't need new mechanics; they need reasons to keep using the ones they have.
+The rule in bible §9.1 was one new system per session. This arc's rule is different because the pace has to change: **one new system per week**, with everything else in service of depth on systems already introduced. A day-40 player doesn't need new mechanics; they need reasons to keep using the ones they have.
 
 ---
 
@@ -51,7 +59,7 @@ The FTUE's rule was one new system per session. This arc's rule is different bec
 | Day | Beat |
 |---|---|
 | 15 | Escort tutorial. Guided: assign two creatures as escorts, dispatch a Collector, watch the exposure window. |
-| 16–18 | First real relocation decision — not the FTUE's scripted move, but the player's own read of the map against §4 of the region roster's richness/defensibility trade |
+| 16–18 | First real relocation decision — not the scripted day-2 move, but the player's own read of the map against the inverse richness/defensibility trade |
 | 19 | First Gene Lab event a player experiences at real stakes, having built enough to contribute meaningfully |
 | 21 | Soft immunity ends |
 
@@ -67,12 +75,12 @@ This is where the campaign's chapter structure does real work. Chapters 3 throug
 
 | System | Introduced | Why here |
 |---|---|---|
-| **Splice Roulette** | Day ~24 | Player has enough shard income to spend meaningfully; introducing it during the FTUE would have violated "nothing about probability tables in session one" |
+| **Splice Roulette** | Day ~24 | Player has enough shard income to spend meaningfully; introducing it earlier would have violated bible §9.7's rule that probability tables stay out of session one |
 | **Trait Codex, full index** | Day ~26 | Enough traits discovered that browsing is worth doing |
-| **Region-weighted chassis** | Day ~28 | Player has relocated once (§4) and can read "this region has what I need" |
+| **Region-weighted species drops** | Day ~28 | Player has relocated once (§4) and can read "this region has what I need" |
 | **First Stake Assault, as spectator** | Day ~30 | Alliance notification of a contest the player isn't part of yet — social proof before participation |
 
-**The Codex's progressive surfacing (per its own §9) has its second unlock here** — the filtered view that started in session two expands as discovery grows, and this is roughly when a player has enough entries for the full index to be worth the toggle rather than overwhelming.
+**The Codex's progressive surfacing has its second unlock here** — the filtered view that started in session two expands as discovery grows, and this is roughly when a player has enough entries for the full index to be worth the toggle rather than overwhelming.
 
 ---
 
@@ -84,15 +92,15 @@ This is the highest-risk phase for churn, because it's where the game asks for s
 
 | Milestone | Typical day | What it asks |
 |---|---|---|
-| First garrison contribution | ~38 | A creature becomes unavailable for raids or campaign |
-| Core tier 6 (Vault) | ~40 | 8,000 shards, 8-hour timer — the first upgrade that can't complete in one sitting |
+| First garrison contribution | ~38 | A creature becomes unavailable for raids or campaign — and under hard counters it may be the player's only carrier of a counter |
+| Core tier 6 | ~40 | 8,000 shards, 8-hour timer — the first upgrade that can't complete in one sitting |
 | First Apex Vein participation | ~45 | Requires alliance coordination and a Collector committed for the window |
 | Alliance tech: first branch unlocked | ~50 | Treasury contribution becomes worth making |
 | Chapter 6 complete (wave 50) | ~55 | Halfway through the campaign |
 
-**Garrison contribution is the moment to protect most carefully.** The alliance spec is right that visibility is what makes contribution work, but a player's *first* contribution needs a softer landing than the steady-state system — recommend the game surface a **suggested contribution**, one mid-tier creature the player can spare, rather than asking them to choose cold from a roster they don't yet know how to value. Getting this wrong reads as "the game asked me to give something up and I didn't understand what I was giving."
+**Garrison contribution is the moment to protect most carefully.** Bible §6.5 is right that visibility is what makes contribution work, but a player's *first* contribution needs a softer landing than the steady-state system — recommend the game surface a **suggested contribution**, one mid-tier creature the player can spare, rather than asking them to choose cold from a roster they don't yet know how to value. Getting this wrong reads as "the game asked me to give something up and I didn't understand what I was giving."
 
-**This phase is also where solo players make their real decision.** A player who hasn't joined an alliance by day 40 is telling the game something. The alliance spec's framing — solo is slower, not blocked — needs to actually hold here: Gene Lab's community layer, the Apex Cup, and full Common Vein access should be visibly sufficient to keep a solo player engaged past this point, not merely theoretically available.
+**This phase is also where solo players make their real decision.** A player who hasn't joined an alliance by day 40 is telling the game something. Bible §6.10's framing — solo is slower, not blocked — needs to actually hold here: Gene Lab's community layer, the Apex Cup, and full Common Vein access should be visibly sufficient to keep a solo player engaged past this point, not merely theoretically available.
 
 ---
 
@@ -104,13 +112,13 @@ The economy model already names these archetypes for income purposes. By day 90 
 
 | Archetype | What day 90 looks like |
 |---|---|
-| **Raider** | Vault Drive and Harvest Array prioritised, active Marks Shop use, a revenge-token habit |
-| **Builder** | Vault Habitat and Splice Chamber prioritised, deep roster, high Lineage View engagement |
+| **Raider** | Harvest Array and Collector classes prioritised, active Marks Shop use, a revenge-token habit |
+| **Builder** | Hatchery and Splicing Chamber prioritised, deep roster, high Lineage View engagement |
 | **Optimiser** | Alliance officer or active Stake contributor, Apex Vein regular, Apex Cup competitive |
 
-No archetype should be strictly ahead of another by day 90 — the Vault spec's screens are explicitly meant to look different by month three for exactly this reason. What this phase adds is that the game should *notice*: distinct daily-objective sets or a recap screen reflecting a player's actual pattern back to them is worth more here than any new mechanic, because it's the first moment the game can plausibly say "I see what kind of player you are."
+No archetype should be strictly ahead of another by day 90 — bible §7.2 explicitly expects Gene Lab screens to look different by month three for exactly this reason. What this phase adds is that the game should *notice*: distinct daily-objective sets or a recap screen reflecting a player's actual pattern back to them is worth more here than any new mechanic, because it's the first moment the game can plausibly say "I see what kind of player you are."
 
-By day 90, Core tier 8 (second Vault build slot, ~week 7 for a Core player per the economy model) should be in reach or recently hit — the single clearest evidence, alongside chapter 6–7 campaign progress, that a player's investment compounds rather than plateaus.
+By day 90, Core tier 8 (second concurrent build slot, ~week 7 for a Core player per the economy model) should be in reach or recently hit — the single clearest evidence, alongside chapter 6–7 campaign progress, that a player's investment compounds rather than plateaus.
 
 ---
 
@@ -146,4 +154,4 @@ The FTUE tracks completion and D1/D3/D7. This arc needs its own instrumentation,
 
 ---
 
-*This closes the design gaps identified in the spec audit. Remaining: profile, mail, and settings — conventional screens, buildable without a spec.*
+*Covers days 14–90. Bible §9 covers everything before it.*

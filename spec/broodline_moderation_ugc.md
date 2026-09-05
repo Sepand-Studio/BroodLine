@@ -4,9 +4,17 @@
 
 ---
 
+> **CURRENT — companion to the design bible.** This document is live and should
+> be built from. It owns detail that `broodline_bible.md` deliberately does not
+> duplicate. Where the two conflict, the bible is current and this document
+> needs an edit.
+>
+> Last brought into line with the bible: 4 Sep 2026.
+
+
 ## 1. Why This Document Exists
 
-Seventeen documents describe a game with user-generated content and none of them mention moderation.
+The design describes a game with user-generated content across five surfaces. Until this document, none of them mentioned moderation.
 
 This is not a design preference. Apple's App Review Guidelines require any app carrying user-generated content to provide **content filtering, in-context reporting, user blocking, and published developer contact information.** An app that ships without all four is rejected, and the rejection arrives at the end of the process rather than the start.
 
@@ -20,33 +28,34 @@ Five, spread across four specs and never counted together:
 
 | Surface | Source | Volume | Persistence | Visibility |
 |---|---|---|---|---|
-| **Alliance chat** | Alliance §2 | High | Ephemeral | Up to 40 members |
-| **Founder naming** | Genetics §6, FTUE beat 4 | 5 per player | **Permanent** | Public via Lineage View |
-| **Recipe Share** | Monetization §5 | Medium | Persistent | **Server-wide** |
-| **Alliance name & description** | Alliance §2 | Low | Persistent | Public on the map |
-| **Player display name** | Screens §4 | One | Persistent | Public |
+| **Alliance chat** | Bible §6.2 | High | Ephemeral | Up to 40 members |
+| **Founder naming** | Bible §3.3, §9.2 beat 4 | 5 per player | **Permanent** | Public via Lineage View |
+| **Recipe Share** | Bible §3.7, §8.4 | Medium | Persistent | **Server-wide** |
+| **Alliance name & description** | Bible §6.2 | Low | Persistent | Public on the map |
+| **Player display name** | Screen inventory | One | Persistent | Public |
+| **Apex Cup leaderboard** | Bible §8.4 | One | Seasonal | **Server-wide** |
 
-**Founder naming is the one nobody would flag.** It's five words entered in the first five minutes, and the FTUE calls it the emotional anchor of session one. It's also permanent, propagates into every descendant's lineage tree, and appears inside system dialogs — the genetics spec specifies the consumption confirmation reads "Consume Ash permanently?" using the player's chosen name. A slur entered at minute four appears in a modal dialog for two years.
+**Founder naming is the one nobody would flag.** It's a few words entered in the first five minutes, and bible §9.2 calls it the emotional anchor of session one. It's also permanent, propagates into every descendant's lineage tree, and appears inside system dialogs — `broodline_splice_confirm_spec.md` specifies the consumption confirmation reads "Consume Ash" using the player's chosen name. A slur entered at minute four appears in a modal dialog for two years.
+
+**A sixth surface has since been added: the Apex Cup leaderboard.** It is server-wide and displays player names, which are already filtered at creation. It needs a report control and nothing more.
 
 ---
 
-## 3. The Rating Conflict
+## 3. The Rating — Resolved at 12+
 
-The art direction states a **9+ rating** twice as a design constraint — it's why damage shows as posture rather than injury.
+An early art brief committed to a **9+ rating** and justified the violence restraint by it.
 
-**Open text chat is difficult to reconcile with 9+.** Comparable titles in this category generally carry 12+ ratings, and unrestricted player-to-player messaging is a standard reason for it. The two commitments in the spec set point in opposite directions and one of them has to move.
-
-Three options:
+Open text chat is difficult to reconcile with 9+. Comparable titles in this category generally carry 12+, and unrestricted player-to-player messaging is a standard reason for it. Two commitments pointed in opposite directions and one had to move.
 
 | Option | Cost |
 |---|---|
-| **Move to 12+, keep open chat** | Loses the youngest segment of the broad audience |
-| **Hold 9+, restrict chat to canned phrases** | Cripples the alliance coordination layer |
-| **Hold 9+, tier chat by account age** | Complexity, but preserves both commitments |
+| **12+ with open chat** ← chosen | Loses the youngest segment of the broad audience |
+| 9+ with canned-phrase chat | Cripples the alliance coordination layer |
+| 9+ with chat tiered by account age | Complexity, but preserves both commitments |
 
-**Recommendation: ship 12+ with open chat.** The alliance layer is load-bearing across three specs — rally broadcasts, garrison negotiation, territory coordination — and canned phrases cannot carry it. The art direction's restraint on violence remains correct regardless of rating; it's the right creative choice independent of the number it was justified by.
+**Settled at 12+ with open chat**, recorded in bible §10.7. The alliance layer is load-bearing across three systems — rally broadcasts, garrison negotiation, territory coordination — and canned phrases cannot carry it. The restraint on violence stands regardless; it was the right creative call independent of the number that justified it.
 
-This needs an explicit decision, because it also changes the marketing audience and the UA targeting.
+Consequence for UA: the marketing audience narrows slightly and targeting should be set against 12+ from the start rather than adjusted after submission.
 
 ---
 
@@ -54,7 +63,7 @@ This needs an explicit decision, because it also changes the marketing audience 
 
 The single cheapest risk reduction available in this document.
 
-A shared recipe, per the genetics spec, is the two parents' trait sets, the chassis chosen, the resulting child, and the ancestry chain. **All of that is structured data.** None of it requires free text.
+A shared recipe, per bible §3.7, is the two parents' trait sets, the species body chosen, the resulting child, and the ancestry chain. **All of that is structured data.** None of it requires free text.
 
 **Recommendation: no title field, no description, no comments on Recipe Share.** The recipe is the data plus the sharer's display name. Rating is a numeric score with no written review.
 
@@ -75,7 +84,7 @@ An age gate at account creation is required regardless of rating, because purcha
 - No behavioural advertising in rewarded video
 - Founder naming from a curated name pool, with free entry disabled
 
-Founder naming from a pool is the compromise that hurts most, since the FTUE leans on it as the emotional anchor. A large, varied pool of evocative names keeps the beat intact — the player still chooses, they just choose from a list.
+Founder naming from a pool is the compromise that hurts most, since bible §9.2 leans on it as the emotional anchor. A large, varied pool of evocative names keeps the beat intact — the player still chooses, they just choose from a list.
 
 ---
 
@@ -162,12 +171,13 @@ A game shipping in eight languages with an English-only filter has, in practice,
 
 ## 13. Open Questions
 
-1. **9+ or 12+?** The rating decision blocks store listing, UA targeting, and the chat design. It should be made early and it is currently contradicted between documents.
+1. ~~**9+ or 12+?**~~ **Resolved at 12+** — see §3 and bible §10.7.
 2. **Is a canned-phrase set worth building for under-13 accounts,** or is disabled chat acceptable? Disabled chat effectively excludes minors from the alliance layer, which is a third of the game.
 3. **Moderation staffing model** — in-house, outsourced, or automated-first with human escalation. Cost scales with success, which makes it easy to under-budget.
 4. **Chat log retention period.** Long enough for review, short enough for GDPR deletion obligations. These pull against each other and need a legal answer, not a design one.
-5. **Does the Apex Cup leaderboard display names publicly?** If so it is a sixth UGC surface, and the highest-visibility one in the game.
+5. ~~**Does the Apex Cup leaderboard display names publicly?**~~ **Yes — counted as the sixth surface in §2.** It needs a report control; display names are already filtered at creation, so nothing further is required.
+6. **Where does the age gate sit relative to the cold open?** Bible §9.2 puts play in the first twenty seconds and forbids anything before it. An age gate is a form. Recommend the gate on first launch before the cold open, kept to a single date field — it is the only pre-play screen the design should ever allow, and deferring it means retrofitting under-13 restrictions onto an account that has already named a Founder.
 
 ---
 
-*Remaining undocumented: the monetization rewrite, the D14–D90 retention arc, and profile/mail/settings.*
+*Screens this document requires that the inventory now carries: Account Creation / Age Gate, Report, Block List, Settings / Support.*

@@ -6,6 +6,32 @@
 
 Where this contradicts an original spec, this document is current. `broodline_reconciliation.md` records why each decision was made; this document records only what is true.
 
+## Companion documents
+
+The bible states the design. It does not carry every number. Seven documents hold detail this one deliberately does not duplicate, and they are current alongside it:
+
+| Document | Owns |
+|---|---|
+| `broodline_economy_model.md` | Shard income, facility cost and timer curves, sinks, the payer ceiling |
+| `broodline_collectors_raiding.md` | The full raid ruleset, Collector classes, routes, loss caps, Marks |
+| `broodline_live_ops_events.md` | Event mechanics, Roulette odds and pity, the Apex Cup format |
+| `broodline_monetization.md` | Offer structure and the consolidated never-sold list |
+| `broodline_moderation_ugc.md` | UGC surfaces, filtering, reporting, age gating, enforcement |
+| `broodline_midgame_arc.md` | Days 14–90, the arc §9 stops short of |
+| `broodline_combat_numbers.md` | Species stats, trait coverage values, Instinct numbers, raider profiles, the generation ceiling, the wave budget |
+| `broodline_sample_economy.md` | Sample sources and rates, weighting, fusing, the capacity curve, the catalyst and the Aberrant sub-roll |
+| `broodline_base_stock.md` | Where creatures come from: supply rates, species distribution, the Founder and milestone guarantees, Instinct roll weights |
+| `broodline_campaign_structure.md` | Sixty waves, eight chapters, the twelve Core milestones, raider introduction order, the designed loss, replay |
+| `broodline_waves_01_12.md` · `_13_20.md` · `_21_28.md` | Authored campaign waves, chapters 1 to 4 |
+| `broodline_region_roster.md` | All thirty regions, the eight terrain families, species weighting, region defence cadence and composition |
+| `broodline_trait_codex.md` | The Codex pool, entry schemas, the threat board, disclosure policy, behaviour previews, the collection layer |
+| `broodline_raider_roster.md` | Raider fiction, the four-body art budget, recognition rules, telegraphing, spawn patterns, the Sunder |
+| `broodline_alliance_territory.md` | Alliance structure, Stakes and Hold, Stake Assault, garrisons, alliance tech, convoy staging, the weekly tick |
+| `broodline_localization.md` | Launch languages, naming policy, per-storefront pricing, font coverage, filter procurement, age thresholds |
+| `broodline_splice_confirm_spec.md` | Splice screen copy and interaction states |
+
+Where a companion contradicts the bible, the bible is current and the companion needs an edit. Five further documents — chassis roster, trait codex, enemy archetypes, campaign structure, region roster — describe the pre-reconciliation game and are superseded pending rewrite. See `broodline_supersession_map.md`.
+
 ---
 
 # §1 — The Creature Model
@@ -54,7 +80,7 @@ Chill I slows one Courser; Chill III slows a pack. Reach I answers a flier in on
 
 This is the single most important rule in the trait system. It keeps the lock binary and honest — any Chill stops a Courser — while giving tier real weight. Later waves pressure the player with **more**, never with resistance. No raider is ever immune to a tier-I answer.
 
-Coverage rises by fusing samples (§1.6), bounded by generation (§2.5).
+Coverage rises by fusing samples (§1.6), bounded by generation (§2.5). Concrete values at every tier: `broodline_combat_numbers.md` §4.
 
 ## 1.4 Instinct
 
@@ -75,7 +101,7 @@ Behavior has no magnitude that can grow, which is why Instinct is untiered. A st
 
 **Triggers must fire visibly** — an animation state change or a colour shift. The moment Last Stand kicks in should be legible from across the room.
 
-**Where Instincts come from.** Gen-1 base stock rolls one Instinct, weighted so each species has a signature behavior it usually carries but can carry any of the six. This preserves species identity while keeping every Instinct reachable by breeding. *Weighting values to be set with the drop tables.*
+**Where Instincts come from.** Gen-1 base stock rolls one Instinct, weighted so each species has a signature behaviour it usually carries but can carry any of the six. This preserves species identity while keeping every Instinct reachable by breeding. Signature 35%, the other five 13% each; per-species signatures in `broodline_base_stock.md` §6.
 
 ## 1.5 Growth
 
@@ -108,7 +134,9 @@ Samples exist for the twelve species traits only. No Instinct samples, no Aberra
 
 Fusing is permanent and instant — no timer, no builder. Sample inventory, fusing and the retired-creature archive live on the **Sample Store** screen; its capacity is governed by the Gene Vault facility.
 
-**Retirement yields samples and pedigree, never traits.** Retiring a creature banks coverage and preserves its lineage record. The trait itself dies with the animal, which is the point the whole system is making.
+**Retirement yields samples and pedigree, never traits.** Retiring a creature returns exactly the samples fused into it and preserves its lineage record. The trait itself dies with the animal, which is the point the whole system is making.
+
+**Coverage travels with the trait through a splice.** The locked trait carries at full coverage; a recessive roll carries one tier lower; the two traits that do not carry take their coverage with them and it is gone. That loss is the largest sink in the sample economy and it is why retirement is a real alternative to splicing rather than a consolation.
 
 ---
 
@@ -139,7 +167,9 @@ The lock matters more under hard counters than it would under a soft system. A p
 
 One lock of three rather than two of four. With only three slots, locking two would make splices near-deterministic.
 
-**Dominance.** Traits carry dominant or recessive expression, shown on the forecast. A recessive result carries the trait forward at lower coverage. This is safe because a downtier costs coverage and never access — the trait still works, it covers less, and re-fusing recovers it.
+**Dominance applies to combat traits only.** Traits carry dominant or recessive expression, shown on the forecast. A recessive result carries the trait forward at lower coverage. This is safe because a downtier costs coverage and never access — the trait still works, it covers less, and re-fusing recovers it.
+
+**The Instinct roll has no dominance**, because Instinct is untiered (§1.4) and there is no lower rung for a recessive result to land on. It is modified by affinity alone.
 
 ## 2.3 Mutation
 
@@ -215,6 +245,7 @@ A player's first five creatures are flagged as **Founders** and named by the pla
 - **Founder 1** is named in the first session, immediately after the first creature is awarded
 - **Founders 2–5** arrive across the first three days, each with an optional naming prompt and a sensible default
 - All five are renameable at any time from the Roster
+- **Every prompt has a skip path with a good default.** A player who skips still owns a named creature; they just did not choose the name. Blocking progress on a text field loses exactly the players least invested at minute four, and the naming-rate metric at §3.6 only means something if skipping is possible.
 
 One name in the first session, the rest spread out. Five text-entry moments in one sitting is friction that loses people; the first name carries the emotional weight and the others are bonus.
 
@@ -276,9 +307,11 @@ This is load-bearing. It makes combat playable one-handed in ninety seconds, it 
 
 **Defenders go in pockets beside the lane, never on it.** Placement is about coverage, not mazing. This keeps combat legible on a phone and keeps composition, rather than layout puzzling, the deciding factor.
 
-**The region sets the lane count, 1–3.** This is the game's cleanest difficulty dial: more lanes means more raiders arriving at once, which means more counters held simultaneously. It ties directly to region richness — an Apex Vein region is more dangerous to hold than a Common Vein one, so "is this spot worth it" gains a tactical answer alongside an economic one.
+**The region sets the lane count, 1–3, for region defence and raids.** Campaign waves are the exception: each carries its own authored lane count, fixed per wave. Deriving campaign terrain from wherever the Ark happens to be parked makes the same wave trivial from one region and brutal from another, which is unbalanceable. Region defence is where relocation changes the battlefield; the campaign is where it is taught.
 
-Relocating the Ark therefore changes defensive terrain as well as yield. Regions are hand-authored; there are roughly thirty and their tactical identity is worth the effort.
+ This is the game's cleanest difficulty dial: more lanes means more raiders arriving at once, which means more counters held simultaneously. It ties directly to region richness — an Apex Vein region is more dangerous to hold than a Common Vein one, so "is this spot worth it" gains a tactical answer alongside an economic one.
+
+Relocating the Ark therefore changes defensive terrain as well as yield. Regions are hand-authored; there are thirty, and all of them are in `broodline_region_roster.md` §5 with their family, lane count, pocket count and species weighting.
 
 No elevation modifiers, no water tiles, no emplacement variety. Under hard counters those add noise to a decision already made at the splice screen.
 
@@ -287,7 +320,7 @@ No elevation modifiers, no water tiles, no emplacement variety. Under hard count
 - **Five creatures maximum**, from a roster that may hold dozens
 - Placement happens in a pre-wave phase with no timer — this is the thinking moment
 - Creatures reposition between waves, never during
-- **One Rally per wave**: a single tap granting a chosen creature roughly four seconds of doubled attack speed, on a thirty-second cooldown
+- **One Rally per wave.** A single tap granting a chosen creature roughly four seconds of doubled attack speed. One use, no cooldown — a cooldown implies a second use and turns an accent into an attention tax.
 
 Rally exists so an engaged player has something to do without making an absent player lose. It should be worth about 10% of a wave's outcome — enough to feel like agency, not enough that being away from the phone costs the fight.
 
@@ -303,8 +336,10 @@ Each raider has exactly one answer. **A defence without the answering trait does
 | **Courser** | Sprints the lane ignoring taunts; damage cannot kill it in time | **Chill** · Pale |
 | **Brood** | Splits into three on death, then splits again | **Cinder** · Ember |
 | **Drift** | Flier, crosses walls entirely | **Reach** · Hollow |
-| **Bulwark** | Front shield, breaks only under rapid repeated hits | **Sprint** · Skitter |
-| **Delver** | Burrows under the front line, surfaces mid-formation | **Burrow** · Loam |
+| **Bulwark** | Front shield that blocks damage outright and degrades only under Sprint | **Sprint** · Skitter |
+| **Delver** | Travels the whole lane underground, untargetable, surfacing at the Ark | **Burrow** · Loam |
+
+Full raider profiles — HP, speed, the mechanic each counter answers, and integrity cost: `broodline_combat_numbers.md` §6. How eight raiders are built from four shared bodies, and what they cost to make: `broodline_raider_roster.md`.
 
 There is **no damage floor**. Raw power does not substitute for the right trait — a rally with enough power on paper still fails against a Breaker wall if nothing in it carries Pierce. Composition beats numbers, and that is what sends players back to breed rather than to the store.
 
@@ -318,7 +353,7 @@ Two rules govern every wave in the game.
 
 **Never send two raiders answered by the same trait.** One perfect defender would clear the wave and the breeding pressure would evaporate. A legal wave of Courser, Drift and Brood demands Chill, Reach and Cinder simultaneously — three different species in the lineage.
 
-**Maximum four raider types per wave.** Five deployed creatures at two combat traits each is ten trait slots, but no player reliably holds ten distinct counters in one deployment. Four is the ceiling the sample economy can supply; beyond it, waves demand roster breadth that nothing guarantees.
+**Maximum four raider types per wave.** Five deployed creatures at two combat traits each is ten trait slots, but no player reliably holds ten distinct counters in one deployment. Four is the ceiling the sample economy can supply; beyond it, waves demand roster breadth that nothing guarantees. Audited against the species roster at `broodline_combat_numbers.md` §8.1, including the worst case where four counters scatter across four species.
 
 **Escalation is by volume, never by resistance.** Later waves send more raiders, across more lanes, in tighter simultaneity. No raider is ever immune to a tier-I answer. A wall that stops turning is a paywall wearing a difficulty curve.
 
@@ -336,7 +371,9 @@ Because Instinct counters nothing, it never compensates for a missing answer. It
 
 Players must learn eight raider-to-counter associations, six Instinct behaviours, and what four utility traits do. There has to be somewhere to read that.
 
-The Codex lists every discovered trait by category, what it counters, what coverage each tier provides, and a plain description of each Instinct's behaviour. Without it the splice screen's probability table is unreadable to a new player, and the counter system is learnable only by losing.
+Thirty-four entries: twelve species traits, six Instincts, eight Aberrants and the eight raiders themselves. Each states what it counters — or that it counters nothing, which four traits and every Aberrant do by design — what each coverage tier provides, and for Instincts a behaviour preview rather than a description. Its most-used view is the **threat board**: eight raiders and their answers side by side.
+
+Without it the splice screen's probability table is unreadable to a new player, and the counter system is learnable only by losing. Full spec: `broodline_trait_codex.md`.
 
 It is required, not optional. The counter model depends on the association forming, and the Codex is where a player checks it.
 
@@ -344,9 +381,9 @@ It is required, not optional. The counter model depends on the association formi
 
 | Type | Purpose |
 |---|---|
-| **Campaign** | The progression spine. Hand-authored, escalating, one new raider archetype introduced at a time. Yields samples, base stock and milestones. |
-| **Replay** | Completed waves re-run for a reduced sample drip. This is the guarantee that a player at zero charges can still open the game and make progress, and it has to genuinely work. |
-| **Region defence** | Periodic waves against local threats, scaling with region richness. Direct pressure on the "is this spot worth it" decision. |
+| **Campaign** | The progression spine. Sixty waves, eight chapters, one new raider introduced at a time. **Carries its own authored terrain and its own integrity pool, fixed per wave.** Yields samples, base stock and milestones. |
+| **Replay** | Completed waves re-run at 20% shard value, one sample, and a creature on one replay in three, capped at three per wave per day. This is the guarantee that a player at zero charges can still open the game and make progress, and once the campaign is finished it is also their main creature supply. |
+| **Region defence** | Periodic waves against local threats — every 5 to 12 hours by richness, with the raider pool widening as richness rises. Terrain is the region's own. Direct pressure on the "is this spot worth it" decision. |
 | **Raid defence** | Resolved by the same engine, usually while the defender is offline. |
 
 ## 4.9 Raids
@@ -356,6 +393,8 @@ The engine runs with roles inverted. The defender's escort creatures are placed 
 Attacking creatures use their full loadout including Instinct, so an attacking Skittish creature will retreat from its own raid — a real and interesting drawback.
 
 Defenders benefit from terrain and emplacement; attackers benefit from choosing the moment. Neither side should win more than about 55% of the time at equal investment.
+
+Targeting, exposure windows, loss caps, cooldowns, matchmaking bands and protection systems: `broodline_collectors_raiding.md`.
 
 ## 4.10 Auto-resolve and the replay
 
@@ -370,7 +409,17 @@ Two reasons. If auto-resolve uses different maths, players will discover it and 
 - **No creature is ever lost in combat.** A creature reduced to zero HP enters regeneration — unavailable for 20–60 minutes depending on how the wave went.
 - Regeneration is skippable with Gene Shards, a clean convenience sink that buys speed rather than power.
 - A failed campaign wave costs only the regeneration timers. Retry immediately with a different roster.
-- **Wave Defeat names the raider that broke through and the trait that would have answered it**, then offers a free retry. This is the screen that teaches the counter system, and there is no paywall on failure.
+- **Wave Defeat names the raider that broke through and why the defence failed**, then offers a free retry. This is the screen that teaches the counter system, and there is no paywall on failure.
+
+**It must distinguish three failures, not one.** Naming the answering trait is right at wave 6, where the player does not have Chill and the screen hands them a Pale. It is wrong everywhere the player *does* hold the trait — a player who loses to a second Drift and is told "answered by Reach" has been told something they know and implied to lack something they have had since their first Founder.
+
+| What happened | What the screen says |
+|---|---|
+| **Access** — nobody deployed carries it | *"No creature you deployed carries Reach."* |
+| **Coverage** — the tier was too low | *"Your Reach covers one lane. Two Drifts arrived in two."* |
+| **Placement** — the carrier was in the wrong lane | *"Your Reach carrier covered lane A. The Drift came down lane B."* |
+
+Access, coverage and placement are exactly the three things §4.4 asks a player to get right, so they are exactly the three the loss screen has to separate. Collapsing them into one line turns a teaching surface into a scoreboard, and §4.4's claim that a wrong-trait defence simply does not work is only fair if losing is legible.
 
 ## 4.12 Guardrails
 
@@ -379,7 +428,7 @@ Two reasons. If auto-resolve uses different maths, players will discover it and 
 - No creature is lost involuntarily
 - Raider composition is always visible before deployment
 - Rally is capped so an absent player is not punished
-- New species and traits in later seasons are sidegrades — a launch-era Vetch must still be viable in year two
+- New species and traits in later seasons are sidegrades — a launch-era Vetch must still be viable in year two. The rule that enforces it is the power budget at `broodline_combat_numbers.md` §3.1
 - **The counter pool is closed.** A new raider must be answerable by an existing counter, or ship with its answer already in general supply.
 
 ---
@@ -402,15 +451,25 @@ Unpack is the reverse. The satisfying beat is the footprint expanding and facili
 
 Committing to a crossing is the game's recurring strategic decision. The screen's job is to make transit vulnerability legible before the player commits.
 
-**Three routes, none strictly better:**
+**Transit time is set by distance, then modified by route.** Base times at Drive tier 1:
+
+| Distance | Base time |
+|---|---|
+| Within a band | 25 min |
+| Through a gate | 50 min |
+| Inner Reach to Outer Reach | 95 min |
 
 | Route | Time | Intercept risk | Cost |
 |---|---|---|---|
-| Direct crossing | ~3h | 62% | — |
-| Alliance corridor | ~4h 20m | 14% | — |
-| Night move | ~5h 10m | 0% | 120 Gene Shards |
+| Direct crossing | ×1.0 | 62% | — |
+| Alliance corridor | ×1.4 | 14% | — |
+| Night move | ×1.7 | 0% | 120 Gene Shards |
+
+An earlier draft set flat three-to-five-hour crossings. Those are too long for a game whose sessions run ninety seconds, and they made the Drive facility's value invisible. Distance-based timing also gives the map's band structure a mechanical consequence.
 
 **Costs are always shown**, not discovered: harvest in progress is forfeited, defenders are stowed so there is no wave cover, and lab timers keep running unaffected.
+
+**What an interception costs.** An intercepted Ark is forced to unpack in the segment where it was caught, and the player replots from there. It loses transit time and any harvest that would have started on arrival. **It loses nothing else** — no cargo, no roster, no stored resources, no facility state. Nothing may make interception a route around §6.8's ban on base attacks.
 
 Transit speed and the exposure window scale with the **Drive** facility.
 
@@ -442,7 +501,9 @@ Yield scales with:
 - Whether the player or their alliance controls the region
 - Node richness tier
 
-**Apex Veins require active harvesting** — a Collector unit physically present, which can be intercepted in transit.
+**A Collector is how a player harvests anything outside the Ark's own region.** This was carried as an open sign-off for some time — the original node spec framed Collectors as an Apex-only requirement, `broodline_collectors_raiding.md` made them general-purpose — and it is settled in favour of general purpose. Apex Veins are rare; Apex-only Collectors would mean almost no convoys, almost no raid targets, and a Marks economy with nothing feeding it. It also gives the map a second answer to *there is better ground over there*: relocate and commit, or dispatch and accept exposure.
+
+**Apex Veins additionally require presence** — a Collector physically stationed for the whole extraction window, not just running a delivery. That is what makes Apex windows the game's peak-contest moment.
 
 **Contested nodes.** If one Ark is in range it takes full yield. If rival Arks are present simultaneously, yield splits proportionally to a presence stat combining time in region and Harvest Array tier — which rewards early arrival over last-minute swooping. Allied Arks harvest the same region at full rate simultaneously, so clustering is a mechanical advantage.
 
@@ -456,11 +517,24 @@ Collectors carry cargo from node to Ark along a visible route, and rival players
 - Allies can ride escort, which is the moment alliances feel useful rather than administrative
 - **Raids take cargo in transit. Never roster, never stored resources, never the Ark.**
 
-New players have raid immunity for their first fourteen days. Expiry is announced as an event with warning, ideally paired with an escort tutorial — never a silent flag flip.
+**Raid immunity steps down; it does not end.** A hard expiry on day fourteen puts a player into open PvP at exactly the moment they have accumulated cargo worth taking and have not yet built an escort roster or joined an alliance.
 
-## 5.7 The map screen
+| Days 1–14 | Full immunity |
+|---|---|
+| Days 15–21 | Raidable, but the loss shield triggers after **one** loss instead of two |
+| Day 22+ | Standard rules |
 
-The daily decision hub, and the screen players check every login.
+Expiry is announced as an event with warning and paired with an escort tutorial on day 15 — never a silent flag flip.
+
+## 5.7 The map
+
+**Thirty regions in three concentric bands.** The **Inner Reach** — eight regions, settled, low richness, forgiving terrain, and **permanently unclaimable** by any alliance. The **Mid Reach** — twelve regions, the working map, where most players live. The **Outer Reach** — ten regions, Fracture-adjacent, high richness, punishing terrain. Bands connect only through **gates**, four at each boundary, which give raiders predictable ground to watch and make route choice a real decision.
+
+**Richness and defensibility run opposite.** The best nodes sit on the worst ground — the Outer Reach skews toward three-lane regions, the Inner Reach toward one. Without this rule the map has a correct answer, everyone converges on it, and relocation stops being a decision. With it every move is a trade.
+
+Bands also answer the map's hardest layout problem: zooming by band shows eight to twelve regions at a time, which is readable on a phone where thirty are not. Each server runs its own copy of the thirty regions with independent rotation, territory and tick timing.
+
+The map screen is the daily decision hub, and the one players check every login.
 
 - Regions coloured by state: rich, common, drained, contested, Apex active
 - The player's Ark, ally Arks and hostile Arks as distinct markers
@@ -468,7 +542,7 @@ The daily decision hub, and the screen players check every login.
 - Apex veins as pulsing concentric rings
 - Tapping a region shows richness, controller, travel time, node types present, lane count, and live alerts
 
-Lane count belongs on this screen. Relocation changes defensive terrain as well as yield, and hiding that would make the move a gamble rather than a decision.
+Lane count belongs on this screen. Relocation changes defensive terrain as well as yield, and hiding that would make the move a gamble rather than a decision. So does the region's **species weighting** — two species whose base-stock drops are roughly tripled there — since "I need a Loam line and this region drops them" is a relocation reason with nothing to do with yield.
 
 ## 5.8 The pressure curve
 
@@ -513,6 +587,8 @@ Hold accrues from **member presence** (Arks in the region, weighted by time), **
 
 **Control resolves on the weekly tick**, synced with the Rich Deposit rotation and the weekly event. One day a week the map reshuffles and territory changes hands at the same moment. That is one reason to log in rather than three scattered ones.
 
+**The tick hour is per-server**, chosen at server creation from three fixed slots approximating APAC, EMEA and Americas prime evening, and never changed afterward. It always displays in the player's own local time. A single global hour would hand two thirds of the world a tick that fires while they sleep, and a moving one would make territory planning impossible.
+
 If two alliances hold Stakes in one region it is **Contested** — Hold accrues to both, control goes to the higher total at the tick, and **the losing Stake is refunded rather than destroyed.** Losing a contest should cost a week, not an investment.
 
 ## 6.4 Stake Assault
@@ -545,7 +621,7 @@ Under hard counters the cost bites harder than it would otherwise. Garrisoning a
 | Benefit | Effect |
 |---|---|
 | **Cooperative harvest** | Allied members harvest the region's nodes at full rate simultaneously, no splitting |
-| **Non-ally penalty** | Hostile Arks harvest at **−40%** — a penalty, never a lockout |
+| **Non-ally penalty** | Hostile Arks harvest Rich Deposits and Apex Veins at **−40%** — a penalty, never a lockout. **It never applies to Common Veins**, in any region, under any controller. |
 | **Interception advantage** | Hostile raiders are less effective on routes through the region |
 | **Convoy staging** | Multi-member convoys depart from controlled regions only |
 | **Regional banner** | Cosmetic display on the map |
@@ -632,20 +708,24 @@ The Gene Lab is an isometric base view. Not one number going up — six faciliti
 | **Hatchery** | Roster capacity — **floor of 20**, scaling upward |
 | **Gene Vault** | Sample capacity |
 | **Harvest Array** | Yield rate, and presence weight in contested regions |
-| **Drive** | Relocation speed, transit exposure window |
+| **Drive** | Ark relocation speed and Ark transit exposure window. **Nothing else.** |
 | **Core** | Ark integrity in PvE region defence; caps every other facility |
 
 Different players prioritise differently and that is the point. A raider invests in Drive and Harvest Array. A breeder pushes Hatchery and Splicing Chamber. Neither is wrong, and their Gene Lab screens should look visibly different by month three.
 
 **Roster capacity never binds below what the counter system requires.** Holding all eight counters takes four creatures at best distribution, and a player also needs five deployed plus garrison and escort commitments. Twenty is the floor, not the ceiling — a cap that forces a player to drop a counter is a soft lockout.
 
+**Ark integrity is a pool, not a single point.** A raider reaching the Ark costs integrity by type rather than ending the wave outright; the wave is lost when the pool empties. Values at `broodline_combat_numbers.md` §2.
+
 **Core's integrity stat applies to region defence and nothing else.** Raids never target the Ark and §6.8 forbids base attacks, so this must not become a PvP stat.
+
+**Drive touches the Ark only.** Faster Collector transit is a shorter exposure window, which is a defensive PvP buff bought with shards — a direct violation of §7.7. Collector classes therefore unlock through campaign milestones and the alliance Convoy branch, never through Drive. This was flagged as an open question in two earlier specs and is closed here.
 
 ## 7.3 Core as the spine
 
 **No facility may exceed Core's tier.** Core is the expensive, slow, deliberate upgrade — the town-hall pattern, which works because it forces periodic hard commitment rather than continuous drip.
 
-Twelve tiers. Each requires Gene Shards on a steepening curve, a build timer, and **a campaign milestone**.
+Twelve tiers, ~585,000 Gene Shards and ~269 hours of build timer in total. Each requires shards on a steepening curve, a timer, and **a campaign milestone**. Full curve and the other five facilities: `broodline_economy_model.md` §5. The twelve milestone waves are in `broodline_campaign_structure.md` §2; tier 12 lands on wave 60, the campaign's last.
 
 That last requirement is the most important guardrail in this section. **Core progression cannot be bought past.** A player who spends heavily on day one accelerates through the shard and timer costs and then stops, blocked at the same campaign wall as everyone else.
 
@@ -672,11 +752,13 @@ Every tier perk is **convenience or cosmetic, never raw combat power**:
 | Tier | Perk |
 |---|---|
 | 2 | +1 Splice Charge cap |
-| 4 | 10% faster charge regen |
-| 6 | Daily free sample pull |
-| 8 | Second simultaneous splice queue |
-| 10 | Cosmetic creature aura |
+| 4 | +1 charge cap · 10% faster charge regen |
+| 6 | +1 charge cap · daily free sample pull |
+| 8 | +1 charge cap · second simultaneous splice queue |
+| 10 | +1 charge cap (now 10) · cosmetic creature aura |
 | 12 | Unique title, permanent +15% Gene Shard bonus on purchases |
+
+Odd tiers grant Geneticist XP milestones and cosmetic titles only.
 
 **Tier 6 grants a sample, never a trait.** The original spec described a daily rare-*trait* pull; because Tier progress is purchasable through shard-to-XP conversion, a tier perk granting trait access would be a purchase path to access. Samples are coverage, and coverage is buyable.
 
@@ -684,15 +766,15 @@ Every tier perk is **convenience or cosmetic, never raw combat power**:
 
 ## 7.6 The sample economy
 
-New material — no source document covers this. Structure is settled below; **every number is a starting point for soft-launch tuning.**
+Structure is settled below. **Every value lives in `broodline_sample_economy.md`**, which owns sources and rates, tier mix, weighting, the capacity curve, retirement yield, the catalyst and the Aberrant sub-roll.
 
 ### Sources
 
 | Source | Yields |
 |---|---|
-| **Wave completion** | The primary drip. Low-tier samples, always flowing. |
+| **Wave completion** | The primary drip. Tier-I samples only, always flowing, never scaling with anything. |
 | **Node harvesting** | The main volume. Rich Deposits and Apex Veins yield progressively higher tiers. |
-| **Campaign milestones** | Fixed, specific samples, so no player stalls on bad luck |
+| **Campaign milestones** | Fixed, specific samples, so no player stalls on bad luck. Never discarded by the capacity valve |
 | **Splice Roulette** | The gacha wheel. Samples, never traits. |
 | **Retirement** | Banks the retired creature's coverage |
 
@@ -710,7 +792,7 @@ Governed by the Gene Vault facility. **At 88% the display turns and warns; above
 
 This is safe. Samples are coverage, never access, so a discard costs recoverable progress and can never strand a player without an answer to a raider. The valve creates real pressure to fuse without ever creating a lockout.
 
-*Starting values: capacity around 20 at Gene Vault tier 1, scaling to roughly 60 at tier 12.*
+*Capacity runs from 20 at Gene Vault tier 1 to 60 at tier 12. Campaign milestone and Roulette samples are never discarded — a reward the player earned and did not receive reads as a bug. Full curve in `broodline_sample_economy.md` §5.*
 
 ### The catalyst
 
@@ -718,7 +800,7 @@ Apex Veins yield a **catalyst** alongside high-tier samples. A catalyst raises t
 
 This is the only route to an Aberrant that a player can influence, and it is deliberately tied to the map's most contested content rather than the store. Catalysts are earned by participating in Apex windows — which is what makes those windows matter beyond their yield multiplier.
 
-*Starting value: one catalyst per successful Apex Vein extraction.*
+*One catalyst per successful Apex Vein extraction. A catalyst raises the Aberrant sub-roll to 50% for the next three splices — roughly a one-in-seven ticket. Rates in `broodline_sample_economy.md` §9.*
 
 ## 7.7 What progression must never do
 
@@ -748,8 +830,12 @@ This is not a values statement — it is what holds the counter system together.
 | **Splice Charges** | Regen over time, daily login, rewarded ads | Packs, Season Pass | Splicing |
 | **Gene Shards** | Wave completion, achievements, events | Direct purchase | Facility upgrades, timer skips, cosmetics, Roulette |
 | **Geneticist XP** | Daily login streak, events, achievements | Included in packs; shard conversion | The 12-tier ladder |
+| **Raid Marks** | Successful attacks; 20% consolation on a failed one | **Never** | Marks Shop |
+| **Defense Marks** | Successful defences; 30% on a loss | **Never** | Marks Shop |
 
-**Charges:** cap of 5, regenerating one per 25 minutes. Cap rises with Geneticist Tier to a maximum of 10.
+Two Marks currencies exist and neither is purchasable at any price. That is structural, not a launch decision — the moment PvP currency has a dollar price, every raid becomes a spending comparison and the mode acquires a pay-to-win reputation it cannot shed. Full raid economy in `broodline_collectors_raiding.md`.
+
+**Charges:** cap of 5, regenerating one per 25 minutes. Cap rises by one at **Geneticist Tiers 2, 4, 6, 8 and 10**, reaching 10.
 
 **Charges never fully block play.** At zero charges a player can still replay completed waves for a sample drip, run region defence, manage their roster, dispatch Collectors, harvest, and claim event rewards. This guarantee has to genuinely work — it is what makes the charge system feel like pacing rather than a gate.
 
@@ -763,15 +849,22 @@ Free routes to more charges: escalating daily login streak rewards, a rewarded v
 
 ### Fixed packs
 
-| Pack | Contents | Price |
-|---|---|---|
-| Starter Splice | 5 charges · 100 shards · 500 XP | $0.99 |
-| Breeder Bundle | 15 charges · 300 shards · 1,500 XP · 1 **sample pull** | $4.99 |
-| Lab Expansion | 40 charges · 1,000 shards · 5,000 XP · 3 **sample pulls** | $9.99 |
-| Geneticist's Vault | 100 charges · 3,000 shards · 15,000 XP · 8 **sample pulls** · exclusive skin | $19.99 |
-| Mythic Lab Access | Unlimited charges for 48 hours · 5,000 shards | $14.99 |
+| Pack | Price | Shards | Charges | XP | Extra | Shards/$ |
+|---|---|---|---|---|---|---|
+| Starter Splice | $0.99 | 100 | 5 | 500 | — | 101 |
+| Lab Bundle | $4.99 | 600 | 15 | 1,500 | 1 sample pull | 120 |
+| Lab Expansion | $9.99 | 1,400 | 40 | 5,000 | 3 sample pulls | 140 |
+| Geneticist's Vault | $19.99 | 3,200 | 100 | 15,000 | 8 pulls · skin | 160 |
+| Warden's Cache | $49.99 | 9,000 | 250 | 40,000 | 20 pulls · skin | 180 |
+| Ark Reserve | $99.99 | 20,000 | 500 | 90,000 | 50 pulls · exclusive skin | 200 |
+
+**Shard value per dollar rises monotonically.** An earlier ladder did not — $4.99 delivered worse value than $0.99, and a $14.99 unlimited-charge pack contained more shards than the $19.99 tier. Players run this arithmetic and post it, and a store that punishes buying the middle tier reads as manipulative rather than mispriced.
 
 **Sample pulls, not trait pulls.** The original spec described these as rare trait pulls, which would have made counter access purchasable and broken the model on the store page. Pulls grant samples, which raise coverage on traits a player already holds.
+
+**No unlimited-anything pack.** The dropped "Mythic Lab Access — unlimited charges for 48 hours" is self-limiting in practice, since splicing consumes parents and a player runs out of creatures before charges. But selling an unlimited anything invites the reading that throughput is purchasable without bound.
+
+**Double Regen — $9.99, permanent.** Regen improves from 25 to 12.5 minutes. This is the conversion target of the trial at §8.5 and the closest thing to an anchor purchase in the game.
 
 First purchase of any pack grants **2× contents, one time only.**
 
@@ -783,9 +876,9 @@ This is the highest-converting mechanic available, because players stop feeling 
 
 ### Season Pass
 
-Four-week seasons. Free track carries modest charges, shards and cosmetic fragments. Paid track at $9.99 carries two to three times the free track's rewards, plus exclusive skins and XP boosts.
+Four-week seasons. Free track carries modest charges, shards and cosmetic unlocks. Paid track at $9.99 carries two to three times the free track's rewards, plus exclusive skins and XP boosts.
 
-**The paid track is more of the same currency, faster — never exclusive power.** Any creature or trait on the paid track must be obtainable free, just slower, and the pass should say so plainly.
+**The paid track is more of the same currency, faster — never exclusive power.** It carries no creatures and no traits at all: charges, shards, XP, samples, cosmetics. A lapsed season costs a player nothing they cannot earn later, and the pass should say so plainly.
 
 ## 8.4 Live-ops calendar
 
@@ -793,15 +886,15 @@ Static stores go stale. Every event ships with its own themed offer.
 
 | Event | Cadence | Mechanic | Offer |
 |---|---|---|---|
-| **Gene Lab** | Weekly | Server-wide splice goal with milestone thresholds | Limited-time bundle tied to the event |
-| **Splice Roulette** | Bi-weekly | Sample wheel with displayed odds | Discounted extra spins |
-| **Apex Cup** | Monthly | Competitive leaderboard using your best creatures | Cosmetic flair and charges |
-| **Mutation Surge** | Seasonal | **Raises the Aberrant sub-roll globally** | Limited cosmetic and charge pack |
+| **Gene Lab** | Weekly, 5 days | Server-wide splice goal, target scaled to active population | Limited-time bundle tied to the event |
+| **Splice Roulette** | Always on; featured pool rotates biweekly | Sample wheel with displayed odds and a visible pity counter | Discounted spin packs |
+| **Apex Cup** | Monthly, last 7 days | A shared 20-wave gauntlet, ranked on genetics rather than reflexes | Cosmetic flair and charges |
+| **Mutation Surge** | 6× a year, 7 days | **Raises the Aberrant sub-roll from 5% to 20%** | Limited cosmetic and charge pack |
 | **Recipe Share** | Ongoing | Players share and rate splice recipes with ancestry chains | Purchasable recipe card frames |
 
 Mutation Surge is the one event that changes the odds of something unbuyable, which is what makes it matter rather than being a reskinned banner. **It raises the chance; it never grants the trait, and its offer never contains one.**
 
-Cap FOMO events at a reasonable frequency. Burnout kills lifetime value faster than a missed sale.
+Cap FOMO events at a reasonable frequency. Burnout kills lifetime value faster than a missed sale. Never more than two timed events at once. Formats, formulas and the calendar: `broodline_live_ops_events.md`.
 
 ## 8.5 The trial hook
 
@@ -830,12 +923,16 @@ The practical form of §8.1. Three separate systems have already leaked trait ac
 
 - **Traits.** Not rare ones, not common ones, not "a creature with a guaranteed trait" where the trait is a counter.
 - **Aberrant traits**, which follows from the above since access itself is unsellable.
-- **Catalysts.** Aberrants are the one thing in the game money cannot reach even probabilistically, and that is worth more as a community and marketing asset than catalyst revenue would be. Catalysts come from Apex Veins and Mutation Surge only.
+- **Catalysts.** Aberrants are the one thing in the game money cannot reach even probabilistically, and that is worth more as a community and marketing asset than catalyst revenue would be. Catalysts come from Apex Vein extraction only. Mutation Surge raises the sub-roll globally and grants no catalyst.
 - **Hold**, or anything accelerating it.
 - **Additional Stake slots.** The cap of five is a competitive-health mechanism, not an inconvenience.
 - **Campaign milestone bypass** on Core tiers. This is the anti-whale guardrail; selling around it defeats the entire progression structure.
 - **Additional concurrent upgrade slots.** Core tier 8 is the intended gate.
 - **Increases to the non-ally harvest penalty.**
+- **Raid Marks or Defense Marks**, or any Marks-equivalent bundle.
+- **Cargo insurance**, or any paid reduction of the 40% raid loss cap. This is the most obviously profitable offer in the design and the most destructive: every raid a non-payer loses becomes an advertisement for a product they declined, which is the resentment mechanic that collapses review scores.
+- **Raid attempts beyond the daily cap.** Two per day is an economy constant, not an inconvenience.
+- **Creatures of a named species.** Every species carries at least one counter (§1.2), so selling a specific body is selling counter access by another route. Packs and the Season Pass grant currency, samples and cosmetics — never a creature.
 
 **The test for any new offer:** does it make something faster, or does it make something possible? Faster is sellable. Possible is not.
 
@@ -894,9 +991,9 @@ This is the most important addition the counter model makes to onboarding. A pla
 
 Design it deliberately:
 
-- A wave containing one raider the player's current roster cannot answer
+- **Wave 6, and the raider is Courser.** It ignores Taunt so the Vetch wall does not save the player, crosses a lane in fifteen seconds so raw damage does not either, and its answer sits on Pale — the one species the five Founders do not include
 - **Wave Defeat names the raider that broke through and the trait that would have answered it** — the screen exists for this moment
-- The counter trait is available immediately: a campaign reward, a species in the next drop, something the player can act on within minutes
+- The counter trait is available immediately: the next campaign milestone grants the answering species, and the player can act on it within minutes
 - **Free retry. No paywall on failure, ever.**
 
 Get this right and the counter system is understood by day three. Get it wrong and it is discovered as frustration in week two.
@@ -909,7 +1006,9 @@ Five Founders, five naming prompts, and five text-entry moments in one session i
 - **Founders 2–5** arrive across days one to three, each with an optional prompt and a sensible default
 - All five renameable at any time from the Roster
 
-**Five Founders across six species.** The starting five should spread across species to cover the counters early waves demand; the sixth arrives as an early campaign milestone. That gives the player a legible first goal — a species they can see they are missing — and it starts delivering on the guarantee that acquiring all six yields all eight counters.
+**Five Founders across six species.** The starting five are Vetch, Ember, Hollow, Skitter and Loam, which between them carry **seven of the eight counters.** The missing one is Chill, and **Pale is deliberately the sixth species.**
+
+That is what makes §9.3's designed first loss a Courser wave. Courser ignores Taunt so the wall does not save the player, crosses a lane in fifteen seconds so damage does not either, and its answer sits on the one species they do not yet have. The lesson lands as *"I need a Pale"* rather than *"I got unlucky"* — a legible goal instead of a bad beat — and the next campaign milestone grants one. Full schedule in `broodline_base_stock.md` §5.
 
 ## 9.5 Teaching consumption
 
@@ -938,8 +1037,9 @@ Do not soften this. A tutorial that hides consumption produces a player who disc
 | Day 3–4 | Region defence waves | Ties the map back to combat |
 | Day 5–7 | Collector dispatch, first cargo run | Safe: raid immunity is active |
 | Day 7 | Alliance prompt | Only once the player has something to contribute |
-| **Day 14** | Raid exposure begins, immunity ends | Announced as an event with warning |
-| Week 3+ | Apex Veins, catalysts, Stakes, garrisons | Requires an alliance and a mature roster |
+| **Day 14** | Full immunity ends; announced as an event with warning | Never a silent flag flip |
+| **Day 15** | Escort tutorial; raid exposure begins under a one-loss shield through day 21 | The soft landing — see §5.6 |
+| Week 3+ | Apex Veins, catalysts, Stakes, garrisons | Requires an alliance and a mature roster. Continues in `broodline_midgame_arc.md` |
 
 The two most important entries are the day-two map introduction and the day-fourteen raid exposure. **The map must arrive attached to a specific, visible better node** — abstract freedom to relocate teaches nothing. And **raid exposure must be announced when immunity lapses**, not discovered by being raided.
 
@@ -1004,7 +1104,13 @@ A creature is **one body plus two visible trait parts plus one Instinct cue.**
 | Instinct cues | 6 |
 | **Total** | **24** |
 
-Those 24 assets assemble into roughly 2,400 distinct creatures. At four trait slots the same approach would have needed double the parts and produced silhouettes too busy to read at 40px — the reduction to two combat traits is the single largest cost saving in the design.
+**Raiders add twelve more** — four shared bodies and eight variant kits, per `broodline_raider_roster.md` §3. **Thirty-six assets is the entire character art budget for launch.**
+
+Those 24 creature assets assemble into roughly 2,400 distinct creatures. At four trait slots the same approach would have needed double the parts and produced silhouettes too busy to read at 40px — the reduction to two combat traits is the single largest cost saving in the design.
+
+**Creatures are 3D.** Attachment-point rigging is what lets six species carry two swappable trait parts and an Instinct cue without hand-authoring every combination, and it serves the growth proportion curve at §10.2 natively where a 2D approach would need four drawn stages per creature. An earlier resolution reached the same answer from different arithmetic — ten chassis with four layers each — and the conclusion survives the reduction to 24 assets because the driver was never combination count but the rig.
+
+**Rig and animate one species first as a pipeline proof** before committing budget to the other five.
 
 **Attachment points must be standardised before the first creature is modelled.** Retrofitting modularity onto hand-built creatures is the most expensive mistake available here.
 
@@ -1038,11 +1144,15 @@ Each of the eight must be recognisable at a glance, because recognition is the c
 
 **Minimum 11pt for any number a decision depends on.**
 
+**The display face does not cover CJK.** Chinese, Japanese and Korean take weight-matched substitutes chosen deliberately rather than inherited from a fallback chain, and the tabular-figure check above must be re-run in each — `broodline_localization.md` §8.
+
 Beyond that, the design tokens in the handoff bundle are authoritative: colour, spacing, radius, elevation, the physical button-press state on primary CTAs, and the named animation set. They are complete and should be implemented as specified rather than reinterpreted.
 
 ## 10.7 What not to draw
 
-**Damage is posture, not injury.** Wounded creatures show stress through stance, breathing and desaturation — never blood, gore or visible trauma. The rating and the audience require it.
+**Target rating: 12+.** An earlier brief committed to 9+ and justified the violence restraint by it. Open player-to-player chat is difficult to reconcile with 9+, comparable titles in this category carry 12+ for exactly that reason, and the alliance layer is load-bearing across three systems — rally broadcasts, garrison negotiation, territory coordination — in ways canned phrases cannot carry. So the rating moves and the chat stays.
+
+**Damage is posture, not injury.** Wounded creatures show stress through stance, breathing and desaturation — never blood, gore or visible trauma. This stands regardless of rating; it was the right creative call independent of the number that justified it.
 
 **Appeal over horror.** These are creatures a player names and keeps in a family tree for two years. Strange and unsettling is fine. Repulsive is not.
 
@@ -1064,4 +1174,4 @@ It works as the mascot because it is the first hybrid every player makes in the 
 
 ---
 
-*The bible is complete. Remaining project work: rebuild the screen inventory against these ten sections, deprecate the nine original specs, and tune the economy at soft launch.*
+*The bible is complete through §1–10, and so is the design. Seventeen companion documents carry the numbers this one deliberately does not. What remains is production: `broodline_build_order.md`.*

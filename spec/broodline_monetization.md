@@ -4,9 +4,17 @@
 
 ---
 
+> **CURRENT — companion to the design bible.** This document is live and should
+> be built from. It owns detail that `broodline_bible.md` deliberately does not
+> duplicate. Where the two conflict, the bible is current and this document
+> needs an edit.
+>
+> Last brought into line with the bible: 4 Sep 2026.
+
+
 ## 1. What This Document Is Now
 
-The original monetization spec was written first and has been overtaken in four places. The economy model owns rates, prices, and shard income. The live-ops spec owns the five events. The Vault spec owns the primary sink. The raiding spec owns Marks.
+The original monetization spec was written first and has been overtaken. The economy model owns rates and shard income. The live-ops spec owns the five events. Bible §7 owns the primary sink. The raiding spec owns Marks.
 
 **This document owns offers**: what is sold, at what price, in what shape, and — most importantly — what is never sold at all.
 
@@ -19,7 +27,7 @@ The strategic position is unchanged and still correct: **dual-path currencies, a
 | Currency | Free path | Paid path | Spent on |
 |---|---|---|---|
 | **Splice Charges** | Regen, login, rewarded ads, Gene Lab | Packs, Season Pass | Splicing |
-| **Gene Shards** | Harvest, waves, events, raids | Direct purchase | Vault, timers, Roulette, cosmetics |
+| **Gene Shards** | Harvest, waves, events, raids | Direct purchase | Gene Lab, timers, Roulette, cosmetics |
 | **Geneticist XP** | Login streak, events, achievements | Included in every pack | Geneticist Tier |
 | **Raid Marks** | Successful attacks | **Never** | Marks Shop |
 | **Defense Marks** | Successful defenses | **Never** | Marks Shop |
@@ -39,7 +47,7 @@ Two Marks currencies exist and neither is purchasable at any price. That is a st
 
 **Correcting the original spec's own arithmetic.** It reasoned from a player earning roughly five charges a day. At a 25-minute regen and a cap of 5, a refill from empty takes 2h05m, so a three-session player captures **15 charges daily**, plus three from ads. The real figure is 15–18.
 
-This matters beyond bookkeeping: the genetics spec worried that a 3% mutation rate was too rare to sustain the core loop's excitement, and that worry was calculated from the wrong charge number. At actual throughput a mutation fires every 2.2 days, which is the right cadence.
+This matters beyond bookkeeping: an early spec worried a 3% mutation rate was too rare to sustain the loop's excitement, and that worry was calculated from the wrong charge number. Bible §2.3 now sets ~9% with an Aberrant sub-roll inside it.
 
 **Charges never block play.** At zero charges a player can replay campaign waves, harvest, defend regions, dispatch collectors, raid, and claim events. This is the oldest guardrail in the model and it holds.
 
@@ -53,7 +61,7 @@ Twelve tiers on cumulative Geneticist XP. Permanent, account-wide, and deliberat
 |---|---|
 | 2 | +1 charge cap |
 | 4 | 10% faster charge regen |
-| 6 | One free Roulette spin daily |
+| 6 | One free sample pull daily |
 | 8 | **Second simultaneous splice queue** |
 | 10 | Cosmetic hybrid aura |
 | 12 | Unique title, +15% shard bonus on purchases |
@@ -69,11 +77,11 @@ Tier 8 is the strongest perk in the game and it is still only throughput. Once s
 | Pack | Price | Shards | Charges | XP | Extra |
 |---|---|---|---|---|---|
 | Starter Splice | $0.99 | 100 | 5 | 500 | — |
-| Lab Bundle | $4.99 | 600 | 15 | 1,500 | 1 spin |
-| Lab Expansion | $9.99 | 1,400 | 40 | 5,000 | 3 spins |
-| Geneticist's Vault | $19.99 | 3,200 | 100 | 15,000 | 8 spins, skin |
-| Warden's Cache | $49.99 | 9,000 | 250 | 40,000 | 20 spins, skin |
-| Ark Reserve | $99.99 | 20,000 | 500 | 90,000 | 50 spins, exclusive skin |
+| Lab Bundle | $4.99 | 600 | 15 | 1,500 | 1 sample pull |
+| Lab Expansion | $9.99 | 1,400 | 40 | 5,000 | 3 sample pulls |
+| Geneticist's Vault | $19.99 | 3,200 | 100 | 15,000 | 8 sample pulls, skin |
+| Warden's Cache | $49.99 | 9,000 | 250 | 40,000 | 20 sample pulls, skin |
+| Ark Reserve | $99.99 | 20,000 | 500 | 90,000 | 50 sample pulls, exclusive skin |
 
 **Shard value per dollar rises monotonically: 101, 120, 140, 160, 180, 200.** The original ladder did not — $4.99 delivered worse value than $0.99, and a $14.99 pack contained more shards than the $19.99 tier. Players run this arithmetic and post it, and a store that punishes buying the middle tier reads as manipulative rather than merely mispriced.
 
@@ -81,7 +89,7 @@ Tier 8 is the strongest perk in the game and it is still only throughput. Once s
 
 ### Custom Chest
 
-Pick three of six reward slots — charges, shards, XP, spins, cosmetic, speed-up — at $1.99, $4.99, or $9.99. Whiteout's highest-converting mechanic, and the reason is straightforward: players stop paying for contents they don't want.
+Pick three of six reward slots — charges, shards, XP, sample pulls, cosmetic, speed-up — at $1.99, $4.99, or $9.99. Whiteout's highest-converting mechanic, and the reason is straightforward: players stop paying for contents they don't want.
 
 ### Double Regen
 
@@ -91,9 +99,9 @@ The original spec's "Mythic Lab Access — unlimited charges for 48 hours" is dr
 
 ### Season Pass
 
-Four-week cycles. Free track carries modest charges, shards, and cosmetic fragments. Paid track at $9.99 carries two to three times the same currencies, plus exclusive skins and XP boosts.
+Four-week cycles. Free track carries modest charges, shards, and cosmetic unlocks. Paid track at $9.99 carries two to three times the same currencies, plus exclusive skins and XP boosts.
 
-**The paid track is more of the same, faster — never exclusive power.** A lapsed season costs a player nothing they cannot earn later.
+**The paid track is more of the same, faster — never exclusive power.** It carries no creatures and no traits at all: charges, shards, XP, samples, cosmetics. Every species carries a counter, so granting a named species creature would be granting counter access by another route. A lapsed season costs a player nothing they cannot earn later.
 
 ---
 
@@ -120,7 +128,7 @@ Five recurring events, each shipping a themed offer. Mechanics are specced in th
 | Mutation Surge (quarterly) | **Charges only** |
 | Recipe Share (always on) | Cosmetic recipe card frames |
 
-Mutation Surge is the one to watch. The original spec described it as a limited trait pack, which would have sold event-exclusive traits — breaking the guarantee that every trait is free-reachable and that Apex is mutation-only. The Surge boosts the mutation rate for everyone and sells attempts at that better rate. Nothing else.
+Mutation Surge is the one to watch. The original spec described it as a limited trait pack, which would have sold event-exclusive traits — breaking the guarantee that access is never purchasable. The Surge raises the Aberrant sub-roll for everyone and sells attempts at those better odds. Nothing else, and no catalysts.
 
 **Never more than two timed events live at once.** Burnout costs more LTV than a missed sale.
 
@@ -132,18 +140,20 @@ Scattered across eight specs, consolidated here. Each is a structural guarantee,
 
 | Never sold | Why | Source |
 |---|---|---|
-| **Apex traits or fragments** | Mutation-only is what makes "money buys attempts" true | Genetics |
-| **Campaign milestone skips** | The only thing stopping money from skipping progression | Vault, Campaign |
+| **Traits of any kind** | Access is bred, never bought — the sole thing keeping hard counters from being a paywall | Bible §1.7, §8.6 |
+| **Aberrant traits and catalysts** | Mutation-only is what makes "money buys attempts" true | Bible §1.6 |
+| **Campaign milestone skips** | The only thing stopping money from skipping progression | Bible §7.3 |
 | **Raid or Defense Marks** | Keeps PvP an effort contest | Raiding |
 | **Cargo insurance** | Pay-to-not-lose; advertises itself to every non-payer who was just raided | Raiding |
 | **Extra raid attempts** | 2/day is an economy constant | Raiding, Economy |
 | **Hold, or Hold acceleration** | Converts territory from effort to spending | Alliance |
 | **Additional Stake slots** | The cap of five is a competitive-health mechanism | Alliance |
 | **Non-ally penalty increases** | −40% is fixed; higher closes the map | Alliance |
-| **Additional Vault build slots** | Core tier 8 is the intended gate | Vault |
-| **Event-exclusive traits or chassis** | Everything must remain reachable afterward | Live-ops |
+| **Additional concurrent build slots** | Core tier 8 is the intended gate | Bible §7.4 |
+| **Event-exclusive traits or species** | Everything must remain reachable afterward | Live-ops |
 | **Trait Codex access, in any form** | It is a disclosure mechanism | Codex |
-| **Regions, chassis, or traits directly** | Money buys volume, never a specific outcome | Chassis, Region |
+| **Creatures of a named species** | Every species carries a counter, so a named body is counter access | Bible §1.2, §8.6 |
+| **Regions** | Money buys volume, never a specific outcome | Bible §5 |
 
 **Cargo insurance deserves the most vigilance.** It is the most obviously profitable offer in the entire design and the most destructive. Every raid a non-payer loses becomes an advertisement for a product they declined, which is precisely the resentment mechanic that collapses review scores.
 
@@ -153,8 +163,8 @@ Scattered across eight specs, consolidated here. Each is a structural guarantee,
 
 Everything above rests on three load-bearing facts:
 
-1. **Campaign milestones gate Vault Core tiers.** A heavy spender clears shard and timer costs and stops at the same wall as everyone else.
-2. **Apex traits are mutation-only.** The top of the power curve has no price.
+1. **Campaign milestones gate Core tiers.** A heavy spender clears shard and timer costs and stops at the same wall as everyone else.
+2. **Trait access is bred, never bought.** Money buys coverage, which is rate. Aberrants have no price at all.
 3. **Marks are unpurchasable.** PvP standing cannot be bought.
 
 If any one of these is sold around, the model becomes pay-to-win in a single patch and does not recover. They should be treated as immutable rather than as defaults.
@@ -195,4 +205,4 @@ Whiteout runs zero ads. Rewarded-only is a deliberate departure: it gives non-pa
 
 ---
 
-*Replaces `splice_monetization_spec`. Remaining undocumented: the D14–D90 retention arc, and profile/mail/settings.*
+*Replaces `splice_monetization_spec`. Offer structure only — rates and prices live in `broodline_economy_model.md`, event mechanics in `broodline_live_ops_events.md`.*
