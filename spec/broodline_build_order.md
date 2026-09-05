@@ -42,7 +42,7 @@ Five phases. The ordering is by dependency, not by importance.
 | Task | Why first |
 |---|---|
 | **Rig and animate two species** | Bible §10.3 requires attachment-point standardisation before the first creature is modelled. **Vetch and Pale** — one species cannot test whether the same part mounts on dissimilar bodies, which is the actual risk. Brief and acceptance criteria: `broodline_rig_proof.md` |
-| **Build the combat engine against one lane** | Every wave, every raid, every region defence and the entire Apex Cup run on it. One lane, one raider, five pockets, the counter check. Spec: `broodline_combat_engine.md` |
+| **Build the combat engine against one lane** | Every wave, every raid, every region defence and the entire Apex Cup run on it. One lane, one raider, five pockets, the counter check. Specs: `broodline_combat_engine.md` and `broodline_data_model.md` |
 | **Build the Codex bottom sheet** | The screen inventory already flags it build-first. Every trait pip in the app opens it, so it is a dependency of almost every other screen rather than a screen of its own |
 
 **The pipeline proof is a gate, not a milestone.** If two dissimilar bodies cannot carry the same twelve trait parts in either socket at acceptable quality, the twenty-four-asset budget is wrong and the art plan changes before money is spent on it. `broodline_rig_proof.md` states what passing looks like and what each failure costs.
@@ -134,7 +134,7 @@ Every number in the set is a starting value. These are the ones where being wron
 | 6 | **The 75/25 harvest weighting** | Either most sample inventory is dead, or a player can never build toward a new species |
 | 7 | **Weir** | The one terrain family whose difficulty is about damage rate rather than counter breadth may undercut the design's central claim |
 
-**One and two are the two to instrument from the first playable build.** Both are cheap to measure and both change a system rather than a value.
+**Four of the seven can be answered before a single external player sees the game.** The lock check is free — the engine already computes the diagnosis for the loss screen — and the entity-count question is a bench test. `broodline_telemetry.md` turns each question into an event, a metric and a threshold, with a build priority.
 
 ---
 

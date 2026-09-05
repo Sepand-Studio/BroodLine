@@ -37,6 +37,12 @@ If you read one document, read the bible. If you are about to build something, c
 | **`broodline_region_graph.md`** | Region adjacency — three rings, forty-three edges, gate pairings, per-segment travel times | Engineering, level design |
 | **`broodline_rig_proof.md`** | The socket standard, and what the Phase 1 art pipeline gate has to demonstrate | Art, production |
 | **`broodline_combat_engine.md`** | Tick order, determinism, the replay format, counter application sites, breach diagnosis | Engineering. The Phase 1 build gate |
+| **`broodline_data_model.md`** | Entity shapes, lineage retention, the client/server authority split | Engineering, backend |
+| **`broodline_telemetry.md`** | The seven open questions as events, metrics and thresholds, with build priority | Engineering, production |
+| **`broodline_server_topology.md`** | Server population and its derivation, lifecycle, regional assignment, the weekly tick job | Engineering, live-ops |
+| **`broodline_notifications.md`** | Notification categories, the daily budget, copy shape, quiet hours, re-engagement | Design, live-ops |
+| **`broodline_audio.md`** | The audio division of labour, effect classes, species voice, the 61-asset sound budget | Audio, design |
+| **`broodline_seasonal_chapters.md`** | How to author waves past 60, the shape vocabulary, the cost of a ninth raider | Design, live-ops |
 | **`broodline_gap_register.md`** | The design audit and its twelve passes. Historical now — every gap it tracked is closed | Anyone tracking how the design got here |
 | **`design_handoff_broodline/`** | 20 interactive screen prototypes, design tokens, Character Bible | Design, engineering, illustration |
 
@@ -94,7 +100,7 @@ The two files still named `splice_*` predate the project rename; Splice was the 
 
 ## Reading order by role
 
-**Engineer** — bible §1–4 for the core loop, then `broodline_combat_engine.md`, which everything else runs on. Then the screen inventory for build order, and the splice confirm spec before touching that screen. `broodline_collectors_raiding.md` before anything in the PvP layer. Note the Splice Chamber prototype is a static file with no logic; it is built from spec, not ported.
+**Engineer** — bible §1–4 for the core loop, then `broodline_combat_engine.md` and `broodline_data_model.md`, which everything else runs on. Then the screen inventory for build order, and the splice confirm spec before touching that screen. Instrument `broodline_telemetry.md`'s first four questions from the first playable build. `broodline_collectors_raiding.md` before anything in the PvP layer. Note the Splice Chamber prototype is a static file with no logic; it is built from spec, not ported.
 
 **Designer** — bible in full, then the screen inventory's rework column. Twelve designed screens are wrong in ways not visible from the prototype, and thirty-five screens have never been designed at all.
 

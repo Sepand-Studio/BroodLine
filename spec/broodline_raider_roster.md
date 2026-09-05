@@ -201,7 +201,7 @@ This is carried forward unchanged and it matters more now than it did. Raid comb
 3. **Does Drift need a distinct flight altitude per lane?** Three arriving in line is the pattern; whether they fly at the same height or stagger affects whether one Reach carrier can cover them and therefore what Reach II actually buys.
 4. **Twenty animation clips is an estimate, not a quote.** The variant locomotion deltas in particular — Courser's charge, Drift's flight, Delver's burrow — may be full clips rather than deltas depending on rig decisions that have not been made.
 5. **Should the pre-wave answer check be toggleable?** Explicitly naming which raiders the current deployment cannot handle is a large accessibility win and a small loss of discovery. Leaning always-on, with the Codex carrying the discovery instead.
-6. **Seasonal raiders have no design yet.** The body budget assumes they reuse existing meshes, which constrains what a new raider can mechanically be — a new lock needs a new silhouette, and a new silhouette is a new body.
+6. **A ninth raider is a seventh species, and should be priced that way.** A new lock needs a new silhouette, a new silhouette is a new body, and a ninth counter is a thirteenth trait — which breaks bible §1.2's two-traits-per-species symmetry unless a seventh species carries it. `broodline_seasonal_chapters.md` §7 works the cost through.
 
 ---
 
