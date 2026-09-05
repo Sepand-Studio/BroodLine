@@ -24,6 +24,8 @@ The bible states the design. It does not carry every number. Seven documents hol
 | `broodline_campaign_structure.md` | Sixty waves, eight chapters, the twelve Core milestones, raider introduction order, the designed loss, replay |
 | `broodline_waves_01_12.md` · `_13_20.md` · `_21_28.md` | Authored campaign waves, chapters 1 to 4 |
 | `broodline_region_roster.md` | All thirty regions, the eight terrain families, species weighting, region defence cadence and composition |
+| `broodline_region_graph.md` | Region adjacency, gate pairings, per-segment travel times |
+| `broodline_rig_proof.md` | The socket standard and the Phase 1 pipeline gate |
 | `broodline_trait_codex.md` | The Codex pool, entry schemas, the threat board, disclosure policy, behaviour previews, the collection layer |
 | `broodline_raider_roster.md` | Raider fiction, the four-body art budget, recognition rules, telegraphing, spawn patterns, the Sunder |
 | `broodline_alliance_territory.md` | Alliance structure, Stakes and Hold, Stake Assault, garrisons, alliance tech, convoy staging, the weekly tick |
@@ -453,11 +455,16 @@ Committing to a crossing is the game's recurring strategic decision. The screen'
 
 **Transit time is set by distance, then modified by route.** Base times at Drive tier 1:
 
-| Distance | Base time |
+**Times are per segment**, and a segment is one border crossing on the region graph.
+
+| Segment | Base time |
 |---|---|
 | Within a band | 25 min |
-| Through a gate | 50 min |
-| Inner Reach to Outer Reach | 95 min |
+| Across a gate | 50 min |
+
+A minimal Inner-to-Outer journey is a gate, a Mid hop and a gate — **125 minutes**, since no Mid region is both an inward and an outward gate. The deepest journey on the map, Holdfast to Weltering, is seven segments and **225 minutes**. Full adjacency in `broodline_region_graph.md`.
+
+*An earlier draft gave 95 minutes for Inner to Outer. That assumed a direct crossing the graph does not allow.*
 
 | Route | Time | Intercept risk | Cost |
 |---|---|---|---|
@@ -1112,7 +1119,7 @@ Those 24 creature assets assemble into roughly 2,400 distinct creatures. At four
 
 **Rig and animate one species first as a pipeline proof** before committing budget to the other five.
 
-**Attachment points must be standardised before the first creature is modelled.** Retrofitting modularity onto hand-built creatures is the most expensive mistake available here.
+**Attachment points must be standardised before the first creature is modelled.** Retrofitting modularity onto hand-built creatures is the most expensive mistake available here. Three sockets per body — dorsal and flank for the two combat traits, crown for the Instinct cue — and **the socket is assigned by slot index, not by trait**, because §2.2 lets a hybrid carry two traits that both want the spine. Standard and acceptance criteria: `broodline_rig_proof.md`.
 
 **Animation is body-level, never trait-level**, or the budget is unbounded.
 

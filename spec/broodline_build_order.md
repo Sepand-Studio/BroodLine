@@ -41,11 +41,11 @@ Five phases. The ordering is by dependency, not by importance.
 
 | Task | Why first |
 |---|---|
-| **Rig and animate one species** | Bible §10.3 requires attachment-point standardisation before the first creature is modelled. Retrofitting modularity onto hand-built creatures is the most expensive mistake available. **Vetch**, because it carries the tutorial parents and the mascot |
-| **Build the combat engine against one lane** | Every wave, every raid, every region defence and the entire Apex Cup run on it. One lane, one raider, five pockets, the counter check |
+| **Rig and animate two species** | Bible §10.3 requires attachment-point standardisation before the first creature is modelled. **Vetch and Pale** — one species cannot test whether the same part mounts on dissimilar bodies, which is the actual risk. Brief and acceptance criteria: `broodline_rig_proof.md` |
+| **Build the combat engine against one lane** | Every wave, every raid, every region defence and the entire Apex Cup run on it. One lane, one raider, five pockets, the counter check. Spec: `broodline_combat_engine.md` |
 | **Build the Codex bottom sheet** | The screen inventory already flags it build-first. Every trait pip in the app opens it, so it is a dependency of almost every other screen rather than a screen of its own |
 
-**The pipeline proof is a gate, not a milestone.** If a Vetch with two swappable trait parts and an Instinct cue cannot be assembled from attachment points at acceptable quality, the twenty-four-asset budget is wrong and the art plan changes before money is spent on it.
+**The pipeline proof is a gate, not a milestone.** If two dissimilar bodies cannot carry the same twelve trait parts in either socket at acceptable quality, the twenty-four-asset budget is wrong and the art plan changes before money is spent on it. `broodline_rig_proof.md` states what passing looks like and what each failure costs.
 
 ### Phase 2 — The first hour
 
@@ -107,13 +107,13 @@ Three tracks that do not block the critical path and are large enough to start e
 
 | Track | Volume | Depends on |
 |---|---|---|
-| **Campaign waves** | 60, against the chapter table. **52 authored** across six wave documents | The combat engine, for testing. Authoring can start immediately |
+| **Campaign waves** | **All 60 authored** across seven wave documents | Done. The engine still has to be built against them |
 | **Region adjacency graph** | 30 regions, 2–4 borders each, 8 gate pairs fixed | Nothing. It is level design against an authored roster |
-| **Character art** | 36 assets — 6 species, 12 trait parts, 6 Instinct cues, 4 raider bodies, 8 variant kits | The Phase 1 rig proof, and nothing after it |
+| **Character art** | 36 assets — 6 species, 12 socket-agnostic trait parts, 6 Instinct cues, 4 raider bodies, 8 variant kits | The Phase 1 rig proof, and nothing after it |
 
 **Authoring the first twelve found four errors in the specs they were authored against** — the budget formula's base, Skirmisher pricing, Lash's introduction wave, and where session one ends. The next eight settled a fifth: the growth rate is right, and the first two chapters only looked anomalous because the budget was being read as a target rather than a ceiling. Chapter 4 found a sixth, and it is the largest — **the Wave Defeat screen collapses three different failures into one message**, and for every raider after Courser that makes the game look like it is lying to the player. Chapter 5 found a seventh: **Bulwark's shield was not a lock**, because Sprint's mechanic is Skitter's base attack rate, so a Skitter answered it without the trait. Chapter 6 found the eighth and generalised it — **three of the eight locks were written as conditions rather than as rules about damage**, and all three let ordinary damage through the side. That is the argument for authoring early rather than late, and for authoring chapter 4 before building anything that depends on the numbers.
 
-**The campaign waves are the largest single authoring job and the one most likely to be underestimated.** Sixty waves, each obeying the composition rules — never two raiders answered by the same trait, never more than four types, escalation by count and lane and integrity only — against a budget formula and a chapter table. That is a designer's full-time job for a meaningful stretch, and it cannot be generated.
+**All three tracks are complete.** What remains under "content" is the seasonal chapters, which have no schedule yet and should be authored before they get one.
 
 ---
 
@@ -130,6 +130,7 @@ Every number in the set is a starting value. These are the ones where being wron
 | 3b | ~~Delver's submersion~~ **— checked and corrected.** All eight locks now pass the rule test | — |
 | 4 | **Splash III's radius** | Ember runs away with the metagame |
 | 5 | **The four-species worst case** at combat numbers §8.1 | Waves that force all six species land as a wall rather than a challenge |
+| 6 | **Wave 44 at a hundred entities** — a render-budget question, not a simulation one | The largest authored waves cannot ship as authored |
 | 6 | **The 75/25 harvest weighting** | Either most sample inventory is dead, or a player can never build toward a new species |
 | 7 | **Weir** | The one terrain family whose difficulty is about damage rate rather than counter breadth may undercut the design's central claim |
 

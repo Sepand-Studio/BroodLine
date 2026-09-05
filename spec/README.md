@@ -33,6 +33,10 @@ If you read one document, read the bible. If you are about to build something, c
 | **`broodline_waves_29_36.md`** | Chapter 5 authored — Bulwark, and the shield lock correction | The same |
 | **`broodline_waves_37_44.md`** | Chapter 6 authored — Delver, the third lane, and the budget formula ceasing to bind | The same |
 | **`broodline_waves_45_52.md`** | Chapter 7 authored — Breaker, Delta terrain, and the first wave a utility trait answers | The same |
+| **`broodline_waves_53_60.md`** | Chapter 8 authored — eight shapes rather than eight steps, and the Sunder | The same |
+| **`broodline_region_graph.md`** | Region adjacency — three rings, forty-three edges, gate pairings, per-segment travel times | Engineering, level design |
+| **`broodline_rig_proof.md`** | The socket standard, and what the Phase 1 art pipeline gate has to demonstrate | Art, production |
+| **`broodline_combat_engine.md`** | Tick order, determinism, the replay format, counter application sites, breach diagnosis | Engineering. The Phase 1 build gate |
 | **`broodline_gap_register.md`** | The design audit and its twelve passes. Historical now — every gap it tracked is closed | Anyone tracking how the design got here |
 | **`design_handoff_broodline/`** | 20 interactive screen prototypes, design tokens, Character Bible | Design, engineering, illustration |
 
@@ -90,11 +94,11 @@ The two files still named `splice_*` predate the project rename; Splice was the 
 
 ## Reading order by role
 
-**Engineer** — bible §1–4 for the core loop, then the screen inventory for build order, then the splice confirm spec before touching that screen. `broodline_collectors_raiding.md` before anything in the PvP layer. Note the Splice Chamber prototype is a static file with no logic; it is built from spec, not ported.
+**Engineer** — bible §1–4 for the core loop, then `broodline_combat_engine.md`, which everything else runs on. Then the screen inventory for build order, and the splice confirm spec before touching that screen. `broodline_collectors_raiding.md` before anything in the PvP layer. Note the Splice Chamber prototype is a static file with no logic; it is built from spec, not ported.
 
 **Designer** — bible in full, then the screen inventory's rework column. Twelve designed screens are wrong in ways not visible from the prototype, and thirty-five screens have never been designed at all.
 
-**Illustrator** — bible §10, then §1.2 for the six species and `broodline_raider_roster.md` for the eight raiders. The Character Bible in the handoff bundle is the commission reference. **Thirty-six assets total** — 24 creature, 12 raider. Creatures are 3D; rig one species as a pipeline proof first.
+**Illustrator** — `broodline_rig_proof.md` first, since it is the gate. Then bible §10, §1.2 for the six species, and `broodline_raider_roster.md` for the eight raiders. The Character Bible in the handoff bundle is the commission reference. **Thirty-six assets total** — 24 creature, 12 raider. Creatures are 3D; two species get rigged as the pipeline proof before anything else.
 
 **Economy / live-ops** — bible §7.6 and §8, then `broodline_economy_model.md` and `broodline_live_ops_events.md`, which hold the actual numbers. Every value is a soft-launch starting point. Bible §8.6 is the list to check any new offer against.
 
@@ -106,18 +110,15 @@ The two files still named `splice_*` predate the project rename; Splice was the 
 
 ## Project status
 
-**The design is done. Almost none of the game is made.**
+**The design and the content are done. Almost none of the game is made.**
 
-Ten bible sections, nineteen settled decisions, ten derived constraints, seventeen current companions. Every mechanic specified, every constant set to a soft-launch starting value. The open questions that remain in those documents are tuning questions, and tuning questions are answered by playtest rather than by writing.
+Ten bible sections, nineteen settled decisions, ten derived constraints, eighteen current companions. Every mechanic specified. **All sixty campaign waves authored, all thirty regions authored, the region graph authored.** Every constant set to a soft-launch starting value; the open questions that remain are tuning questions, answered by playtest rather than by writing.
 
-Against that: fifty-nine screens of which nine exist, sixty campaign waves of which fifty-two are authored, thirty-six character assets of which none are modelled, and two procurement items with external lead times that nobody has started.
+Against that: **fifty-nine screens of which eight exist**, thirty-six character assets of which none are modelled, twenty animation clips and eleven behaviour previews of which none are produced, and two procurement items with external lead times that nobody has started.
 
-**`broodline_build_order.md` is the document that says what to do about it.** In short: start the moderation filter and CJK font procurement now, prove the creature rig on one species before anything large begins, and instrument the Litter question and Skirmisher's spawn interval from the first playable build.
-4. **Trait utility balance.** Carapace, Litter, Regrow and Screen have effects now, and Litter is confirmed too *strong* rather than too weak — at six creatures a day it supplies over half a core player's base stock from one trait slot. First thing to check in playtest.
-5. **Alliance convoy staging**, and the weekly tick hour across timezones.
-6. **Localization plan.** Blocks regional pricing and the moderation filter's language coverage.
+**`broodline_build_order.md` is the document that says what to do about it.** In short: start the moderation filter and CJK font procurement now, prove the creature rig on one species before anything large begins, and instrument three things from the first playable build — the Litter question, Skirmisher's spawn interval, and whether anyone picks Screen at wave 50.
 
-Tracked in full, with dependencies, in `broodline_gap_register.md`.
+**Authoring the campaign found ten errors in the specs it was written against**, including three raider locks that were not locks. None would have been found by reading. The same argument applies to the seasonal chapters: author them before the season is scheduled.
 
 ---
 

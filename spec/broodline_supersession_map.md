@@ -10,7 +10,7 @@
 
 The design was written in two waves. Nine specs came first, against an unsettled game. Nineteen reconciliation decisions then moved large parts of it, and the bible absorbed the result.
 
-**A second wave of twelve documents was written between those two events.** They were never mapped, and half of them still describe ten chassis, a damage triangle, four trait tiers and five Vault modules. Eight of the twelve have since been brought into line or rewritten and are current; three are superseded pending rewrite; one is superseded outright.
+**A second wave of twelve documents was written between those two events.** They were never mapped, and half of them still describe ten chassis, a damage triangle, four trait tiers and five Vault modules. Ten of the twelve have since been brought into line or rewritten and are current; one is superseded pending rewrite; one is superseded outright.
 
 This map states, for every file, which of those it is.
 
@@ -29,6 +29,21 @@ This map states, for every file, which of those it is.
 | `broodline_base_stock.md` | ⚙️ | Creature supply, species distribution, guarantees, Instinct weights |
 | `broodline_campaign_structure.md` | ⚙️ | **Rewritten.** 60 waves, 8 chapters, milestones, the designed loss, replay |
 | `broodline_region_roster.md` | ⚙️ | **Rewritten.** All 30 regions, 8 families, species weighting, region defence |
+| `broodline_trait_codex.md` | ⚙️ | **Rewritten.** 34 entries, four schemas, the threat board, disclosure |
+| `broodline_raider_roster.md` | ⚙️ | **Rewritten** from `broodline_enemy_archetypes.md`. Four bodies, art budget, the Sunder |
+| `broodline_alliance_territory.md` | ⚙️ | **Brought current.** Convoy staging and the weekly tick added |
+| `broodline_localization.md` | ⚙️ | Launch languages, naming policy, pricing per storefront, fonts |
+| `broodline_build_order.md` | ✅ | The production plan. Not a design document |
+| `broodline_waves_01_12.md` | ✅ | Authored content, chapters 1 and 2 |
+| `broodline_waves_13_20.md` | ✅ | Authored content, chapter 3 |
+| `broodline_waves_21_28.md` | ✅ | Authored content, chapter 4 |
+| `broodline_waves_29_36.md` | ✅ | Authored content, chapter 5 |
+| `broodline_waves_37_44.md` | ✅ | Authored content, chapter 6 |
+| `broodline_waves_45_52.md` | ✅ | Authored content, chapter 7 |
+| `broodline_waves_53_60.md` | ✅ | Authored content, chapter 8 |
+| `broodline_region_graph.md` | ✅ | Authored content, region adjacency |
+| `broodline_rig_proof.md` | ✅ | Production spec, the art pipeline gate |
+| `broodline_combat_engine.md` | ✅ | Technical spec, the simulation |
 | `broodline_splice_confirm_spec.md` | ⚙️ | Splice screen copy and states |
 | `broodline_economy_model.md` | ⚙️ | Shard income, facility curve, payer ceiling |
 | `broodline_collectors_raiding.md` | ⚙️ | The full raid ruleset |
@@ -36,11 +51,9 @@ This map states, for every file, which of those it is.
 | `broodline_monetization.md` | ⚙️ | Offer structure, never-sold list |
 | `broodline_moderation_ugc.md` | ⚙️ | UGC, age gating, submission requirements |
 | `broodline_midgame_arc.md` | ⚙️ | Days 14–90 |
-| `broodline_gap_register.md` | ✅ | What is still missing, and in what order |
+| `broodline_gap_register.md` | ✅ | The design audit, twelve passes. Historical — every gap is closed |
 | `broodline_reconciliation.md` | ✅ | Decision register — *why*, not *what* |
 | `broodline_chassis_roster.md` | 🔁 | Ten chassis. Replaced by bible §1.2 |
-| `broodline_trait_codex.md` | 🔁 | 56 traits, four tiers. Replaced in principle by bible §4.7 |
-| `broodline_enemy_archetypes.md` | 🔁 | Twelve archetypes on a triangle. Replaced by bible §4.4 |
 | `broodline_spec_reconciliation.md` | ❌ | An earlier register, superseded by `broodline_reconciliation.md` |
 | The nine original specs | ❌ | See §5 |
 
@@ -108,7 +121,7 @@ Apply everywhere, in all documents and all screen copy.
 
 ---
 
-## 4. The three documents queued for rewrite
+## 4. The document queued for rewrite
 
 Each carries real work that survives the model change. None should be built from as written.
 
@@ -125,33 +138,9 @@ Each carries real work that survives the model change. None should be built from
 | §9 The sidegrade envelope | ✅ | **Rescued into `broodline_combat_numbers.md` §3.1** as a power budget of 3.40 per species |
 | §10 No chassis is ever sold | ✅ | Reinforced — bible §8.6 now forbids selling a named species creature |
 
-### 🔁 `broodline_trait_codex.md`
+*`broodline_trait_codex.md` was in this list and has been rewritten. Thirty-four entries against twelve traits, three coverage tiers, six Instincts, eight Aberrants and eight raiders. The disclosure policy, the entry schema, the behaviour-preview requirement, the bottom-sheet placement, progressive surfacing and the collection layer were all rescued; the pool shape and the fixed-tier ruling were not.*
 
-| Section | Status | Replaced by |
-|---|---|---|
-| §2 Full disclosure of effects, fog on ownership | ✅ | The right policy, unchanged |
-| §3 Pool shape — 56 traits, four categories, four tiers | ❌ | **Bible §1.2, §1.3** — twelve traits, three coverage tiers, six Instincts, Aberrants outside the ladder |
-| §4 Each trait has one fixed tier | ❌ | Reversed. Tier is coverage and a trait climbs it by fusing |
-| §5 Entry schema | ⚠️ | Sound. "Fragment progress" becomes sample progress; the four-pip cluster becomes three pips plus an Aberrant marker |
-| §6 Category exemplars | ❌ | Frame/Armament/Field are cut |
-| §7 Instinct as the hard case; behaviour previews; the counterplay line | ✅ | **The best section in the document.** Six previews rather than fourteen, which makes the line item affordable. Instinct numbers are now in `broodline_combat_numbers.md` §5 |
-| §8 A component with a browsable index, not a screen | ✅ | Closes screen inventory v2 §12 item 1 |
-| §9 Progressive surfacing | ✅ | Cheaper at twelve entries than at 56 |
-| §10 Collection layer | ⚠️ | Completion now requires discovering Aberrants rather than Apex traits |
-| §11 No monetization of any kind | ✅ | Carried into bible §8.6 |
-
-### 🔁 `broodline_enemy_archetypes.md`
-
-| Section | Status | Replaced by |
-|---|---|---|
-| §2 Enemies are unbound splices | ✅ | Good fiction, costs nothing, keep |
-| §3 Six bodies × two variants = twelve | ⚠️ | **The budget logic survives; the arithmetic changes.** Four bodies × two variants = eight raiders is the equivalent. Raider stats and mechanics are now in `broodline_combat_numbers.md` §6; what this rewrite still owes is the art budget and the introduction schedule |
-| §4 The roster | ❌ | **Bible §4.4** — eight raiders, one answering trait each |
-| §5 Armor mapping | ❌ | The triangle is cut |
-| §6 Introduction schedule | ⚠️ | Structure right, wave numbers pending the campaign rewrite |
-| §7 Region defence composition | ✅ | Scaling by richness carries; the names change |
-| §8 Telegraphing | ⚠️ | Armor composition becomes raider-type composition. Bible §4.12 requires composition always visible |
-| §9 Enemies never appear in raids | ✅ | Reinforced |
+*`broodline_enemy_archetypes.md` was in this list and has been rewritten as `broodline_raider_roster.md`. Eight raiders on four shared bodies, with the art and animation budget, recognition rules, telegraphing and spawn patterns. The unbound-splice fiction, the variants-per-body budget logic, the telegraphing requirement and the raids exclusion were all rescued; the twelve-archetype roster and the armour mapping were not.*
 
 *`broodline_campaign_structure.md` was in this list and has been rewritten. Sixty waves in eight chapters against eight raiders, with the twelve Core milestones, the species-guarantee schedule and the designed Courser loss. The mutual staircase, the replay cap and the seasonal rule were rescued verbatim.*
 
@@ -238,19 +227,21 @@ All superseded. Each file now carries a header pointing here.
 | §9 Q3 canonical chassis colour | ⚠️ | **Reversed.** The old answer was no; bible §1.2 now assigns a hex per species, reinforced by silhouette |
 | §9 Q4 environment scope | ⚠️ | Bible §10.8 shrinks it — regions differ in look and lane arrangement, not bespoke geometry. Still uncosted |
 
-### ⚠️ `broodline_alliance_territory.md`
+### ⚙️ `broodline_alliance_territory.md` — now current
 
-Almost entirely intact — the meta layer was never in conflict.
+Almost entirely intact from the start — the meta layer was never in conflict — and now brought fully current with a vocabulary pass, convoy staging at §7.1 and the weekly tick decision.
+
+*It has moved out of the superseded set. The table below records what changed for anyone tracking the history.*
 
 | Section | Status | Note |
 |---|---|---|
 | §1–6 Structure, stakes, assault, garrisons, control | ✅ | |
-| §7 Alliance tech | ⚠️ | Alliance Hall is cut as a personal facility; tech remains treasury-funded. **The Convoy branch now also unlocks Collector classes**, since Drive no longer does |
+| §7 Alliance tech | ✅ | Alliance Hall cut as a personal facility; tech remains treasury-funded. The Convoy branch now also unlocks Collector classes, since Drive no longer does. **§7.1 convoy staging is new** |
 | §8 Anti-monopoly guardrails | ✅ | Still load-bearing |
 | §9–11 Decay, solo players, monetization | ✅ | |
 | §12 Q1 alliance cap | ✅ | **Closed at 40.** Activity, not capacity, is the binding constraint |
 | §12 Q2 assault requires holding a Stake | ✅ | **Closed: yes** — bible §6.4 |
-| §12 Q3 weekly tick timing across timezones | ⚠️ | **Still open.** Per-server tick times set at server creation is the likely answer |
+| §12 Q3 weekly tick timing across timezones | ✅ | **Closed: per-server, three fixed slots, set at creation, never changed**, displayed in local time |
 | §12 Q4 does −40% apply to Common Veins | ✅ | **Closed: no**, now stated explicitly in bible §6.6 |
 
 ### ⚠️ `broodline_ftue.md`
@@ -296,6 +287,6 @@ Superseded by `broodline_monetization.md`. Its four packs promising trait pulls 
 
 Every superseded file now carries a header pointing here, and every current companion carries one saying so. That was the cheap half.
 
-The expensive half is the three files at §4. Their superseded sections are load-bearing rather than incidental — someone reading the trait codex today learns a pool of fifty-six traits across four tiers — and each of them also carries a section the current set needs and does not have: the sidegrade envelope, the behaviour-preview requirement, the multiple-variants-per-body budget logic.
+The expensive half is the one file left at §4. Its superseded sections are load-bearing rather than incidental — someone reading the chassis roster today learns ten bodies with armour types and footprints — though its two genuinely valuable sections, the sidegrade envelope and the never-sold rule, have both already been rescued.
 
-**Rewrite the remaining three, and rescue those sections first.** They are the parts most likely to be lost, precisely because they are correct and therefore invisible.
+**Rewrite what is left of it, and rescue that section first.** They are the parts most likely to be lost, precisely because they are correct and therefore invisible.
