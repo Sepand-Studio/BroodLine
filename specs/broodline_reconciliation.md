@@ -1,6 +1,15 @@
+---
+status: decision-record
+folder: 02-decisions
+verified-against: broodline_bible.md (2026-09-05)
+note: >
+  Nineteen settled decisions with reasoning. The bible says what is true; this
+  says why. Read before reopening any decision.
+---
+
 # Broodline — Spec/Design Reconciliation
 
-*Decision register, v9 — complete. Nine written specs vs. the 20-screen design handoff.*
+*Decision register — v9 complete, Part 6 added 2026-09-05. Nine written specs vs. the 20-screen design handoff, plus companion reconciliation.*
 
 ---
 
@@ -37,6 +46,10 @@ Every conflict is a **decision slot** stating what each side says, what rides on
 | 3.5 | Recessive traits | Adopt | `[D]` |
 | 3.6 | Roster cap | 20 as floor, scaling with Hatchery | `[X]` |
 | 3.7 | Screen count | Rebuild inventory; six screens missing | `[X]` |
+| 6.1 | Ark interception | The Ark is never a raid target; routes are Collector routes | `[X]` |
+| 6.2 | Exposure window | Fixed per gate; Drive scales time, never exposure | `[X]` |
+| 6.3 | Raid immunity | Full to day 14, step-down to day 22 | `[X]` |
+| 6.4 | Marks | Fourth currency, never purchasable | `[S]` |
 
 **All conflicts are settled.** What remains is new work, not reconciliation — see Next steps.
 
@@ -396,9 +409,62 @@ Reopening changes 2.2 (Sample Store contents), 2.5 (the Instinct visual channel)
 2. ~~**Rich Deposit depletion.**~~ **Resolved** at six days, syncing with the weekly rotation — see bible §5.3.
 3. **Economy untuned on both sides.** Charge regen, sample drop rates, Vault capacity, yield curves.
 4. ~~**Alliance cap.**~~ **Resolved** — held at 40. The debate is misplaced: an alliance of 40 with 12 actives behaves like one of 12, so activity rather than capacity is the binding constraint. Design effort moves to the decay rules. See bible §6.2.
-5. **Convoy interception grace period.** Specs say day 14; designs flag it unresolved. Specs by default.
+5. ~~**Convoy interception grace period.**~~ **Resolved** at 6.3 — full immunity to day 14, step-down to day 22.
 6. **Season length.** 6 or 8 weeks, designs only.
 7. **`support.js` is not to be ported.** The prototypes' runtime is scaffolding; the target stack needs its own binding layer.
+
+---
+
+## Part 6 — Companion reconciliation
+
+*Added 2026-09-05. Decisions raised while reconciling the era-2 companion documents against the bible. Unlike Parts 1–3 these are not spec-vs-design conflicts; two of them are contradictions the bible carried internally.*
+
+### 6.1 — Ark interception → **the Ark is never a raid target** `[X]`
+
+**Bible §5.2** gave Ark relocation three routes with intercept risk (62% / 14% / 0%). **Bible §5.6 and §6.8** say raids take cargo in transit only, never the Ark, and forbid base attacks. Both cannot stand.
+
+**Ruling:** the guardrail wins. Nothing aboard a relocating Ark is raidable — stored resources are not raidable, the roster is never at stake, harvest in progress is already forfeited on packing. The three routes are **Collector** routes and move to §5.6. Ark relocation takes the shortest path and varies only in time.
+
+**Why:** §6.8 names base-burning as the churn trigger the design does not contain. An Ark that can be intercepted in transit is a base attack with a time window. There was no version of the §5.2 table that did not violate this.
+
+**Rework:** §5.2 rewritten, §5.6 extended. The Relocation screen loses its risk column; the Route Plotter gains it.
+
+### 6.2 — Exposure window → **fixed per gate; Drive scales time, never exposure** `[X]`
+
+**Bible §7.2** had Drive governing "relocation speed, transit exposure window." **Bible §7.7** forbids facility tier influencing raid outcomes or interception. A Drive that shortens exposure is a facility buying PvP safety with Gene Shards.
+
+**Ruling:** a convoy is raidable only inside a gate region that is neither its origin nor destination, for a fixed twenty-minute window per gate. Drive, Collector class, alliance tech and purchases scale transit *time*; none of them touch the window. The alliance corridor's halved window at allied gates is the §6.6 interception advantage and is territory, not facility.
+
+**Why:** it satisfies §7.7 exactly, it makes the region roster's gates the raiding chokepoints they were built to be, and departure and approach immunity fall out for free. It also means within-band Collector runs are safe, which lets 6.3 shorten immunity.
+
+**Rework:** §5.6 and §7.2 edited. The older middle-60% exposure rule and the class speed inversion are gone from the Collectors companion.
+
+### 6.3 — Raid immunity → **full to day 14, step-down to day 22** `[X]`
+
+**Bible §5.6 and §9.6** end immunity abruptly at day 14 and §9.8 names day 14 as the churn spike to watch.
+
+**Ruling:** full immunity through day 14, then days 15–21 raidable with the loss cap ramping 10% → 20% → 30% and the loss shield firing on a single loss, then full exposure from day 22. The end of full immunity is still an announced event with the escort tutorial.
+
+**Why:** an abrupt flip is the worst shape for a known churn cliff. The step-down makes the first real losses cheap and legible — tuition rather than tax — and 6.2's safe within-band runs mean a cautious player can extend their own immunity indefinitely by not crossing gates.
+
+**Rework:** §5.6 and §9.6 edited. Closes open item 5.
+
+### 6.4 — Marks → **fourth currency, never purchasable** `[S]`
+
+**Bible §8.2** lists three currencies. The era-2 raiding spec introduced two Marks currencies for raid rewards. The bible had no currency for raid outcomes at all.
+
+**Ruling:** one currency, **Marks**, earned on both sides of a raid (full on a win, 20–30% on a loss), spent in a Marks Shop on raid convenience and cosmetics only, and with no paid path of any kind. The two-currency split is collapsed: the shop is the same for raiders and defenders.
+
+**Why:** raid rewards need a currency money cannot reach or every raid becomes a spending comparison and the mode acquires a pay-to-win reputation it cannot shed. Paying raid rewards in Gene Shards would put them one step from the store.
+
+**Rework:** §8.2 row added. Constraint 1 (no purchase grants access) is unaffected; this is a currency constraint of the same shape applied to PvP.
+
+### 6.5 — Change impact
+
+- **6.1** → the Relocation screen spec in the screen inventory; any prototype showing intercept risk on Ark routes is wrong.
+- **6.2** → the region roster's gate placement now carries PvP weight; closing or adding a gate changes raid density. The Collectors companion names which two Mid gates to close if raiding is too diffuse.
+- **6.3** → §9.8's day-14 metric splits into day-14 and day-22 checkpoints.
+- **6.4** → §8.6's pack-contents list must never include Marks or a Marks-equivalent.
 
 ---
 
@@ -416,6 +482,12 @@ Reconciliation is done. Everything below is new work.
 ---
 
 ## Revision history
+
+**2026-09-05 — Part 6 added**
+
+- Four decisions raised by reconciling the era-2 companions (campaign, regions, Collectors & raiding) against the bible. Two — 6.1 and 6.2 — were contradictions inside the bible itself.
+- Open item 5 closed at 6.3.
+- Bible §5.2, §5.6, §7.2, §8.2 and §9.6 edited; each carries an inline amendment note pointing here.
 
 **Since v11**
 
