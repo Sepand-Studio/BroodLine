@@ -26,6 +26,16 @@ The bible states the design. It does not carry every number. Seven documents hol
 | `broodline_region_roster.md` | All thirty regions, the eight terrain families, species weighting, region defence cadence and composition |
 | `broodline_region_graph.md` | Region adjacency, gate pairings, per-segment travel times |
 | `broodline_rig_proof.md` | The socket standard and the Phase 1 pipeline gate |
+| `broodline_combat_engine.md` | Tick order, determinism, the replay format, counter application sites, breach diagnosis |
+| `broodline_data_model.md` | Entity shapes, lineage retention, the client/server authority split |
+| `broodline_telemetry.md` | The seven open questions as events, metrics and thresholds |
+| `broodline_server_topology.md` | Server population, lifecycle, regional assignment, the weekly tick job |
+| `broodline_notifications.md` | Notification categories, the daily budget, quiet hours, re-engagement |
+| `broodline_audio.md` | The audio division of labour, effect classes, species voice, the sound budget |
+| `broodline_seasonal_chapters.md` | How to author waves past 60, the shape vocabulary, the cost of a ninth raider |
+| `broodline_accessibility.md` | The accessibility audit, the four gaps, the settings list |
+| `broodline_store_iap.md` | Entitlement, validation, refunds, offer placement, and why there are no ads |
+| `broodline_offers.md` | What triggers a pack promotion, frequency caps, and what the algorithm may know |
 | `broodline_trait_codex.md` | The Codex pool, entry schemas, the threat board, disclosure policy, behaviour previews, the collection layer |
 | `broodline_raider_roster.md` | Raider fiction, the four-body art budget, recognition rules, telegraphing, spawn patterns, the Sunder |
 | `broodline_alliance_territory.md` | Alliance structure, Stakes and Hold, Stake Assault, garrisons, alliance tech, convoy staging, the weekly tick |
@@ -400,7 +410,7 @@ Targeting, exposure windows, loss caps, cooldowns, matchmaking bands and protect
 
 ## 4.10 Auto-resolve and the replay
 
-Auto-resolve must be a **full simulation of the same engine**, never a stat comparison rolled against a dice check.
+Auto-resolve must be a **full simulation of the same engine**, never a stat comparison rolled against a dice check. It is the same code path with no player input — tick order, determinism and the replay format are in `broodline_combat_engine.md`.
 
 Two reasons. If auto-resolve uses different maths, players will discover it and correctly conclude their placement and traits did not matter. And a simulation produces a **replay** — which is what makes losing tolerable. A defender who wakes to "you were raided, −40% cargo" is angry. A defender who can watch the fight, see their Skittish escort retreat at the wrong moment, and fix it, is engaged.
 
@@ -834,7 +844,7 @@ This is not a values statement — it is what holds the counter system together.
 
 | Currency | Free path | Paid path | Spent on |
 |---|---|---|---|
-| **Splice Charges** | Regen over time, daily login, rewarded ads | Packs, Season Pass | Splicing |
+| **Splice Charges** | Regen over time, daily login | Packs, Season Pass | Splicing |
 | **Gene Shards** | Wave completion, achievements, events | Direct purchase | Facility upgrades, timer skips, cosmetics, Roulette |
 | **Geneticist XP** | Daily login streak, events, achievements | Included in packs; shard conversion | The 12-tier ladder |
 | **Raid Marks** | Successful attacks; 20% consolation on a failed one | **Never** | Marks Shop |
@@ -846,7 +856,9 @@ Two Marks currencies exist and neither is purchasable at any price. That is stru
 
 **Charges never fully block play.** At zero charges a player can still replay completed waves for a sample drip, run region defence, manage their roster, dispatch Collectors, harvest, and claim event rewards. This guarantee has to genuinely work — it is what makes the charge system feel like pacing rather than a gate.
 
-Free routes to more charges: escalating daily login streak rewards, a rewarded video for +1 charge capped at three per day, and weekly event completion.
+Free routes to more charges: escalating daily login streak rewards, weekly event completion, and Gene Lab contribution tiers.
+
+**There is no rewarded video.** An earlier draft granted three charges a day for watching one. It is cut, and it cost nothing to cut — `broodline_sample_economy.md` §8 established that base stock rather than charges binds splicing, so a core player already banks more charges than they can spend. The ad was topping up a surplus. §8.7.
 
 ## 8.3 Store structure
 
@@ -946,7 +958,8 @@ The practical form of §8.1. Three separate systems have already leaked trait ac
 ## 8.7 Guardrails
 
 - Charges never fully block progress — there is always something playable at zero
-- Rewarded ads are always available as a free lever, capped daily to avoid fatigue
+- **No third-party advertising of any kind.** No rewarded video, no interstitials, no ad SDK
+- **Broodline may promote its own packs**, at most once a week plus a shortfall offer the player triggered. The algorithm chooses which offer, never what it costs, and never uses lifetime spend — `broodline_offers.md`
 - Every trait is obtainable free; money buys attempts, never outcomes
 - Top Geneticist Tier perks stay convenience and cosmetic
 - Odds are displayed before any charge or spin is spent

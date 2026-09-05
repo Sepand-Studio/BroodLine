@@ -26,7 +26,7 @@ The strategic position is unchanged and still correct: **dual-path currencies, a
 
 | Currency | Free path | Paid path | Spent on |
 |---|---|---|---|
-| **Splice Charges** | Regen, login, rewarded ads, Gene Lab | Packs, Season Pass | Splicing |
+| **Splice Charges** | Regen, login, Gene Lab | Packs, Season Pass | Splicing |
 | **Gene Shards** | Harvest, waves, events, raids | Direct purchase | Gene Lab, timers, Roulette, cosmetics |
 | **Geneticist XP** | Login streak, events, achievements | Included in every pack | Geneticist Tier |
 | **Raid Marks** | Successful attacks | **Never** | Marks Shop |
@@ -41,11 +41,12 @@ Two Marks currencies exist and neither is purchasable at any price. That is a st
 ## 3. Splice Charges
 
 - Cap **5**, regen **1 per 25 minutes**
-- Cap rises with Geneticist Tier: +1 per three tiers, maximum 10
-- Rewarded video: +1 charge, three per day
+- Cap rises by one at Geneticist Tiers 2, 4, 6, 8 and 10, reaching 10
 - Daily login streak: escalating grants at days 3, 7, 14, 30
 
-**Correcting the original spec's own arithmetic.** It reasoned from a player earning roughly five charges a day. At a 25-minute regen and a cap of 5, a refill from empty takes 2h05m, so a three-session player captures **15 charges daily**, plus three from ads. The real figure is 15–18.
+**Correcting the original spec's own arithmetic.** It reasoned from a player earning roughly five charges a day. At a 25-minute regen and a cap of 5, a refill from empty takes 2h05m, so a three-session player captures **about 15 charges daily.**
+
+**They will not spend all of them.** A splice consumes two creatures, so fifteen splices a day would need thirty base-stock creatures a day. A core player runs about six. Charges are a pacing mechanic with real surplus at the top, which is precisely what makes the Tier 8 second queue valuable only to players who have solved base stock — and it is why the rewarded-video surface at §10 could be cut without touching anything. See `broodline_sample_economy.md` §8.
 
 This matters beyond bookkeeping: an early spec worried a 3% mutation rate was too rare to sustain the loop's excitement, and that worry was calculated from the wrong charge number. Bible §2.3 now sets ~9% with an Aberrant sub-roll inside it.
 
@@ -60,10 +61,10 @@ Twelve tiers on cumulative Geneticist XP. Permanent, account-wide, and deliberat
 | Tier | Perk |
 |---|---|
 | 2 | +1 charge cap |
-| 4 | 10% faster charge regen |
-| 6 | One free sample pull daily |
-| 8 | **Second simultaneous splice queue** |
-| 10 | Cosmetic hybrid aura |
+| 4 | +1 charge cap · 10% faster charge regen |
+| 6 | +1 charge cap · one free sample pull daily — one Roulette spin, same odds and pity counter |
+| 8 | +1 charge cap · **second simultaneous splice queue** |
+| 10 | +1 charge cap · cosmetic creature aura |
 | 12 | Unique title, +15% shard bonus on purchases |
 
 Tier 8 is the strongest perk in the game and it is still only throughput. Once splicing is destructive, the real constraint is how many splices you can run, not how strong any one creature is — so a second queue is enormously valuable without touching combat power at all. That is the shape every perk on this ladder should have.
@@ -101,7 +102,7 @@ The original spec's "Mythic Lab Access — unlimited charges for 48 hours" is dr
 
 Four-week cycles. Free track carries modest charges, shards, and cosmetic unlocks. Paid track at $9.99 carries two to three times the same currencies, plus exclusive skins and XP boosts.
 
-**The paid track is more of the same, faster — never exclusive power.** It carries no creatures and no traits at all: charges, shards, XP, samples, cosmetics. Every species carries a counter, so granting a named species creature would be granting counter access by another route. A lapsed season costs a player nothing they cannot earn later.
+**The paid track is more of the same, faster — never exclusive power.** It carries no creatures and no traits at all: charges, shards, XP, samples, cosmetics. **It is a non-renewing purchase per season**, not a subscription — `broodline_store_iap.md` §3 — and buying late grants retroactively. Every species carries a counter, so granting a named species creature would be granting counter access by another route. A lapsed season costs a player nothing they cannot earn later.
 
 ---
 
@@ -112,7 +113,7 @@ Unchanged from the original spec, because it is the single highest-leverage tact
 1. **First charge wall**, around session 2–3, grants an automatic **24-hour Double Regen trial**. Free, unprompted, nothing asked.
 2. **At expiry**, offer to extend — Gene Shards for two more days, or the permanent unlock for $9.99.
 
-Letting a player feel the upgrade before asking for money converts far better than a cold paywall. The FTUE spec protects this by forbidding any purchase prompt in session one; putting a store banner in front of a new player spends the leverage for nothing.
+Letting a player feel the upgrade before asking for money converts far better than a cold paywall. Bible §8.5 protects this by forbidding any purchase prompt in session one; putting a store banner in front of a new player spends the leverage for nothing.
 
 ---
 
@@ -171,15 +172,21 @@ If any one of these is sold around, the model becomes pay-to-win in a single pat
 
 ---
 
-## 10. Advertising
+## 10. No advertising
 
-Rewarded video only. No interstitials, no forced views, no ads in combat.
+**No rewarded video. No interstitials. No ad SDK in the build.**
 
-- +1 charge, three per day
-- Shard grants tied to daily objectives
-- Introduced in session two, framed as a free lever rather than a paywall alternative
+An earlier draft carried a rewarded-video surface at +1 charge, three times a day, framed as a free lever alongside time and money. It is cut, and the reason it can be cut for free is worth recording.
 
-Whiteout runs zero ads. Rewarded-only is a deliberate departure: it gives non-payers a genuine third path alongside time and money, at the cost of some ARPDAU purity.
+**The charges it granted were surplus.** `broodline_sample_economy.md` §8 established that **base stock, not charges, is the binding constraint on splicing** — a core player banks fifteen to eighteen charges a day and spends about six, because each splice consumes two creatures. Three more charges a day topped up a resource nobody was short of.
+
+**So the ad surface earned very little and cost several things.** An SDK with its own data-handling obligations and its own App Review surface. A second measurement stack. A category of content the game does not control appearing inside a product whose whole posture is generous-feeling free play. And a placement that would need defending in every localisation and against every age threshold.
+
+**Whiteout runs zero ads.** The earlier draft called rewarded-only "a deliberate departure." It is a departure the design does not need, because the third path it was meant to provide — a lever for non-payers alongside time and money — is already provided by the guarantee at §11 that charges never block progress and by the sample and base-stock economies, which pay a player for playing rather than for watching.
+
+**The free path stays free and it stays uninterrupted.**
+
+**Broodline still promotes Broodline.** Store listing creatives, ASO and the UA advantage at bible §9.1 are unaffected, and in-game pack promotion runs on a triggered engine with hard caps — `broodline_offers.md`. The distinction is between Broodline as advertiser, which is kept, and Broodline as ad inventory for other companies, which is not.
 
 ---
 
@@ -200,7 +207,7 @@ Whiteout runs zero ads. Rewarded-only is a deliberate departure: it gives non-pa
 1. **The ARPDAU benchmarks in the original spec** — Whiteout at $1.21, Kingshot at $1.45 — predate this work and should be re-validated before they anchor any revenue model.
 2. **Is $9.99 right for permanent Double Regen?** It's the anchor purchase and it's priced by feel rather than against measured willingness to pay.
 3. **Does the $99.99 tier belong at launch?** It sets an expectation about the game's spending ceiling on day one, and the audience it serves may not exist until month six.
-4. **Rewarded ad caps at three per day** may be low. Higher caps serve non-payers better and dilute charge pack value.
+4. **Cutting advertising costs some ARPDAU and no gameplay.** The charges it granted were surplus, so nothing rebalances — but the revenue line is genuinely gone and the model has to carry without it.
 5. **Regional pricing and market-specific ladders** are unaddressed, and depend on the localization plan that does not yet exist.
 
 ---

@@ -26,7 +26,8 @@ If you read one document, read the bible. If you are about to build something, c
 |---|---|---|
 | **`broodline_bible.md`** | The design, §1–10. Current truth. | Everyone |
 | **`broodline_screen_inventory_v2.md`** | 56 screens, build priority, what the designed prototypes still need | Design, engineering, production |
-| **`broodline_build_order.md`** | What to build and in what order, the procurement to start now, and what playtest has to answer | **Production. Start here after the bible** |
+| **`broodline_whats_left.md`** | Every open question in the set, classified by who can close it — decisions, procurement, bench tests, playtest, soft launch | **Production. Start here after the bible** |
+| **`broodline_build_order.md`** | What to build and in what order, the procurement to start now, and what playtest has to answer | Production |
 | **`broodline_waves_01_12.md`** | Chapters 1 and 2 authored — waves 1 to 12, the wave schema, and the designed Courser loss | Design, engineering, anyone authoring waves 21+ |
 | **`broodline_waves_13_20.md`** | Chapter 3 authored — Brood, the two-lane transition, and the four-type cap first reached | The same |
 | **`broodline_waves_21_28.md`** | Chapter 4 authored — Drift, the four-species worst case, and the three Wave Defeat states | The same |
@@ -43,6 +44,9 @@ If you read one document, read the bible. If you are about to build something, c
 | **`broodline_notifications.md`** | Notification categories, the daily budget, copy shape, quiet hours, re-engagement | Design, live-ops |
 | **`broodline_audio.md`** | The audio division of labour, effect classes, species voice, the 61-asset sound budget | Audio, design |
 | **`broodline_seasonal_chapters.md`** | How to author waves past 60, the shape vocabulary, the cost of a ninth raider | Design, live-ops |
+| **`broodline_accessibility.md`** | The audit, the four gaps, the settings list, the palette finding | Design, art |
+| **`broodline_store_iap.md`** | Entitlement, validation, refunds, offer placement, and why there are no ads | Engineering, monetization |
+| **`broodline_offers.md`** | What triggers a pack promotion, frequency caps, and what the algorithm may know | Monetization, engineering |
 | **`broodline_gap_register.md`** | The design audit and its twelve passes. Historical now — every gap it tracked is closed | Anyone tracking how the design got here |
 | **`design_handoff_broodline/`** | 20 interactive screen prototypes, design tokens, Character Bible | Design, engineering, illustration |
 
@@ -86,11 +90,11 @@ Not designs. Kept because they hold reasoning the current documents deliberately
 
 Every file below carries a header saying so.
 
-**Queued for rewrite.** One document remains. `broodline_chassis_roster.md` describes ten chassis with armour types and footprints; its sidegrade envelope has already been rescued into `broodline_combat_numbers.md` §3.1, so what is left of it is small.
+**Nothing is queued for rewrite.** `broodline_chassis_roster.md` was the last; everything in it worth keeping is now in the bible, the combat numbers and the base-stock spec.
 
 **Superseded outright.** `broodline_spec_reconciliation.md` — an earlier register, replaced by `broodline_reconciliation.md`. Its constants ledger is wrong on most rows and must not be used.
 
-**The eight original specs still superseded.** Written one system at a time against an unsettled design. A ninth, `broodline_alliance_territory.md`, has since been brought current and moved up.
+**The eight original specs still superseded.** Written one system at a time against an unsettled design. A ninth, `broodline_alliance_territory.md`, has since been brought current and moved up. `broodline_chassis_roster.md` joins them.
 
 `broodline_genetics_system.md` · `broodline_combat_system.md` · `broodline_gene_vault.md` · `broodline_art_direction.md` · `broodline_ftue.md` · `broodline_screen_inventory.md` · `splice_monetization_spec.md` · `splice_resource_node_system.md`
 
@@ -108,7 +112,7 @@ The two files still named `splice_*` predate the project rename; Splice was the 
 
 **Economy / live-ops** — bible §7.6 and §8, then `broodline_economy_model.md` and `broodline_live_ops_events.md`, which hold the actual numbers. Every value is a soft-launch starting point. Bible §8.6 is the list to check any new offer against.
 
-**Production** — this file, then `broodline_build_order.md`. Two procurement items should be in motion before the first screen is built.
+**Production** — this file, then `broodline_whats_left.md` for what remains, then `broodline_build_order.md` for the order. Two procurement items should be in motion before the first screen is built.
 
 **New to the project** — this file, then the bible, then skim the reconciliation register's summary table.
 
@@ -137,3 +141,4 @@ If a change would break one of these, it needs a conversation rather than a comm
 3. **Waves escalate by volume, never by resistance.** No raider is ever immune to a tier-I answer.
 4. **No creature is ever lost involuntarily.** Combat, raids and assaults never remove one. Only splicing and retirement do, and both are the player's choice.
 5. **Control confers advantage, never exclusion.** Common Veins are permanently unclaimable and never carry the non-ally penalty, the penalty itself is capped, and there are no base attacks.
+6. **No third-party advertising.** No rewarded video, no interstitials, no ad SDK. The charges an ad would have granted were surplus, so the free path loses nothing and gains an uninterrupted one. Broodline promotes its own packs at most once a week, plus a shortfall offer the player triggered, on an engine that never prices by what a player has spent.

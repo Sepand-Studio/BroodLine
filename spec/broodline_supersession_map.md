@@ -1,8 +1,10 @@
 # Broodline — Supersession Map
 
-*v2. Read this before opening any document that is not the bible or one of its six companions.*
+*v3. The index of every document in the set, and what each one is.*
 
-> **`broodline_bible.md` is the design.** This map exists so that anyone opening one of the twenty other documents knows within one line whether they are reading current truth, a live companion, or an argument that was overtaken.
+> **`broodline_bible.md` is the design.** This map exists so that anyone opening any of the fifty-two other files knows within one line whether they are reading current truth, a companion the bible defers to, authored content, or an argument that was overtaken.
+>
+> **What is not done is in `broodline_whats_left.md`.** This file says what each document is; that one says what remains.
 
 ---
 
@@ -10,52 +12,93 @@
 
 The design was written in two waves. Nine specs came first, against an unsettled game. Nineteen reconciliation decisions then moved large parts of it, and the bible absorbed the result.
 
-**A second wave of twelve documents was written between those two events.** They were never mapped, and half of them still describe ten chassis, a damage triangle, four trait tiers and five Vault modules. Ten of the twelve have since been brought into line or rewritten and are current; one is superseded pending rewrite; one is superseded outright.
+**A second wave of twelve documents was written between those two events**, never mapped, half of them still describing ten chassis and a damage triangle. All twelve have since been brought into line, rewritten, or retired. A third wave — technical, production and content — followed once the design was settled.
 
-This map states, for every file, which of those it is.
+**Fifty-three files.** Forty-three are current. Ten are superseded, every one carries a header saying so, and none has anything left in it that has not been rescued.
 
-**Status key:** ✅ current · ⚙️ current companion · ⚠️ partly superseded · ❌ substantially superseded · 🔁 superseded, rewrite queued
+**Status key:** ✅ authoritative on its own · ⚙️ companion the bible defers to · ❌ superseded
 
 ---
 
 ## 1. The document set at a glance
 
-| Document | Status | Notes |
+### The bible and its records
+
+| Document | | |
 |---|---|---|
-| `broodline_bible.md` | ✅ | The design, §1–10 |
-| `broodline_screen_inventory_v2.md` | ✅ | 45 screens against the bible |
-| `broodline_combat_numbers.md` | ⚙️ | Species stats, trait values, raider profiles, wave budget |
-| `broodline_sample_economy.md` | ⚙️ | Sample rates, weighting, fusing, capacity, the catalyst |
-| `broodline_base_stock.md` | ⚙️ | Creature supply, species distribution, guarantees, Instinct weights |
-| `broodline_campaign_structure.md` | ⚙️ | **Rewritten.** 60 waves, 8 chapters, milestones, the designed loss, replay |
-| `broodline_region_roster.md` | ⚙️ | **Rewritten.** All 30 regions, 8 families, species weighting, region defence |
-| `broodline_trait_codex.md` | ⚙️ | **Rewritten.** 34 entries, four schemas, the threat board, disclosure |
-| `broodline_raider_roster.md` | ⚙️ | **Rewritten** from `broodline_enemy_archetypes.md`. Four bodies, art budget, the Sunder |
-| `broodline_alliance_territory.md` | ⚙️ | **Brought current.** Convoy staging and the weekly tick added |
-| `broodline_localization.md` | ⚙️ | Launch languages, naming policy, pricing per storefront, fonts |
-| `broodline_build_order.md` | ✅ | The production plan. Not a design document |
-| `broodline_waves_01_12.md` | ✅ | Authored content, chapters 1 and 2 |
-| `broodline_waves_13_20.md` | ✅ | Authored content, chapter 3 |
-| `broodline_waves_21_28.md` | ✅ | Authored content, chapter 4 |
-| `broodline_waves_29_36.md` | ✅ | Authored content, chapter 5 |
-| `broodline_waves_37_44.md` | ✅ | Authored content, chapter 6 |
-| `broodline_waves_45_52.md` | ✅ | Authored content, chapter 7 |
-| `broodline_waves_53_60.md` | ✅ | Authored content, chapter 8 |
-| `broodline_region_graph.md` | ✅ | Authored content, region adjacency |
-| `broodline_rig_proof.md` | ✅ | Production spec, the art pipeline gate |
-| `broodline_combat_engine.md` | ✅ | Technical spec, the simulation |
-| `broodline_splice_confirm_spec.md` | ⚙️ | Splice screen copy and states |
-| `broodline_economy_model.md` | ⚙️ | Shard income, facility curve, payer ceiling |
+| `broodline_bible.md` | ✅ | **The design, §1–10.** Everything else defers to it |
+| `broodline_screen_inventory_v2.md` | ✅ | 59 screens, build priority, what the prototypes still need |
+| `broodline_supersession_map.md` | ✅ | This file |
+| `broodline_gap_register.md` | ✅ | The design audit, twelve passes. Historical — every gap closed |
+| `broodline_whats_left.md` | ✅ | **The working list.** Every open question in the set, classified by who can close it |
+| `broodline_reconciliation.md` | ✅ | The decision register — *why*, not *what* |
+| `README.md` | ✅ | The front door |
+
+### Design companions — the bible defers to these for values
+
+| Document | | |
+|---|---|---|
+| `broodline_combat_numbers.md` | ⚙️ | Species stats, twelve traits at three tiers, eight raiders, the wave budget |
+| `broodline_sample_economy.md` | ⚙️ | Sample rates, weighting, fusing, capacity, the catalyst, the Aberrant sub-roll |
+| `broodline_base_stock.md` | ⚙️ | Creature supply, species distribution, the Founder guarantees, Instinct weights |
+| `broodline_economy_model.md` | ⚙️ | Shard income, all six facility curves, the payer ceiling |
+| `broodline_campaign_structure.md` | ⚙️ | Sixty waves, eight chapters, twelve milestones, the designed loss, replay |
+| `broodline_region_roster.md` | ⚙️ | All thirty regions, eight terrain families, species weighting, region defence |
+| `broodline_trait_codex.md` | ⚙️ | Thirty-four entries, four schemas, the threat board, disclosure |
+| `broodline_raider_roster.md` | ⚙️ | Four bodies, the art budget, recognition rules, spawn patterns, the Sunder |
 | `broodline_collectors_raiding.md` | ⚙️ | The full raid ruleset |
-| `broodline_live_ops_events.md` | ⚙️ | Event mechanics, Roulette odds |
-| `broodline_monetization.md` | ⚙️ | Offer structure, never-sold list |
-| `broodline_moderation_ugc.md` | ⚙️ | UGC, age gating, submission requirements |
+| `broodline_alliance_territory.md` | ⚙️ | Alliances, Stakes, garrisons, convoy staging, the weekly tick |
+| `broodline_live_ops_events.md` | ⚙️ | Event mechanics, Roulette odds, the Apex Cup, the calendar |
+| `broodline_monetization.md` | ⚙️ | Offer structure, the never-sold list, no third-party advertising |
+| `broodline_offers.md` | ⚙️ | The offer engine — one a week plus a shortfall offer, and what it may know |
+| `broodline_moderation_ugc.md` | ⚙️ | UGC surfaces, filtering, age gating, the 12+ decision |
 | `broodline_midgame_arc.md` | ⚙️ | Days 14–90 |
-| `broodline_gap_register.md` | ✅ | The design audit, twelve passes. Historical — every gap is closed |
-| `broodline_reconciliation.md` | ✅ | Decision register — *why*, not *what* |
-| `broodline_chassis_roster.md` | 🔁 | Ten chassis. Replaced by bible §1.2 |
-| `broodline_spec_reconciliation.md` | ❌ | An earlier register, superseded by `broodline_reconciliation.md` |
-| The nine original specs | ❌ | See §5 |
+| `broodline_seasonal_chapters.md` | ⚙️ | Authoring past wave 60, the shape vocabulary, the cost of a ninth raider |
+| `broodline_localization.md` | ⚙️ | Launch languages, naming policy, pricing per storefront, fonts |
+| `broodline_notifications.md` | ⚙️ | The notification budget, quiet hours, re-engagement |
+| `broodline_audio.md` | ⚙️ | Audio direction and the 61-sound budget |
+| `broodline_accessibility.md` | ⚙️ | The audit, four gaps, the settings list, the palette finding |
+| `broodline_splice_confirm_spec.md` | ⚙️ | Splice screen copy and states |
+
+### Technical and production
+
+| Document | | |
+|---|---|---|
+| `broodline_build_order.md` | ✅ | The production plan. Phases, procurement, what playtest has to answer |
+| `broodline_rig_proof.md` | ✅ | The socket standard and the Phase 1 art gate |
+| `broodline_combat_engine.md` | ✅ | Tick order, determinism, the replay format, breach diagnosis |
+| `broodline_data_model.md` | ✅ | Entities, lineage retention, the authority split |
+| `broodline_telemetry.md` | ✅ | Seven questions as events, metrics and thresholds |
+| `broodline_server_topology.md` | ✅ | Server population, lifecycle, the tick job |
+| `broodline_store_iap.md` | ✅ | Entitlement, validation, refunds, no ad SDK |
+
+### Authored content
+
+| Document | | |
+|---|---|---|
+| `broodline_waves_01_12.md` | ✅ | Chapters 1–2, and the wave schema |
+| `broodline_waves_13_20.md` | ✅ | Chapter 3 |
+| `broodline_waves_21_28.md` | ✅ | Chapter 4 |
+| `broodline_waves_29_36.md` | ✅ | Chapter 5 |
+| `broodline_waves_37_44.md` | ✅ | Chapter 6 |
+| `broodline_waves_45_52.md` | ✅ | Chapter 7 |
+| `broodline_waves_53_60.md` | ✅ | Chapter 8 |
+| `broodline_region_graph.md` | ✅ | Thirty regions, forty-three edges, gate pairings |
+
+### Superseded — do not build from these
+
+| Document | | |
+|---|---|---|
+| `broodline_spec_reconciliation.md` | ❌ | An earlier register, wrong on most rows. §2 |
+| `broodline_chassis_roster.md` | ❌ | Ten chassis. Everything worth keeping is rescued. §4 |
+| `broodline_genetics_system.md` | ❌ | §5 |
+| `broodline_combat_system.md` | ❌ | §5 |
+| `broodline_gene_vault.md` | ❌ | §5 |
+| `broodline_art_direction.md` | ❌ | §5 |
+| `broodline_ftue.md` | ❌ | §5 |
+| `broodline_screen_inventory.md` | ❌ | §5 |
+| `splice_monetization_spec.md` | ❌ | §5 |
+| `splice_resource_node_system.md` | ❌ | §5 |
 
 ---
 
@@ -121,36 +164,28 @@ Apply everywhere, in all documents and all screen copy.
 
 ---
 
-## 4. The document queued for rewrite
+## 4. `broodline_chassis_roster.md` — superseded, nothing left to rewrite
 
-Each carries real work that survives the model change. None should be built from as written.
+Queued for rewrite for a long time. **It no longer needs one.** Every section that survived the model change has been rescued into a current document, and what remains describes a game that does not exist.
 
-### 🔁 `broodline_chassis_roster.md`
-
-| Section | Status | Replaced by |
+| Section | Status | Where it went |
 |---|---|---|
-| §2 Five roles, §3 the ten-chassis stat table | ❌ | **Bible §1.2** — six species, six roles |
-| §4 Footprint belongs to chassis | ❌ | No footprint mechanic exists; placement is one creature per pocket |
-| §5 Armor is not a chassis property | ❌ | Armor types are cut with the damage triangle |
-| §6 Swarm chassis | ❌ | Cut. Skitter is the swarm species and occupies one slot |
-| §7 Chassis can only leave a roster, never enter it through splicing | ✅ | **Rescued into `broodline_base_stock.md` §7**, where it is quantified: species diversity drains at roughly six body-exits a day and uniform wave drops alone hold it |
-| §8 Silhouette requirements | ✅ | Carried into bible §10.2, applied to six species |
-| §9 The sidegrade envelope | ✅ | **Rescued into `broodline_combat_numbers.md` §3.1** as a power budget of 3.40 per species |
-| §10 No chassis is ever sold | ✅ | Reinforced — bible §8.6 now forbids selling a named species creature |
+| §2 Five roles, §3 the ten-chassis stat table | ❌ | **Bible §1.2** and `broodline_combat_numbers.md` §3 — six species, six stat profiles |
+| §4 Footprint | ❌ | No footprint mechanic exists |
+| §5 Armour types | ❌ | Cut with the damage triangle |
+| §6 Swarm chassis | ❌ | Cut. Skitter is the swarm species |
+| §7 Bodies only ever leave a roster | ✅ | **`broodline_base_stock.md` §7**, quantified |
+| §8 Silhouette requirements | ✅ | Bible §10.2 |
+| §9 The sidegrade envelope | ✅ | **`broodline_combat_numbers.md` §3.1**, as a power budget of 3.40 |
+| §10 No chassis is ever sold | ✅ | Bible §8.6 |
 
-*`broodline_trait_codex.md` was in this list and has been rewritten. Thirty-four entries against twelve traits, three coverage tiers, six Instincts, eight Aberrants and eight raiders. The disclosure policy, the entry schema, the behaviour-preview requirement, the bottom-sheet placement, progressive surfacing and the collection layer were all rescued; the pool shape and the fixed-tier ruling were not.*
-
-*`broodline_enemy_archetypes.md` was in this list and has been rewritten as `broodline_raider_roster.md`. Eight raiders on four shared bodies, with the art and animation budget, recognition rules, telegraphing and spawn patterns. The unbound-splice fiction, the variants-per-body budget logic, the telegraphing requirement and the raids exclusion were all rescued; the twelve-archetype roster and the armour mapping were not.*
-
-*`broodline_campaign_structure.md` was in this list and has been rewritten. Sixty waves in eight chapters against eight raiders, with the twelve Core milestones, the species-guarantee schedule and the designed Courser loss. The mutual staircase, the replay cap and the seasonal rule were rescued verbatim.*
-
-*`broodline_region_roster.md` was in this list and has been rewritten. Eight terrain families redefined by lane arrangement alone, all thirty regions authored with their species weighting, and region defence cadence and composition specified for the first time. The band topology, the inverse richness rule and the travel-time model had already been rescued into bible §5.2 and §5.7.*
+*Four other documents were once in this section and have all been rewritten: the trait codex, the enemy archetypes (now `broodline_raider_roster.md`), the campaign structure and the region roster.*
 
 ---
 
-## 5. The nine original specs
+## 5. The original specs
 
-All superseded. Each file now carries a header pointing here.
+Eight of the nine are superseded and carry a header pointing here. The ninth, `broodline_alliance_territory.md`, was brought current and is a companion.
 
 ### ❌ `broodline_genetics_system.md`
 
@@ -285,8 +320,8 @@ Superseded by `broodline_monetization.md`. Its four packs promising trait pulls 
 
 ## 6. Handling
 
-Every superseded file now carries a header pointing here, and every current companion carries one saying so. That was the cheap half.
+Every superseded file carries a header pointing here. Every current file carries one saying so. **Nothing is queued for rewrite.**
 
-The expensive half is the one file left at §4. Its superseded sections are load-bearing rather than incidental — someone reading the chassis roster today learns ten bodies with armour types and footprints — though its two genuinely valuable sections, the sidegrade envelope and the never-sold rule, have both already been rescued.
+The ten superseded files are kept for the reasoning they hold — several current decisions only make sense beside the thing they replaced — and for no other purpose. None should be opened by anyone trying to build something.
 
-**Rewrite what is left of it, and rescue that section first.** They are the parts most likely to be lost, precisely because they are correct and therefore invisible.
+**When a new document is added, it goes in §1 with a status and one line.** That is the whole maintenance burden of this file.
