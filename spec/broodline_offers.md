@@ -30,41 +30,30 @@
 
 ## 2. What triggers one
 
-Four categories. **Contextual is the only one that is genuinely useful to the player**, and it should be most of the volume.
+**One thing. A shortfall.**
 
-### Contextual — the shortfall
+A player attempts something they cannot afford. `broodline_store_iap.md` §6 already permits a one-time insufficient-currency prompt naming the shortfall. The offer engine is that prompt, with a pack attached.
 
-A player attempts something they cannot afford. `broodline_store_iap.md` §6 already permits a one-time insufficient-currency prompt naming the shortfall.
-
-> **The offer that follows must be the smallest pack that covers the shortfall**, never the largest that fits the moment.
+> **The offer is the smallest pack that covers the shortfall**, never the largest that fits the moment.
 
 A player 200 shards short of a Splicing Chamber tier gets the Starter Splice, not the Geneticist's Vault. Anything else is the game reading a moment of frustration as a buying signal, which is the pattern this whole model exists to avoid.
 
 **The free path is shown alongside, always.** How long until they have enough by playing.
 
-### Progression
+### 2.1 What was cut, and why
 
-A player crosses a threshold that changes what is useful to them.
+An earlier draft had three further categories — **progression** offers at thresholds like Core tier 8, **temporal** offers on event openings, and **lifecycle** offers at day 15 and on return from absence. All three are cut.
 
-| Trigger | Offer |
-|---|---|
-| Core tier 8 — second build slot | A pack weighted toward shards |
-| First Apex Vein capture | A pack weighted toward sample pulls |
-| Joining a first alliance | Nothing. **Deliberately** — see §5 |
-| Campaign chapter completion | A pack weighted toward charges |
+**They were never going to carry volume.** Progression offers fired once per threshold, ever, and there are perhaps seven thresholds in two years. Temporal offers were one per event. Against a one-a-week cap, the unprompted slot was empty most weeks — and an engine that is mostly idle is an engine that is mostly build cost.
 
-**Progression offers fire once per threshold, ever.** They are a recognition that the player's needs changed, not a recurring prompt.
+**And the one that remains is the only one a player asked for.** A shortfall offer appears because the player tried to do something. Every other kind appears because the game decided it was a good moment, and "the game decided" is where an offer system stops being a service and starts being a prompt.
 
-### Temporal
+**Two things survive outside this engine**, because they were never really offers:
 
-Season opening, event opening. **One per event, on the day it opens**, per `broodline_live_ops_events.md` §9's existing rules.
+- **Day 15's Double Regen trial conversion** stays where `broodline_monetization.md` put it — it is the end of a trial, shown once, and it is not triggered by this engine
+- **The Season Pass entry card** on a season's opening day, per `broodline_store_iap.md` §6 — a store surface, not a promotion
 
-### Lifecycle
-
-Exactly two, and both are already in the design:
-
-- **Day 15**, the Double Regen trial conversion at `broodline_monetization.md`
-- **First return after seven days absent**, and it names something that happened rather than offering a bribe — `broodline_notifications.md` §6
+**The engine is now small enough to describe in a sentence:** when a player cannot afford something, show them the smallest pack that would cover it, once, with the free path beside it.
 
 ---
 
@@ -124,15 +113,13 @@ The line that matters most, and it is short.
 
 ## 5. Frequency
 
-> **One active offer at a time. One per week baseline, two maximum. Seventy-two hours minimum between them.**
+> **At most two shortfall offers a week, seventy-two hours apart. Never unprompted.**
 
-**The second slot is reserved for a shortfall offer** — the contextual kind at §2, where the player tried to do something and could not afford it. Progression, temporal and lifecycle offers draw from the first slot only.
+**Every offer is one the player triggered.** There is no unprompted slot — §2.1. A player who never runs short never sees an offer, and a player who runs short constantly sees at most two a week regardless.
 
-That gives the range a rule rather than a random draw: **a player sees at most one unprompted offer a week, and a second only if they asked for something the game could not give them.** The useful kind gets the extra room; the pushed kind does not.
+**"Every now and then" is a real constraint and it needs a number**, because the failure mode of an offer engine is not a bad offer — it is a good offer arriving too often until the player stops seeing offers at all. Two a week, only when asked, is a number that can be defended out loud — and for most players the real figure will be closer to two a month.
 
-**"Every now and then" is a real constraint and it needs a number**, because the failure mode of an offer engine is not a bad offer — it is a good offer arriving too often until the player stops seeing offers at all. **At one a week a player who never buys anything encounters roughly fifty offers in a year**, which is a number that can be defended out loud.
-
-**Suppression, absolute:**
+**Suppression, absolute** — a shortfall during any of these produces the plain prompt with no pack attached:
 
 - **After any defeat.** Campaign wave, region defence, raid attack, raid defence, Stake Assault. Bible §9.3 makes the wave-6 loss the game's best teaching moment and an offer attached to it converts it into its worst
 - **During the first fourteen days**, except the day-15 Double Regen trial
@@ -154,7 +141,7 @@ That gives the range a rule rather than a random draw: **a player sees at most o
 | Dismissed twice | Suppressed for eight weeks |
 | Dismissed three times | **Retired permanently** for that player |
 
-**By type, not by instance.** A player who has dismissed three shortfall offers stops receiving shortfall offers. They can still open the store.
+**Three dismissals and the engine retires for that player.** There is only one type now. They can still open the store, and the insufficient-currency prompt still names the shortfall and the free path — it simply stops attaching a pack.
 
 **Nothing about this is surfaced.** A player who never sees a progression offer again does not need to be told why, and telling them would turn a courtesy into a negotiation.
 
@@ -176,7 +163,7 @@ That gives the range a rule rather than a random draw: **a player sees at most o
 - The algorithm never uses lifetime spend, predicted willingness to pay, or any engagement score
 - Two players at the same progression point see the same offer at the same price
 - A shortfall offer is the smallest pack that covers the shortfall, with the free path shown alongside
-- One active offer. One a week baseline, two maximum, and the second slot is shortfall-only. Seventy-two hours apart
+- Shortfall offers only. At most two a week, seventy-two hours apart. **No unprompted offer, ever**
 - No offer after any defeat, during the first fourteen days, during onboarding, on the splice confirmation, or within a day of a raid loss
 - Three dismissals retire an offer type permanently
 - "Show offers" turns everything off, with no warning attached
@@ -186,13 +173,11 @@ That gives the range a rule rather than a random draw: **a player sees at most o
 
 ## 9. Open questions
 
-1. **One a week is deliberately low for this genre and it is the right starting point.** An earlier draft said three. The honest test is whether a player who never buys anything would describe the game as pushy after a month, and one a week is comfortably under that line. **The risk is now the opposite one** — an engine this quiet may not be worth its build cost, which §3 already raised about the value ceiling. `broodline_telemetry.md` should measure dismissal rate by type either way.
+1. ~~**One a week is deliberately low.**~~ **Resolved — shortfall-only, two a week maximum.** The unprompted slot is cut at §2.1. The remaining question is whether an engine this small is worth building as a separate system at all, or whether it is simply the insufficient-currency prompt with one extra field. **Recommend the latter.** `broodline_telemetry.md` measures dismissal rate either way.
 2. **The value ceiling at §3 caps improvements at roughly +17%**, which is a modest offer by this genre's standards and may not convert. The alternative is breaking ladder monotonicity, which is not an alternative.
-3. **Progression offers fire once per threshold, ever, and there are perhaps six or seven thresholds across two years.** Against a one-a-week baseline the first slot is mostly empty, which means most weeks carry no offer at all. That is the intended feel and it makes the shortfall offer — the second slot, the one the player triggered — close to the entire system in practice.
-
-   **Worth considering whether the first slot should exist.** An engine that fires only when a player is short of something is simpler, entirely useful, and impossible to describe as pushy.
+3. ~~**Progression offers fire once per threshold.**~~ **Cut, with temporal and lifecycle offers — §2.1.** The engine is shortfall-only.
 4. **Nothing here covers cross-promotion of future titles.** It is not third-party advertising and it needs no SDK, but it is still an interruption in a product whose posture is generous-feeling free play. **Recommend the same answer as third-party ads: no.** A studio's second game is best advertised by the first one being good.
 
 ---
 
-*Owns: offer triggers, frequency, suppression, the algorithm's permitted inputs, the value-ceiling rule and the dismissal ladder. Does not own: what is sold (`broodline_monetization.md`), what is never sold (bible §8.6), surfaces (`broodline_store_iap.md` §6), or storefront pricing (`broodline_localization.md` §6).*
+*Owns: the shortfall offer — its trigger, frequency, suppression, the algorithm's permitted inputs, the value-ceiling rule and the dismissal ladder. Does not own: what is sold (`broodline_monetization.md`), what is never sold (bible §8.6), surfaces (`broodline_store_iap.md` §6), or storefront pricing (`broodline_localization.md` §6).*

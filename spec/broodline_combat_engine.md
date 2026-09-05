@@ -35,7 +35,7 @@ One simulation, four consumers, and they impose different requirements.
 
 **One seeded RNG stream per wave**, advanced only by simulation events. Nothing in rendering, UI or animation may draw from it.
 
-**What is actually random?** Very little. Wave composition and spawn timing are authored. The RNG covers: Instinct tie-breaks when two targets are equally valid, Skittish's choice of adjacent pocket, and the Aberrant Contrary's tie-break. **That is the whole list**, and it is worth noticing — a combat model built on counters rather than on damage rolls barely needs randomness at all.
+**What is actually random?** Almost nothing. Wave composition and spawn timing are authored, and Skittish repositions deterministically to the nearest free pocket away from the threat. The RNG covers: Instinct tie-breaks when two targets are equally valid, and the Aberrant Contrary's tie-break. **That is the whole list**, and it is worth noticing — a combat model built on counters rather than on damage rolls barely needs randomness at all.
 
 ### 2.1 Server verification is cheap because of this
 
@@ -43,7 +43,7 @@ The obvious way to stop raid cheating is to simulate raids on the server. That c
 
 **Determinism gives a better answer.** The client simulates live and submits **seed, placement and Rally timestamp** — a few dozen bytes. The server re-runs the same simulation and compares the outcome. A mismatch is a rejected raid.
 
-**The verification is one re-run of a ninety-second wave, and it can be batched or sampled.** That is affordable in a way that live server simulation of every raid is not, and it is entirely a consequence of the determinism the replay system already needed.
+**The verification is one re-run of a ninety-second wave, and every raid gets one.** It can be batched; it is not sampled. That is affordable in a way that live server simulation of every raid is not, and it is entirely a consequence of the determinism the replay system already needed.
 
 **Auto-resolve is the same code path with no player input**, per bible §4.10.
 
@@ -64,7 +64,7 @@ A replay is **not** a recording of state. It is the inputs.
 
 **A few hundred bytes.** Which matters, because bible §4.9 gives every raid a replay and there are two raids per player per day.
 
-**Engine version is stored and it is load-bearing.** A balance patch that changes Chill's slow value invalidates every replay recorded before it. **Replays from a superseded engine version are marked as such and play back with a notice**, rather than silently producing a different outcome. Discarding them is the alternative and it is worse — a player who lost a raid wants to see it more than they want it to be current.
+**Engine version is stored and it is load-bearing.** A balance patch that changes Chill's slow value invalidates every replay recorded before it. **Replays from a superseded engine version show their recorded outcome with a notice**, and do not re-simulate. The client never retains old engine versions. Discarding them is the alternative and it is worse — a player who lost a raid wants to see it more than they want it to be current.
 
 ---
 
@@ -140,10 +140,10 @@ A Pierce II carrier targeting Breaker A also suppresses the cap on the nearest o
 | Vanguard | Closest to the Ark | — |
 | Overwatch | Furthest in range | Passive: +25% range, −20% attack speed |
 | Last Stand | Nearest | Self below 25% HP → +50% attack speed |
-| Skittish | Nearest | Self below 40% HP → reposition, 2s, cannot act |
+| Skittish | Nearest | Self below 40% HP → reposition to the nearest free pocket away from the threat, 2s, cannot act |
 | Pack Sense | Nearest | Adjacent same-species ally → +15% damage to both |
 
-**Ties break on spawn index, ascending.** Deterministic and cheap. The RNG is used only where a tie-break must not be predictable, which in practice is Skittish's pocket choice.
+**Ties break on spawn index, ascending.** Deterministic and cheap. The RNG is used only where a tie-break must not be predictable.
 
 **Contrary, the Aberrant, requires an allied-target census.** It targets whatever the fewest allies target, so the engine maintains a per-tick count of how many creatures hold each raider as a target. That is one pass over five creatures and it should be built even if Contrary is the only consumer, because a general census is cheaper than a special case.
 
@@ -215,11 +215,11 @@ For every raider that reaches the Ark:
 
 ## 11. Open questions
 
-1. **Does the client simulate raids and get verified, or does the server simulate and the client play back?** §2.1 argues for the first. The second is simpler and costs a round trip on every raid, which for a mode built on a ninety-second alert window may be acceptable. It is an architecture decision and it should be made explicitly rather than by whoever writes the code first.
-2. **How often is raid verification actually run?** Every raid is safest and most expensive. Sampling plus escalation on anomaly is cheaper and lets some cheating through. Determinism makes either affordable; the choice is a trust decision.
-3. **What happens to an in-flight replay when a balance patch lands?** §3 marks it as superseded. Whether it plays back on the old rules — requiring the client to retain old engine versions — or simply shows its recorded outcome with a notice is unresolved, and the first is a real maintenance burden.
-4. **Skittish's reposition is the only RNG the player sees affecting an outcome.** Two seconds where a creature cannot act, to a pocket chosen at random. A deterministic choice — nearest free pocket away from the threat — might be better, and would reduce the RNG surface to tie-breaks only.
-5. **The retarget lockout at 0.4s is doing more balance work than any other number in this document.** It is what makes Splash necessary and what makes eight Skirmishers a threat. It belongs in `broodline_combat_numbers.md` as a tunable rather than being buried in the engine.
+1. ~~**Does the client simulate raids and get verified, or does the server simulate and the client play back?**~~ **Settled: client simulates, server verifies** — `broodline_data_model.md` §8. The raid alert window is ninety seconds and the defender may be joining live; a round trip per wave against that is the wrong trade, and determinism makes verification a single re-run either way.
+2. ~~**How often is raid verification actually run?**~~ **Resolved — every raid. Determinism makes it a single re-run of a ninety-second wave, which is cheap enough, and sampling lets cheating through during exactly the window where a game's PvP reputation is set.**
+3. ~~**What happens to an in-flight replay when a balance patch lands?**~~ **Resolved — recorded outcome with a notice. The client never retains old engine versions.**
+4. ~~**Skittish's reposition is the only RNG the player sees affecting an outcome.**~~ **Resolved — nearest free pocket away from the threat, deterministic. That reduces the RNG surface to tie-breaks only.**
+5. ~~**The retarget lockout at 0.4s is doing more balance work than any other number in this document.**~~ **Moved — the retarget lockout is now a first-class tunable in `broodline_combat_numbers.md` §5.**
 
 ---
 

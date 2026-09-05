@@ -24,8 +24,8 @@ That asymmetry is the whole reason for this document. The register's habit — f
 
 | Item | Why now | Blocks |
 |---|---|---|
-| **Moderation filter, 7 languages** | Vendor selection, contracting and per-language tuning are external. App Review rejects an app carrying UGC without filtering | Any server opening in that language |
-| **CJK font substitutes** | Weight-matching Noto Sans to the display face is a design task, but licensing and the tabular-figure verification are not | Chinese, Japanese and Korean builds |
+| **Moderation filter, English** | Vendor selection and contracting are external. App Review rejects an app carrying UGC without filtering. Pick a vendor covering the full language list, since switching mid-rollout re-tunes everything already shipped | Soft launch |
+| **CJK font substitutes** | Not a launch item — English only. Needed for Japanese, which is the first language added. Weight-matching is a design task; licensing and the tabular-figure check are not | The first added language |
 
 Neither is glamorous and both are the kind of thing that quietly becomes the critical path.
 
@@ -144,8 +144,6 @@ Not gaps — nobody is blocked. But each gets more expensive the later it is tak
 
 | Decision | Cost of deferring |
 |---|---|
-| **Seven launch languages, or five?** | Each language is translation, filter procurement, a font decision and a QA pass across 59 screens. Dropping French and Spanish to wave two shortens the critical path materially |
-| **Arabic's deferral needs a date** | RTL gets more expensive with every screen added. Deferred without a date becomes never |
 | **Region names: transliterate, or native equivalents?** | Thirty place names. Cheap now, a retranslation later |
 | **Freeze coverage values before translation** | A tuning pass at soft launch could invalidate six languages of Codex copy at once |
 | **Is the Convoy Rig visible on the Transit Board as a Rig?** | Small, but it changes what the raid UI has to show |
@@ -178,7 +176,8 @@ Rough, and offered as a sanity check rather than a plan.
 | 3 — Loop | The first thing worth playtesting. Economy becomes observable here |
 | 4 — Meta | The longest phase, and the one where the campaign authoring has to have kept pace |
 | 5 — Live-ops | Cannot be meaningfully tested before soft launch |
-| Soft launch | English only, in Canada, Australia, New Zealand and the Philippines |
+| Soft launch | English, in Canada, Australia, New Zealand and the Philippines |
+| Launch | English, wider markets. Languages follow one at a time |
 
 **Soft launch is where every number in seventeen documents gets checked at once**, which is why the playtest list at §5 should be instrumented long before it — arriving at soft launch with seven open structural questions wastes the market.
 

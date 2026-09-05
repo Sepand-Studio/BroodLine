@@ -12,48 +12,48 @@
 
 **Fifty-two files.** The design is finished. The content is finished — sixty waves, thirty regions, the graph. The technical foundations are specified — engine, data model, telemetry, server topology, store. The production plan exists and names its gates.
 
-**One hundred and thirty-nine open questions remain across thirty-four current documents**, and the important thing about them is that **almost none can be answered by writing.** They sort into five kinds, and four of the five need something other than a document.
+**One hundred and nineteen open questions remain across thirty-four current documents**, and **none of them can be answered by writing.** Every decision that could be taken on paper has been taken. What remains sorts into four kinds, and every one needs something other than a document.
 
 | Kind | Count | Closes when |
 |---|---|---|
-| **Decisions** | 22 | Someone decides |
+| **Decisions** | 0 | All taken |
 | **Procurement and commissioning** | 8 | Something external is bought or briefed |
 | **Bench tests** | 11 | A build exists, no players needed |
 | **Playtest** | 63 | Players play |
 | **Soft launch** | 35 | Real population, real spend |
 
-**The writing is done.** What remains is deciding, buying, building and watching.
+**The writing is done and so is the deciding.** What remains is buying, building and watching.
 
 ---
 
 ## 2. Decisions — 22
 
-Nobody is blocked by these, but every one gets more expensive the later it is taken. **The first six are the ones I would take this week.**
+**All twenty-two are taken**, with the picks shown, and applied in their home documents. Veto any of them and it reverses. Nothing on this list is open.
 
 | # | Decision | Where | My pick |
 |---|---|---|---|
-| 1 | **Does the offer engine's unprompted slot exist at all?** | `offers` §9.3 | **Cut it.** Shortfall-only is simpler, entirely useful, and impossible to call pushy |
-| 2 | **Seven launch languages, or five?** | `localization` §11.1 | **Five.** Drop French and Spanish to wave two; it shortens the critical path materially |
-| 3 | **Telemetry analysis window** | `telemetry` §12.1 | **90 days.** It is the working assumption and it drives storage and obligations |
-| 4 | **Rig proof duration** | `rig_proof` §9.4 | **Three weeks.** A gate with no deadline is not a gate |
-| 5 | **Raid verification: every raid, or sampled?** | `combat_engine` §11.2 | **Every raid.** Determinism makes it cheap enough, and sampling lets cheating through during the window where reputation is set |
-| 6 | **Arabic's deferral date** | `localization` §11.5 | **Wave three, six months post-launch.** Deferred without a date becomes never |
-| 7 | Server merge rule | `server_topology` §9.3 | Clear territory, re-open at next tick. Cruel and legible |
-| 8 | Suppress the raid alert overnight? | `notifications` §10.1 | Yes. It costs nothing and delivering it costs goodwill |
-| 9 | Region names — transliterate or native equivalents? | `localization` §11.2 | Transliterate, same rule as species |
-| 10 | Cross-promote future titles inside Broodline? | `offers` §9.4 | No. Same answer as third-party ads |
-| 11 | Freeze coverage values before translation? | `localization` §11.3 | Yes, and accept it constrains tuning |
-| 12 | Convoy Rig visible on the Transit Board as a Rig? | `alliance` §12.7 | Visible, with contributor count |
-| 13 | Screen-reader scope — menus only, or attempt combat? | `accessibility` §8.3 | Menus, properly. Be honest about combat |
-| 14 | Under-13 chat: canned phrases, or none? | `moderation` §12.2 | None |
-| 15 | Moderation staffing model | `moderation` §12.3 | Automated-first with human escalation |
-| 16 | Chat log retention | `moderation` §12.4 | 30 days |
-| 17 | Skittish reposition — random pocket, or nearest safe? | `combat_engine` §11.4 | Nearest safe. Reduces RNG to tie-breaks only |
-| 18 | Replay on a superseded engine — old rules, or recorded outcome? | `combat_engine` §11.3 | Recorded outcome with a notice. Retaining old engines is a maintenance burden |
-| 19 | Retirement cooldown? | `sample_economy` §13.5 | None until playtest shows the locker exploit is real |
-| 20 | Transit Board shows cargo value? | `raiding` §15.1 | Yes, banded rather than exact |
-| 21 | Pale grant on defeat, or on retry? | `campaign` §12.4 | Defeat. Immediate, and bible §9.3 asks for immediate |
-| 22 | Inner Reach ever claimable in a late season? | `region_roster` §11.3 | No, firmly |
+| ~~1~~ | ~~Does the offer engine's unprompted slot exist at all?~~ | `offers` §2.1 | **Taken — cut.** Shortfall-only, two a week maximum |
+| ~~2~~ | ~~Seven launch languages, or five?~~ | `localization` §2 | **Taken — English only.** Then one language at a time, Japanese first |
+| ~~3~~ | ~~Telemetry analysis window~~ | `telemetry` §10 | **Taken — 90 days** of raw events, aggregates indefinite |
+| ~~4~~ | ~~Rig proof duration~~ | `rig_proof` §8 | **Taken — three weeks** |
+| ~~5~~ | ~~Raid verification: every raid, or sampled?~~ | `combat_engine` §2.1 | **Taken — every raid** |
+| ~~6~~ | ~~Arabic's deferral date~~ | `localization` §2 | **Taken — position 13**, after the layout has stopped changing |
+| ~~7~~ | ~~Server merge rule~~ | `server_topology` §9.3 | **Taken.** Clear territory, re-open at next tick. Cruel and legible |
+| ~~8~~ | ~~Suppress the raid alert overnight?~~ | `notifications` §10.1 | **Taken.** Yes. It costs nothing and delivering it costs goodwill |
+| ~~9~~ | ~~Region names — transliterate or native equivalents?~~ | `localization` §11.2 | **Taken.** Transliterate, same rule as species |
+| ~~10~~ | ~~Cross-promote future titles inside Broodline?~~ | `offers` §9.4 | **Taken.** No. Same answer as third-party ads |
+| ~~11~~ | ~~Freeze coverage values before translation?~~ | `localization` §11.3 | **Taken.** Yes, and accept it constrains tuning |
+| ~~12~~ | ~~Convoy Rig visible on the Transit Board as a Rig?~~ | `alliance` §12.7 | **Taken.** Visible, with contributor count |
+| ~~13~~ | ~~Screen-reader scope — menus only, or attempt combat?~~ | `accessibility` §8.3 | **Taken.** Menus, properly. Be honest about combat |
+| ~~14~~ | ~~Under-13 chat: canned phrases, or none?~~ | `moderation` §12.2 | **Taken.** None |
+| ~~15~~ | ~~Moderation staffing model~~ | `moderation` §12.3 | **Taken.** Automated-first with human escalation |
+| ~~16~~ | ~~Chat log retention~~ | `moderation` §12.4 | **Taken.** 30 days |
+| ~~17~~ | ~~Skittish reposition — random pocket, or nearest safe?~~ | `combat_engine` §11.4 | **Taken.** Nearest safe. Reduces RNG to tie-breaks only |
+| ~~18~~ | ~~Replay on a superseded engine — old rules, or recorded outcome?~~ | `combat_engine` §11.3 | **Taken.** Recorded outcome with a notice. Retaining old engines is a maintenance burden |
+| ~~19~~ | ~~Retirement cooldown?~~ | `sample_economy` §13.5 | **Taken.** None until playtest shows the locker exploit is real |
+| ~~20~~ | ~~Transit Board shows cargo value?~~ | `raiding` §15.1 | **Taken.** Yes, banded rather than exact |
+| ~~21~~ | ~~Pale grant on defeat, or on retry?~~ | `campaign` §12.4 | **Taken.** Defeat. Immediate, and bible §9.3 asks for immediate |
+| ~~22~~ | ~~Inner Reach ever claimable in a late season?~~ | `region_roster` §11.3 | **Taken.** No, firmly |
 
 ---
 
@@ -63,8 +63,8 @@ External lead times. **The first two should already be in motion.**
 
 | # | Item | Where |
 |---|---|---|
-| 1 | **Moderation filter, seven languages** | `localization` §7, `build_order` §2 |
-| 2 | **CJK font substitutes**, weight-matched, tabular figures verified | `localization` §8 |
+| 1 | **Moderation filter, English** — from a vendor covering the full language list | `localization` §7, `build_order` §2 |
+| 2 | **CJK font substitutes**, weight-matched, tabular figures verified — for Japanese, the first language added, not for launch | `localization` §8 |
 | 3 | The rig proof commission — two bodies, twelve socket-agnostic parts, forty-eight renders | `rig_proof` §8 |
 | 4 | Species palette fix — widen lightness separation on two collapsing pairs | `accessibility` §4 |
 | 5 | Eleven behaviour previews, costed | `trait_codex` §10.1 |
@@ -146,7 +146,7 @@ Read against `broodline_build_order.md`:
 
 | | |
 |---|---|
-| **This week** | Take decisions 1–6 at §2. Start procurement 1–2 at §3 |
+| **This week** | Every decision is taken. Start procurement 1 at §3 |
 | **Phase 1** | The rig proof and the engine. Every bench test at §4 runs here |
 | **Phase 2–3** | The first hour and the loop. The seven structural playtest questions get instrumented from the first build that can run wave 6 |
 | **Soft launch** | English only, four markets. §6 starts being answerable |

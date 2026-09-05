@@ -23,19 +23,37 @@ The rest — what gets translated, what does not, and what breaks when it does �
 
 ## 2. Launch set
 
-**Seven at launch. Six more after soft launch. Three deferred.**
+**English only at launch. Every other language is added incrementally, one at a time, each gated on its own filter and font.**
 
-| Wave | Languages |
-|---|---|
-| **Launch** | English · Simplified Chinese · Japanese · Korean · German · French · Spanish |
-| **Post-soft-launch** | Traditional Chinese · Portuguese (Brazil) · Russian · Turkish · Italian · Indonesian |
-| **Deferred** | Arabic · Thai · Vietnamese |
+| Order | Language | Why this position |
+|---|---|---|
+| **Launch** | **English** | The whole game, every market that reads it |
+| 1 | Japanese | The genre's second-largest market, and the first CJK font decision |
+| 2 | Korean | |
+| 3 | Simplified Chinese | Taiwan, Hong Kong, Singapore, Malaysia via the global store — not the mainland, §2.1 |
+| 4 | German | The worst-case text expansion, and the test of every layout |
+| 5 | French | |
+| 6 | Spanish | |
+| 7 | Traditional Chinese | |
+| 8 | Portuguese (Brazil) | |
+| 9 | Russian | |
+| 10 | Turkish | |
+| 11 | Italian | |
+| 12 | Indonesian | |
+| 13 | Arabic | The RTL build cost, taken once the layout has stopped changing |
+| 14–15 | Thai · Vietnamese | |
 
-The launch seven are where this genre earns. Comparable titles — bible's reference points, *Whiteout Survival* and *Kingshot* — draw heavily from the US, Japan, Korea and Taiwan, with the European four carrying most of the rest.
+**One language at a time, not waves.** An earlier draft launched with five and added eight together. Adding a language is a translation pass, a filter procurement, a font decision and a QA pass across fifty-nine screens — and doing several at once means several sets of layout bugs landing in the same build. One at a time means each language is complete before the next starts, and **no language ships partially**, per the guardrail at §10.
 
-**Arabic is deferred for an engineering reason, not a market one.** Right-to-left requires mirroring the layout across fifty-nine screens, and that is a build cost rather than a translation cost. Shipping it half-done is worse than shipping it later.
+**The order is by expected revenue, with two exceptions.** Japanese first because it forces the CJK font decision early, on the market most worth getting it right for. German fourth rather than later because it is the widest text expansion and every layout that survives German survives everything.
 
-**Soft launch runs in English only**, in Canada, Australia, New Zealand and the Philippines — low acquisition cost, behaviour close enough to the US to read the retention curve, and no translation spend committed before the economy is tuned.
+**Regions expand the same way.** English-only launch does not mean English-market-only — an English build is playable anywhere the store sells it, and market entry is a separate, incremental decision from language.
+
+**Nothing below this line applies at launch.** It applies to each language as it is added, and it should be read that way. Comparable titles — bible's reference points, *Whiteout Survival* and *Kingshot* — draw heavily from the US, Japan, Korea and Taiwan, with the European four carrying most of the rest.
+
+**Arabic is late for an engineering reason, not a market one.** Right-to-left requires mirroring the layout across fifty-nine screens, which is a build cost rather than a translation cost. It is placed after the layout has stopped changing — adding RTL to a moving layout is the one case where waiting is cheaper than starting.
+
+**Soft launch and launch are both English only.** Soft launch is Canada, Australia, New Zealand and the Philippines — low acquisition cost, behaviour close enough to the US to read the retention curve. Launch widens the markets, not the languages.
 
 ### 2.1 Mainland China is a separate decision
 
@@ -93,7 +111,7 @@ Rough, and enough to budget against.
 | Legal, support, settings | ~2,000 |
 | **Per language** | **~16,500** |
 
-Six languages at launch beyond English is roughly **100,000 words**, at $0.12–0.20 per word for games localization with a review pass — **$12,000 to $20,000**. The second wave of six roughly doubles it.
+**Nothing at launch.** Each language added is roughly 16,500 words at $0.12–0.20 per word with a review pass — **about $2,000 to $3,300 per language**, plus its filter, its font and its QA pass. Fifteen languages over time is in the region of $30,000 to $50,000 in translation alone, spread across however long the rollout takes.
 
 **The Codex is the largest and the most sensitive block.** It is a disclosure mechanism attached to a paid randomised action, and a mistranslated coverage tier is a compliance problem rather than a polish problem. It should go to a reviewer who has played the game, not to a general pool.
 
@@ -117,7 +135,7 @@ The ladder to preserve, from `broodline_economy_model.md` §6, is value per unit
 
 The external dependency, and the one to start first.
 
-`broodline_moderation_ugc.md` requires filtering on five UGC surfaces, and coverage is per-language. **Procure for all seven launch languages before soft launch ends**, not after.
+`broodline_moderation_ugc.md` requires filtering on five UGC surfaces, and coverage is per-language. **At launch that is English.** Procure the English filter before soft launch ends, and **choose a vendor that covers the full §2 list**, because the vendor relationship is the long pole and switching vendors mid-rollout means re-tuning every language already shipped.
 
 **The loose-filter rule does not travel.** That document argues creature-name filters should be tuned loose rather than tight, because names are short and archaic and a false rejection lands on the emotional beat of session one. Tuning loose in a language nobody on the team reads is how a slur ships in a modal dialog for two years.
 
@@ -129,9 +147,9 @@ The external dependency, and the one to start first.
 
 ## 8. Typography
 
-**The launch font pairing does not cover four of the seven launch languages.**
+**The launch font pairing covers the launch language and nothing after position 3.**
 
-Baloo 2 and Nunito cover Latin, and Nunito extends to Cyrillic and Vietnamese. **Neither covers Chinese, Japanese or Korean.** Those four markets are among the largest for this genre, and without a decision they will fall back to a system font — which means the display voice the brand is built on is absent in the places it matters most.
+Baloo 2 and Nunito cover Latin, and Nunito extends to Cyrillic and Vietnamese. **Neither covers Chinese, Japanese or Korean.** Japanese, Korean and Chinese are among the largest markets for this genre, and without a decision they will fall back to a system font — which means the display voice the brand is built on is absent in the places it matters most.
 
 **Recommend Noto Sans SC, JP, KR and TC as substitutes**, weight-matched to Baloo 2's display role, chosen deliberately rather than inherited from a fallback chain.
 
@@ -167,16 +185,17 @@ Age gating varies, and `broodline_moderation_ugc.md` §5 specifies one gate.
 - Tabular figures verified in every font, in every language
 - Restricted mode is identical everywhere; only the age threshold varies
 - No language ships partially. A language is complete or it is not offered
+- One language at a time. Each is complete before the next starts
 
 ---
 
 ## 11. Open questions
 
-1. **Is seven the right launch set?** Each language adds translation cost, filter procurement, a font decision and a QA pass across 59 screens. Five — dropping French and Spanish to wave two — is defensible and would shorten the critical path.
+1. ~~**Is seven the right launch set?**~~ **Resolved — English only at launch, then one language at a time in the §2 order.**
 2. **Should region names be transliterated or given native-register equivalents?** Thirty place names in a fictional setting is exactly the case where a good localizer adds more value than a rule does. The species rule should hold regardless; regions are arguable.
 3. **How is the Codex kept in sync?** It is the largest text block and it changes whenever a trait value is tuned. A tuning pass at soft launch could invalidate six languages of copy at once. Freezing coverage values before translation begins is the obvious answer and it constrains tuning.
 4. **Does alliance chat need real-time translation?** Comparable titles offer it and it materially helps cross-region servers. Servers are regional here, so the need is smaller — but it interacts with the filter, since a translated message must be filtered in both languages.
-5. **Arabic's deferral should have a date.** Deferred without one becomes never, and RTL gets more expensive with every screen added.
+5. ~~**Arabic's deferral should have a date.**~~ **Resolved — position 13, after the layout has stopped changing.**
 
 ---
 
