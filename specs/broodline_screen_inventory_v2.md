@@ -1,3 +1,16 @@
+---
+status: current
+folder: 01-companions
+verified-against: broodline_bible.md (2026-09-05)
+note: >
+  34 screens, build priority, rework column for the designed prototypes.
+  Supersedes broodline_screen_inventory.md. Revised 2026-09-05 for register
+  Part 6: Relocate Ark loses its risk column, Route Plotter gains a per-gate
+  one, Roulette becomes a permanent Lab tab, the alliance Founder badge
+  becomes Leader, the Mythic store card is removed, and the Splice Census
+  and Marks Shop are corrected.
+---
+
 # Broodline — Screen Inventory
 
 *Rebuilt against the design bible §1–10. Replaces the original inventory.*
@@ -11,9 +24,9 @@ Twenty screens exist as design prototypes. This maps them against what the bible
 **Status key:**
 `✅` designed and current · `🔧` designed, needs rework · `🆕` not designed
 
-**Total: 59 screens.** Eight are designed and current, thirteen are designed and need rework, thirty-eight have never been designed.
+**Total: 34 screens.** Twenty designed, of which thirteen need rework; fourteen missing.
 
-*An earlier header said 32 screens — twenty designed, eleven needing rework, twelve missing. The tables below always held more than that, and fourteen further screens have since been added from the raiding, live-ops, moderation, codex and alliance documents. The count here is the count in the tables. **Twenty-one designed screens against thirty-five undesigned ones is the real state of the design workstream**, and the earlier number made it look roughly half done when it is roughly a third.*
+**Revised 2026-09-05** against register Part 6. Screens changed by that pass carry a **`⚠`** marker and a register reference; nothing else in this document moved.
 
 ---
 
@@ -48,9 +61,7 @@ Pushed sub-screens carry a back chevron and no bottom nav.
 | **Creature Detail** | 🆕 | Species, two combat traits with coverage tier, Instinct, generation, coverage ceiling, Aberrant marker, current assignment. | §1.1, §2.5 |
 | **Lineage View** | 🆕 **High priority** | Five-generation tree plus the **species composition strip** above it. Trait contributions per ancestor, mutation and Aberrant markers, Founder roots. Closes session one. | §3.5 |
 | **Founder Naming** | 🆕 | First five creatures, one prompt in session one, rest across days 1–3, sensible defaults, renameable. | §9.4 |
-| **Trait Codex** | 🆕 **Required** | Browsable index over 34 entries — twelve traits, six Instincts, eight Aberrants, eight raiders. Filterable by kind, tier, discovered and owned state. **Opens on the threat board.** | §4.7 |
-| **Threat Board** | 🆕 **Required** | Eight raiders and their answering traits side by side, with the species that carries each. The Codex's most-used view and the cheapest thing in it. Unlocks at wave 6 with the designed loss. | §4.7, §9.3 |
-| **Codex Bottom Sheet** | 🆕 **Build first** | The Codex as a component, not a screen. Every trait pip in the app is tappable and opens the entry in place with no navigation loss. It appears over the splice screen, which is where a player most needs a definition without losing their place. | §4.7 |
+| **Trait Codex** | 🆕 **Required** | Every trait by category, what it counters, what each coverage tier provides, plain description of each Instinct. Without it the counter system is learnable only by losing. | §4.7 |
 | **Growth** | 🔧 | Prototype is static and implies feeding. Growth is cosmetic, advances on age, grants nothing. Remove feeding entirely. | §1.5 |
 
 ---
@@ -63,11 +74,9 @@ Pushed sub-screens carry a back chevron and no bottom nav.
 | **Campaign Select** | 🆕 | Wave list, completion state, replay rewards, **raider composition preview** — never hidden, per the guardrail. | §4.8, §4.12 |
 | **Wave Defense** | 🔧 | Pockets beside the lane. Lane count 1–3 from the region. Remove armour-type displays. Rally control. Visible Instinct trigger states. | §4.2, §4.6 |
 | **Post-Wave** | 🆕 | Rewards, sample drops, creature outcomes, regeneration assignments. | §4.11 |
-| **Wave Defeat** | 🔧 | Names the raider and offers a free retry — correct. **Needs rework to distinguish three failures**: access (nobody carries it), coverage (the tier was too low), placement (the carrier was in the wrong lane). Naming the trait alone is right at wave 6 and misleading everywhere the player already holds it. | §4.11, §9.3 |
+| **Wave Defeat** | ✅ | Already names the raider that broke through and the answering trait — the single most important teaching screen in the game. Free retry, no paywall. | §4.11, §9.3 |
 | **Replay Viewer** | 🆕 **Launch-critical** | Full simulation playback with per-creature behaviour visible. The difference between PvP that builds a community and PvP that bleeds one. | §4.10 |
 | **Regeneration Tracker** | 🆕 | Creatures in regen, timers, skip cost. | §4.11 |
-| **Raid Defence Alert** | 🆕 | The 90-second countdown. Open in time and the defender places escorts live; otherwise it auto-resolves and produces a replay. | Raiding §9 |
-| **Region Defence** | 🆕 | Entry, composition preview scaled to region richness, what a loss costs. Distinct from Campaign Select — this is the rent, not the ladder. | §4.8, §7.2 |
 
 ---
 
@@ -77,14 +86,13 @@ Pushed sub-screens carry a back chevron and no bottom nav.
 |---|---|---|---|
 | **World Map** | ✅ | Heat-map states, Ark markers, Collector routes, Apex pulses. | §5.7 |
 | **Region Detail** | 🔧 | Currently a card on the map. Add **lane count** — relocation changes defensive terrain and hiding that makes the move a gamble. | §5.7, §4.2 |
-| **Relocate Ark** | ✅ | Three routes, costs always shown. | §5.2 |
+| **Relocate Ark** | 🔧 ⚠ | **The route table and its intercept-risk column are removed.** The Ark is never a raid target; relocation takes the shortest path and varies only in time. The screen shows destination, lane count, travel time scaled by Drive, and the costs always shown — harvest forfeited, defenders stowed, lab timers unaffected. | §5.2, register 6.1 |
 | **Apex Alert** | 🔧 | Add the **catalyst** to the yield description. Scout report sells detail and a head start, never access. | §5.3, §5.9 |
-| **Transit Board** | 🆕 | Raid target browse: cargo estimate, escort count, exposure time remaining. Never escort traits or generation. ±2 Core tier band enforced server-side, not in the filter. | Raiding §6 |
-| **Raid Party Select** | 🆕 | Three-creature party, full loadout including Instinct. Warn when committing a creature carrying a counter held nowhere else. | Raiding §7 |
 | **Collector Dispatch** | 🆕 | Collector class, cargo, escort slots, route options. Escorting creatures become unavailable. | §5.6 |
-| **Route Plotter** | 🆕 | Direct vs allied-territory routes, interception risk per segment. | §5.6 |
-| **Convoy Status** | 🆕 | In-transit collectors, ETA, exposure phase. | §5.6 |
+| **Route Plotter** | 🆕 ⚠ | **Collector routes only.** Direct, alliance corridor and night move, with **each gate on the route named, its controller shown, and its exposure window in minutes** — 20 normally, 10 through an allied-controlled gate, 0 on a night move. Exposure is fixed; nothing on this screen may imply a facility or purchase shortens it. | §5.6, register 6.1–6.2 |
+| **Convoy Status** | 🆕 ⚠ | In-transit Collectors, ETA, and **which gate the convoy is approaching or inside**, with the window counting down. Immune everywhere else, and it should look immune. | §5.6, register 6.2 |
 | **Collector Intercept** | ✅ | Time-boxed decision, ally escort. | §5.6 |
+| **Transit Board** | 🆕 ⚠ | The raider's side. Convoys currently inside a gate window within three regions, showing **cargo band, escort count and minutes remaining only** — never a cargo figure, never escort traits. Daily raid counter and per-target cooldown state. | §5.6, Collectors §7 |
 
 ---
 
@@ -93,7 +101,7 @@ Pushed sub-screens carry a back chevron and no bottom nav.
 | Screen | Status | Notes | Bible |
 |---|---|---|---|
 | **Gene Lab** | 🔧 | Six facilities remapped: Splicing Chamber, Hatchery, Gene Vault, Harvest Array, Drive, Core. Remove Trait Archive and Alliance Hall. Core caps all others and shows its campaign milestone requirement. Next-tier effects in concrete numbers. | §7.2, §7.3 |
-| **Calibration** | 🆕 | Post-tier-12 repeatable refinement, flat cost per +0.5%. Ships at launch though nobody reaches it for eighteen months — retrofitting a terminal sink into a live economy is worse. | Economy §8 |
+| **Splice Roulette** | 🆕 ⚠ | **A permanent tab in the Lab, not an event screen.** Featured pool of six traits with the rotation countdown, the shared probability table, sample inventory, 300-shard spin cost, and the **pity counter visible before the first spin**. Copy states plainly that Roulette raises coverage on traits already owned and cannot grant a new one. | §7.6, §8.4, register 6.8 |
 | **Sample Store** | 🔧 | Renamed from Gene Vault. Twelve species traits only — no Instinct or Aberrant samples. Three tabs: Samples, Fuse, Archive. The 88% capacity threshold stays as designed. | §1.7, §7.6 |
 
 ---
@@ -102,14 +110,14 @@ Pushed sub-screens carry a back chevron and no bottom nav.
 
 | Screen | Status | Notes | Bible |
 |---|---|---|---|
-| **Alliance Hub** | 🔧 | Three tabs current. Remove any Alliance Hall reference. | §6.2 |
+| **Alliance Hub** | 🔧 ⚠ | Three tabs current. Remove any Alliance Hall reference. **The head-of-alliance role is Leader, not Founder** — badge, roster labels, permissions copy and application flow all change; "Founder" now refers only to a player's first five creatures. | §6.1, §6.2, register 6.12 |
 | **Alliance Rally** | ✅ | The `hasPierce` check gating outcome independently of power is the design thesis in working form. Keep exactly as built. | §4.4, §6.4 |
 | **Stake Management** | 🆕 | Five stake slots, Hold accrual, contest state, weekly tick countdown, decay warnings well in advance. | §6.3, §6.9 |
 | **Garrison Assignment** | 🆕 | Contributed creatures, capacity, **contributor visibility**. Warn when garrisoning a creature carrying a counter the player holds nowhere else. | §6.5 |
 | **Stake Assault** | 🆕 | Target selection, rate limit state, entry to the combat engine. | §6.4 |
 | **Alliance Tech** | 🆕 | Three branches, treasury contribution, unlocked perks. Logistics only. | §6.7 |
-| **Join / Apply** | 🆕 | Alliance browse and application state. | §6.2 |
-| **World Chat** | ✅ | Attached game objects, escort requests, recipe cards. | §6, §3.7 |
+| **Join / Apply** | 🆕 ⚠ | Alliance browse and application state. Join mode is set by the **Leader**. | §6.2, register 6.12 |
+| **World Chat** | 🔧 ⚠ | Attached game objects, escort requests, recipe cards. **Add the moderation affordances**: long-press to report with context captured automatically, player block, officer mute. No UGC surface ships without filter, report and block. | §6, §3.7, moderation §6 |
 
 ---
 
@@ -117,16 +125,13 @@ Pushed sub-screens carry a back chevron and no bottom nav.
 
 | Screen | Status | Notes | Bible |
 |---|---|---|---|
-| **Store** | 🔧 | Three tabs current. **Rewrite four pack descriptions** — sample pulls, never trait pulls. Free daily gift leads the Packs tab. | §8.3, §8.6 |
+| **Store** | 🔧 ⚠ | Three tabs current. **Rewrite four pack descriptions** — sample pulls, never trait pulls. Free daily gift leads the Packs tab. **Remove the Mythic Lab Access card**; add **Double Regen at $9.99** as the anchor and only permanent purchase. "Breeder Bundle" is **Lab Bundle**. Shard values are 100 / 600 / 1,400 / 3,200, with $49.99 and $99.99 as plain direct-shard rows — the $99.99 row is never surfaced in a banner or offer. | §8.3, register 6.5–6.6 |
 | **Geneticist Profile** | 🔧 | Renamed from Breeder Profile. **Tier 6 perk becomes a sample pull.** Tier 12 title unchanged. | §7.5 |
-| **Splice Roulette** | 🆕 | Wheel, displayed odds, sample inventory, spin cost. Samples only. | §8.4 |
-| **Gene Lab Event** | ✅ | Server goal, tasks, leaderboard, event offer. | §8.4 |
+| **Splice Census** | 🔧 ⚠ | Formerly "Gene Lab Event" — **renamed, because Gene Lab is the facility.** Server goal, personal contribution tiers, community milestones at 40/70/100%, five-day run then two days dark. | §8.4, register 6.10 |
 | **Event Hub** | 🆕 | Live-ops calendar, active events, timers, themed offers. | §8.4 |
-| **Apex Cup** | 🆕 | Leaderboard, bracket, rewards. | §8.4 |
-| **Recipe Share** | 🆕 | Browse and rate shared recipes with ancestry chains. | §3.7, §8.4 |
-| **Marks Shop** | 🆕 | Raid and Defense Marks inventory and spend. Escort slot expansion, transit boosts, route obfuscation, regen skips, cosmetics. Marks are never purchasable. | Raiding §11 |
-| **Convoy Staging** | 🆕 | The thirty-minute assembly window: contributors, committed cargo and escorts, share preview, departure countdown. Officer-initiated, from controlled territory only. | Alliance §7.1 |
-| **Joint Raid Assembly** | 🆕 | Up to three alliance attackers committing parties against one Convoy Rig, with each party's escort share and Marks split shown before commit. | Alliance §7.1 |
+| **Apex Cup** | 🆕 ⚠ | Shared-gauntlet leaderboard, Core-tier bracket, rewards. Names are a UGC surface: **reportable rows and an anonymous-entry option.** | §8.4, moderation §3 |
+| **Recipe Share** | 🆕 ⚠ | Browse and rate shared recipes with ancestry chains. **Structured data only — no title, no description, no comments.** Numeric rating, one per account, weighted by account age and splice count. Report control on every card. | §3.7, §8.4, moderation §4 |
+| **Marks Shop** | 🆕 ⚠ | **One Marks currency**, not two. Escort-slot expansion, route obfuscation, regen skips, convoy skins and defence flair. No purchase path of any kind appears on this screen. | §8.2, register 6.4 |
 
 ---
 
@@ -136,12 +141,9 @@ Pushed sub-screens carry a back chevron and no bottom nav.
 |---|---|---|---|
 | **Onboarding** | 🔧 | Rebuild against the eight beats. Beat 5 teaches counters by letting one work. Beat 8 ends on Lineage View. **The designed first loss** at session 2–3 needs authoring as a deliberate beat. | §9.2, §9.3 |
 | **Mail / Notifications** | 🆕 | Raid alerts, alliance notices, event announcements, reward grants. | — |
-| **Settings / Account / Support** | 🆕 | Required for store submission. Published support address reachable from here and from the store listing. | Moderation §6 |
-| **Account Creation / Age Gate** | 🆕 **Required** | Single date field on first launch, before the cold open. The only pre-play screen the design allows. Under-13 accounts take a restricted mode: no free-text naming, no chat, browse-only Recipe Share. | Moderation §5 |
-| **Player Profile** | 🆕 | Identity, Founders, Geneticist Tier, Codex completion, defence record. Feeds alliance applications and the Apex Cup leaderboard. | §6.2, §8.4 |
-| **Report** | 🆕 **Required** | In-context on every UGC surface. Captures surrounding context automatically — a report with no context cannot be actioned. | Moderation §6 |
-| **Block List** | 🆕 **Required** | Unilateral, no justification. Hides messages and recipes, blocks alliance applications. | Moderation §6 |
-| **Escort Tutorial** | 🆕 | Day 15, before raid exposure begins. Assign escorts, dispatch, watch the exposure window. | §5.6, Midgame §4 |
+| **Settings / Account / Support** | 🆕 ⚠ | Required for store submission. Must carry the **published support contact**, the **block list**, and the age-gate result. | moderation §5–6 |
+| **Age Gate** | 🆕 ⚠ | At account creation, before any name entry. Drives the under-13 restricted mode: curated Founder-name pool, generated display name, chat off, Recipe Share read-only. | moderation §5 |
+| **Report / Block** | 🆕 ⚠ | Shared flow reachable from chat, recipe cards, profiles, alliances and leaderboard rows. Captures surrounding context automatically. | moderation §6 |
 
 ---
 
@@ -154,15 +156,15 @@ Splice Chamber · Splice Confirm · Splice Reveal · Creature Roster · Wave Def
 Lineage View · Creature Detail · Trait Codex · Campaign Select · Post-Wave · Wave Defeat · World Map · Region Detail
 
 **Tier 3 — the reason to spend**
-Store · Geneticist Profile · Gene Lab · Sample Store · Splice Roulette · Event Hub
+Store · Geneticist Profile · Gene Lab · Sample Store · Splice Roulette · Event Hub · Founder Naming filter path
 
 **Tier 4 — the reason to stay**
-Alliance Hub · Chat · Stake Management · Garrison · Alliance Tech · Collector Dispatch · Route Plotter · Convoy Status · Replay Viewer
+Alliance Hub · Chat · Stake Management · Garrison · Alliance Tech · Collector Dispatch · Route Plotter · Convoy Status · Transit Board · Replay Viewer
 
 **Tier 5 — completeness**
 Everything remaining, plus Mail and Settings.
 
-**Three placements are non-negotiable and sit outside the tiers.** The **Age Gate** ships first because everything downstream of account creation depends on knowing whether the account is restricted. **Report** and **Block** ship with the first UGC surface, whichever that is — App Review rejects an app carrying user content without filtering, reporting, blocking and a published contact address, and the rejection arrives at the end of the process rather than the start.
+**Three screens jump their tier for submission reasons.** **Age Gate**, **Report / Block** and the support contact in **Settings** are store-submission requirements, not features. They gate release regardless of build order, and the filter path on **Founder Naming** ships with them — a permanent, public, unfiltered name entered in session one is the surface most likely to fail review.
 
 **Two placements are deliberate.** The **Trait Codex** sits in Tier 2 rather than Tier 5 because the counter system is the game's central mechanic and there is currently nowhere to learn it. The **Lineage View** sits in Tier 2 because it closes the first session and is the game's distinctive artifact — it should be visible early rather than treated as late-game.
 
@@ -181,12 +183,14 @@ Build once, reuse everywhere.
 - **Region tile** — heat-map colouring, controller banner, lane count, alert state.
 - **Timer chip** — regeneration, transit, charge regen, weekly tick, build timers.
 - **Confirmation dialog** — two levels, standard and named. Never suppressible.
+- **Gate chip** ⚠ — gate name, controller banner, exposure window in minutes. Used on Route Plotter, Convoy Status, Transit Board and Region Detail. New in the Part 6 revision.
+- **Report control** ⚠ — one affordance, six surfaces, context captured automatically.
 
 ---
 
 ## 12. Open
 
-1. ~~**Where the Trait Codex lives.**~~ **Both.** A browsable index in the Lab tab, plus a bottom sheet opened from any trait pip anywhere in the app. It is a component with an index, not a screen.
-2. ~~**Map legibility on a small phone**~~ — **partly answered.** The map's three concentric bands allow zooming to eight to twelve regions at a time, which is readable. Whether heat-map, banners, Ark markers, routes and alerts can all stay live at that zoom is still the hardest layout problem in the app.
-3. **Whether Region Detail warrants its own screen** or stays a card on the map. Adding lane count may push it over.
-4. **Where Region Defence is entered from** — the Map, the Ark, or a notification. It is periodic and automatic, which argues for the notification, but it needs a browsable home too.
+1. **Where the Trait Codex lives** — inside the Lab tab, or contextually from the splice screen and Wave Defeat. Contextual is more discoverable; standalone is more browsable. Leaning both: a tab entry plus deep links from any trait pip.
+2. **Map legibility on a small phone** with heat-map, territory banners, Ark markers, Collector routes and alerts live at once. The hardest layout problem in the app.
+3. **Whether Region Detail warrants its own screen** or stays a card on the map. Adding lane count and the gate chip probably pushes it over.
+4. ⚠ **Does Splice Roulette belong in the Lab tab or the Event Hub?** Now that it is always on, the Lab is the honest home — the Event Hub implies a countdown that no longer exists. Leaning Lab, with a deep link from the Event Hub while a new pool is fresh.

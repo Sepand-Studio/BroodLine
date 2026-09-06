@@ -15,7 +15,6 @@ Files are grouped by **status**, not topic. Topic is in the filename; status is 
 | `00-bible/` | The design. One file. | **Yes.** The only one. |
 | `01-companions/` | Current specs the bible points to but doesn't contain. | Yes, alongside the bible. |
 | `02-decisions/` | Why the design is what it is. Decision register and supersession map. | No — read before reopening a decision. |
-| `03-unreconciled/` | Written before the bible, against an older model. Contain structure the bible lacks, and references it contradicts. | **Not yet.** Each needs a reconciliation pass first. |
 | `99-archive/` | Superseded in full. | Never. |
 
 Every file opens with front matter: `status`, `superseded-by` where applicable, and a `note` stating what it holds and what is known to be stale. **A file without front matter is treated as archive.** Nothing lives in the root except this index.
@@ -28,9 +27,9 @@ Understanding this explains every inconsistency you will find.
 
 **Era 1 — nine original specs.** One system each, written against an unsettled design. Ten chassis, three armor types, a damage triangle. Superseded by the bible; mapped section-by-section in `02-decisions/broodline_supersession_map.md`.
 
-**Era 2 — twelve companion documents.** Campaign, regions, economy, raiding, live-ops, mid-game, moderation, monetization, trait codex, chassis roster, enemy archetypes, and a change-control register. Written to fill gaps in era 1, using era 1's model. **Never mapped onto the bible.** Five are now replaced and archived, one has been reconciled and promoted; seven hold content the bible still lacks and sit in `03-unreconciled/`.
+**Era 2 — twelve companion documents.** Campaign, regions, economy, raiding, live-ops, mid-game, moderation, monetization, trait codex, chassis roster, enemy archetypes, and a change-control register. Written to fill gaps in era 1, using era 1's model. **All twelve are now dealt with:** four archived outright, eight reconciled against the bible and reissued as `01-companions/` (their era-2 versions archived alongside). The reconciliation raised twelve decisions, logged as register Part 6.
 
-**Era 3 — the bible.** Six species, eight raiders, twelve counter traits, hard counters with no damage floor, Gene Lab. Replaced the whole model, not just the details. Nineteen decisions in `02-decisions/broodline_reconciliation.md`.
+**Era 3 — the bible.** Six species, eight raiders, twelve counter traits, hard counters with no damage floor, Gene Lab. Replaced the whole model, not just the details. Thirty-two decisions in `02-decisions/broodline_reconciliation.md`.
 
 The tell for era: a document that says *chassis* is era 1 or 2. A document that says *species* or *Gene Lab* is era 3.
 
@@ -41,34 +40,31 @@ The tell for era: a document that says *chassis* is era 1 or 2. A document that 
 ### 00-bible
 | File | What it is |
 |---|---|
-| `broodline_bible.md` | §1–10, complete, current. Where anything disagrees with it, the bible wins. |
+| `broodline_bible.md` | §1–10, complete, current. Where anything disagrees with it, the bible wins. Amended 2026-09-05 at §5.2, §5.6, §6.1, §7.2, §8.2, §8.3, §8.4, §8.6, §9.6, §10.5 (register Part 6). |
 
 ### 01-companions
 | File | What it is |
 |---|---|
-| `broodline_screen_inventory_v2.md` | 32 screens, build priority, rework column for the designed prototypes. |
+| `broodline_screen_inventory_v2.md` | 34 screens, build priority, rework column for the designed prototypes. Revised 2026-09-05 for register Part 6; changed screens marked `⚠`. |
 | `broodline_splice_confirm_spec.md` | Copy and interaction states for splice confirmation. Bible §2.7. |
+| `broodline_trait_utility.md` | What Carapace, Litter, Regrow and Screen do: pressure shapes, tier curves, stacking rules, the campaign's three utility waves. Bible §1.2, §4.4. Written 2026-09-05; register 6.13. |
 | `broodline_campaign_structure.md` | 60 waves, 7 chapters, 12 Core milestones, species guarantee. Bible §4.8, §7.3. Reconciled 2026-09-05. |
+| `broodline_region_roster.md` | All 30 regions authored: bands, lanes, nodes, adjacency, gates, travel times. Bible §5, §6.8. Reconciled 2026-09-05. |
+| `broodline_collectors_raiding.md` | Collector classes, per-gate exposure, raid engagement, loss caps, protection, Marks. Bible §4.9, §5.6. Reconciled 2026-09-05. Its §14 amendments are applied to the bible and logged at register 6.1–6.4. |
+| `broodline_economy_model.md` | 40/hr anchor, node depletion pools, faucets and sinks by archetype, facility curve, the sample economy, pack ladder, server population. Bible §5.3, §7, §8. Reconciled 2026-09-05; register 6.5. |
+| `broodline_monetization.md` | Short addendum to bible §8: Double Regen anchor, upper shard tiers, offer cadence, ads, regional pricing. Reconciled 2026-09-05; register 6.6–6.7. |
+| `broodline_live_ops_events.md` | The design behind each §8.4 row: Splice Census, always-on Roulette, Apex Cup gauntlet, Mutation Surge, Recipe Share, the calendar. Reconciled 2026-09-05; register 6.8–6.10. |
+| `broodline_moderation_ugc.md` | Six UGC surfaces, the four required mechanisms, age gating, enforcement, response times, rating-integrity. The submission requirement. Reconciled 2026-09-05; register 6.11–6.12. |
+| `broodline_midgame_arc.md` | Days 14–90 as one timeline: every companion's clock aligned, collisions resolved, phase goals, metrics. Reconciled 2026-09-05. |
 
 ### 02-decisions
 | File | What it is |
 |---|---|
-| `broodline_reconciliation.md` | Nineteen settled decisions and the reasoning. Part 4 shows what falls over if each is reopened. |
+| `broodline_reconciliation.md` | Thirty-two settled decisions and the reasoning. Part 4 shows what falls over if each is reopened; Part 6 holds the companion-reconciliation decisions. |
 | `broodline_supersession_map.md` | Era 1 → bible, section by section. Does not cover era 2. |
 
-### 03-unreconciled
-| File | What the bible lacks that this holds | Known stale |
-|---|---|---|
-| `broodline_region_roster.md` | 30 regions in 3 bands with gates; bible §5.7 has no bands | Chassis-weighted drops; eight terrain families (bible has none); 21 regions unauthored |
-| `broodline_economy_model.md` | Harvest Array scaling, Core cost table, store ladder | Every table built on era-2 trait economics |
-| `broodline_collectors_raiding.md` | Transit Board, raid cap, immunity windows, cargo maths | Unchecked against §4.9/§5.6 |
-| `broodline_live_ops_events.md` | Full calendar | Duplicates bible §8.4 — merge, don't keep both |
-| `broodline_midgame_arc.md` | Day 14–90; bible §9 stops at day 14 | Day-28 chassis beat |
-| `broodline_moderation_ugc.md` | Moderation policy; bible has none | Recipe shape names chassis |
-| `broodline_monetization.md` | Offer detail | Overlaps bible §8 heavily; chassis in guardrail table |
-
 ### 99-archive
-Nine era-1 originals (`genetics_system`, `combat_system`, `gene_vault`, `art_direction`, `alliance_territory`, `ftue`, `screen_inventory`, `splice_monetization_spec`, `splice_resource_node_system`) plus five era-2 documents whose model no longer exists:
+Nine era-1 originals (`genetics_system`, `combat_system`, `gene_vault`, `art_direction`, `alliance_territory`, `ftue`, `screen_inventory`, `splice_monetization_spec`, `splice_resource_node_system`) plus twelve era-2 documents, four whose model no longer exists and eight replaced by reconciled versions:
 
 | File | Replaced by |
 |---|---|
@@ -77,18 +73,25 @@ Nine era-1 originals (`genetics_system`, `combat_system`, `gene_vault`, `art_dir
 | `broodline_trait_codex.md` | Bible §1.2/§4.4. The "Trait Codex" of §4.7 is a UI component, not this file. |
 | `broodline_spec_reconciliation.md` | `02-decisions/broodline_reconciliation.md` |
 | `broodline_campaign_structure_era2.md` | `01-companions/broodline_campaign_structure.md` |
+| `broodline_region_roster_era2.md` | `01-companions/broodline_region_roster.md` |
+| `broodline_collectors_raiding_era2.md` | `01-companions/broodline_collectors_raiding.md` |
+| `broodline_economy_model_era2.md` | `01-companions/broodline_economy_model.md` |
+| `broodline_monetization_era2.md` | Bible §8 and `01-companions/broodline_monetization.md` |
+| `broodline_live_ops_events_era2.md` | `01-companions/broodline_live_ops_events.md` |
+| `broodline_moderation_ugc_era2.md` | `01-companions/broodline_moderation_ugc.md` |
+| `broodline_midgame_arc_era2.md` | `01-companions/broodline_midgame_arc.md` |
 
 ---
 
 ## Reading order by role
 
-**Engineer** — bible §1–4, then `01-companions/` screen inventory for build order, then the splice confirm spec before that screen. Do not open `03-unreconciled/` until its files have been promoted.
+**Engineer** — bible §1–4, then `01-companions/` screen inventory for build order, then the campaign, region and Collectors companions for the data the engine consumes.
 
 **Designer** — bible in full, then the screen inventory's rework column.
 
 **Illustrator** — bible §10, §1.2 for the six species, §4.4 for the eight raiders. Ignore `99-archive/enemy_archetypes` entirely; its names conflict.
 
-**Economy / live-ops** — bible §7.6 and §8, then `03-unreconciled/economy_model` and `live_ops_events` knowing they need reconciling first.
+**Economy / live-ops** — bible §7.6 and §8, then the economy, monetization and live-ops companions.
 
 **New to the project** — this file, then the bible, then the reconciliation register's summary table.
 
@@ -96,21 +99,24 @@ Nine era-1 originals (`genetics_system`, `combat_system`, `gene_vault`, `art_dir
 
 ## Promotion rule
 
-A file moves from `03-unreconciled/` to `01-companions/` when someone has read it against the bible, fixed or removed every stale reference, and rewritten the front-matter note to say so. It moves to `99-archive/` if the bible turns out to already cover it. No file stays in `03-unreconciled/` past production start.
+`03-unreconciled/` is empty and has been removed. If it is ever recreated for a new document, the rule stands: a file leaves it for `01-companions/` only when someone has read it against the bible, fixed every stale reference and rewritten its front-matter note to say so, or for `99-archive/` if the bible already covers it. No file stays there past production start.
 
 ---
 
 ## Project status
 
-**Design: complete** at the bible level. Ten sections, nineteen decisions.
+**Design: complete.** Ten bible sections, thirty-two decisions, eleven companions.
 
 **Not done:**
 
-- **Era-2 reconciliation.** Seven documents in `03-unreconciled/` hold structure the bible needs and references it contradicts.
-- **Trait utility balance.** Four of twelve traits (Carapace, Litter, Regrow, Screen) counter nothing. If they are weak the roster collapses toward Ember and Hollow. Most under-specified thing in the design.
-- **Economy tuning.** Structure settled; every value needs session data.
-- **Campaign length.** Settled at 60 waves / 7 chapters (2026-09-05); 65 is retired.
-- **Instinct source weighting, season length, convoy grace period.** Unset.
+- **Combat numbers table.** The one document the set still lacks. Owes per-raider costs, per-wave counts, and absolute values for the four utility traits across twelve tiers.
+- **Economy tuning.** Structure and starting values settled in the economy companion; every value needs session data. First check: first tier-III counter by day 21–25.
+- **Instinct source weighting.** Unset.
+- **Localization plan.** Does not exist; moderation filter coverage and regional pricing both depend on it.
+
+**Settled 2026-09-05:** campaign length (60 / 7), season length (four weeks), rating (12+), convoy grace period (step-down to day 22), trait utility (keep all four).
+
+**The spec set is internally consistent as of 2026-09-05.** Bible plus ten companions, thirty-one register decisions, twenty-one archived documents. Every current file has been read against the bible in the same pass.
 
 ---
 
