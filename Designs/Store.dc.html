@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #e4dff0; font-family: "Nunito", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .lbl { font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #a29bb5; }
+  @keyframes glow { 0%, 100% { opacity: .4; } 50% { opacity: 1; } }
+  @keyframes shine { 0% { transform: translateX(-120%) skewX(-18deg); } 60%, 100% { transform: translateX(320%) skewX(-18deg); } }
+  @keyframes pop { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+  .shine { position: absolute; top: 0; bottom: 0; width: 42px; background: linear-gradient(90deg, transparent, rgba(255,255,255,.75), transparent); animation: shine 4.2s ease-in-out infinite; pointer-events: none; }
+</style>
+</helmet>
+
+<div style="min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 24px 0; background: linear-gradient(160deg, #e6e0f5, #d3e7ef);">
+<div style="width: 430px; height: 932px; background: #f7f4fb; color: #3f3a52; border-radius: 34px; box-shadow: 0 18px 50px rgba(63,58,82,.28); display: flex; flex-direction: column; overflow: hidden;">
+
+  <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 26px 2px; font-size: 12px; font-weight: 800; color: #a29bb5;">
+    <span>9:41</span>
+    <span style="display: flex; gap: 7px;"><span>◦◦◦</span><span>84%</span></span>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 10px; padding: 8px 14px 10px;">
+    <div style="flex: 1;">
+      <div class="lbl">Breeder tier 6 · +5% shard bonus</div>
+      <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 21px; line-height: 1.1;">Store</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 7px; background: #ffffff; border-radius: 999px; padding: 6px 12px 6px 7px; box-shadow: 0 1px 3px rgba(63,58,82,.09);">
+      <span style="width: 22px; height: 22px; border-radius: 999px; background: #ece2fa; display: grid; place-items: center;">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#7a6ac0" stroke-width="2.4" stroke-linejoin="round"><path d="M12 2 L20 9 L12 22 L4 9 Z"></path></svg>
+      </span>
+      <span style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 15px; line-height: 1;">1,240</span>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 9px; margin: 0 12px 10px; background: linear-gradient(100deg, #fdf0d0, #f9e0a8); border-radius: 16px; padding: 9px 12px; box-shadow: inset 0 0 0 1px rgba(196,150,45,.28);">
+    <span style="width: 24px; height: 24px; border-radius: 999px; background: #ffffff; display: grid; place-items: center; flex: none; animation: pop 1.8s ease-in-out infinite;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#d19a1f" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="13" r="8"></circle><path d="M12 13 V8M9 3 h6"></path></svg>
+    </span>
+    <span style="flex: 1; font-size: 11px; font-weight: 800; color: #7a5b12; line-height: 1.25;">Ashfall week deals — bonus contents on every pack</span>
+    <span style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 15px; color: #7a5b12;">05:12:44</span>
+  </div>
+
+  <div onClick="{{ setTab }}" style="display: flex; gap: 5px; margin: 0 12px 10px; background: #ece7f6; border-radius: 14px; padding: 4px;">
+    <button type="button" data-tab="chest" style="flex: 1; border: 0; cursor: pointer; font-family: 'Nunito', sans-serif; font-size: 11.5px; font-weight: 800; color: {{ cChest }}; background: {{ bgChest }}; border-radius: 11px; padding: 9px 0;">Custom chest</button>
+    <button type="button" data-tab="packs" style="flex: 1; border: 0; cursor: pointer; font-family: 'Nunito', sans-serif; font-size: 11.5px; font-weight: 800; color: {{ cPacks }}; background: {{ bgPacks }}; border-radius: 11px; padding: 9px 0;">Packs</button>
+    <button type="button" data-tab="pass" style="flex: 1; border: 0; cursor: pointer; font-family: 'Nunito', sans-serif; font-size: 11.5px; font-weight: 800; color: {{ cPass }}; background: {{ bgPass }}; border-radius: 11px; padding: 9px 0;">Breeder Pass</button>
+  </div>
+
+  <sc-if value="{{ isChest }}" hint-placeholder-val="{{ true }}">
+    <div style="flex: 1; margin: 0 12px; display: flex; flex-direction: column; overflow: hidden;">
+      <div style="background: #ffffff; border-radius: 22px; padding: 13px 16px 15px; box-shadow: 0 2px 8px rgba(63,58,82,.06);">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <span class="lbl">Build your chest · pick {{ picksLeftLabel }}</span>
+          <span style="font-size: 10px; font-weight: 700; color: #6b5fa8;">{{ chosenCount }} / 3</span>
+        </div>
+        <div onClick="{{ toggleSlot }}" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 11px;">
+          <div data-slot="charges" style="display: flex; align-items: center; gap: 9px; border-radius: 15px; padding: 10px 11px; cursor: pointer; background: {{ bgCharges }}; box-shadow: {{ ringCharges }};">
+            <span style="width: 28px; height: 28px; border-radius: 10px; background: #dcf0f8; display: grid; place-items: center; flex: none;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4b8ba6" stroke-width="2.4" stroke-linejoin="round"><path d="M13 2 L5 13 h6 l-1 9 8-11 h-6 z"></path></svg>
+            </span>
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-size: 11.5px; font-weight: 800;">15 charges</div>
+              <div style="font-size: 10px; font-weight: 700; color: #a29bb5;">Splice all day</div>
+            </div>
+          </div>
+          <div data-slot="shards" style="display: flex; align-items: center; gap: 9px; border-radius: 15px; padding: 10px 11px; cursor: pointer; background: {{ bgShards }}; box-shadow: {{ ringShards }};">
+            <span style="width: 28px; height: 28px; border-radius: 10px; background: #ece2fa; display: grid; place-items: center; flex: none;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7a6ac0" stroke-width="2.4" stroke-linejoin="round"><path d="M12 2 L20 9 L12 22 L4 9 Z"></path></svg>
+            </span>
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-size: 11.5px; font-weight: 800;">600 shards</div>
+              <div style="font-size: 10px; font-weight: 700; color: #a29bb5;">Hard currency</div>
+            </div>
+          </div>
+          <div data-slot="xp" style="display: flex; align-items: center; gap: 9px; border-radius: 15px; padding: 10px 11px; cursor: pointer; background: {{ bgXp }}; box-shadow: {{ ringXp }};">
+            <span style="width: 28px; height: 28px; border-radius: 10px; background: #fdeecb; display: grid; place-items: center; flex: none;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#b58a2b" stroke-width="2.4" stroke-linejoin="round"><path d="M4 18 L4 8 l4 4 4-7 4 7 4-4 v10 z"></path></svg>
+            </span>
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-size: 11.5px; font-weight: 800;">2,500 XP</div>
+              <div style="font-size: 10px; font-weight: 700; color: #a29bb5;">Breeder tier</div>
+            </div>
+          </div>
+          <div data-slot="pull" style="display: flex; align-items: center; gap: 9px; border-radius: 15px; padding: 10px 11px; cursor: pointer; background: {{ bgPull }}; box-shadow: {{ ringPull }};">
+            <span style="width: 28px; height: 28px; border-radius: 10px; background: #e2f4e8; display: grid; place-items: center; flex: none;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4c9b74" stroke-width="2.4" stroke-linejoin="round"><path d="M12 2 L14.5 9.5 L22 12 L14.5 14.5 L12 22 L9.5 14.5 L2 12 L9.5 9.5 Z"></path></svg>
+            </span>
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-size: 11.5px; font-weight: 800;">2 trait pulls</div>
+              <div style="font-size: 10px; font-weight: 700; color: #a29bb5;">Rare trait roll</div>
+            </div>
+          </div>
+          <div data-slot="skin" style="display: flex; align-items: center; gap: 9px; border-radius: 15px; padding: 10px 11px; cursor: pointer; background: {{ bgSkin }}; box-shadow: {{ ringSkin }};">
+            <span style="width: 28px; height: 28px; border-radius: 10px; background: #f1ecfa; display: grid; place-items: center; flex: none;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b5fa8" stroke-width="2.2" stroke-linejoin="round"><circle cx="12" cy="12" r="8"></circle><path d="M12 4 v16"></path></svg>
+            </span>
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-size: 11.5px; font-weight: 800;">Hybrid aura</div>
+              <div style="font-size: 10px; font-weight: 700; color: #a29bb5;">Cosmetic only</div>
+            </div>
+          </div>
+          <div data-slot="speed" style="display: flex; align-items: center; gap: 9px; border-radius: 15px; padding: 10px 11px; cursor: pointer; background: {{ bgSpeed }}; box-shadow: {{ ringSpeed }};">
+            <span style="width: 28px; height: 28px; border-radius: 10px; background: #e6e9fb; display: grid; place-items: center; flex: none;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5c63b0" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="13" r="8"></circle><path d="M12 13 V8M9 3 h6"></path></svg>
+            </span>
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-size: 11.5px; font-weight: 800;">6h speed-ups</div>
+              <div style="font-size: 10px; font-weight: 700; color: #a29bb5;">×4 builders</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="flex: 1; margin-top: 10px; background: #ffffff; border-radius: 22px; padding: 13px 16px 15px; box-shadow: 0 2px 8px rgba(63,58,82,.06); display: flex; flex-direction: column; overflow: hidden;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <span class="lbl">Price tier</span>
+          <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">contents scale with tier</span>
+        </div>
+        <div onClick="{{ setTier }}" style="display: flex; gap: 7px; margin-top: 10px;">
+          <div data-tier="1.99" style="flex: 1; border-radius: 14px; padding: 11px 0; text-align: center; cursor: pointer; background: {{ bgT1 }}; box-shadow: {{ ringT1 }};">
+            <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 16px;">$1.99</div>
+            <div style="font-size: 10px; font-weight: 700; color: #a29bb5;">Small</div>
+          </div>
+          <div data-tier="4.99" style="flex: 1; border-radius: 14px; padding: 11px 0; text-align: center; cursor: pointer; background: {{ bgT2 }}; box-shadow: {{ ringT2 }};">
+            <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 16px;">$4.99</div>
+            <div style="font-size: 10px; font-weight: 700; color: #a29bb5;">Standard</div>
+          </div>
+          <div data-tier="9.99" style="flex: 1; border-radius: 14px; padding: 11px 0; text-align: center; cursor: pointer; background: {{ bgT3 }}; box-shadow: {{ ringT3 }};">
+            <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 16px;">$9.99</div>
+            <div style="font-size: 10px; font-weight: 700; color: #a29bb5;">Large</div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 11px; background: #eef7f1; border-radius: 14px; padding: 10px 12px; margin-top: 11px;">
+          <div style="flex: 1; min-width: 0;">
+            <div class="lbl" style="color: #7fa891;">You pay</div>
+            <div style="display: flex; align-items: baseline; gap: 7px; margin-top: 2px;">
+              <span style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 19px; line-height: 1; color: #3d6b52;">{{ chestPaid }}</span>
+              <span style="font-size: 10.5px; font-weight: 700; color: #7fa891;">{{ chestList }}</span>
+            </div>
+          </div>
+          <span style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 15px; color: #ffffff; background: #5aa87a; border-radius: 10px; padding: 6px 11px; flex: none;">{{ chestSave }}</span>
+        </div>
+        <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5; margin-top: 8px; line-height: 1.35;">{{ chestNote }}</div>
+        <div style="display: flex; align-items: center; gap: 10px; background: #fdf6e6; border-radius: 13px; padding: 9px 11px; margin-top: 10px;">
+          <span style="width: 22px; height: 22px; border-radius: 999px; background: #ffffff; display: grid; place-items: center; flex: none;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#d19a1f" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="13" r="8"></circle><path d="M12 13 V8M9 3 h6"></path></svg>
+          </span>
+          <span style="flex: 1; font-size: 11px; font-weight: 700; color: #7a5b12; line-height: 1.35;">One chest per Ashfall week — resets in 05:12:44.</span>
+        </div>
+        <div style="display: flex; gap: 7px; margin-top: 10px;">
+          <div style="flex: 1; background: #f8f6fc; border-radius: 12px; padding: 8px 10px;">
+            <div class="lbl">Also included</div>
+            <div style="font-size: 11px; font-weight: 700; margin-top: 3px;">400 Breeder XP</div>
+          </div>
+          <div style="flex: 1; background: #f8f6fc; border-radius: 12px; padding: 8px 10px;">
+            <div class="lbl">Tier 6 bonus</div>
+            <div style="font-size: 11px; font-weight: 700; margin-top: 3px;">+5% shards</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isPacks }}">
+    <div style="flex: 1; margin: 0 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 9px;">
+      <div style="display: flex; align-items: center; gap: 11px; background: #ffffff; border-radius: 18px; padding: 11px 13px; box-shadow: 0 2px 8px rgba(63,58,82,.06);">
+        <span style="width: 38px; height: 38px; border-radius: 13px; background: #e2f4e8; display: grid; place-items: center; flex: none; animation: glow 2.4s ease-in-out infinite;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4c9b74" stroke-width="2.3" stroke-linejoin="round"><path d="M4 10 h16 v10 H4 z"></path><path d="M12 10 v10M4 10 l3-5 5 5M20 10 l-3-5-5 5"></path></svg>
+        </span>
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-size: 12.5px; font-weight: 800;">Daily gift · day 4</div>
+          <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5;">1 charge + 40 shards, free every login</div>
+        </div>
+        <button type="button" style="border: 0; cursor: pointer; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 13px; color: #ffffff; background: linear-gradient(180deg, #8fd0ab, #5faa80); border-radius: 12px; padding: 9px 15px; box-shadow: 0 2px 0 #4d8f69;">Claim</button>
+      </div>
+
+      <div style="position: relative; overflow: hidden; background: linear-gradient(150deg, #ede6fb, #ffe8d8); border-radius: 22px; padding: 14px 16px 15px; box-shadow: 0 4px 14px rgba(63,58,82,.1);">
+        <div class="shine" style="left: -60px;"></div>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <span style="font-size: 9px; font-weight: 800; letter-spacing: .1em; color: #8e3f33; background: rgba(255,255,255,.75); border-radius: 6px; padding: 3px 7px;">FIRST BUY · 2× CONTENTS</span>
+            <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 22px; line-height: 1.1; margin-top: 7px;">Starter Splice</div>
+            <div style="font-size: 11px; font-weight: 700; color: #7d6f8c; margin-top: 3px;">10 charges · 200 shards · 1,000 XP</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 26px; line-height: 1;">$0.99</div>
+            <div style="font-size: 10px; font-weight: 700; color: #8e3f33; text-decoration: line-through;">$1.98 value</div>
+            <div style="display: inline-block; font-size: 9px; font-weight: 800; letter-spacing: .06em; color: #ffffff; background: #5aa87a; border-radius: 6px; padding: 3px 6px; margin-top: 5px;">+100% VALUE</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background: #ffffff; border-radius: 20px; padding: 12px 14px 13px; box-shadow: 0 2px 8px rgba(63,58,82,.06); display: flex; align-items: center; gap: 11px;">
+        <span style="width: 40px; height: 40px; border-radius: 13px; background: #ece2fa; display: grid; place-items: center; flex: none; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 15px; color: #6b5fa8;">15</span>
+        <div style="flex: 1; min-width: 0;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 13px; font-weight: 800;">Breeder Bundle</span>
+            <span style="font-size: 8.5px; font-weight: 800; letter-spacing: .06em; color: #3d6b52; background: #e2f4e8; border-radius: 5px; padding: 2px 5px;">+35%</span>
+          </div>
+          <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5;">15 charges · 300 shards · 1 rare pull</div>
+        </div>
+        <button type="button" style="border: 0; cursor: pointer; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 13px; color: #ffffff; background: linear-gradient(180deg, #8878cf, #6f5fbb); border-radius: 12px; padding: 9px 14px; box-shadow: 0 2px 0 #5b4d9e;">$4.99</button>
+      </div>
+
+      <div style="position: relative; background: #ffffff; border-radius: 20px; padding: 12px 14px 13px; box-shadow: inset 0 0 0 2px #cbbdf2, 0 4px 12px rgba(63,58,82,.09); display: flex; align-items: center; gap: 11px;">
+        <span style="position: absolute; top: -8px; left: 14px; font-size: 8.5px; font-weight: 800; letter-spacing: .1em; color: #ffffff; background: #7a6ac0; border-radius: 6px; padding: 3px 7px;">MOST POPULAR</span>
+        <span style="width: 40px; height: 40px; border-radius: 13px; background: #e7f3f9; display: grid; place-items: center; flex: none; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 15px; color: #3c7f98;">40</span>
+        <div style="flex: 1; min-width: 0;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 13px; font-weight: 800;">Lab Expansion</span>
+            <span style="font-size: 8.5px; font-weight: 800; letter-spacing: .06em; color: #3d6b52; background: #e2f4e8; border-radius: 5px; padding: 2px 5px;">+80%</span>
+          </div>
+          <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5;">40 charges · 1,000 shards · 3 pulls</div>
+        </div>
+        <button type="button" style="border: 0; cursor: pointer; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 13px; color: #ffffff; background: linear-gradient(180deg, #8878cf, #6f5fbb); border-radius: 12px; padding: 9px 14px; box-shadow: 0 2px 0 #5b4d9e;">$9.99</button>
+      </div>
+
+      <div style="background: #ffffff; border-radius: 20px; padding: 12px 14px 13px; box-shadow: 0 2px 8px rgba(63,58,82,.06); display: flex; align-items: center; gap: 11px;">
+        <span style="width: 40px; height: 40px; border-radius: 13px; background: #fdeecb; display: grid; place-items: center; flex: none;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b58a2b" stroke-width="2.2" stroke-linejoin="round"><path d="M12 2 L14.5 9.5 L22 12 L14.5 14.5 L12 22 L9.5 14.5 L2 12 L9.5 9.5 Z"></path></svg>
+        </span>
+        <div style="flex: 1; min-width: 0;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 13px; font-weight: 800;">Geneticist's Vault</span>
+            <span style="font-size: 8.5px; font-weight: 800; letter-spacing: .06em; color: #8e6d15; background: #fdeecb; border-radius: 5px; padding: 2px 5px;">BEST VALUE</span>
+          </div>
+          <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5;">100 charges · 3,000 shards · skin</div>
+        </div>
+        <button type="button" style="border: 0; cursor: pointer; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 13px; color: #ffffff; background: linear-gradient(180deg, #8878cf, #6f5fbb); border-radius: 12px; padding: 9px 14px; box-shadow: 0 2px 0 #5b4d9e;">$19.99</button>
+      </div>
+
+      <div style="background: #ffffff; border-radius: 20px; padding: 12px 14px 13px; box-shadow: 0 2px 8px rgba(63,58,82,.06); display: flex; align-items: center; gap: 11px;">
+        <span style="width: 40px; height: 40px; border-radius: 13px; background: #fbeae7; display: grid; place-items: center; flex: none;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c96555" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="13" r="8"></circle><path d="M12 13 V8"></path></svg>
+        </span>
+        <div style="flex: 1; min-width: 0;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 13px; font-weight: 800;">Mythic Lab Access</span>
+            <span style="font-size: 8.5px; font-weight: 800; letter-spacing: .06em; color: #96463c; background: #fbeae7; border-radius: 5px; padding: 2px 5px;">48H ONLY</span>
+          </div>
+          <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5;">Unlimited charges 48h · 5,000 shards</div>
+        </div>
+        <button type="button" style="border: 0; cursor: pointer; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 13px; color: #ffffff; background: linear-gradient(180deg, #eda093, #d4776a); border-radius: 12px; padding: 9px 14px; box-shadow: 0 2px 0 #b35a4d;">$14.99</button>
+      </div>
+
+      <div style="background: #ffffff; border-radius: 20px; padding: 12px 16px 14px; box-shadow: 0 2px 8px rgba(63,58,82,.06);">
+        <span class="lbl">What a pack buys you right now</span>
+        <div style="display: flex; align-items: center; gap: 9px; margin-top: 10px;">
+          <span style="width: 8px; height: 8px; border-radius: 2px; background: #7a6ac0; flex: none;"></span>
+          <span style="flex: 1; font-size: 11.5px; font-weight: 800;">Trait Archive finishes now</span>
+          <span style="font-size: 11px; font-weight: 700; color: #a29bb5;">saves 6h 41m</span>
+        </div>
+        <div style="height: 1px; background: #f4f1fa; margin: 9px 0;"></div>
+        <div style="display: flex; align-items: center; gap: 9px;">
+          <span style="width: 8px; height: 8px; border-radius: 2px; background: #6ba7c0; flex: none;"></span>
+          <span style="flex: 1; font-size: 11.5px; font-weight: 800;">Four splices before the Apex closes</span>
+          <span style="font-size: 11px; font-weight: 700; color: #a29bb5;">51h left</span>
+        </div>
+        <div style="height: 1px; background: #f4f1fa; margin: 9px 0;"></div>
+        <div style="display: flex; align-items: center; gap: 9px;">
+          <span style="width: 8px; height: 8px; border-radius: 2px; background: #e8b34a; flex: none;"></span>
+          <span style="flex: 1; font-size: 11.5px; font-weight: 800;">Breeder tier 7 unlocks a free daily pull</span>
+          <span style="font-size: 11px; font-weight: 700; color: #a29bb5;">1,600 XP short</span>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 10px; background: #f1ecfa; border-radius: 16px; padding: 10px 12px;">
+        <span style="width: 22px; height: 22px; border-radius: 999px; background: #ffffff; display: grid; place-items: center; flex: none;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7a6ac0" stroke-width="2.6" stroke-linecap="round"><path d="M5 13 l4 4 10-10"></path></svg>
+        </span>
+        <span style="flex: 1; font-size: 11px; font-weight: 700; color: #5d5670; line-height: 1.35;">Everything here is a speed-up. No trait or creature is purchase-only.</span>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isPass }}">
+    <div style="flex: 1; margin: 0 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 9px;">
+      <div style="background: linear-gradient(150deg, #e8e0fb, #d9ecf6); border-radius: 22px; padding: 14px 16px 15px; box-shadow: 0 2px 8px rgba(63,58,82,.07);">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <span class="lbl" style="color: #8078a8;">Season 3 · Ashfall</span>
+          <span style="font-size: 10.5px; font-weight: 800; color: #6b5fa8;">18 days left</span>
+        </div>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 25px; line-height: 1.1; margin-top: 4px;">Breeder Pass</div>
+        <div style="font-size: 11.5px; font-weight: 700; color: #6d6484; line-height: 1.4; margin-top: 4px;">Same currencies, faster — plus a guaranteed rare-trait creature and two exclusive hybrid skins.</div>
+        <div style="display: flex; align-items: baseline; gap: 8px; margin-top: 10px;">
+          <span style="font-size: 11px; font-weight: 800; color: #6b5fa8;">Tier 14 of 40</span>
+          <span style="flex: 1; height: 7px; border-radius: 999px; background: rgba(255,255,255,.7); overflow: hidden;"><span style="display: block; width: 35%; height: 100%; background: linear-gradient(90deg, #9585db, #6f5fbb);"></span></span>
+        </div>
+      </div>
+
+      <div style="background: #ffffff; border-radius: 20px; padding: 12px 16px 14px; box-shadow: 0 2px 8px rgba(63,58,82,.06);">
+        <div style="display: flex; gap: 10px;">
+          <div style="flex: 1;">
+            <span class="lbl">Free track</span>
+            <div style="display: grid; gap: 7px; margin-top: 8px;">
+              <div style="background: #f8f6fc; border-radius: 12px; padding: 8px 10px; font-size: 11px; font-weight: 800;">3 charges</div>
+              <div style="background: #f8f6fc; border-radius: 12px; padding: 8px 10px; font-size: 11px; font-weight: 800;">150 shards</div>
+              <div style="background: #f8f6fc; border-radius: 12px; padding: 8px 10px; font-size: 11px; font-weight: 800;">Skin fragment</div>
+            </div>
+          </div>
+          <div style="flex: 1;">
+            <span class="lbl" style="color: #6b5fa8;">Paid track</span>
+            <div style="display: grid; gap: 7px; margin-top: 8px;">
+              <div style="background: #f1ecfa; border-radius: 12px; padding: 8px 10px; font-size: 11px; font-weight: 800; color: #4c4270;">9 charges</div>
+              <div style="background: #f1ecfa; border-radius: 12px; padding: 8px 10px; font-size: 11px; font-weight: 800; color: #4c4270;">450 shards</div>
+              <div style="background: #f1ecfa; border-radius: 12px; padding: 8px 10px; font-size: 11px; font-weight: 800; color: #4c4270;">Rare-trait hybrid</div>
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; background: #eef7f1; border-radius: 13px; padding: 9px 11px; margin-top: 11px;">
+          <span style="width: 22px; height: 22px; border-radius: 999px; background: #ffffff; display: grid; place-items: center; flex: none;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#5aa87a" stroke-width="2.6" stroke-linecap="round"><path d="M5 13 l4 4 10-10"></path></svg>
+          </span>
+          <span style="flex: 1; font-size: 11px; font-weight: 700; color: #3d6b52; line-height: 1.35;">No power locked behind the pass — every trait on the paid track is obtainable free, just slower.</span>
+        </div>
+      </div>
+
+      <div style="background: #ffffff; border-radius: 20px; padding: 12px 16px 14px; box-shadow: 0 2px 8px rgba(63,58,82,.06);">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <span class="lbl">Next tiers</span>
+          <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">unlock as you play</span>
+        </div>
+        <div style="display: flex; align-items: flex-end; gap: 7px; margin-top: 11px;">
+          <div style="flex: 1; background: #f1ecfa; border-radius: 14px; padding: 10px 9px; text-align: center;">
+            <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 15px; color: #6b5fa8;">15</div>
+            <div style="font-size: 10px; font-weight: 800; margin-top: 3px;">6 charges</div>
+          </div>
+          <div style="flex: 1; background: #f1ecfa; border-radius: 14px; padding: 10px 9px; text-align: center;">
+            <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 15px; color: #6b5fa8;">16</div>
+            <div style="font-size: 10px; font-weight: 800; margin-top: 3px;">300 shards</div>
+          </div>
+          <div style="flex: 1.2; background: linear-gradient(160deg, #fdf0d0, #f9e0a8); border-radius: 14px; padding: 12px 9px; text-align: center; box-shadow: inset 0 0 0 1px rgba(196,150,45,.3);">
+            <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 16px; color: #7a5b12;">18</div>
+            <div style="font-size: 10px; font-weight: 800; color: #7a5b12; margin-top: 3px;">Rare hybrid</div>
+          </div>
+          <div style="flex: 1; background: #f1ecfa; border-radius: 14px; padding: 10px 9px; text-align: center;">
+            <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 15px; color: #6b5fa8;">20</div>
+            <div style="font-size: 10px; font-weight: 800; margin-top: 3px;">Ashfall skin</div>
+          </div>
+        </div>
+        <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5; margin-top: 9px;">Unlocking the pass now backfills tiers 1-14 instantly.</div>
+      </div>
+    </div>
+  </sc-if>
+
+  <div style="padding: 11px 12px 8px;">
+    <button type="button" style="width: 100%; border: 0; cursor: pointer; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 17px; color: #ffffff; background: linear-gradient(180deg, #8878cf, #6f5fbb); border-radius: 15px; padding: 14px 0; box-shadow: 0 3px 0 #5b4d9e, 0 6px 14px rgba(111,95,187,.28);" style-hover="background: linear-gradient(180deg, #9585db, #7a6ac6);" style-active="transform: translateY(2px); box-shadow: 0 1px 0 #5b4d9e;">{{ cta }}</button>
+  </div>
+
+  <div style="text-align: center; padding: 0 24px 16px;">
+    <span style="font-size: 11px; font-weight: 700; color: #a29bb5;">{{ footer }}</span>
+  </div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:478,&quot;height&quot;:980}}">
+const ON = "#f4f0fd", RING_ON = "inset 0 0 0 2px #8878cf";
+const OFF = "#f8f6fc", RING_OFF = "inset 0 0 0 1px #ece7f6";
+const T_ON = "#ede6fb", T_RING_ON = "inset 0 0 0 2px #8878cf";
+const ACTIVE_BG = "#ffffff", ACTIVE_FG = "#6b5fa8", IDLE_BG = "transparent", IDLE_FG = "#a29bb5";
+
+class Component extends DCLogic {
+  state = { tab: "chest", chosen: ["charges", "shards"], tier: "4.99" };
+
+  renderVals() {
+    const { tab, chosen, tier } = this.state;
+    const has = (k) => chosen.indexOf(k) >= 0;
+    const bg = (k) => (has(k) ? ON : OFF);
+    const ring = (k) => (has(k) ? RING_ON : RING_OFF);
+    const tbg = (t) => (tier === t ? T_ON : OFF);
+    const tring = (t) => (tier === t ? T_RING_ON : RING_OFF);
+    const full = chosen.length >= 3;
+
+    const cta = tab === "chest"
+      ? (full ? "Buy chest · $" + tier : "Pick " + (3 - chosen.length) + " more")
+      : tab === "packs" ? "Claim first-buy bonus" : "Unlock pass · $9.99";
+    const footer = tab === "chest"
+      ? "You only pay for what you picked — no filler in the chest."
+      : tab === "packs" ? "First purchase of any pack doubles its contents, once per account."
+      : "Season resets in 18 days; unclaimed rewards carry over for 7 days.";
+
+    const VALUE = { charges: 4.2, shards: 4.8, xp: 2.6, pull: 5.4, skin: 3.9, speed: 3.2 };
+    const listed = chosen.reduce((n, k) => n + (VALUE[k] || 0), 0);
+    const paid = parseFloat(tier);
+    const save = listed > paid ? Math.round((1 - paid / listed) * 100) : 0;
+
+    return {
+      chestPaid: "$" + paid.toFixed(2),
+      chestList: listed ? "instead of $" + listed.toFixed(2) + " bought separately" : "pick three rewards",
+      chestSave: save ? "SAVE " + save + "%" : "PICK 3",
+      isChest: tab === "chest", isPacks: tab === "packs", isPass: tab === "pass",
+      bgChest: tab === "chest" ? ACTIVE_BG : IDLE_BG, cChest: tab === "chest" ? ACTIVE_FG : IDLE_FG,
+      bgPacks: tab === "packs" ? ACTIVE_BG : IDLE_BG, cPacks: tab === "packs" ? ACTIVE_FG : IDLE_FG,
+      bgPass: tab === "pass" ? ACTIVE_BG : IDLE_BG, cPass: tab === "pass" ? ACTIVE_FG : IDLE_FG,
+      chosenCount: chosen.length,
+      picksLeftLabel: full ? "complete" : (3 - chosen.length) + " more",
+      chestNote: full
+        ? "Chest ready — three slots filled. Swap any pick before you buy."
+        : "Pick any three of the six rewards. Nothing you did not choose ends up in the chest.",
+      bgCharges: bg("charges"), ringCharges: ring("charges"),
+      bgShards: bg("shards"), ringShards: ring("shards"),
+      bgXp: bg("xp"), ringXp: ring("xp"),
+      bgPull: bg("pull"), ringPull: ring("pull"),
+      bgSkin: bg("skin"), ringSkin: ring("skin"),
+      bgSpeed: bg("speed"), ringSpeed: ring("speed"),
+      bgT1: tbg("1.99"), ringT1: tring("1.99"),
+      bgT2: tbg("4.99"), ringT2: tring("4.99"),
+      bgT3: tbg("9.99"), ringT3: tring("9.99"),
+      cta, footer,
+      setTab: (e) => {
+        const el = e.target && e.target.closest && e.target.closest("[data-tab]");
+        const k = el && el.getAttribute("data-tab");
+        if (k) this.setState({ tab: k });
+      },
+      toggleSlot: (e) => {
+        const el = e.target && e.target.closest && e.target.closest("[data-slot]");
+        const k = el && el.getAttribute("data-slot");
+        if (!k) return;
+        this.setState((s) => {
+          const i = s.chosen.indexOf(k);
+          if (i >= 0) return { chosen: s.chosen.filter((x) => x !== k) };
+          if (s.chosen.length >= 3) return {};
+          return { chosen: s.chosen.concat(k) };
+        });
+      },
+      setTier: (e) => {
+        const el = e.target && e.target.closest && e.target.closest("[data-tier]");
+        const k = el && el.getAttribute("data-tier");
+        if (k) this.setState({ tier: k });
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

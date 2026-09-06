@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #e4dff0; font-family: "Nunito", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .lbl { font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #a29bb5; }
+  @keyframes glow { 0%, 100% { opacity: .4; } 50% { opacity: 1; } }
+</style>
+</helmet>
+
+<div style="min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 24px 0; background: linear-gradient(160deg, #e6e0f5, #d3e7ef);">
+<div style="width: 430px; height: 932px; background: #f7f4fb; color: #3f3a52; border-radius: 34px; box-shadow: 0 18px 50px rgba(63,58,82,.28); display: flex; flex-direction: column; overflow: hidden;">
+
+  <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 26px 2px; font-size: 12px; font-weight: 800; color: #a29bb5;">
+    <span>9:41</span>
+    <span style="display: flex; gap: 7px;"><span>◦◦◦</span><span>84%</span></span>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 11px; padding: 8px 14px 10px;">
+    <div style="width: 44px; height: 44px; border-radius: 14px; background: #e6e9fb; display: grid; place-items: center; flex: none;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5c63b0" stroke-width="2.2" stroke-linejoin="round"><path d="M12 3 L20 7 v6 c0 4-3.5 7-8 8 -4.5-1-8-4-8-8 V7 z"></path></svg>
+    </div>
+    <div style="flex: 1;">
+      <div class="lbl">Alliance · rank 4 of 128</div>
+      <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 21px; line-height: 1.1;">Crux Collective</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 7px; background: #ffffff; border-radius: 999px; padding: 6px 12px; box-shadow: 0 1px 3px rgba(63,58,82,.09);">
+      <span style="width: 8px; height: 8px; border-radius: 999px; background: #6cba8b;"></span>
+      <span style="font-size: 10.5px; font-weight: 800; color: #5d5670;">27 / 40</span>
+    </div>
+  </div>
+
+  <div onClick="{{ setTab }}" style="display: flex; gap: 5px; margin: 0 12px 10px; background: #ece7f6; border-radius: 14px; padding: 4px;">
+    <button type="button" data-tab="territory" style="flex: 1; border: 0; cursor: pointer; font-family: 'Nunito', sans-serif; font-size: 11.5px; font-weight: 800; color: {{ cTerritory }}; background: {{ bgTerritory }}; border-radius: 11px; padding: 9px 0;">Territory</button>
+    <button type="button" data-tab="members" style="flex: 1; border: 0; cursor: pointer; font-family: 'Nunito', sans-serif; font-size: 11.5px; font-weight: 800; color: {{ cMembers }}; background: {{ bgMembers }}; border-radius: 11px; padding: 9px 0;">Members</button>
+    <button type="button" data-tab="help" style="flex: 1; border: 0; cursor: pointer; font-family: 'Nunito', sans-serif; font-size: 11.5px; font-weight: 800; color: {{ cHelp }}; background: {{ bgHelp }}; border-radius: 11px; padding: 9px 0;">Help</button>
+  </div>
+
+  <sc-if value="{{ isTerritory }}" hint-placeholder-val="{{ true }}">
+    <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+      <div style="position: relative; margin: 0 12px; height: 236px; background: linear-gradient(170deg, #eef4f7, #e4eef4); border-radius: 22px; box-shadow: 0 4px 16px rgba(63,58,82,.08); overflow: hidden;">
+        <svg viewBox="0 0 406 236" style="position: absolute; inset: 0;">
+          <g stroke="#ffffff" stroke-width="1.4" opacity=".7" fill="none">
+            <path d="M0 59 h406M0 118 h406M0 177 h406M81 0 v236M162 0 v236M243 0 v236M324 0 v236"></path>
+          </g>
+          <path d="M20 30 L150 20 L190 90 L96 130 L14 96 Z" fill="#a8ade4" opacity=".85"></path>
+          <path d="M150 20 L300 34 L330 96 L190 90 Z" fill="#8ed99b" opacity=".8"></path>
+          <path d="M330 96 L392 120 L360 200 L262 186 L190 90 Z" fill="#f2ab9f" opacity=".8"></path>
+          <path d="M96 130 L190 90 L262 186 L160 220 L60 190 Z" fill="#e8ddc6" opacity=".9"></path>
+          <g fill="none" stroke="#ffffff" stroke-width="2.5">
+            <path d="M20 30 L150 20 L300 34 L330 96 L392 120 L360 200 L262 186 L160 220 L60 190 L14 96 Z"></path>
+            <path d="M150 20 L190 90 L330 96M96 130 L190 90M190 90 L262 186M96 130 L60 190"></path>
+          </g>
+          <g font-family="Nunito, sans-serif" font-size="10" font-weight="800" letter-spacing=".06em" fill="#3f3a52">
+            <text x="46" y="112">R-05</text>
+            <text x="178" y="58">R-02</text>
+            <text x="252" y="152">R-06</text>
+            <text x="130" y="176">R-07</text>
+          </g>
+          <g>
+            <circle cx="96" cy="88" r="12" fill="#ffffff"></circle>
+            <circle cx="96" cy="88" r="8" fill="#7a6ac0"></circle>
+            <circle cx="240" cy="52" r="10" fill="#ffffff"></circle>
+            <circle cx="240" cy="52" r="6.5" fill="#7cc492"></circle>
+            <circle cx="318" cy="150" r="10" fill="#ffffff"></circle>
+            <circle cx="318" cy="150" r="6.5" fill="#e5867a"></circle>
+          </g>
+        </svg>
+        <div style="position: absolute; right: 10px; top: 10px; background: rgba(255,255,255,.9); border-radius: 12px; padding: 7px 9px; display: grid; gap: 4px;">
+          <div style="display: flex; align-items: center; gap: 6px; font-size: 9.5px; font-weight: 800; color: #5d5670;"><span style="width: 10px; height: 10px; border-radius: 3px; background: #a8ade4;"></span>Crux held</div>
+          <div style="display: flex; align-items: center; gap: 6px; font-size: 9.5px; font-weight: 800; color: #5d5670;"><span style="width: 10px; height: 10px; border-radius: 3px; background: #8ed99b;"></span>Contested</div>
+          <div style="display: flex; align-items: center; gap: 6px; font-size: 9.5px; font-weight: 800; color: #5d5670;"><span style="width: 10px; height: 10px; border-radius: 3px; background: #f2ab9f;"></span>Sable held</div>
+        </div>
+      </div>
+
+      <div style="margin: 11px 12px 0; background: #ffffff; border-radius: 20px; padding: 12px 16px 14px; box-shadow: 0 2px 8px rgba(63,58,82,.06);">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <span class="lbl">Territory standing</span>
+          <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">season 3 · day 12</span>
+        </div>
+        <div style="display: flex; gap: 7px; margin-top: 10px;">
+          <div style="flex: 1; background: #f1ecfa; border-radius: 12px; padding: 9px 10px;">
+            <div class="lbl" style="color: #8d86bb;">Regions</div>
+            <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 18px; line-height: 1.05; margin-top: 2px;">4</div>
+          </div>
+          <div style="flex: 1; background: #eef7f1; border-radius: 12px; padding: 9px 10px;">
+            <div class="lbl" style="color: #7fa891;">Co-op yield</div>
+            <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 18px; line-height: 1.05; margin-top: 2px;">+34%</div>
+          </div>
+          <div style="flex: 1; background: #fbeee9; border-radius: 12px; padding: 9px 10px;">
+            <div class="lbl" style="color: #c07f74;">Under threat</div>
+            <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 18px; line-height: 1.05; margin-top: 2px;">1</div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; background: #fdf6e6; border-radius: 13px; padding: 9px 11px; margin-top: 10px; margin-bottom: 0;">
+          <span style="width: 22px; height: 22px; border-radius: 999px; background: #ffffff; display: grid; place-items: center; flex: none; animation: glow 2s ease-in-out infinite;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#d19a1f" stroke-width="2.2" stroke-linejoin="round"><path d="M12 2 L14.5 9.5 L22 12 L14.5 14.5 L12 22 L9.5 14.5 L2 12 L9.5 9.5 Z"></path></svg>
+          </span>
+          <span style="flex: 1; font-size: 11px; font-weight: 700; color: #7a5b12; line-height: 1.35;">Apex Vein in R-06 sits inside Sable ground — six allies have marked it for the rush.</span>
+        </div>
+      </div>
+
+      <div style="flex: 1; margin: 11px 12px 0; background: #ffffff; border-radius: 20px; padding: 12px 16px 14px; box-shadow: 0 2px 8px rgba(63,58,82,.06); display: flex; flex-direction: column; overflow: hidden;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <span class="lbl">Regions</span>
+          <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">yield · travel</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 9px; margin-top: 10px;">
+          <span style="width: 9px; height: 9px; border-radius: 3px; background: #a8ade4; flex: none;"></span>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 12px; font-weight: 800;">R-05 Hollow Reach</div>
+            <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5;">Crux held · you and Vantablack harvesting</div>
+          </div>
+          <span style="font-size: 11px; font-weight: 800; color: #43704f; white-space: nowrap;">+34% · here</span>
+        </div>
+        <div style="height: 1px; background: #f4f1fa; margin: 9px 0;"></div>
+        <div style="display: flex; align-items: center; gap: 9px;">
+          <span style="width: 9px; height: 9px; border-radius: 3px; background: #8ed99b; flex: none;"></span>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 12px; font-weight: 800;">R-02 Meridian Basin</div>
+            <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5;">Contested · Marrow holding the line</div>
+          </div>
+          <span style="font-size: 11px; font-weight: 800; color: #8e6d15; white-space: nowrap;">+18% · 2h 45m</span>
+        </div>
+        <div style="height: 1px; background: #f4f1fa; margin: 9px 0;"></div>
+        <div style="display: flex; align-items: center; gap: 9px;">
+          <span style="width: 9px; height: 9px; border-radius: 3px; background: #f2ab9f; flex: none;"></span>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 12px; font-weight: 800;">R-06 Vitrine Pan</div>
+            <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5;">Sable held · Apex Vein live, 51h left</div>
+          </div>
+          <span style="font-size: 11px; font-weight: 800; color: #b3564a; white-space: nowrap;">−12% · 3h 05m</span>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isMembers }}">
+    <div style="flex: 1; margin: 0 12px; overflow-y: auto;">
+      <div style="background: #ffffff; border-radius: 20px; padding: 6px 14px 8px; box-shadow: 0 2px 8px rgba(63,58,82,.06);">
+
+        <div style="display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f4f1fa;">
+          <span style="width: 34px; height: 34px; border-radius: 11px; background: #ece4fa; display: grid; place-items: center; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 14px; color: #6b5fa8; flex: none;">R1</span>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 12.5px; font-weight: 800;">Marrow <span style="font-size: 9px; font-weight: 800; color: #6b5fa8; background: #ece4fa; border-radius: 5px; padding: 2px 5px; margin-left: 4px;">LEAD</span></div>
+            <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5;">Tier 11 · R-02 · online</div>
+          </div>
+          <span style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 14px; color: #3f3a52;">18.4k</span>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f4f1fa;">
+          <span style="width: 34px; height: 34px; border-radius: 11px; background: #e7f3f9; display: grid; place-items: center; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 14px; color: #3c7f98; flex: none;">R2</span>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 12.5px; font-weight: 800;">Vantablack</div>
+            <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5;">Tier 9 · R-05 · 12m ago</div>
+          </div>
+          <span style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 14px; color: #3f3a52;">14.1k</span>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f4f1fa;">
+          <span style="width: 34px; height: 34px; border-radius: 11px; background: #f1ecfa; display: grid; place-items: center; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 14px; color: #6b5fa8; flex: none;">R3</span>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 12.5px; font-weight: 800;">You <span style="font-size: 9px; font-weight: 800; color: #43704f; background: #e8f5ec; border-radius: 5px; padding: 2px 5px; margin-left: 4px;">R-05</span></div>
+            <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5;">Tier 6 · harvesting · online</div>
+          </div>
+          <span style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 14px; color: #3f3a52;">8.4k</span>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f4f1fa;">
+          <span style="width: 34px; height: 34px; border-radius: 11px; background: #f2eff8; display: grid; place-items: center; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 14px; color: #8d86a0; flex: none;">R4</span>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 12.5px; font-weight: 800;">Halcyon</div>
+            <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5;">Tier 6 · in transit · 4h ago</div>
+          </div>
+          <span style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 14px; color: #3f3a52;">7.9k</span>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 10px; padding: 10px 0;">
+          <span style="width: 34px; height: 34px; border-radius: 11px; background: #f2eff8; display: grid; place-items: center; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 14px; color: #8d86a0; flex: none;">R5</span>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 12.5px; font-weight: 800;">Fenwick</div>
+            <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5;">Tier 4 · R-07 · 2d ago</div>
+          </div>
+          <span style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 14px; color: #3f3a52;">3.2k</span>
+        </div>
+
+      </div>
+      <div style="text-align: center; padding: 10px 0 4px;">
+        <span style="font-size: 11px; font-weight: 700; color: #a29bb5;">22 more members · sorted by weekly contribution</span>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isHelp }}">
+    <div style="flex: 1; margin: 0 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 9px;">
+      <div style="background: #ffffff; border-radius: 20px; padding: 12px 16px 14px; box-shadow: 0 2px 8px rgba(63,58,82,.06);">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <span class="lbl">Help requests</span>
+          <span style="font-size: 10px; font-weight: 700; color: #6b5fa8;">3 open</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px; background: #f8f6fc; border-radius: 14px; padding: 10px 11px;">
+          <span style="width: 26px; height: 26px; border-radius: 9px; background: #ece4fa; display: grid; place-items: center; flex: none; font-size: 10px; font-weight: 800; color: #6b5fa8;">M</span>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 12px; font-weight: 800;">Marrow · Trait Archive L3</div>
+            <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5;">Cuts 6m per tap · 4 of 12 helped</div>
+          </div>
+          <button type="button" style="border: 0; cursor: pointer; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 12px; color: #ffffff; background: #7a6ac0; border-radius: 10px; padding: 7px 12px;">Help</button>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; margin-top: 7px; background: #f8f6fc; border-radius: 14px; padding: 10px 11px;">
+          <span style="width: 26px; height: 26px; border-radius: 9px; background: #e7f3f9; display: grid; place-items: center; flex: none; font-size: 10px; font-weight: 800; color: #3c7f98;">V</span>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 12px; font-weight: 800;">Vantablack · Gene Vault L8</div>
+            <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5;">Cuts 9m per tap · 9 of 12 helped</div>
+          </div>
+          <button type="button" style="border: 0; cursor: pointer; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 12px; color: #ffffff; background: #7a6ac0; border-radius: 10px; padding: 7px 12px;">Help</button>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; margin-top: 7px; background: #f8f6fc; border-radius: 14px; padding: 10px 11px;">
+          <span style="width: 26px; height: 26px; border-radius: 9px; background: #f2eff8; display: grid; place-items: center; flex: none; font-size: 10px; font-weight: 800; color: #8d86a0;">H</span>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 12px; font-weight: 800;">Halcyon · convoy escort</div>
+            <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5;">Raiders on R-07 route · 40s window</div>
+          </div>
+          <button type="button" style="border: 0; cursor: pointer; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 12px; color: #ffffff; background: #d4776a; border-radius: 10px; padding: 7px 12px;">Ride</button>
+        </div>
+      </div>
+
+      <div style="background: #ffffff; border-radius: 20px; padding: 12px 16px 14px; box-shadow: 0 2px 8px rgba(63,58,82,.06);">
+        <span class="lbl">Your help this week</span>
+        <div style="display: flex; align-items: baseline; gap: 8px; margin-top: 6px;">
+          <span style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 26px; line-height: 1;">18</span>
+          <span style="font-size: 11px; font-weight: 700; color: #a29bb5;">taps given · 12 received</span>
+        </div>
+        <div style="height: 7px; border-radius: 999px; background: #f0ecf7; margin-top: 9px; overflow: hidden;">
+          <div style="width: 60%; height: 100%; background: linear-gradient(90deg, #9585db, #6f5fbb);"></div>
+        </div>
+        <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5; margin-top: 6px;">30 taps unlocks the weekly alliance chest</div>
+      </div>
+    </div>
+  </sc-if>
+
+  <div style="display: flex; align-items: center; gap: 9px; padding: 11px 12px 8px;">
+    <button type="button" style="flex: 1.4; border: 0; cursor: pointer; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 16px; color: #ffffff; background: linear-gradient(180deg, #8878cf, #6f5fbb); border-radius: 14px; padding: 13px 0; box-shadow: 0 3px 0 #5b4d9e, 0 6px 14px rgba(111,95,187,.28);" style-active="transform: translateY(2px); box-shadow: 0 1px 0 #5b4d9e;">{{ cta }}</button>
+    <button type="button" style="flex: 1; border: 0; cursor: pointer; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 16px; color: #6b5fa8; background: #f1ecfa; border-radius: 14px; padding: 13px 0; box-shadow: inset 0 0 0 1px #e3dbf3;" style-active="transform: translateY(1px);">Chat</button>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; background: #ffffff; padding: 6px 10px 18px;">
+    <a href="Splice World Map v2.dc.html" style="display: grid; place-items: center; gap: 4px; padding: 8px 0; text-decoration: none;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#b3adc2" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"><path d="M9 4 L3 6 v14 l6-2 6 2 6-2 V4 l-6 2 z"></path><path d="M9 4 v14M15 6 v14"></path></svg>
+      <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">Map</span></a>
+    <a href="Gene Ark.dc.html" style="display: grid; place-items: center; gap: 4px; padding: 8px 0; text-decoration: none;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#b3adc2" stroke-width="1.9" stroke-linejoin="round"><path d="M12 3 L20 7.5 v9 L12 21 L4 16.5 v-9 z"></path></svg>
+      <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">Ark</span></a>
+    <a href="Splice Chamber.dc.html" style="display: grid; place-items: center; gap: 4px; padding: 8px 0; text-decoration: none;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#b3adc2" stroke-width="1.9" stroke-linecap="round"><path d="M8 3 v5 L4 20 h16 L16 8 V3"></path><path d="M7 3 h10M6.5 14 h11"></path></svg>
+      <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">Splice</span></a>
+    <a href="Gene Lab.dc.html" style="display: grid; place-items: center; gap: 4px; padding: 8px 0; text-decoration: none;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#b3adc2" stroke-width="1.9" stroke-linejoin="round"><path d="M3 20 V9 l6-4 6 4 6-3 v14 z"></path><path d="M9 20 V9M15 20 V9"></path></svg>
+      <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">Lab</span></a>
+    <a href="Alliance Hub.dc.html" style="display: grid; place-items: center; gap: 4px; padding: 8px 0; border-radius: 18px; background: #f1ecfa; text-decoration: none;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#6b5fa8" stroke-width="1.9" stroke-linecap="round"><circle cx="9" cy="9" r="3.4"></circle><path d="M3 20 c0-3.4 2.7-5.6 6-5.6 s6 2.2 6 5.6"></path><path d="M16 6.2 a3.4 3.4 0 0 1 0 5.8M18 20 c0-2.6-1-4.4-2.4-5.4"></path></svg>
+      <span style="font-size: 10px; font-weight: 800; color: #6b5fa8;">Allies</span></a>
+  </div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:478,&quot;height&quot;:980}}">
+const ACTIVE_BG = "#ffffff", ACTIVE_FG = "#6b5fa8", IDLE_BG = "transparent", IDLE_FG = "#a29bb5";
+const CTA = { territory: "Mark R-06 for rush", members: "Invite a breeder", help: "Help all · 3" };
+
+class Component extends DCLogic {
+  state = { tab: "territory" };
+  renderVals() {
+    const t = this.state.tab;
+    return {
+      isTerritory: t === "territory",
+      isMembers: t === "members",
+      isHelp: t === "help",
+      cta: CTA[t],
+      bgTerritory: t === "territory" ? ACTIVE_BG : IDLE_BG,
+      cTerritory: t === "territory" ? ACTIVE_FG : IDLE_FG,
+      bgMembers: t === "members" ? ACTIVE_BG : IDLE_BG,
+      cMembers: t === "members" ? ACTIVE_FG : IDLE_FG,
+      bgHelp: t === "help" ? ACTIVE_BG : IDLE_BG,
+      cHelp: t === "help" ? ACTIVE_FG : IDLE_FG,
+      setTab: (e) => {
+        const el = e.target && e.target.closest && e.target.closest("[data-tab]");
+        const k = el && el.getAttribute("data-tab");
+        if (k) this.setState({ tab: k });
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #e4dff0; font-family: "Nunito", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: #6b5fa8; text-decoration: none; }
+  a:hover { color: #574c8f; }
+  .lbl { font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #a29bb5; }
+  @keyframes glow { 0%, 100% { opacity: .4; } 50% { opacity: 1; } }
+  @keyframes dash { to { stroke-dashoffset: -60; } }
+</style>
+</helmet>
+
+<div style="min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 24px 0; background: linear-gradient(160deg, #e6e0f5, #d3e7ef);">
+<div style="width: 430px; height: 932px; background: #f7f4fb; color: #3f3a52; border-radius: 34px; box-shadow: 0 18px 50px rgba(63,58,82,.28); display: flex; flex-direction: column; overflow: hidden;">
+
+  <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 26px 2px; font-size: 12px; font-weight: 800; color: #a29bb5;">
+    <span>9:41</span>
+    <span style="display: flex; gap: 7px;"><span>◦◦◦</span><span>84%</span></span>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 10px; padding: 8px 14px 10px;">
+    <a href="Splice World Map v2.dc.html" style="width: 34px; height: 34px; border-radius: 12px; background: #ffffff; display: grid; place-items: center; box-shadow: 0 1px 3px rgba(63,58,82,.1); flex: none;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6b5fa8" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 5 L7 12 l7 7"></path></svg>
+    </a>
+    <div style="flex: 1;">
+      <div class="lbl">R-05 Hollow Reach → R-06 Vitrine Pan</div>
+      <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 20px; line-height: 1.1;">Relocate Ark</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 6px; background: #fdf6e6; border-radius: 999px; padding: 6px 11px;">
+      <span style="width: 8px; height: 8px; border-radius: 999px; background: #e8b34a; animation: glow 1.8s ease-in-out infinite;"></span>
+      <span style="font-size: 10.5px; font-weight: 800; color: #7a5b12;">Apex 51h</span>
+    </div>
+  </div>
+
+  <div style="position: relative; margin: 0 12px; height: 190px; background: linear-gradient(170deg, #eef4f7, #e4eef4); border-radius: 22px; box-shadow: 0 2px 10px rgba(63,58,82,.07); overflow: hidden;">
+    <svg viewBox="0 0 406 190" width="100%" height="100%" preserveAspectRatio="none" style="position: absolute; inset: 0;">
+      <path d="M20 40 L150 26 L190 96 L96 134 L14 100 Z" fill="#a8ade4" opacity=".8"></path>
+      <path d="M150 26 L310 40 L340 100 L190 96 Z" fill="#c9d9a8" opacity=".75"></path>
+      <path d="M340 100 L392 118 L360 176 L262 168 L190 96 Z" fill="#f6c559" opacity=".85"></path>
+      <g fill="none" stroke="#ffffff" stroke-width="2.4">
+        <path d="M20 40 L150 26 L310 40 L340 100 L392 118 L360 176 L262 168 L190 96 L96 134 L14 100 Z"></path>
+        <path d="M150 26 L190 96 L340 100M96 134 L190 96"></path>
+      </g>
+      <path d="{{ routePath }}" fill="none" stroke="#7a6ac0" stroke-width="3.4" stroke-dasharray="9 7" stroke-linecap="round" style="animation: dash 2s linear infinite;"></path>
+      <g transform="translate(96 96)">
+        <circle cx="0" cy="0" r="14" fill="#ffffff"></circle>
+        <path d="M0 -9 L9 -4 v9 L0 10 L-9 5 v-9 Z" fill="#7a6ac0"></path>
+      </g>
+      <g transform="translate(316 132)">
+        <circle cx="0" cy="0" r="15" fill="none" stroke="#d19a1f" stroke-width="2.4" style="animation: glow 1.8s ease-in-out infinite;"></circle>
+        <circle cx="0" cy="0" r="10" fill="#ffffff"></circle>
+        <circle cx="0" cy="0" r="6.5" fill="#ffb703"></circle>
+      </g>
+      <g transform="{{ threatXf }}" opacity="{{ threatOpacity }}">
+        <path d="M-6 -6 L6 6M6 -6 L-6 6" stroke="#c9564a" stroke-width="3.4" stroke-linecap="round"></path>
+      </g>
+    </svg>
+    <div style="position: absolute; left: 10px; bottom: 10px; background: rgba(255,255,255,.92); border-radius: 12px; padding: 8px 10px;">
+      <div class="lbl">Arrives</div>
+      <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 17px; line-height: 1; margin-top: 2px;">{{ eta }}</div>
+    </div>
+  </div>
+
+  <div style="margin: 11px 12px 0;">
+    <div class="lbl" style="margin-bottom: 8px;">Choose the crossing</div>
+    <div onClick="{{ pickRoute }}" style="display: flex; flex-direction: column; gap: 7px;">
+
+      <div data-route="direct" style="display: flex; align-items: center; gap: 11px; background: {{ bgDirect }}; border-radius: 16px; padding: 11px 13px; cursor: pointer; box-shadow: {{ ringDirect }};">
+        <span style="width: 30px; height: 30px; border-radius: 10px; background: #fbeae7; display: grid; place-items: center; flex: none;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c9564a" stroke-width="2.6" stroke-linecap="round"><path d="M4 12 h16M14 6 l6 6-6 6"></path></svg>
+        </span>
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-size: 12.5px; font-weight: 800;">Direct crossing</div>
+          <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5;">3h 05m · through Sable sight lines</div>
+        </div>
+        <span style="font-size: 10.5px; font-weight: 800; color: #b3564a; white-space: nowrap;">High risk</span>
+      </div>
+
+      <div data-route="corridor" style="display: flex; align-items: center; gap: 11px; background: {{ bgCorridor }}; border-radius: 16px; padding: 11px 13px; cursor: pointer; box-shadow: {{ ringCorridor }};">
+        <span style="width: 30px; height: 30px; border-radius: 10px; background: #e8f5ec; display: grid; place-items: center; flex: none;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#43704f" stroke-width="2.4" stroke-linejoin="round"><path d="M12 3 L20 7 v6 c0 4-3.5 7-8 8 -4.5-1-8-4-8-8 V7 z"></path></svg>
+        </span>
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-size: 12.5px; font-weight: 800;">Alliance corridor</div>
+          <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5;">4h 20m · past two Crux Arks</div>
+        </div>
+        <span style="font-size: 10.5px; font-weight: 800; color: #43704f; white-space: nowrap;">Low risk</span>
+      </div>
+
+      <div data-route="night" style="display: flex; align-items: center; gap: 11px; background: {{ bgNight }}; border-radius: 16px; padding: 11px 13px; cursor: pointer; box-shadow: {{ ringNight }};">
+        <span style="width: 30px; height: 30px; border-radius: 10px; background: #ece2fa; display: grid; place-items: center; flex: none;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b5fa8" stroke-width="2.4" stroke-linejoin="round"><path d="M19 14 A8 8 0 0 1 10 5 a8.5 8.5 0 1 0 9 9 z"></path></svg>
+        </span>
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-size: 12.5px; font-weight: 800;">Night move</div>
+          <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5;">5h 10m · hidden the whole way</div>
+        </div>
+        <span style="font-size: 10.5px; font-weight: 800; color: #6b5fa8; white-space: nowrap;">120 shards</span>
+      </div>
+
+    </div>
+  </div>
+
+  <div style="flex: 1; margin: 11px 12px 0; background: #ffffff; border-radius: 22px; padding: 13px 16px 14px; box-shadow: 0 2px 8px rgba(63,58,82,.06); display: flex; flex-direction: column; overflow: hidden;">
+    <div style="display: flex; justify-content: space-between; align-items: baseline;">
+      <span class="lbl">What packing up costs you</span>
+      <span style="font-size: 10px; font-weight: 800; color: {{ riskTone }};">{{ riskLabel }}</span>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 9px; margin-top: 10px;">
+      <span style="width: 8px; height: 8px; border-radius: 2px; background: #e8b34a; flex: none;"></span>
+      <span style="flex: 1; font-size: 11.5px; font-weight: 800;">R-05 harvest in progress</span>
+      <span style="font-size: 11px; font-weight: 800; color: #8e6d15; white-space: nowrap;">−340 forfeited</span>
+    </div>
+    <div style="height: 1px; background: #f4f1fa; margin: 8px 0;"></div>
+    <div style="display: flex; align-items: center; gap: 9px;">
+      <span style="width: 8px; height: 8px; border-radius: 2px; background: #e5867a; flex: none;"></span>
+      <span style="flex: 1; font-size: 11.5px; font-weight: 800;">Defenders stowed in transit</span>
+      <span style="font-size: 11px; font-weight: 800; color: #b3564a; white-space: nowrap;">no wave cover</span>
+    </div>
+    <div style="height: 1px; background: #f4f1fa; margin: 8px 0;"></div>
+    <div style="display: flex; align-items: center; gap: 9px;">
+      <span style="width: 8px; height: 8px; border-radius: 2px; background: #7a6ac0; flex: none;"></span>
+      <span style="flex: 1; font-size: 11.5px; font-weight: 800;">Lab timers keep running</span>
+      <span style="font-size: 11px; font-weight: 800; color: #43704f; white-space: nowrap;">unaffected</span>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px; background: {{ noteBg }}; border-radius: 14px; padding: 10px 12px; margin-top: 11px;">
+      <span style="width: 24px; height: 24px; border-radius: 999px; background: #ffffff; display: grid; place-items: center; flex: none;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="{{ noteStroke }}" stroke-width="2.4" stroke-linecap="round"><path d="M12 3 L22 20 H2 Z"></path><path d="M12 10 v4M12 17 v.01"></path></svg>
+      </span>
+      <span style="flex: 1; font-size: 11px; font-weight: 700; color: {{ noteText }}; line-height: 1.35;">{{ noteBody }}</span>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 9px; padding: 11px 12px 8px;">
+    <button type="button" onClick="{{ commit }}" style="flex: 1.5; border: 0; cursor: pointer; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 16px; color: #ffffff; background: {{ ctaBg }}; border-radius: 15px; padding: 14px 0; box-shadow: {{ ctaShadow }};" style-active="transform: translateY(2px);">{{ cta }}</button>
+    <a href="Splice World Map v2.dc.html" style="flex: 1; text-align: center; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 16px; color: #6b5fa8; background: #f1ecfa; border-radius: 15px; padding: 14px 0; box-shadow: inset 0 0 0 1px #e3dbf3;">Stay</a>
+  </div>
+
+  <div style="text-align: center; padding: 0 24px 20px;">
+    <span style="font-size: 11px; font-weight: 700; color: #a29bb5;">{{ footer }}</span>
+  </div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:478,&quot;height&quot;:980}}">
+const ROUTES = {
+  direct: {
+    eta: "3h 05m",
+    routePath: "M110 96 C170 100, 240 118, 302 130",
+    threatXf: "translate(214 112)",
+    threatOpacity: "1",
+    riskLabel: "62% INTERCEPT CHANCE",
+    riskTone: "#b3564a",
+    noteBg: "#fbeee9", noteStroke: "#c96555", noteText: "#96463c",
+    noteBody: "Sable holds the ridge you would cross. An Ark in transit cannot fight back — if they catch you, you lose the cargo and arrive late.",
+    cta: "Roll out · direct",
+    ctaBg: "linear-gradient(180deg, #eda093, #d4776a)",
+    ctaShadow: "0 3px 0 #b35a4d, 0 6px 14px rgba(212,119,106,.28)",
+    footer: "Fastest way to reach the Apex before it burns out."
+  },
+  corridor: {
+    eta: "4h 20m",
+    routePath: "M110 96 C150 60, 250 62, 306 122",
+    threatXf: "translate(250 74)",
+    threatOpacity: "0.35",
+    riskLabel: "14% INTERCEPT CHANCE",
+    riskTone: "#43704f",
+    noteBg: "#eef7f1", noteStroke: "#5aa87a", noteText: "#3d6b52",
+    noteBody: "Marrow and Vantablack sit on this line. Allied Arks deter raiders in passing, and either can ride escort if you are caught.",
+    cta: "Roll out · corridor",
+    ctaBg: "linear-gradient(180deg, #8878cf, #6f5fbb)",
+    ctaShadow: "0 3px 0 #5b4d9e, 0 6px 14px rgba(111,95,187,.26)",
+    footer: "Still lands with 46h of Apex window left."
+  },
+  night: {
+    eta: "5h 10m",
+    routePath: "M110 96 C140 150, 250 168, 308 142",
+    threatXf: "translate(230 160)",
+    threatOpacity: "0",
+    riskLabel: "NO INTERCEPT",
+    riskTone: "#6b5fa8",
+    noteBg: "#f1ecfa", noteStroke: "#7a6ac0", noteText: "#5d5670",
+    noteBody: "You vanish from every rival map until you arrive. Slowest crossing, and the only one that cannot be punished.",
+    cta: "Roll out · 120",
+    ctaBg: "linear-gradient(180deg, #8878cf, #6f5fbb)",
+    ctaShadow: "0 3px 0 #5b4d9e, 0 6px 14px rgba(111,95,187,.26)",
+    footer: "Costs shards, but nobody sees the move coming."
+  }
+};
+
+const ON = "#ffffff", RING_ON = "inset 0 0 0 2px #8878cf, 0 2px 8px rgba(63,58,82,.07)";
+const OFF = "#f7f5fb", RING_OFF = "inset 0 0 0 1px #ece7f6";
+
+class Component extends DCLogic {
+  state = { route: "corridor", committed: false };
+  renderVals() {
+    const { route, committed } = this.state;
+    const r = ROUTES[route];
+    const sel = (k) => ({ bg: route === k ? ON : OFF, ring: route === k ? RING_ON : RING_OFF });
+    const d = sel("direct"), c = sel("corridor"), n = sel("night");
+    return {
+      ...r,
+      cta: committed ? "Packing up…" : r.cta,
+      bgDirect: d.bg, ringDirect: d.ring,
+      bgCorridor: c.bg, ringCorridor: c.ring,
+      bgNight: n.bg, ringNight: n.ring,
+      pickRoute: (e) => {
+        const el = e.target && e.target.closest && e.target.closest("[data-route]");
+        const k = el && el.getAttribute("data-route");
+        if (k) this.setState({ route: k, committed: false });
+      },
+      commit: () => this.setState({ committed: true })
+    };
+  }
+}
+</script>
+</body>
+</html>

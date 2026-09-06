@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #e4dff0; font-family: "Nunito", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .lbl { font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #a29bb5; }
+  @keyframes apexPulse { 0% { r: 15; opacity: .85; } 100% { r: 52; opacity: 0; } }
+  @keyframes dash { to { stroke-dashoffset: -60; } }
+  @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+  @keyframes shimmer { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+  @keyframes twinkle { 0%, 100% { opacity: .2; transform: scale(.7); } 50% { opacity: 1; transform: scale(1); } }
+  .spark { transform-box: fill-box; transform-origin: center; }
+</style>
+</helmet>
+
+<div style="min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 24px 0; background: linear-gradient(160deg, #e6e0f5, #d3e7ef);">
+<div style="width: 430px; height: 932px; background: #f7f2e6; color: #4a4258; border-radius: 34px; box-shadow: 0 18px 50px rgba(74,66,88,.28); display: flex; flex-direction: column; overflow: hidden; position: relative;">
+
+  <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 26px 4px; font-size: 12px; font-weight: 800; color: #8f86a8;">
+    <span>9:41</span>
+    <span style="display: flex; gap: 7px;"><span>◦◦◦</span><span>84%</span></span>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 7px; padding: 4px 14px 10px;">
+    <div style="flex: 1; display: flex; align-items: center; gap: 8px; background: #ffffff; border-radius: 999px; padding: 6px 12px 6px 7px; box-shadow: 0 1px 3px rgba(63,58,82,.09);">
+      <span style="width: 24px; height: 24px; border-radius: 999px; background: #dcf0f8; display: grid; place-items: center;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4b8ba6" stroke-width="2.4" stroke-linejoin="round"><path d="M13 2 L5 13 h6 l-1 9 8-11 h-6 z"></path></svg>
+      </span>
+      <span style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 16px; line-height: 1; color: #3f3a52;">4<span style="color: #b3adc2; font-size: 12px;">/5</span></span>
+    </div>
+    <div style="flex: 1; display: flex; align-items: center; gap: 8px; background: #ffffff; border-radius: 999px; padding: 6px 12px 6px 7px; box-shadow: 0 1px 3px rgba(63,58,82,.09);">
+      <span style="width: 24px; height: 24px; border-radius: 999px; background: #ece2fa; display: grid; place-items: center;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7a6ac0" stroke-width="2.4" stroke-linejoin="round"><path d="M12 2 L20 9 L12 22 L4 9 Z"></path></svg>
+      </span>
+      <span style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 16px; line-height: 1; color: #3f3a52;">1,240</span>
+    </div>
+    <div style="flex: 1; display: flex; align-items: center; gap: 8px; background: #ffffff; border-radius: 999px; padding: 6px 12px 6px 7px; box-shadow: 0 1px 3px rgba(63,58,82,.09);">
+      <span style="width: 24px; height: 24px; border-radius: 999px; background: #fdeecb; display: grid; place-items: center;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#b58a2b" stroke-width="2.4" stroke-linejoin="round"><path d="M4 18 L4 8 l4 4 4-7 4 7 4-4 v10 z"></path></svg>
+      </span>
+      <span style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 15px; line-height: 1; color: #3f3a52;">Tier 6</span>
+    </div>
+  </div>
+
+  <div style="position: relative; margin: 0 12px; border-radius: 28px; overflow: hidden; border: 4px solid #ffffff; box-shadow: 0 10px 26px rgba(63,58,82,.15), 0 2px 6px rgba(63,58,82,.08);">
+    <svg viewBox="0 24 430 452" width="404" height="424" style="display: block;" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <radialGradient id="apexGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#ffe9a8" stop-opacity="0.95"></stop>
+          <stop offset="100%" stop-color="#ffd166" stop-opacity="0.15"></stop>
+        </radialGradient>
+        <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#c8e3ee"></stop>
+          <stop offset="100%" stop-color="#a6c9dc"></stop>
+        </linearGradient>
+        <linearGradient id="gRich" x1="0" y1="0" x2="0.4" y2="1">
+          <stop offset="0%" stop-color="#9bd8ac"></stop>
+          <stop offset="100%" stop-color="#79c495"></stop>
+        </linearGradient>
+        <linearGradient id="gCommon" x1="0" y1="0" x2="0.4" y2="1">
+          <stop offset="0%" stop-color="#d5e3b0"></stop>
+          <stop offset="100%" stop-color="#c2d69f"></stop>
+        </linearGradient>
+        <linearGradient id="gDrained" x1="0" y1="0" x2="0.4" y2="1">
+          <stop offset="0%" stop-color="#e8ddc6"></stop>
+          <stop offset="100%" stop-color="#dbcdb2"></stop>
+        </linearGradient>
+        <linearGradient id="gContest" x1="0" y1="0" x2="0.4" y2="1">
+          <stop offset="0%" stop-color="#f2ab9f"></stop>
+          <stop offset="100%" stop-color="#e59083"></stop>
+        </linearGradient>
+        <linearGradient id="gApex" x1="0" y1="0" x2="0.4" y2="1">
+          <stop offset="0%" stop-color="#ffd97e"></stop>
+          <stop offset="100%" stop-color="#f2bd52"></stop>
+        </linearGradient>
+        <radialGradient id="vignette" cx="50%" cy="46%" r="62%">
+          <stop offset="60%" stop-color="#3f3a52" stop-opacity="0"></stop>
+          <stop offset="100%" stop-color="#3f3a52" stop-opacity="0.14"></stop>
+        </radialGradient>
+        <clipPath id="land2">
+          <path d="M20 60 L130 40 L250 55 L370 45 L405 120 L410 250 L340 330 L300 430 L180 470 L90 410 L60 300 L15 240 Z"></path>
+        </clipPath>
+      </defs>
+
+      <rect x="0" y="0" width="430" height="500" fill="url(#sea)"></rect>
+      <g stroke="#ffffff" stroke-width="2" opacity="0.45" fill="none">
+        <path d="M-10 74 C40 62, 70 88, 120 76"></path>
+        <path d="M300 452 C350 440, 380 466, 430 454"></path>
+        <path d="M-10 300 C30 290, 44 312, 80 302"></path>
+      </g>
+
+      <path d="M20 60 L130 40 L250 55 L370 45 L405 120 L410 250 L340 330 L300 430 L180 470 L90 410 L60 300 L15 240 Z" fill="#ffffff" opacity="0.55" transform="translate(0 7)"></path>
+
+      <g clip-path="url(#land2)" onClick="{{ pick }}" style="cursor: pointer;">
+        <rect x="0" y="0" width="430" height="500" fill="#efe7d6"></rect>
+        <path data-region="a" d="M20 60 L130 40 L175 120 L95 170 L25 140 Z" fill="url(#gCommon)"></path>
+        <path data-region="b" d="M130 40 L250 55 L265 140 L175 120 Z" fill="url(#gRich)"></path>
+        <path data-region="c" d="M250 55 L370 45 L405 120 L300 175 L265 140 Z" fill="url(#gContest)"></path>
+        <path data-region="d" d="M25 140 L95 170 L120 260 L60 300 L15 240 Z" fill="url(#gCommon)"></path>
+        <path data-region="e" d="M95 170 L175 120 L265 140 L300 175 L270 265 L160 290 L120 260 Z" fill="url(#gRich)"></path>
+        <path data-region="f" d="M300 175 L405 120 L410 250 L340 330 L270 265 Z" fill="url(#gApex)"></path>
+        <path data-region="g" d="M60 300 L120 260 L160 290 L190 380 L120 430 L75 390 Z" fill="url(#gDrained)"></path>
+        <path data-region="h" d="M160 290 L270 265 L340 330 L300 430 L190 380 Z" fill="url(#gDrained)"></path>
+      </g>
+
+      <g clip-path="url(#land2)" fill="none" stroke="#ffffff" stroke-width="1.6" opacity="0.5">
+        <path d="M0 150 C70 132, 130 172, 205 152 S330 122, 430 148"></path>
+        <path d="M0 262 C70 248, 145 282, 220 262 S350 232, 430 258"></path>
+        <path d="M0 380 C70 362, 140 398, 215 378 S345 352, 430 376"></path>
+      </g>
+
+      <g clip-path="url(#land2)" fill="#ffffff" opacity="0.75">
+        <circle class="spark" cx="196" cy="86" r="2.6" style="animation: twinkle 2.6s ease-in-out infinite;"></circle>
+        <circle class="spark" cx="228" cy="112" r="2.2" style="animation: twinkle 2.6s ease-in-out .6s infinite;"></circle>
+        <circle class="spark" cx="168" cy="212" r="2.4" style="animation: twinkle 2.6s ease-in-out 1.2s infinite;"></circle>
+        <circle class="spark" cx="236" cy="196" r="2.2" style="animation: twinkle 2.6s ease-in-out 1.8s infinite;"></circle>
+      </g>
+
+      <g clip-path="url(#land2)" fill="none" stroke="#ffffff" stroke-width="2.5" opacity="0.9">
+        <path d="M130 40 L175 120 L95 170 M175 120 L265 140 L250 55 M265 140 L300 175 L405 120 M25 140 L95 170 L120 260 L60 300 M300 175 L270 265 L340 330 M160 290 L270 265 M120 260 L160 290 L190 380 L120 430 M190 380 L300 430"></path>
+      </g>
+      <path d="M20 60 L130 40 L250 55 L370 45 L405 120 L410 250 L340 330 L300 430 L180 470 L90 410 L60 300 L15 240 Z" fill="none" stroke="#ffffff" stroke-width="4"></path>
+
+      <path d="{{ selPath }}" fill="none" stroke="#6b5fa8" stroke-width="4" stroke-linejoin="round" stroke-dasharray="10 7" style="animation: dash 2.4s linear infinite;"></path>
+
+      <circle cx="352" cy="228" r="46" fill="url(#apexGlow)" style="animation: shimmer 2.2s ease-in-out infinite;"></circle>
+      <circle cx="352" cy="228" r="15" fill="none" stroke="#ffb703" stroke-width="3" style="animation: apexPulse 2s ease-out infinite;"></circle>
+      <circle cx="352" cy="228" r="15" fill="none" stroke="#ffb703" stroke-width="3" style="animation: apexPulse 2s ease-out 1s infinite;"></circle>
+
+      <g stroke="#ffffff" stroke-width="5" fill="none" stroke-linecap="round">
+        <path d="M215 215 C260 210, 300 225, 345 240"></path>
+        <path d="M215 215 C205 150, 200 110, 198 62"></path>
+      </g>
+      <g stroke="#7f6fc4" stroke-width="2.6" fill="none" stroke-dasharray="8 7" stroke-linecap="round" style="animation: dash 2s linear infinite;">
+        <path id="v1" d="M215 215 C260 210, 300 225, 345 240"></path>
+        <path id="v2" d="M215 215 C205 150, 200 110, 198 62"></path>
+      </g>
+      <g>
+        <circle r="6" fill="#ffffff" stroke="#7f6fc4" stroke-width="2.5">
+          <animateMotion dur="5s" repeatCount="indefinite"><mpath href="#v1"></mpath></animateMotion>
+        </circle>
+        <circle r="6" fill="#ffffff" stroke="#7f6fc4" stroke-width="2.5">
+          <animateMotion dur="6.5s" repeatCount="indefinite"><mpath href="#v2"></mpath></animateMotion>
+        </circle>
+      </g>
+
+      <g transform="translate(352 228)">
+        <circle cx="0" cy="0" r="13" fill="#ffffff"></circle>
+        <circle cx="0" cy="0" r="9" fill="#ffb703"></circle>
+      </g>
+
+      <g transform="translate(215 215)">
+        <ellipse cx="0" cy="17" rx="15" ry="4.5" fill="#4a4258" opacity="0.16"></ellipse>
+        <g style="animation: bob 2.6s ease-in-out infinite;">
+          <circle cx="0" cy="0" r="17" fill="#ffffff"></circle>
+          <circle cx="0" cy="0" r="13" fill="#7a6ac0"></circle>
+          <path d="M0 -7 L6 -3.5 v7 L0 7 L-6 3.5 v-7 Z" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linejoin="round"></path>
+          <g transform="translate(0 -29)">
+            <rect x="-31" y="-10" width="62" height="19" rx="9.5" fill="#ffffff"></rect>
+            <text x="0" y="3.5" text-anchor="middle" font-family="Nunito, sans-serif" font-size="9.5" font-weight="800" letter-spacing="0.08em" fill="#6b5fa8">YOUR ARK</text>
+          </g>
+        </g>
+      </g>
+
+      <g transform="translate(140 326)">
+        <ellipse cx="0" cy="14" rx="11" ry="3.5" fill="#4a4258" opacity="0.14"></ellipse>
+        <circle cx="0" cy="0" r="13" fill="#ffffff"></circle>
+        <circle cx="0" cy="0" r="9.5" fill="#7cc492"></circle>
+        <text x="0" y="-21" text-anchor="middle" font-family="Nunito, sans-serif" font-size="9" font-weight="800" letter-spacing="0.1em" fill="#43704f">CRUX</text>
+      </g>
+      <g transform="translate(318 96)">
+        <ellipse cx="0" cy="14" rx="11" ry="3.5" fill="#4a4258" opacity="0.14"></ellipse>
+        <circle cx="0" cy="0" r="13" fill="#ffffff"></circle>
+        <circle cx="0" cy="0" r="9.5" fill="#e5867a"></circle>
+        <text x="0" y="-21" text-anchor="middle" font-family="Nunito, sans-serif" font-size="9" font-weight="800" letter-spacing="0.1em" fill="#b3564a">SABLE</text>
+      </g>
+
+      <g transform="translate(292 250)">
+        <circle cx="0" cy="0" r="11" fill="#ffffff" style="animation: shimmer 1.6s ease-in-out infinite;"></circle>
+        <text x="0" y="4" text-anchor="middle" font-size="12" font-weight="800" fill="#e4726a">!</text>
+      </g>
+
+      <rect x="0" y="24" width="430" height="456" fill="url(#vignette)" pointer-events="none"></rect>
+
+      <g font-family="Nunito, sans-serif" font-size="10" font-weight="800" letter-spacing="0.08em" fill="#5d5670" opacity="0.7">
+        <text x="52" y="108">R-01</text>
+        <text x="178" y="94">R-02</text>
+        <text x="280" y="140">R-03</text>
+        <text x="42" y="224">R-04</text>
+        <text x="150" y="198">R-05</text>
+        <text x="330" y="198">R-06</text>
+        <text x="98" y="350">R-07</text>
+        <text x="228" y="354">R-08</text>
+      </g>
+    </svg>
+
+    <div style="position: absolute; left: 10px; bottom: 10px; background: rgba(255,255,255,.86); backdrop-filter: blur(6px); border-radius: 14px; padding: 9px 11px; display: grid; gap: 6px; box-shadow: 0 4px 14px rgba(63,58,82,.12);">
+      <div class="lbl" style="margin-bottom: 1px;">Yield</div>
+      <div style="display: flex; align-items: center; gap: 7px; font-size: 10px; font-weight: 700; color: #5d5670;"><span style="width: 11px; height: 11px; border-radius: 3px; background: #86cc9f;"></span>Rich</div>
+      <div style="display: flex; align-items: center; gap: 7px; font-size: 10px; font-weight: 700; color: #5d5670;"><span style="width: 11px; height: 11px; border-radius: 3px; background: #cadaa6;"></span>Common</div>
+      <div style="display: flex; align-items: center; gap: 7px; font-size: 10px; font-weight: 700; color: #5d5670;"><span style="width: 11px; height: 11px; border-radius: 3px; background: #ded0b6;"></span>Drained</div>
+      <div style="display: flex; align-items: center; gap: 7px; font-size: 10px; font-weight: 700; color: #5d5670;"><span style="width: 11px; height: 11px; border-radius: 3px; background: #ea9789;"></span>Contested</div>
+      <div style="display: flex; align-items: center; gap: 7px; font-size: 10px; font-weight: 700; color: #5d5670;"><span style="width: 11px; height: 11px; border-radius: 3px; background: #f6c559;"></span>Apex</div>
+    </div>
+
+    <div style="position: absolute; right: 10px; top: 10px; display: grid; gap: 6px;">
+      <div style="width: 32px; height: 32px; border-radius: 11px; background: rgba(255,255,255,.9); backdrop-filter: blur(6px); display: grid; place-items: center; box-shadow: 0 3px 10px rgba(63,58,82,.12);">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b5fa8" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+      </div>
+      <div style="width: 32px; height: 32px; border-radius: 11px; background: rgba(255,255,255,.9); backdrop-filter: blur(6px); display: grid; place-items: center; box-shadow: 0 3px 10px rgba(63,58,82,.12);">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b5fa8" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"></path></svg>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin: 11px 12px 0; display: flex; align-items: center; gap: 10px; background: linear-gradient(100deg, #fdf0d0, #f9e0a8); border-radius: 16px; padding: 9px 12px; box-shadow: inset 0 0 0 1px rgba(196,150,45,.28);">
+    <span style="width: 26px; height: 26px; border-radius: 999px; background: #ffffff; display: grid; place-items: center; box-shadow: 0 1px 4px rgba(150,110,20,.2); animation: shimmer 2s ease-in-out infinite;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#d19a1f" stroke-width="2.2" stroke-linejoin="round"><path d="M12 2 L14.5 9.5 L22 12 L14.5 14.5 L12 22 L9.5 14.5 L2 12 L9.5 9.5 Z"></path></svg>
+    </span>
+    <span style="flex: 1; font-size: 11.5px; font-weight: 700; color: #7a5b12; line-height: 1.3;"><span class="lbl" style="color: #b58a2b; display: block;">Apex event</span>Vitrine Pan surfacing — rivals inbound</span>
+    <span style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 16px; color: #7a5b12; letter-spacing: .01em;">51:04</span>
+  </div>
+
+  <div style="flex: 1; margin: 10px 12px 0; background: #ffffff; border-radius: 26px 26px 0 0; box-shadow: 0 -6px 18px rgba(63,58,82,.07); padding: 14px 18px 0; display: flex; flex-direction: column; gap: 11px; overflow: hidden;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+      <div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="width: 9px; height: 9px; border-radius: 3px; background: {{ swatch }};"></span>
+          <span class="lbl" style="white-space: nowrap;">{{ code }} · {{ tier }}</span>
+        </div>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 26px; line-height: 1.12; margin-top: 2px; color: #3f3a52; letter-spacing: -.01em;">{{ name }}</div>
+      </div>
+      <div style="text-align: right;">
+        <div class="lbl">Yield</div>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 26px; line-height: 1.12; color: #d99442; margin-top: 2px;">{{ mult }}</div>
+      </div>
+    </div>
+
+    <div>
+      <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
+        <span class="lbl">Richness</span>
+        <span style="font-family: 'Baloo 2', cursive; font-size: 13px; font-weight: 700; color: #3f3a52;">{{ rich }}%</span>
+      </div>
+      <div style="height: 8px; border-radius: 999px; background: #f0ecf7; overflow: hidden;">
+        <div style="height: 100%; border-radius: 999px; background: linear-gradient(90deg, #9bd8ac, #6cba8b); width: {{ richW }};"></div>
+      </div>
+      <div style="font-size: 11px; font-weight: 700; color: #8e8034; background: #fbf5e4; border-radius: 8px; padding: 5px 8px; margin-top: 8px;">{{ status }}</div>
+    </div>
+
+    <div style="display: flex; gap: 8px;">
+      <div style="flex: 1; background: #f8f6fc; border-radius: 12px; padding: 9px 10px;">
+        <div class="lbl">Control</div>
+        <div style="font-size: 12px; font-weight: 700; margin-top: 3px; color: #3f3a52;">{{ ctrl }}</div>
+      </div>
+      <div style="flex: 1; background: #f8f6fc; border-radius: 12px; padding: 9px 10px;">
+        <div class="lbl">Travel</div>
+        <div style="font-size: 12px; font-weight: 700; margin-top: 3px; color: #3f3a52;">{{ transit }}</div>
+      </div>
+      <div style="flex: 1; background: #f8f6fc; border-radius: 12px; padding: 9px 10px;">
+        <div class="lbl">Arks</div>
+        <div style="font-size: 12px; font-weight: 700; margin-top: 3px; color: #3f3a52;">{{ arks }}</div>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 9px;">
+      <button type="button" style="flex: 1.3; border: 0; cursor: pointer; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 15px; letter-spacing: .01em; color: #ffffff; background: linear-gradient(180deg, #8878cf, #6f5fbb); border-radius: 14px; padding: 12px 0; box-shadow: 0 3px 0 #5b4d9e, 0 6px 14px rgba(111,95,187,.28);" style-hover="background: linear-gradient(180deg, #9585db, #7a6ac6);" style-active="transform: translateY(2px); box-shadow: 0 1px 0 #5b4d9e;">Relocate Ark</button>
+      <button type="button" style="flex: 1; border: 0; cursor: pointer; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 15px; color: #6b5fa8; background: #f1ecfa; border-radius: 14px; padding: 12px 0; box-shadow: inset 0 0 0 1px #e3dbf3;" style-hover="background: #eae3f7;" style-active="transform: translateY(1px);">Send Collector</button>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; background: #ffffff; padding: 6px 10px 18px;">
+<a href="Splice World Map v2.dc.html" style="display: grid; place-items: center; gap: 4px; padding: 8px 0; border-radius: 18px; background: #f1ecfa; text-decoration: none;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#6b5fa8" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"><path d="M9 4 L3 6 v14 l6-2 6 2 6-2 V4 l-6 2 z"></path><path d="M9 4 v14M15 6 v14"></path></svg>
+      <span style="font-size: 10px; font-weight: 800; color: #6b5fa8;">Map</span>
+    </a>
+<a href="Gene Ark.dc.html" style="display: grid; place-items: center; gap: 4px; padding: 8px 0; text-decoration: none;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#b3adc2" stroke-width="1.9" stroke-linejoin="round"><path d="M12 3 L20 7.5 v9 L12 21 L4 16.5 v-9 z"></path></svg>
+      <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">Ark</span>
+    </a>
+    <a href="Splice Chamber.dc.html" style="display: grid; place-items: center; gap: 4px; padding: 8px 0; text-decoration: none;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#b3adc2" stroke-width="1.9" stroke-linecap="round"><path d="M8 3 v5 L4 20 h16 L16 8 V3"></path><path d="M7 3 h10M6.5 14 h11"></path></svg>
+      <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">Splice</span></a>
+    <a href="Gene Lab.dc.html" style="display: grid; place-items: center; gap: 4px; padding: 8px 0; text-decoration: none;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#b3adc2" stroke-width="1.9" stroke-linejoin="round"><path d="M3 20 V9 l6-4 6 4 6-3 v14 z"></path><path d="M9 20 V9M15 20 V9"></path></svg>
+      <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">Lab</span></a>
+    <a href="Alliance Hub.dc.html" style="display: grid; place-items: center; gap: 4px; padding: 8px 0; text-decoration: none;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#b3adc2" stroke-width="1.9" stroke-linecap="round"><circle cx="9" cy="9" r="3.4"></circle><path d="M3 20 c0-3.4 2.7-5.6 6-5.6 s6 2.2 6 5.6"></path><path d="M16 6.2 a3.4 3.4 0 0 1 0 5.8M18 20 c0-2.6-1-4.4-2.4-5.4"></path></svg>
+      <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">Allies</span></a>
+  </div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:478,&quot;height&quot;:980}}">
+const PATHS = {
+  a: "M20 60 L130 40 L175 120 L95 170 L25 140 Z",
+  b: "M130 40 L250 55 L265 140 L175 120 Z",
+  c: "M250 55 L370 45 L405 120 L300 175 L265 140 Z",
+  d: "M25 140 L95 170 L120 260 L60 300 L15 240 Z",
+  e: "M95 170 L175 120 L265 140 L300 175 L270 265 L160 290 L120 260 Z",
+  f: "M300 175 L405 120 L410 250 L340 330 L270 265 Z",
+  g: "M60 300 L120 260 L160 290 L190 380 L120 430 L75 390 Z",
+  h: "M160 290 L270 265 L340 330 L300 430 L190 380 Z"
+};
+
+const REGIONS = {
+  a: { code: "R-01", name: "Ash Shelf", tier: "Common Vein", mult: "1×", rich: 62, ctrl: "Neutral", transit: "4h 10m", arks: "1", status: "Slowly decaying — −18% this week", swatch: "#cfe4a6" },
+  b: { code: "R-02", name: "Meridian Basin", tier: "Rich Deposit", mult: "3×", rich: 88, ctrl: "Crux (ally)", transit: "2h 45m", arks: "3 allied", status: "Stable — full co-op rate", swatch: "#8ed99b" },
+  c: { code: "R-03", name: "Cinder Ridge", tier: "Rich Deposit", mult: "3×", rich: 34, ctrl: "Sable (enemy)", transit: "6h 20m", arks: "5 rivals", status: "Contested — yield split 5 ways", swatch: "#f7a99c" },
+  d: { code: "R-04", name: "Pale Sound", tier: "Common Vein", mult: "1×", rich: 71, ctrl: "Neutral", transit: "5h 05m", arks: "None", status: "Quiet — nobody else harvesting", swatch: "#cfe4a6" },
+  e: { code: "R-05", name: "Hollow Reach", tier: "Rich Deposit", mult: "3×", rich: 79, ctrl: "You", transit: "In range", arks: "Yours", status: "Harvesting — dries up in 4d 11h", swatch: "#8ed99b" },
+  f: { code: "R-06", name: "Vitrine Pan", tier: "Apex Vein", mult: "8×", rich: 100, ctrl: "Unclaimed", transit: "3h 05m", arks: "2 rivals", status: "Apex active — Collector required!", swatch: "#ffd166" },
+  g: { code: "R-07", name: "Drift Marsh", tier: "Common Vein", mult: "1×", rich: 44, ctrl: "Crux (ally)", transit: "7h 30m", arks: "1 allied", status: "Drained — baseline yield only", swatch: "#eadfc6" },
+  h: { code: "R-08", name: "The Spine", tier: "Drained Deposit", mult: "0×", rich: 8, ctrl: "Neutral", transit: "5h 50m", arks: "None", status: "Tapped out — rotates in 2d 06h", swatch: "#e4d5b8" }
+};
+
+class Component extends DCLogic {
+  state = { sel: "f" };
+  renderVals() {
+    const r = REGIONS[this.state.sel] || REGIONS.f;
+    return {
+      ...r,
+      richW: r.rich + "%",
+      selPath: PATHS[this.state.sel],
+      pick: (e) => {
+        const id = e.target && e.target.dataset && e.target.dataset.region;
+        if (id && REGIONS[id]) this.setState({ sel: id });
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

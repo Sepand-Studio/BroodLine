@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #e4dff0; font-family: "Nunito", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: #6b5fa8; text-decoration: none; }
+  a:hover { color: #574c8f; }
+  .lbl { font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #a29bb5; }
+  @keyframes glow { 0%, 100% { opacity: .4; } 50% { opacity: 1; } }
+</style>
+</helmet>
+
+<div style="min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 24px 0; background: linear-gradient(160deg, #e6e0f5, #d3e7ef);">
+<div style="width: 430px; height: 932px; background: #f7f4fb; color: #3f3a52; border-radius: 34px; box-shadow: 0 18px 50px rgba(63,58,82,.28); display: flex; flex-direction: column; overflow: hidden;">
+
+  <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 26px 2px; font-size: 12px; font-weight: 800; color: #a29bb5;">
+    <span>9:41</span>
+    <span style="display: flex; gap: 7px;"><span>◦◦◦</span><span>84%</span></span>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 10px; padding: 8px 14px 10px;">
+    <a href="Gene Lab.dc.html" style="width: 34px; height: 34px; border-radius: 12px; background: #ffffff; display: grid; place-items: center; box-shadow: 0 1px 3px rgba(63,58,82,.1); flex: none;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6b5fa8" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 5 L7 12 l7 7"></path></svg>
+    </a>
+    <div style="flex: 1;">
+      <div class="lbl">Gene Vault · level 8</div>
+      <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 20px; line-height: 1.1;">Trait fragments</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 6px; background: #ffffff; border-radius: 999px; padding: 6px 11px; box-shadow: 0 1px 3px rgba(63,58,82,.09);">
+      <span style="font-size: 10.5px; font-weight: 800; color: #5d5670;">{{ capLabel }}</span>
+    </div>
+  </div>
+
+  <div style="margin: 0 12px 10px; background: #ffffff; border-radius: 20px; padding: 12px 16px 14px; box-shadow: 0 2px 8px rgba(63,58,82,.06);">
+    <div style="display: flex; justify-content: space-between; align-items: baseline;">
+      <span class="lbl">Vault capacity</span>
+      <span style="font-size: 10px; font-weight: 800; color: {{ capTone }};">{{ capState }}</span>
+    </div>
+    <div style="height: 9px; border-radius: 999px; background: #f0ecf7; margin-top: 8px; overflow: hidden;">
+      <div style="width: {{ capPct }}; height: 100%; background: {{ capFill }};"></div>
+    </div>
+    <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5; margin-top: 7px; line-height: 1.4;">{{ capNote }}</div>
+  </div>
+
+  <div onClick="{{ setTab }}" style="display: flex; gap: 5px; margin: 0 12px 10px; background: #ece7f6; border-radius: 14px; padding: 4px;">
+    <button type="button" data-tab="frag" style="flex: 1; border: 0; cursor: pointer; font-family: 'Nunito', sans-serif; font-size: 11.5px; font-weight: 800; color: {{ cFrag }}; background: {{ bgFrag }}; border-radius: 11px; padding: 9px 0;">Fragments</button>
+    <button type="button" data-tab="fuse" style="flex: 1; border: 0; cursor: pointer; font-family: 'Nunito', sans-serif; font-size: 11.5px; font-weight: 800; color: {{ cFuse }}; background: {{ bgFuse }}; border-radius: 11px; padding: 9px 0;">Fuse</button>
+    <button type="button" data-tab="archive" style="flex: 1; border: 0; cursor: pointer; font-family: 'Nunito', sans-serif; font-size: 11.5px; font-weight: 800; color: {{ cArchive }}; background: {{ bgArchive }}; border-radius: 11px; padding: 9px 0;">Archive</button>
+  </div>
+
+  <sc-if value="{{ isFrag }}" hint-placeholder-val="{{ true }}">
+    <div style="flex: 1; margin: 0 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+
+      <div style="background: #ffffff; border-radius: 18px; padding: 12px 14px 13px; box-shadow: 0 2px 8px rgba(63,58,82,.06);">
+        <div style="display: flex; align-items: center; gap: 11px;">
+          <span style="width: 34px; height: 34px; border-radius: 11px; background: #e7f3f9; display: grid; place-items: center; flex: none;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3c7f98" stroke-width="2.4" stroke-linejoin="round"><path d="M12 3 L20 8 v8 L12 21 L4 16 V8 Z"></path></svg>
+          </span>
+          <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 12.5px; font-weight: 800;">Carapace</span>
+              <span style="font-size: 9px; font-weight: 800; color: #3c7f98; background: #e7f3f9; border-radius: 5px; padding: 2px 5px;">TIER III</span>
+            </div>
+            <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5;">From Vetch lines · raises wall survivability</div>
+          </div>
+          <span style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 17px; color: #3f3a52;">14</span>
+        </div>
+        <div style="height: 5px; border-radius: 999px; background: #f0ecf7; margin-top: 9px; overflow: hidden;"><div style="width: 93%; height: 100%; background: #6ba7c0;"></div></div>
+      </div>
+
+      <div style="background: #ffffff; border-radius: 18px; padding: 12px 14px 13px; box-shadow: 0 2px 8px rgba(63,58,82,.06);">
+        <div style="display: flex; align-items: center; gap: 11px;">
+          <span style="width: 34px; height: 34px; border-radius: 11px; background: #f1ecfa; display: grid; place-items: center; flex: none;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b5fa8" stroke-width="2.4" stroke-linecap="round"><path d="M4 12 h16M14 6 l6 6-6 6"></path></svg>
+          </span>
+          <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 12.5px; font-weight: 800;">Pierce</span>
+              <span style="font-size: 9px; font-weight: 800; color: #6b5fa8; background: #f1ecfa; border-radius: 5px; padding: 2px 5px;">TIER II</span>
+            </div>
+            <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5;">From Hollow lines · beats Breaker armour</div>
+          </div>
+          <span style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 17px; color: #3f3a52;">9</span>
+        </div>
+        <div style="height: 5px; border-radius: 999px; background: #f0ecf7; margin-top: 9px; overflow: hidden;"><div style="width: 60%; height: 100%; background: #7a6ac0;"></div></div>
+      </div>
+
+      <div style="background: #ffffff; border-radius: 18px; padding: 12px 14px 13px; box-shadow: 0 2px 8px rgba(63,58,82,.06);">
+        <div style="display: flex; align-items: center; gap: 11px;">
+          <span style="width: 34px; height: 34px; border-radius: 11px; background: #fdf1d8; display: grid; place-items: center; flex: none;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8e6d15" stroke-width="2.4" stroke-linejoin="round"><path d="M13 2 L5 13 h6 l-1 9 8-11 h-6 z"></path></svg>
+          </span>
+          <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 12.5px; font-weight: 800;">Sprint</span>
+              <span style="font-size: 9px; font-weight: 800; color: #8e6d15; background: #fdf1d8; border-radius: 5px; padding: 2px 5px;">TIER II</span>
+            </div>
+            <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5;">From Skitter lines · breaks Bulwark shields</div>
+          </div>
+          <span style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 17px; color: #3f3a52;">6</span>
+        </div>
+        <div style="height: 5px; border-radius: 999px; background: #f0ecf7; margin-top: 9px; overflow: hidden;"><div style="width: 40%; height: 100%; background: #e8b34a;"></div></div>
+      </div>
+
+      <div style="background: #ffffff; border-radius: 18px; padding: 12px 14px 13px; box-shadow: 0 2px 8px rgba(63,58,82,.06);">
+        <div style="display: flex; align-items: center; gap: 11px;">
+          <span style="width: 34px; height: 34px; border-radius: 11px; background: #eef0f6; display: grid; place-items: center; flex: none;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4f5875" stroke-width="2.4" stroke-linejoin="round"><path d="M12 4 C6 10, 4 14, 4 16 a8 8 0 0 0 16 0 c0-2-2-6-8-12 z"></path></svg>
+          </span>
+          <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 12.5px; font-weight: 800;">Chill</span>
+              <span style="font-size: 9px; font-weight: 800; color: #4f5875; background: #eef0f6; border-radius: 5px; padding: 2px 5px;">TIER I</span>
+            </div>
+            <div style="font-size: 10.5px; font-weight: 700; color: #b3564a;">Only answer to Courser · you hold 2</div>
+          </div>
+          <span style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 17px; color: #b3564a;">2</span>
+        </div>
+        <div style="height: 5px; border-radius: 999px; background: #f0ecf7; margin-top: 9px; overflow: hidden;"><div style="width: 13%; height: 100%; background: #d4776a;"></div></div>
+      </div>
+
+      <div style="background: #ffffff; border-radius: 18px; padding: 12px 14px 13px; box-shadow: 0 2px 8px rgba(63,58,82,.06);">
+        <div style="display: flex; align-items: center; gap: 11px;">
+          <span style="width: 34px; height: 34px; border-radius: 11px; background: #fbeae7; display: grid; place-items: center; flex: none;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b3564a" stroke-width="2.4" stroke-linejoin="round"><path d="M12 3 C8 9, 6 12, 6 15 a6 6 0 0 0 12 0 c0-3-2-6-6-12 z"></path></svg>
+          </span>
+          <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 12.5px; font-weight: 800;">Cinder</span>
+              <span style="font-size: 9px; font-weight: 800; color: #b3564a; background: #fbeae7; border-radius: 5px; padding: 2px 5px;">TIER II</span>
+            </div>
+            <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5;">From Ember lines · burns Brood splits</div>
+          </div>
+          <span style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 17px; color: #3f3a52;">7</span>
+        </div>
+        <div style="height: 5px; border-radius: 999px; background: #f0ecf7; margin-top: 9px; overflow: hidden;"><div style="width: 47%; height: 100%; background: #e5867a;"></div></div>
+      </div>
+
+      <div style="background: #ffffff; border-radius: 18px; padding: 12px 14px 13px; box-shadow: 0 2px 8px rgba(63,58,82,.06);">
+        <div style="display: flex; align-items: center; gap: 11px;">
+          <span style="width: 34px; height: 34px; border-radius: 11px; background: #e8f5ec; display: grid; place-items: center; flex: none;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#43704f" stroke-width="2.4" stroke-linecap="round"><path d="M12 4 v10M8 10 l4 4 4-4M4 19 h16"></path></svg>
+          </span>
+          <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 12.5px; font-weight: 800;">Burrow</span>
+              <span style="font-size: 9px; font-weight: 800; color: #43704f; background: #e8f5ec; border-radius: 5px; padding: 2px 5px;">TIER I</span>
+            </div>
+            <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5;">From Loam lines · surfaces the Delver</div>
+          </div>
+          <span style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 17px; color: #3f3a52;">3</span>
+        </div>
+        <div style="height: 5px; border-radius: 999px; background: #f0ecf7; margin-top: 9px; overflow: hidden;"><div style="width: 20%; height: 100%; background: #7cc492;"></div></div>
+      </div>
+
+      <div style="background: #ffffff; border-radius: 18px; padding: 12px 14px 13px; box-shadow: 0 2px 8px rgba(63,58,82,.06); opacity: .72;">
+        <div style="display: flex; align-items: center; gap: 11px;">
+          <span style="width: 34px; height: 34px; border-radius: 11px; background: #f2eff8; display: grid; place-items: center; flex: none;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#a79bd0" stroke-width="2.2" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11 V8 a4 4 0 0 1 8 0 v3"></path></svg>
+          </span>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 12.5px; font-weight: 800; color: #6d6484;">Reach</div>
+            <div style="font-size: 10.5px; font-weight: 700; color: #b3564a;">No Hollow line has passed it down · Drift is unanswerable without it</div>
+          </div>
+          <span style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 17px; color: #b3adc2;">0</span>
+        </div>
+      </div>
+
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isFuse }}">
+    <div style="flex: 1; margin: 0 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 9px;">
+      <div style="background: #ffffff; border-radius: 22px; padding: 14px 16px 16px; box-shadow: 0 2px 8px rgba(63,58,82,.06);">
+        <span class="lbl">Fuse three into one tier up</span>
+        <div style="display: flex; align-items: center; gap: 8px; margin-top: 12px;">
+          <div style="flex: 1; display: flex; gap: 5px;">
+            <span style="flex: 1; height: 46px; border-radius: 13px; background: #f1ecfa; display: grid; place-items: center;">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b5fa8" stroke-width="2.4" stroke-linecap="round"><path d="M4 12 h16M14 6 l6 6-6 6"></path></svg>
+            </span>
+            <span style="flex: 1; height: 46px; border-radius: 13px; background: #f1ecfa; display: grid; place-items: center;">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b5fa8" stroke-width="2.4" stroke-linecap="round"><path d="M4 12 h16M14 6 l6 6-6 6"></path></svg>
+            </span>
+            <span style="flex: 1; height: 46px; border-radius: 13px; background: #f1ecfa; display: grid; place-items: center;">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b5fa8" stroke-width="2.4" stroke-linecap="round"><path d="M4 12 h16M14 6 l6 6-6 6"></path></svg>
+            </span>
+          </div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b3adc2" stroke-width="2.6" stroke-linecap="round" style="flex: none;"><path d="M4 12 h16M14 6 l6 6-6 6"></path></svg>
+          <span style="width: 52px; height: 52px; border-radius: 15px; background: linear-gradient(160deg, #fdf0d0, #f7dfa8); display: grid; place-items: center; flex: none; box-shadow: inset 0 0 0 2px rgba(196,150,45,.3);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8e6d15" stroke-width="2.4" stroke-linecap="round"><path d="M4 12 h16M14 6 l6 6-6 6"></path></svg>
+          </span>
+        </div>
+        <div style="display: flex; align-items: baseline; gap: 8px; margin-top: 12px;">
+          <span style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 19px; line-height: 1;">Pierce II → III</span>
+          <span style="font-size: 11px; font-weight: 700; color: #a29bb5;">uses 3 of your 9</span>
+        </div>
+        <div style="font-size: 11.5px; font-weight: 700; color: #5d5670; line-height: 1.45; margin-top: 5px;">Tier III lets one Hollow defender punch through Breaker armour alone, instead of needing two.</div>
+      </div>
+
+      <div style="background: #ffffff; border-radius: 20px; padding: 12px 16px 14px; box-shadow: 0 2px 8px rgba(63,58,82,.06);">
+        <span class="lbl">Ready to fuse</span>
+        <div style="display: flex; align-items: center; gap: 9px; margin-top: 10px;">
+          <span style="width: 8px; height: 8px; border-radius: 2px; background: #7a6ac0; flex: none;"></span>
+          <span style="flex: 1; font-size: 11.5px; font-weight: 800;">Pierce II → III</span>
+          <span style="font-size: 11px; font-weight: 800; color: #43704f;">6 spare</span>
+        </div>
+        <div style="height: 1px; background: #f4f1fa; margin: 9px 0;"></div>
+        <div style="display: flex; align-items: center; gap: 9px;">
+          <span style="width: 8px; height: 8px; border-radius: 2px; background: #6ba7c0; flex: none;"></span>
+          <span style="flex: 1; font-size: 11.5px; font-weight: 800;">Carapace III → IV</span>
+          <span style="font-size: 11px; font-weight: 800; color: #43704f;">11 spare</span>
+        </div>
+        <div style="height: 1px; background: #f4f1fa; margin: 9px 0;"></div>
+        <div style="display: flex; align-items: center; gap: 9px;">
+          <span style="width: 8px; height: 8px; border-radius: 2px; background: #d4776a; flex: none;"></span>
+          <span style="flex: 1; font-size: 11.5px; font-weight: 800; color: #6d6484;">Chill I → II</span>
+          <span style="font-size: 11px; font-weight: 800; color: #b3564a;">needs 1 more</span>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 10px; background: #fdf6e6; border-radius: 16px; padding: 10px 12px;">
+        <span style="width: 22px; height: 22px; border-radius: 999px; background: #ffffff; display: grid; place-items: center; flex: none;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#d19a1f" stroke-width="2.4" stroke-linecap="round"><path d="M12 3 L22 20 H2 Z"></path><path d="M12 10 v4M12 17 v.01"></path></svg>
+        </span>
+        <span style="flex: 1; font-size: 11px; font-weight: 700; color: #7a5b12; line-height: 1.35;">Fusing is permanent. Spend Chill fragments only once you have a second source of them.</span>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isArchive }}">
+    <div style="flex: 1; margin: 0 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 9px;">
+      <div style="background: #ffffff; border-radius: 20px; padding: 12px 16px 14px; box-shadow: 0 2px 8px rgba(63,58,82,.06);">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <span class="lbl">Retired lines</span>
+          <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">traits kept forever</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; margin-top: 11px;">
+          <span style="width: 30px; height: 30px; border-radius: 10px; background: #e7f3f9; display: grid; place-items: center; flex: none;">
+            <svg viewBox="0 0 24 24" width="17" height="17"><ellipse cx="12" cy="15" rx="8" ry="6" fill="#6ba7c0"></ellipse><circle cx="12" cy="8" r="4" fill="#6ba7c0"></circle></svg>
+          </span>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 12px; font-weight: 800;">Vetch Wall · G4</div>
+            <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5;">Retired · left Carapace III behind</div>
+          </div>
+        </div>
+        <div style="height: 1px; background: #f4f1fa; margin: 9px 0;"></div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="width: 30px; height: 30px; border-radius: 10px; background: #fdf1d8; display: grid; place-items: center; flex: none;">
+            <svg viewBox="0 0 24 24" width="17" height="17"><ellipse cx="12" cy="14" rx="7" ry="5" fill="#e8b34a"></ellipse><circle cx="12" cy="8" r="3.4" fill="#e8b34a"></circle></svg>
+          </span>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 12px; font-weight: 800;">Ash Skitter · G5</div>
+            <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5;">Retired · left Sprint II behind</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background: linear-gradient(150deg, #e8e0fb, #dbeef6); border-radius: 20px; padding: 13px 16px 15px; box-shadow: 0 2px 8px rgba(63,58,82,.07);">
+        <div class="lbl" style="color: #8078a8;">Why retire anything</div>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 19px; line-height: 1.15; margin-top: 2px;">Retiring never loses a trait</div>
+        <div style="font-size: 12px; font-weight: 700; color: #5f5878; line-height: 1.45; margin-top: 5px;">A retired creature leaves its traits in the Vault as fragments and frees a roster slot. Nothing you bred is ever gone — only the animal is.</div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 10px; background: #f1ecfa; border-radius: 16px; padding: 10px 12px;">
+        <span style="width: 22px; height: 22px; border-radius: 999px; background: #ffffff; display: grid; place-items: center; flex: none;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#7a6ac0" stroke-width="2.6" stroke-linecap="round"><path d="M5 13 l4 4 10-10"></path></svg>
+        </span>
+        <span style="flex: 1; font-size: 11px; font-weight: 700; color: #5d5670; line-height: 1.35;">Pedigree records survive retirement, so a G7 line still counts as G7 in your <a href="Breeder Profile.dc.html">breeding record</a>.</span>
+      </div>
+    </div>
+  </sc-if>
+
+  <div style="display: flex; align-items: center; gap: 9px; padding: 11px 12px 8px;">
+    <button type="button" onClick="{{ act }}" style="flex: 1.4; border: 0; cursor: pointer; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 16px; color: #ffffff; background: linear-gradient(180deg, #8878cf, #6f5fbb); border-radius: 15px; padding: 14px 0; box-shadow: 0 3px 0 #5b4d9e, 0 6px 14px rgba(111,95,187,.26);" style-active="transform: translateY(2px); box-shadow: 0 1px 0 #5b4d9e;">{{ cta }}</button>
+    <a href="Splice Chamber.dc.html" style="flex: 1; text-align: center; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 16px; color: #6b5fa8; background: #f1ecfa; border-radius: 15px; padding: 14px 0; box-shadow: inset 0 0 0 1px #e3dbf3;">Splice</a>
+  </div>
+
+  <div style="text-align: center; padding: 0 24px 20px;">
+    <span style="font-size: 11px; font-weight: 700; color: #a29bb5;">{{ footer }}</span>
+  </div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:478,&quot;height&quot;:980}}">
+const ACTIVE_BG = "#ffffff", ACTIVE_FG = "#6b5fa8", IDLE_BG = "transparent", IDLE_FG = "#a29bb5";
+const TABS = {
+  frag: { cta: "Upgrade Vault · 8 → 9", footer: "Level 9 raises capacity to 60 and unlocks Tier IV fusing." },
+  fuse: { cta: "Fuse Pierce III", footer: "Fusing is instant — no timer, no builder needed." },
+  archive: { cta: "Retire a creature", footer: "Roster is 18 of 20. Retiring frees a slot and banks the traits." }
+};
+
+class Component extends DCLogic {
+  state = { tab: "frag", fused: false, held: 41 };
+  renderVals() {
+    const { tab, fused, held } = this.state;
+    const cap = 45;
+    const now = fused ? held - 2 : held;
+    const pct = Math.round((now / cap) * 100);
+    const tight = pct >= 88;
+    return {
+      isFrag: tab === "frag", isFuse: tab === "fuse", isArchive: tab === "archive",
+      bgFrag: tab === "frag" ? ACTIVE_BG : IDLE_BG, cFrag: tab === "frag" ? ACTIVE_FG : IDLE_FG,
+      bgFuse: tab === "fuse" ? ACTIVE_BG : IDLE_BG, cFuse: tab === "fuse" ? ACTIVE_FG : IDLE_FG,
+      bgArchive: tab === "archive" ? ACTIVE_BG : IDLE_BG, cArchive: tab === "archive" ? ACTIVE_FG : IDLE_FG,
+      capLabel: now + " / " + cap,
+      capPct: pct + "%",
+      capState: tight ? "NEARLY FULL" : "HEALTHY",
+      capTone: tight ? "#b3564a" : "#43704f",
+      capFill: tight ? "linear-gradient(90deg, #eda093, #d4776a)" : "linear-gradient(90deg, #9585db, #6f5fbb)",
+      capNote: tight
+        ? "At capacity, new fragments from waves are discarded. Fuse spares or upgrade the Vault before your next Apex run."
+        : "Fragments arrive from cleared waves, retired creatures and Apex harvests. Fusing spares keeps the count down.",
+      cta: tab === "fuse" && fused ? "Fused" : TABS[tab].cta,
+      footer: TABS[tab].footer,
+      setTab: (e) => {
+        const el = e.target && e.target.closest && e.target.closest("[data-tab]");
+        const k = el && el.getAttribute("data-tab");
+        if (k) this.setState({ tab: k });
+      },
+      act: () => { if (this.state.tab === "fuse") this.setState({ fused: true }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="./image-slot.js"></script>
+<style>
+  body { margin: 0; background: #e4dff0; font-family: "Nunito", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .lbl { font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #a29bb5; }
+  @keyframes orbit { to { transform: rotate(360deg); } }
+  @keyframes helix { to { stroke-dashoffset: -48; } }
+  @keyframes glow { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+  @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+  .spin { transform-box: fill-box; transform-origin: center; animation: orbit 14s linear infinite; }
+</style>
+</helmet>
+
+<div style="min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 24px 0; background: linear-gradient(160deg, #e6e0f5, #d3e7ef);">
+<div style="width: 430px; height: 932px; background: #f7f4fb; color: #3f3a52; border-radius: 34px; box-shadow: 0 18px 50px rgba(63,58,82,.28); display: flex; flex-direction: column; overflow: hidden;">
+
+  <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 26px 2px; font-size: 12px; font-weight: 800; color: #a29bb5;">
+    <span>9:41</span>
+    <span style="display: flex; gap: 7px;"><span>◦◦◦</span><span>84%</span></span>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 10px; padding: 8px 14px 12px;">
+    <div style="width: 34px; height: 34px; border-radius: 12px; background: #ffffff; display: grid; place-items: center; box-shadow: 0 1px 3px rgba(63,58,82,.1);">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6b5fa8" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 5 L7 12 l7 7"></path></svg>
+    </div>
+    <div style="flex: 1;">
+      <div class="lbl">Gene Lab</div>
+      <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 21px; line-height: 1.1; letter-spacing: -.01em;">Splicing Chamber</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 7px; background: #ffffff; border-radius: 999px; padding: 6px 12px 6px 7px; box-shadow: 0 1px 3px rgba(63,58,82,.09);">
+      <span style="width: 22px; height: 22px; border-radius: 999px; background: #dcf0f8; display: grid; place-items: center;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4b8ba6" stroke-width="2.4" stroke-linejoin="round"><path d="M13 2 L5 13 h6 l-1 9 8-11 h-6 z"></path></svg>
+      </span>
+      <span style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 15px; line-height: 1;">4<span style="color: #b3adc2; font-size: 11px;">/5</span></span>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: stretch; gap: 8px; padding: 0 12px;">
+    <div style="flex: 1; background: #ffffff; border-radius: 18px; padding: 11px 12px 12px; box-shadow: 0 2px 8px rgba(63,58,82,.07);">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span class="lbl">Parent A</span>
+        <span style="font-size: 9px; font-weight: 800; letter-spacing: .06em; color: #4b8ba6; background: #e7f3f9; border-radius: 6px; padding: 2px 5px;">G4</span>
+      </div>
+      <div style="display: flex; justify-content: center; padding: 7px 0 6px;">
+        <svg width="74" height="74" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="34" fill="#e7f3f9"></circle>
+          <g class="spin" fill="none" stroke="#8fc4d8" stroke-width="2" stroke-dasharray="4 7"><circle cx="50" cy="50" r="42"></circle></g>
+          <path d="M50 22 L74 36 v28 L50 78 L26 64 V36 Z" fill="none" stroke="#4b8ba6" stroke-width="3" stroke-linejoin="round"></path>
+          <path d="M50 34 L62 41 v14 L50 62 L38 55 V41 Z" fill="#8fc4d8"></path>
+          <circle cx="50" cy="48" r="4.5" fill="#ffffff"></circle>
+        </svg>
+      </div>
+      <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 17px; line-height: 1.1;">Vetch Crawler</div>
+      <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5; margin-top: 1px;">Armored · Slow</div>
+      <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px;">
+        <span style="font-size: 9.5px; font-weight: 800; color: #43704f; background: #e8f5ec; border-radius: 6px; padding: 3px 6px;">Carapace III</span>
+        <span style="font-size: 9.5px; font-weight: 800; color: #43704f; background: #e8f5ec; border-radius: 6px; padding: 3px 6px;">Root Anchor</span>
+      </div>
+    </div>
+
+    <div style="width: 40px; display: grid; place-items: center;">
+      <div style="width: 40px; height: 40px; border-radius: 999px; background: #ffffff; display: grid; place-items: center; box-shadow: 0 2px 8px rgba(63,58,82,.12);">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7a6ac0" stroke-width="2.6" stroke-linecap="round"><path d="M6 6 l12 12M18 6 L6 18"></path></svg>
+      </div>
+    </div>
+
+    <div style="flex: 1; background: #ffffff; border-radius: 18px; padding: 11px 12px 12px; box-shadow: 0 2px 8px rgba(63,58,82,.07);">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span class="lbl">Parent B</span>
+        <span style="font-size: 9px; font-weight: 800; letter-spacing: .06em; color: #b3564a; background: #fbeae7; border-radius: 6px; padding: 2px 5px;">G6</span>
+      </div>
+      <div style="display: flex; justify-content: center; padding: 7px 0 6px;">
+        <svg width="74" height="74" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="34" fill="#fbeae7"></circle>
+          <g class="spin" fill="none" stroke="#eda093" stroke-width="2" stroke-dasharray="4 7"><circle cx="50" cy="50" r="42"></circle></g>
+          <path d="M50 20 L78 50 L50 80 L22 50 Z" fill="none" stroke="#c96555" stroke-width="3" stroke-linejoin="round"></path>
+          <path d="M50 33 L67 50 L50 67 L33 50 Z" fill="#eda093"></path>
+          <circle cx="50" cy="50" r="4.5" fill="#ffffff"></circle>
+        </svg>
+      </div>
+      <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 17px; line-height: 1.1;">Ember Skitter</div>
+      <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5; margin-top: 1px;">Fast · Fragile</div>
+      <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px;">
+        <span style="font-size: 9.5px; font-weight: 800; color: #b3564a; background: #fbeae7; border-radius: 6px; padding: 3px 6px;">Cinder Spit</span>
+        <span style="font-size: 9.5px; font-weight: 800; color: #b3564a; background: #fbeae7; border-radius: 6px; padding: 3px 6px;">Sprint II</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="position: relative; margin: 12px 12px 0; background: linear-gradient(170deg, #ffffff, #f4f0fb); border-radius: 22px; padding: 13px 16px 14px; box-shadow: 0 4px 16px rgba(63,58,82,.08);">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <span class="lbl">Predicted hybrid</span>
+      <span style="font-size: 9.5px; font-weight: 800; color: #6b5fa8; background: #f1ecfa; border-radius: 6px; padding: 3px 7px;">Gen 7</span>
+    </div>
+    <div style="display: flex; gap: 13px; align-items: center; margin-top: 10px;">
+      <div style="position: relative; width: 112px; height: 112px; flex: none;">
+        <svg width="112" height="112" viewBox="0 0 112 112" style="position: absolute; inset: 0;">
+          <g class="spin" fill="none" stroke="#c9bcf0" stroke-width="1.6" stroke-dasharray="3 8"><circle cx="56" cy="56" r="54"></circle></g>
+          <circle cx="56" cy="56" r="46" fill="#efe9fb" style="animation: glow 3s ease-in-out infinite;"></circle>
+        </svg>
+        <div style="position: absolute; left: 8px; top: 8px; width: 96px; height: 96px; animation: bob 3.4s ease-in-out infinite;">
+          <image-slot id="splice-hybrid" mask="polygon(50% 2%, 93% 26%, 93% 74%, 50% 98%, 7% 74%, 7% 26%)" placeholder="Art"></image-slot>
+        </div>
+      </div>
+      <div style="flex: 1; min-width: 0;">
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 22px; line-height: 1.1;">Unnamed Hybrid</div>
+        <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5; margin-top: 2px;">Vetch × Ember lineage</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 9px;">
+          <div style="background: #ffffff; border-radius: 10px; padding: 6px 8px; box-shadow: inset 0 0 0 1px #ece7f6;">
+            <div class="lbl">Armor</div>
+            <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 15px; line-height: 1.1;">B+ <span style="font-size: 10px; font-weight: 700; color: #6cba8b;">▲</span></div>
+          </div>
+          <div style="background: #ffffff; border-radius: 10px; padding: 6px 8px; box-shadow: inset 0 0 0 1px #ece7f6;">
+            <div class="lbl">Speed</div>
+            <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 15px; line-height: 1.1;">C <span style="font-size: 10px; font-weight: 700; color: #e5867a;">▼</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin: 11px 12px 0; background: #ffffff; border-radius: 22px; padding: 12px 16px 14px; box-shadow: 0 2px 8px rgba(63,58,82,.06);">
+    <div style="display: flex; justify-content: space-between; align-items: baseline;">
+      <span class="lbl">Trait inheritance</span>
+      <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">odds</span>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 9px; margin-top: 10px;">
+      <span style="width: 7px; height: 7px; border-radius: 2px; background: #4b8ba6; flex: none;"></span>
+      <div style="flex: 1; min-width: 0;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <span style="font-size: 12px; font-weight: 800;">Carapace III</span>
+          <span style="font-family: 'Baloo 2', cursive; font-size: 13px; font-weight: 700;">78%</span>
+        </div>
+        <div style="height: 6px; border-radius: 999px; background: #f0ecf7; margin-top: 4px; overflow: hidden;"><div style="width: 78%; height: 100%; background: #6ba7c0;"></div></div>
+      </div>
+      <span style="font-size: 9px; font-weight: 800; letter-spacing: .06em; color: #4b8ba6; background: #e7f3f9; border-radius: 5px; padding: 2px 5px; flex: none;">DOM</span>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 9px; margin-top: 9px;">
+      <span style="width: 7px; height: 7px; border-radius: 2px; background: #c96555; flex: none;"></span>
+      <div style="flex: 1; min-width: 0;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <span style="font-size: 12px; font-weight: 800;">Cinder Spit</span>
+          <span style="font-family: 'Baloo 2', cursive; font-size: 13px; font-weight: 700;">54%</span>
+        </div>
+        <div style="height: 6px; border-radius: 999px; background: #f0ecf7; margin-top: 4px; overflow: hidden;"><div style="width: 54%; height: 100%; background: #e5867a;"></div></div>
+      </div>
+      <span style="font-size: 9px; font-weight: 800; letter-spacing: .06em; color: #b3564a; background: #fbeae7; border-radius: 5px; padding: 2px 5px; flex: none;">DOM</span>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 9px; margin-top: 9px;">
+      <span style="width: 7px; height: 7px; border-radius: 2px; background: #b3adc2; flex: none;"></span>
+      <div style="flex: 1; min-width: 0;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <span style="font-size: 12px; font-weight: 800;">Sprint II</span>
+          <span style="font-family: 'Baloo 2', cursive; font-size: 13px; font-weight: 700;">31%</span>
+        </div>
+        <div style="height: 6px; border-radius: 999px; background: #f0ecf7; margin-top: 4px; overflow: hidden;"><div style="width: 31%; height: 100%; background: #b3adc2;"></div></div>
+      </div>
+      <span style="font-size: 9px; font-weight: 800; letter-spacing: .06em; color: #8d86a0; background: #f2eff8; border-radius: 5px; padding: 2px 5px; flex: none;">REC</span>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px; background: linear-gradient(100deg, #fdf0d0, #f9e0a8); border-radius: 14px; padding: 9px 11px; margin-top: 11px; box-shadow: inset 0 0 0 1px rgba(196,150,45,.28);">
+      <span style="width: 24px; height: 24px; border-radius: 999px; background: #ffffff; display: grid; place-items: center; animation: glow 2s ease-in-out infinite; flex: none;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#d19a1f" stroke-width="2.2" stroke-linejoin="round"><path d="M12 2 L14.5 9.5 L22 12 L14.5 14.5 L12 22 L9.5 14.5 L2 12 L9.5 9.5 Z"></path></svg>
+      </span>
+      <span style="flex: 1; font-size: 11px; font-weight: 700; color: #7a5b12; line-height: 1.3;">Mutation window open — 1 in 9 chance of an unlisted trait</span>
+    </div>
+  </div>
+
+  <div style="flex: 1; margin: 11px 12px 0; background: #ffffff; border-radius: 22px; padding: 12px 16px 14px; box-shadow: 0 2px 8px rgba(63,58,82,.06); display: flex; flex-direction: column; overflow: hidden;">
+    <div style="display: flex; justify-content: space-between; align-items: baseline;">
+      <span class="lbl">Lineage</span>
+      <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">7 generations</span>
+    </div>
+    <div style="flex: 1; display: flex; align-items: center; gap: 0; margin-top: 8px; min-height: 0;">
+      <div style="display: grid; place-items: center; gap: 4px;">
+        <span style="width: 22px; height: 22px; border-radius: 7px; background: #f0ecf7;"></span>
+        <span style="font-size: 8.5px; font-weight: 800; color: #b3adc2;">G1</span>
+      </div>
+      <span style="flex: 1; height: 2px; background: #f0ecf7;"></span>
+      <div style="display: grid; place-items: center; gap: 4px;">
+        <span style="width: 22px; height: 22px; border-radius: 7px; background: #e9f2f7;"></span>
+        <span style="font-size: 8.5px; font-weight: 800; color: #b3adc2;">G3</span>
+      </div>
+      <span style="flex: 1; height: 2px; background: #e7f3f9;"></span>
+      <div style="display: grid; place-items: center; gap: 4px;">
+        <span style="width: 26px; height: 26px; border-radius: 8px; background: #cfe6f0; box-shadow: inset 0 0 0 2px #6ba7c0;"></span>
+        <span style="font-size: 8.5px; font-weight: 800; color: #4b8ba6;">G4</span>
+      </div>
+      <span style="flex: 1; height: 2px; background: #f2eff8;"></span>
+      <div style="display: grid; place-items: center; gap: 4px;">
+        <span style="width: 26px; height: 26px; border-radius: 8px; background: #f7d8d2; box-shadow: inset 0 0 0 2px #e5867a;"></span>
+        <span style="font-size: 8.5px; font-weight: 800; color: #b3564a;">G6</span>
+      </div>
+      <span style="flex: 1; height: 2px; background: linear-gradient(90deg, #e3dbf3, #8878cf);"></span>
+      <div style="display: grid; place-items: center; gap: 4px;">
+        <span style="width: 30px; height: 30px; border-radius: 9px; background: #ded4f7; box-shadow: inset 0 0 0 2px #7a6ac0; animation: glow 2.4s ease-in-out infinite;"></span>
+        <span style="font-size: 8.5px; font-weight: 800; color: #6b5fa8;">G7</span>
+      </div>
+    </div>
+    <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5; margin-top: 6px; line-height: 1.35;">Unbroken Vetch line since G1 — pedigree bonus <span style="color: #6cba8b;">+12% trait fidelity</span></div>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 11px; padding: 12px 16px 8px;">
+    <div style="flex: none;">
+      <div class="lbl">Cost</div>
+      <div style="display: flex; align-items: center; gap: 5px; margin-top: 2px;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4b8ba6" stroke-width="2.4" stroke-linejoin="round"><path d="M13 2 L5 13 h6 l-1 9 8-11 h-6 z"></path></svg>
+        <span style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 17px; line-height: 1;">2</span>
+      </div>
+    </div>
+    <button type="button" style="flex: 1; border: 0; cursor: pointer; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 16px; color: #ffffff; background: linear-gradient(180deg, #8878cf, #6f5fbb); border-radius: 14px; padding: 13px 0; box-shadow: 0 3px 0 #5b4d9e, 0 6px 14px rgba(111,95,187,.28);" style-hover="background: linear-gradient(180deg, #9585db, #7a6ac6);" style-active="transform: translateY(2px); box-shadow: 0 1px 0 #5b4d9e;">Begin Splice</button>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; background: #ffffff; padding: 6px 10px 18px;">
+    <a href="Splice World Map v2.dc.html" style="display: grid; place-items: center; gap: 4px; padding: 8px 0; text-decoration: none;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#b3adc2" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"><path d="M9 4 L3 6 v14 l6-2 6 2 6-2 V4 l-6 2 z"></path><path d="M9 4 v14M15 6 v14"></path></svg>
+      <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">Map</span></a>
+    <a href="Gene Ark.dc.html" style="display: grid; place-items: center; gap: 4px; padding: 8px 0; text-decoration: none;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#b3adc2" stroke-width="1.9" stroke-linejoin="round"><path d="M12 3 L20 7.5 v9 L12 21 L4 16.5 v-9 z"></path></svg>
+      <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">Ark</span></a>
+    <a href="Splice Chamber.dc.html" style="display: grid; place-items: center; gap: 4px; padding: 8px 0; border-radius: 18px; background: #f1ecfa; text-decoration: none;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#6b5fa8" stroke-width="1.9" stroke-linecap="round"><path d="M8 3 v5 L4 20 h16 L16 8 V3"></path><path d="M7 3 h10M6.5 14 h11"></path></svg>
+      <span style="font-size: 10px; font-weight: 800; color: #6b5fa8;">Splice</span></a>
+    <a href="Gene Lab.dc.html" style="display: grid; place-items: center; gap: 4px; padding: 8px 0; text-decoration: none;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#b3adc2" stroke-width="1.9" stroke-linejoin="round"><path d="M3 20 V9 l6-4 6 4 6-3 v14 z"></path><path d="M9 20 V9M15 20 V9"></path></svg>
+      <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">Lab</span></a>
+    <a href="Alliance Hub.dc.html" style="display: grid; place-items: center; gap: 4px; padding: 8px 0; text-decoration: none;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#b3adc2" stroke-width="1.9" stroke-linecap="round"><circle cx="9" cy="9" r="3.4"></circle><path d="M3 20 c0-3.4 2.7-5.6 6-5.6 s6 2.2 6 5.6"></path><path d="M16 6.2 a3.4 3.4 0 0 1 0 5.8M18 20 c0-2.6-1-4.4-2.4-5.4"></path></svg>
+      <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">Allies</span></a>
+  </div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:478,&quot;height&quot;:980}}"></script>
+</body>
+</html>

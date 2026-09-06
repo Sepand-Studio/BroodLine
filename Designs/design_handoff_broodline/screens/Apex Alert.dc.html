@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #e4dff0; font-family: "Nunito", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .lbl { font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #a29bb5; }
+  @keyframes glow { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+  @keyframes quake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-1.5px); } 75% { transform: translateX(1.5px); } }
+  @keyframes ripple { 0% { transform: scale(.6); opacity: .7; } 100% { transform: scale(2.1); opacity: 0; } }
+  @keyframes sweep { to { stroke-dashoffset: -220; } }
+  @keyframes riseIn { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .ripple { transform-box: fill-box; transform-origin: center; animation: ripple 2.2s ease-out infinite; }
+</style>
+</helmet>
+
+<div style="min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 24px 0; background: linear-gradient(160deg, #e6e0f5, #d3e7ef);">
+<div style="width: 430px; height: 932px; background: #f7f4fb; color: #3f3a52; border-radius: 34px; box-shadow: 0 18px 50px rgba(63,58,82,.28); display: flex; flex-direction: column; overflow: hidden;">
+
+  <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 26px 2px; font-size: 12px; font-weight: 800; color: #a29bb5;">
+    <span>9:41</span>
+    <span style="display: flex; gap: 7px;"><span>◦◦◦</span><span>84%</span></span>
+  </div>
+
+  <div style="position: relative; flex: none; margin: 10px 12px 0; background: linear-gradient(155deg, #fdf0d0, #f7dfa8); border-radius: 26px; padding: 15px 17px 17px; box-shadow: 0 4px 16px rgba(63,58,82,.1); overflow: hidden;">
+    <svg viewBox="0 0 406 210" width="100%" height="100%" preserveAspectRatio="none" style="position: absolute; inset: 0;">
+      <g fill="none" stroke="#ffffff" opacity=".75">
+        <circle class="ripple" cx="316" cy="96" r="30" stroke-width="3"></circle>
+        <circle class="ripple" cx="316" cy="96" r="30" stroke-width="2.4" style="animation-delay: 1.1s;"></circle>
+      </g>
+      <path d="M232 150 L252 150 L262 132 L272 166 L286 138 L298 158 L312 124 L326 162 L338 146 L420 146" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linejoin="round" opacity=".85" stroke-dasharray="150 300" style="animation: sweep 3.4s linear infinite;"></path>
+      <circle cx="316" cy="96" r="9" fill="#ffffff"></circle>
+      <circle cx="316" cy="96" r="5.5" fill="#d19a1f" style="animation: glow 1.4s ease-in-out infinite;"></circle>
+    </svg>
+    <div style="position: relative; animation: quake .5s ease-in-out infinite;">
+      <span style="font-size: 9px; font-weight: 800; letter-spacing: .12em; color: #7a5b12; background: rgba(255,255,255,.8); border-radius: 6px; padding: 4px 8px;">SEISMIC ACTIVITY</span>
+    </div>
+    <div style="position: relative; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 30px; line-height: 1.05; letter-spacing: -.02em; margin-top: 8px; color: #6d5010;">Apex Vein surfacing</div>
+    <div style="position: relative; font-size: 12.5px; font-weight: 700; color: #8b6a1c; line-height: 1.4; margin-top: 4px; max-width: 232px;">Region R-06 · Vitrine Pan. Eight times base yield, and it burns out in about two days.</div>
+    <div style="position: relative; display: flex; align-items: baseline; gap: 9px; margin-top: 13px;">
+      <span class="lbl" style="color: #b58a2b;">Surfaces in</span>
+      <span style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 27px; line-height: 1; color: #6d5010;">{{ countdown }}</span>
+      <span style="font-size: 11px; font-weight: 700; color: #8b6a1c;">{{ countdownNote }}</span>
+    </div>
+  </div>
+
+  <div style="margin: 11px 12px 0; background: #ffffff; border-radius: 22px; padding: 12px 16px 14px; box-shadow: 0 2px 8px rgba(63,58,82,.06);">
+    <div style="display: flex; justify-content: space-between; align-items: baseline;">
+      <span class="lbl">Known now</span>
+      <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">free alert</span>
+    </div>
+    <div style="display: flex; gap: 7px; margin-top: 10px;">
+      <div style="flex: 1; background: #f8f6fc; border-radius: 12px; padding: 9px 10px;">
+        <div class="lbl">Yield</div>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 17px; line-height: 1.05; margin-top: 2px; color: #d99442;">8×</div>
+      </div>
+      <div style="flex: 1; background: #f8f6fc; border-radius: 12px; padding: 9px 10px;">
+        <div class="lbl">Travel</div>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 17px; line-height: 1.05; margin-top: 2px;">3h 05m</div>
+      </div>
+      <div style="flex: 1; background: #f8f6fc; border-radius: 12px; padding: 9px 10px;">
+        <div class="lbl">Holder</div>
+        <div style="font-size: 12px; font-weight: 700; margin-top: 5px; color: #b3564a;">Sable</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin: 11px 12px 0; background: #ffffff; border-radius: 22px; padding: 13px 16px 14px; box-shadow: 0 2px 8px rgba(63,58,82,.06);">
+    <div style="display: flex; justify-content: space-between; align-items: baseline;">
+      <span class="lbl">{{ intelLabel }}</span>
+      <span style="font-size: 10px; font-weight: 800; color: {{ intelTone }};">{{ intelState }}</span>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px; margin-top: 11px;">
+      <span style="width: 22px; height: 22px; border-radius: 7px; background: {{ rowBg }}; display: grid; place-items: center; flex: none;">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="{{ rowIcon }}" stroke-width="2.6" stroke-linecap="round"><path d="M12 3 v18M3 12 h18"></path></svg>
+      </span>
+      <span style="flex: 1; font-size: 11.5px; font-weight: 800; color: #3f3a52;">Exact surfacing point</span>
+      <span style="font-size: 11.5px; font-weight: 800; color: {{ valTone }}; filter: {{ blur }};">{{ v1 }}</span>
+    </div>
+    <div style="height: 1px; background: #f4f1fa; margin: 9px 0;"></div>
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <span style="width: 22px; height: 22px; border-radius: 7px; background: {{ rowBg }}; display: grid; place-items: center; flex: none;">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="{{ rowIcon }}" stroke-width="2.6" stroke-linecap="round"><circle cx="12" cy="12" r="8"></circle><path d="M12 12 V7"></path></svg>
+      </span>
+      <span style="flex: 1; font-size: 11.5px; font-weight: 800; color: #3f3a52;">First rival to arrive</span>
+      <span style="font-size: 11.5px; font-weight: 800; color: {{ valTone }}; filter: {{ blur }};">{{ v2 }}</span>
+    </div>
+    <div style="height: 1px; background: #f4f1fa; margin: 9px 0;"></div>
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <span style="width: 22px; height: 22px; border-radius: 7px; background: {{ rowBg }}; display: grid; place-items: center; flex: none;">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="{{ rowIcon }}" stroke-width="2.6" stroke-linejoin="round"><path d="M12 2 L20 9 L12 22 L4 9 Z"></path></svg>
+      </span>
+      <span style="flex: 1; font-size: 11.5px; font-weight: 800; color: #3f3a52;">Trait fragment odds</span>
+      <span style="font-size: 11.5px; font-weight: 800; color: {{ valTone }}; filter: {{ blur }};">{{ v3 }}</span>
+    </div>
+    <div style="height: 1px; background: #f4f1fa; margin: 9px 0;"></div>
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <span style="width: 22px; height: 22px; border-radius: 7px; background: {{ rowBg }}; display: grid; place-items: center; flex: none;">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="{{ rowIcon }}" stroke-width="2.4" stroke-linecap="round"><circle cx="9" cy="9" r="3.4"></circle><path d="M3 20 c0-3.4 2.7-5.6 6-5.6 s6 2.2 6 5.6"></path><path d="M16 6.2 a3.4 3.4 0 0 1 0 5.8"></path></svg>
+      </span>
+      <span style="flex: 1; font-size: 11.5px; font-weight: 800; color: #3f3a52;">Sable escort strength</span>
+      <span style="font-size: 11.5px; font-weight: 800; color: {{ valTone }}; filter: {{ blur }};">{{ v4 }}</span>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px; background: {{ noteBg }}; border-radius: 14px; padding: 10px 12px; margin-top: 12px;">
+      <span style="width: 24px; height: 24px; border-radius: 999px; background: #ffffff; display: grid; place-items: center; flex: none;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="{{ noteStroke }}" stroke-width="2.4" stroke-linecap="round"><path d="M12 3 L22 20 H2 Z"></path><path d="M12 10 v4M12 17 v.01"></path></svg>
+      </span>
+      <span style="flex: 1; font-size: 11px; font-weight: 700; color: {{ noteText }}; line-height: 1.35;">{{ noteBody }}</span>
+    </div>
+  </div>
+
+  <div style="flex: 1; margin: 10px 12px 0; background: #ffffff; border-radius: 22px; padding: 12px 16px 13px; box-shadow: 0 2px 8px rgba(63,58,82,.06); display: flex; flex-direction: column; overflow: hidden;">
+    <span class="lbl">Race to the pan</span>
+    <div style="display: flex; align-items: center; gap: 9px; margin-top: 9px;">
+      <span style="width: 8px; height: 8px; border-radius: 2px; background: #7a6ac0; flex: none;"></span>
+      <span style="flex: 1; font-size: 11.5px; font-weight: 800;">You leave now</span>
+      <span style="font-size: 11px; font-weight: 800; color: #43704f; white-space: nowrap;">+3h 05m</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 9px; margin-top: 7px;">
+      <span style="width: 8px; height: 8px; border-radius: 2px; background: #e5867a; flex: none;"></span>
+      <span style="flex: 1; font-size: 11.5px; font-weight: 800;">Sable escort lands</span>
+      <span style="font-size: 11px; font-weight: 800; color: #b3564a; white-space: nowrap;">{{ rivalEta }}</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 9px; margin-top: 7px;">
+      <span style="width: 8px; height: 8px; border-radius: 2px; background: #e8b34a; flex: none;"></span>
+      <span style="flex: 1; font-size: 11.5px; font-weight: 800;">Vein burns out</span>
+      <span style="font-size: 11px; font-weight: 800; color: #8e6d15; white-space: nowrap;">in 51h</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 9px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #f4f1fa;">
+      <div style="display: flex;">
+        <span style="width: 22px; height: 22px; border-radius: 999px; background: #e6e9fb; box-shadow: 0 0 0 2px #ffffff;"></span>
+        <span style="width: 22px; height: 22px; border-radius: 999px; background: #e2f4e8; box-shadow: 0 0 0 2px #ffffff; margin-left: -7px;"></span>
+        <span style="width: 22px; height: 22px; border-radius: 999px; background: #ece2fa; box-shadow: 0 0 0 2px #ffffff; margin-left: -7px;"></span>
+        <span style="width: 22px; height: 22px; border-radius: 999px; background: #f1ecfa; box-shadow: 0 0 0 2px #ffffff; margin-left: -7px; display: grid; place-items: center; font-size: 8.5px; font-weight: 800; color: #6b5fa8;">+6</span>
+      </div>
+      <span style="flex: 1; font-size: 10.5px; font-weight: 700; color: #5d5670; line-height: 1.3;">9 Crux Arks marked · 2 in range</span>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 9px; padding: 11px 12px 8px;">
+    <button type="button" style="flex: 1.4; border: 0; cursor: pointer; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 16px; color: #ffffff; background: linear-gradient(180deg, #8878cf, #6f5fbb); border-radius: 15px; padding: 14px 0; box-shadow: 0 3px 0 #5b4d9e, 0 6px 14px rgba(111,95,187,.26);" style-active="transform: translateY(2px); box-shadow: 0 1px 0 #5b4d9e;">Set out now</button>
+    <button type="button" onClick="{{ toggleScout }}" style="flex: 1; border: 0; cursor: pointer; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 16px; color: {{ scoutFg }}; background: {{ scoutBg }}; border-radius: 15px; padding: 14px 0; box-shadow: {{ scoutShadow }};" style-active="transform: translateY(1px);">{{ scoutLabel }}</button>
+  </div>
+
+  <div style="text-align: center; padding: 0 24px 20px;">
+    <span style="font-size: 11px; font-weight: 700; color: #a29bb5;">{{ footer }}</span>
+  </div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:478,&quot;height&quot;:980}}">
+class Component extends DCLogic {
+  state = { scouted: false };
+  renderVals() {
+    const on = this.state.scouted;
+    return {
+      countdown: on ? "34:41" : "29:41",
+      countdownNote: on ? "scout report bought you 5 minutes" : "free alert timing",
+      intelLabel: on ? "Scout report" : "Scout report · locked",
+      intelState: on ? "REVEALED" : "25 SHARDS",
+      intelTone: on ? "#43704f" : "#6b5fa8",
+      rowBg: on ? "#e2f4e8" : "#f2eff8",
+      rowIcon: on ? "#4c9b74" : "#b3adc2",
+      valTone: on ? "#3f3a52" : "#b3adc2",
+      blur: on ? "none" : "blur(4px)",
+      v1: on ? "North pan, tile 4" : "hidden",
+      v2: on ? "Sable · 41 min" : "hidden",
+      rivalEta: on ? "+41 min" : "scout to see",
+      v3: on ? "62% rare" : "hidden",
+      v4: on ? "2 raiders" : "hidden",
+      noteBg: on ? "#fbeee9" : "#f1ecfa",
+      noteStroke: on ? "#c96555" : "#7a6ac0",
+      noteText: on ? "#96463c" : "#5d5670",
+      noteBody: on
+        ? "Sable arrives 41 minutes after surfacing with two raiders — send a Collector escort or take the north pan early and leave before they land."
+        : "A scout report reveals the surfacing point, rival ETA and escort strength — and alerts you five minutes before everyone else.",
+      scoutLabel: on ? "Bought" : "Scout · 25",
+      scoutFg: on ? "#a29bb5" : "#6b5fa8",
+      scoutBg: on ? "#f4f1fa" : "#f1ecfa",
+      scoutShadow: on ? "inset 0 0 0 1px #ece7f6" : "inset 0 0 0 2px #cbbdf2",
+      footer: on
+        ? "Report expires when the vein burns out. One per Apex event."
+        : "Free alerts always fire 30 minutes ahead — the report only buys detail and a 5 minute head start.",
+      toggleScout: () => this.setState((s) => ({ scouted: !s.scouted }))
+    };
+  }
+}
+</script>
+</body>
+</html>

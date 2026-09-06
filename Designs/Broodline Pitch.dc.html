@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --type-hero: 132px; --type-title: 76px; --type-subtitle: 46px;
+    --type-body: 34px; --type-small: 28px; --type-micro: 24px;
+    --pad-top: 100px; --pad-bottom: 80px; --pad-x: 100px;
+    --gap-title: 48px; --gap-item: 26px;
+    --ink: #2e2a3d; --paper: #f7f4fb; --violet: #7a6ac0; --teal: #6ba7c0;
+    --amber: #e8b34a; --coral: #e5867a; --green: #7cc492; --mute: #8d86a0;
+  }
+  body { margin: 0; background: #1b1826; font-family: "Nunito", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: var(--violet); text-decoration: none; }
+  a:hover { color: #574c8f; }
+</style>
+</helmet>
+
+<x-import component-from-global-scope="deck-stage" from="./deck-stage.js" width="1920" height="1080" hint-size="100%,100%">
+
+  <section data-label="Title" data-screen-label="01" data-speaker-notes="Broodline is a creature-breeding tower defense with a relocatable base and 4X territory control. Twenty screens designed, fully interactive." style="background: linear-gradient(150deg, #2e2a3d, #3d3550); display: flex; align-items: center; padding: var(--pad-top) var(--pad-x) var(--pad-bottom); gap: 90px;">
+    <div style="flex: 1;">
+      <div style="font-size: var(--type-micro); font-weight: 800; letter-spacing: .22em; text-transform: uppercase; color: #a99ed6;">Mobile · creature breeding · tower defense</div>
+      <div style="font-family: 'Baloo 2', cursive; font-weight: 800; font-size: var(--type-hero); line-height: .95; letter-spacing: -.03em; color: #ffffff; margin-top: 28px;">Broodline</div>
+      <div style="font-size: var(--type-subtitle); font-weight: 600; color: #cfc7e6; line-height: 1.35; margin-top: 24px; max-width: 780px;">Splice two creatures. Defend the lane. Move the whole base when the ground runs dry.</div>
+      <div style="display: flex; gap: 18px; margin-top: 52px;">
+        <span style="font-size: var(--type-micro); font-weight: 800; letter-spacing: .06em; color: #2e2a3d; background: #e8b34a; border-radius: 12px; padding: 12px 20px;">20 SCREENS DESIGNED</span>
+        <span style="font-size: var(--type-micro); font-weight: 800; letter-spacing: .06em; color: #cfc7e6; border: 2px solid #574c8f; border-radius: 12px; padding: 12px 20px;">FULLY INTERACTIVE</span>
+      </div>
+    </div>
+    <svg viewBox="0 0 400 340" width="480" height="410" style="flex: none;">
+      <ellipse cx="200" cy="300" rx="118" ry="18" fill="#000000" opacity=".22"></ellipse>
+      <g stroke="#4f8ba3" stroke-width="24" stroke-linecap="round"><path d="M142 244 v40M190 250 v34M232 250 v34M276 244 v40"></path></g>
+      <ellipse cx="208" cy="196" rx="106" ry="58" fill="#6ba7c0"></ellipse>
+      <path d="M120 174 a88 62 0 0 1 176 0 z" fill="#8dc0d4"></path>
+      <g fill="#e5867a"><path d="M152 120 l16 -40 16 40 z"></path><path d="M190 110 l16 -48 16 48 z"></path><path d="M228 120 l16 -40 16 40 z"></path></g>
+      <circle cx="278" cy="152" r="27" fill="#6ba7c0"></circle>
+      <path d="M278 126 l13 -26 h-26 z" fill="#e5867a"></path>
+      <circle cx="289" cy="149" r="6" fill="#2e2a3d"></circle>
+      <path d="M102 206 C74 200, 62 178, 70 160" fill="none" stroke="#6ba7c0" stroke-width="16" stroke-linecap="round"></path>
+    </svg>
+  </section>
+
+  <section data-label="Premise" data-screen-label="02" data-speaker-notes="Three genres borrowed deliberately: breeding depth from collection games, combat from tower defense, and the meta from 4X survival titles. The relocatable base comes from Command and Conquer." style="background: var(--paper); display: flex; flex-direction: column; padding: var(--pad-top) var(--pad-x) var(--pad-bottom);">
+    <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: var(--type-title); line-height: 1.05; letter-spacing: -.02em; color: var(--ink);">Premise</div>
+    <div style="font-size: var(--type-body); font-weight: 600; color: #5d5670; line-height: 1.45; margin-top: 20px; max-width: 1180px;">Three proven systems, joined at one point of tension: the creatures you breed are the only thing defending a base that has to keep moving.</div>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; margin-top: var(--gap-title);">
+      <div style="background: #ffffff; border-radius: 28px; padding: 42px 38px;">
+        <div style="width: 64px; height: 64px; border-radius: 20px; background: #f1ecfa; display: grid; place-items: center;">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#7a6ac0" stroke-width="2.2" stroke-linecap="round"><path d="M8 3 v5 L4 20 h16 L16 8 V3"></path><path d="M7 3 h10M6.5 14 h11"></path></svg>
+        </div>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: var(--type-subtitle); line-height: 1.1; color: var(--ink); margin-top: 26px;">Breeding depth</div>
+        <div style="font-size: var(--type-small); font-weight: 600; color: #7d7691; line-height: 1.45; margin-top: 14px;">Six founders, inherited traits, and a pedigree that rewards patience over rerolling.</div>
+      </div>
+      <div style="background: #ffffff; border-radius: 28px; padding: 42px 38px;">
+        <div style="width: 64px; height: 64px; border-radius: 20px; background: #e7f3f9; display: grid; place-items: center;">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3c7f98" stroke-width="2.2" stroke-linejoin="round"><path d="M12 3 L20 7 v6 c0 4-3.5 7-8 8 -4.5-1-8-4-8-8 V7 z"></path></svg>
+        </div>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: var(--type-subtitle); line-height: 1.1; color: var(--ink); margin-top: 26px;">Readable combat</div>
+        <div style="font-size: var(--type-small); font-weight: 600; color: #7d7691; line-height: 1.45; margin-top: 14px;">Lane defense in ninety seconds, where composition decides the wave, not power creep.</div>
+      </div>
+      <div style="background: #ffffff; border-radius: 28px; padding: 42px 38px;">
+        <div style="width: 64px; height: 64px; border-radius: 20px; background: #fdf1d8; display: grid; place-items: center;">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#8e6d15" stroke-width="2.2" stroke-linejoin="round"><path d="M12 3 L20 7.5 v9 L12 21 L4 16.5 v-9 z"></path></svg>
+        </div>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: var(--type-subtitle); line-height: 1.1; color: var(--ink); margin-top: 26px;">A base that moves</div>
+        <div style="font-size: var(--type-small); font-weight: 600; color: #7d7691; line-height: 1.45; margin-top: 14px;">Resource nodes deplete, so standing still is the losing play. Territory stays contested.</div>
+      </div>
+    </div>
+  </section>
+
+  <section data-label="Core Loop" data-screen-label="03" data-speaker-notes="The loop is three beats, each feeding the next. Breeding produces defenders, defending earns fragments, expanding raises yield which funds more breeding. Every screen sits on one of these beats." style="background: linear-gradient(150deg, #2e2a3d, #3a3350); display: flex; flex-direction: column; padding: var(--pad-top) var(--pad-x) var(--pad-bottom);">
+    <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: var(--type-title); line-height: 1.05; letter-spacing: -.02em; color: #ffffff;">Core Loop</div>
+    <div style="font-size: var(--type-body); font-weight: 600; color: #cfc7e6; line-height: 1.45; margin-top: 20px; max-width: 1120px;">Each beat produces the input the next one needs, so no beat can be skipped for long.</div>
+    <div style="display: flex; align-items: center; gap: 26px; margin-top: 76px;">
+      <div style="flex: 1; background: rgba(255,255,255,.07); border-radius: 28px; padding: 40px 34px;">
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 800; font-size: 52px; color: var(--violet); line-height: 1;">01</div>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 42px; color: #ffffff; line-height: 1.1; margin-top: 16px;">Splice</div>
+        <div style="font-size: var(--type-small); font-weight: 600; color: #b9b0d6; line-height: 1.45; margin-top: 12px;">Spend a charge, pair two creatures, inherit traits from both.</div>
+        <div style="font-size: var(--type-micro); font-weight: 800; color: var(--violet); margin-top: 22px;">→ produces defenders</div>
+      </div>
+      <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#6c6390" stroke-width="2.6" stroke-linecap="round" style="flex: none;"><path d="M4 12 h16M14 6 l6 6-6 6"></path></svg>
+      <div style="flex: 1; background: rgba(255,255,255,.07); border-radius: 28px; padding: 40px 34px;">
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 800; font-size: 52px; color: var(--teal); line-height: 1;">02</div>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 42px; color: #ffffff; line-height: 1.1; margin-top: 16px;">Defend</div>
+        <div style="font-size: var(--type-small); font-weight: 600; color: #b9b0d6; line-height: 1.45; margin-top: 12px;">Place hybrids beside the lane and hold waves off the Ark.</div>
+        <div style="font-size: var(--type-micro); font-weight: 800; color: var(--teal); margin-top: 22px;">→ produces trait fragments</div>
+      </div>
+      <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#6c6390" stroke-width="2.6" stroke-linecap="round" style="flex: none;"><path d="M4 12 h16M14 6 l6 6-6 6"></path></svg>
+      <div style="flex: 1; background: rgba(255,255,255,.07); border-radius: 28px; padding: 40px 34px;">
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 800; font-size: 52px; color: var(--amber); line-height: 1;">03</div>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 42px; color: #ffffff; line-height: 1.1; margin-top: 16px;">Expand</div>
+        <div style="font-size: var(--type-small); font-weight: 600; color: #b9b0d6; line-height: 1.45; margin-top: 12px;">Relocate the Ark onto richer ground and hold it with allies.</div>
+        <div style="font-size: var(--type-micro); font-weight: 800; color: var(--amber); margin-top: 22px;">→ produces splice charges</div>
+      </div>
+    </div>
+  </section>
+
+  <section data-label="The Splice" data-screen-label="04" data-speaker-notes="The splice screen is the heart of the game. Two parents, a visible trait forecast, and a mutation chance. Charges regenerate on a timer, which is the primary spend point." style="background: var(--paper); display: flex; align-items: center; padding: var(--pad-top) var(--pad-x) var(--pad-bottom); gap: 90px;">
+    <div style="flex: 1;">
+      <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: var(--type-title); line-height: 1.05; letter-spacing: -.02em; color: var(--ink);">The Splice</div>
+      <div style="font-size: var(--type-body); font-weight: 600; color: #5d5670; line-height: 1.45; margin-top: 22px;">Two parents, one hybrid. The forecast shows which traits are likely to carry before the charge is spent, so a pairing is a decision rather than a gamble.</div>
+      <div style="display: flex; flex-direction: column; gap: var(--gap-item); margin-top: 46px;">
+        <div style="display: flex; align-items: center; gap: 20px;">
+          <span style="width: 14px; height: 14px; border-radius: 5px; background: var(--violet); flex: none;"></span>
+          <span style="font-size: var(--type-small); font-weight: 700; color: var(--ink);">Traits inherit from both parents, with tiers that stack</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 20px;">
+          <span style="width: 14px; height: 14px; border-radius: 5px; background: var(--amber); flex: none;"></span>
+          <span style="font-size: var(--type-small); font-weight: 700; color: var(--ink);">One in nine splices mutates into something off-table</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 20px;">
+          <span style="width: 14px; height: 14px; border-radius: 5px; background: var(--teal); flex: none;"></span>
+          <span style="font-size: var(--type-small); font-weight: 700; color: var(--ink);">Charges cap at five and regenerate on a timer</span>
+        </div>
+      </div>
+    </div>
+    <img src="shots/splice-chamber.png" alt="Splice Chamber screen" style="height: 860px; width: auto; border-radius: 40px; box-shadow: 0 24px 60px rgba(46,42,61,.22); flex: none;">
+  </section>
+
+  <section data-label="Hybrid Lineage" data-screen-label="05" data-speaker-notes="Lineage is the retention engine. A generation seven creature represents weeks of deliberate pairing and cannot be bought, only bred. Retiring a creature banks its traits, so nothing is ever wasted." style="background: var(--paper); display: flex; flex-direction: column; padding: var(--pad-top) var(--pad-x) var(--pad-bottom);">
+    <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: var(--type-title); line-height: 1.05; letter-spacing: -.02em; color: var(--ink);">Hybrid Lineage</div>
+    <div style="font-size: var(--type-body); font-weight: 600; color: #5d5670; line-height: 1.45; margin-top: 20px; max-width: 1220px;">Generations compound. A late-generation creature is a record of weeks of decisions, which is exactly why it cannot be sold.</div>
+    <div style="display: flex; align-items: flex-end; gap: 20px; margin-top: 68px;">
+      <div style="flex: 1; background: #ffffff; border-radius: 26px; padding: 34px 28px;">
+        <div style="font-size: var(--type-micro); font-weight: 800; letter-spacing: .12em; color: var(--mute);">G1</div>
+        <svg viewBox="0 0 90 70" width="90" height="70" style="margin-top: 14px;"><ellipse cx="45" cy="50" rx="17" ry="13" fill="#9ed3ad"></ellipse><circle cx="45" cy="34" r="9" fill="#9ed3ad"></circle></svg>
+        <div style="font-size: var(--type-small); font-weight: 800; color: var(--ink); margin-top: 14px;">Founders</div>
+        <div style="font-size: var(--type-micro); font-weight: 600; color: #7d7691; margin-top: 8px;">2 traits</div>
+      </div>
+      <div style="flex: 1; background: #ffffff; border-radius: 26px; padding: 42px 28px;">
+        <div style="font-size: var(--type-micro); font-weight: 800; letter-spacing: .12em; color: var(--mute);">G2</div>
+        <svg viewBox="0 0 90 80" width="90" height="80" style="margin-top: 14px;"><ellipse cx="45" cy="56" rx="21" ry="15" fill="#7cc492"></ellipse><circle cx="45" cy="36" r="11" fill="#7cc492"></circle></svg>
+        <div style="font-size: var(--type-small); font-weight: 800; color: var(--ink); margin-top: 14px;">First hybrids</div>
+        <div style="font-size: var(--type-micro); font-weight: 600; color: #7d7691; margin-top: 8px;">15 pairings</div>
+      </div>
+      <div style="flex: 1; background: #ffffff; border-radius: 26px; padding: 52px 28px;">
+        <div style="font-size: var(--type-micro); font-weight: 800; letter-spacing: .12em; color: var(--mute);">G4</div>
+        <svg viewBox="0 0 90 92" width="90" height="92" style="margin-top: 14px;"><ellipse cx="45" cy="64" rx="25" ry="18" fill="#5aa87a"></ellipse><circle cx="45" cy="38" r="13" fill="#5aa87a"></circle></svg>
+        <div style="font-size: var(--type-small); font-weight: 800; color: var(--ink); margin-top: 14px;">Tiered traits</div>
+        <div style="font-size: var(--type-micro); font-weight: 600; color: #7d7691; margin-top: 8px;">Tier II–III</div>
+      </div>
+      <div style="flex: 1.15; background: linear-gradient(160deg, #fdf0d0, #f7dfa8); border-radius: 26px; padding: 64px 30px;">
+        <div style="font-size: var(--type-micro); font-weight: 800; letter-spacing: .12em; color: #b58a2b;">G7</div>
+        <svg viewBox="0 0 100 108" width="100" height="108" style="margin-top: 14px;"><ellipse cx="50" cy="74" rx="30" ry="22" fill="#c9962f"></ellipse><circle cx="50" cy="42" r="16" fill="#c9962f"></circle><path d="M50 22 l8 -18 8 18 z" fill="#c9962f"></path></svg>
+        <div style="font-size: var(--type-small); font-weight: 800; color: #6d5010; margin-top: 14px;">Apex line</div>
+        <div style="font-size: var(--type-micro); font-weight: 700; color: #8b6a1c; margin-top: 8px;">Cannot be purchased</div>
+      </div>
+    </div>
+  </section>
+
+  <section data-label="Wave Defense" data-screen-label="06" data-speaker-notes="Combat is short and legible. Defenders sit in pockets beside a fixed lane. Sessions run about ninety seconds, which suits mobile play patterns and keeps breeding the long activity." style="background: linear-gradient(150deg, #efe9d8, #e4eef4); display: flex; align-items: center; padding: var(--pad-top) var(--pad-x) var(--pad-bottom); gap: 90px;">
+    <img src="shots/wave-defense.png" alt="Wave Defense screen" style="height: 860px; width: auto; border-radius: 40px; box-shadow: 0 24px 60px rgba(46,42,61,.22); flex: none;">
+    <div style="flex: 1;">
+      <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: var(--type-title); line-height: 1.05; letter-spacing: -.02em; color: var(--ink);">Wave Defense</div>
+      <div style="font-size: var(--type-body); font-weight: 600; color: #4f4a63; line-height: 1.45; margin-top: 22px;">Waves walk a fixed path to the Ark. Defenders go in the pockets beside it, never on the road, so placement is about coverage rather than mazing.</div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 46px;">
+        <div style="background: rgba(255,255,255,.72); border-radius: 24px; padding: 30px 28px;">
+          <div style="font-family: 'Baloo 2', cursive; font-weight: 800; font-size: 56px; line-height: 1; color: var(--ink);">90s</div>
+          <div style="font-size: var(--type-micro); font-weight: 700; color: #5f5878; margin-top: 10px;">Typical wave length</div>
+        </div>
+        <div style="background: rgba(255,255,255,.72); border-radius: 24px; padding: 30px 28px;">
+          <div style="font-family: 'Baloo 2', cursive; font-weight: 800; font-size: 56px; line-height: 1; color: var(--ink);">8</div>
+          <div style="font-size: var(--type-micro); font-weight: 700; color: #5f5878; margin-top: 10px;">Raider archetypes</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-label="The Gene Ark" data-screen-label="07" data-speaker-notes="The Ark is the whole base and it packs up to travel. Borrowed from Command and Conquer's mobile construction yard. In transit it cannot fight back, which is the cost of moving." style="background: var(--paper); display: flex; align-items: center; padding: var(--pad-top) var(--pad-x) var(--pad-bottom); gap: 90px;">
+    <div style="flex: 1;">
+      <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: var(--type-title); line-height: 1.05; letter-spacing: -.02em; color: var(--ink);">The Mobile Gene Ark</div>
+      <div style="font-size: var(--type-body); font-weight: 600; color: #5d5670; line-height: 1.45; margin-top: 22px;">Everything the player builds travels with the base. Packing up is the intended play, not a setback — but an Ark in transit is stowed and cannot defend itself.</div>
+      <div style="display: flex; flex-direction: column; gap: 18px; margin-top: 46px;">
+        <div style="display: flex; align-items: baseline; gap: 22px; background: #ffffff; border-radius: 22px; padding: 28px 30px;">
+          <span style="font-family: 'Baloo 2', cursive; font-weight: 800; font-size: 40px; color: var(--violet); flex: none;">1</span>
+          <span style="font-size: var(--type-small); font-weight: 700; color: var(--ink);">Pack up — production stops, harvest in progress is forfeited</span>
+        </div>
+        <div style="display: flex; align-items: baseline; gap: 22px; background: #ffffff; border-radius: 22px; padding: 28px 30px;">
+          <span style="font-family: 'Baloo 2', cursive; font-weight: 800; font-size: 40px; color: var(--coral); flex: none;">2</span>
+          <span style="font-size: var(--type-small); font-weight: 700; color: var(--ink);">Cross — visible to rivals, unable to fight back</span>
+        </div>
+        <div style="display: flex; align-items: baseline; gap: 22px; background: #ffffff; border-radius: 22px; padding: 28px 30px;">
+          <span style="font-family: 'Baloo 2', cursive; font-weight: 800; font-size: 40px; color: var(--green); flex: none;">3</span>
+          <span style="font-size: var(--type-small); font-weight: 700; color: var(--ink);">Unpack — richer yield, and lab timers never paused</span>
+        </div>
+      </div>
+    </div>
+    <img src="shots/gene-ark.png" alt="Gene Ark screen" style="height: 860px; width: auto; border-radius: 40px; box-shadow: 0 24px 60px rgba(46,42,61,.22); flex: none;">
+  </section>
+
+  <section data-label="Resource Pressure" data-screen-label="08" data-speaker-notes="Nodes decay on a schedule. Common veins last, rich deposits drain in days, and Apex veins pay eight times base but burn out in about two days. Decay is what forces movement." style="background: linear-gradient(150deg, #2e2a3d, #3a3350); display: flex; flex-direction: column; padding: var(--pad-top) var(--pad-x) var(--pad-bottom);">
+    <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: var(--type-title); line-height: 1.05; letter-spacing: -.02em; color: #ffffff;">Resource Pressure</div>
+    <div style="font-size: var(--type-body); font-weight: 600; color: #cfc7e6; line-height: 1.45; margin-top: 20px; max-width: 1200px;">Yield decays on a schedule the player can read, so relocation is always a timed decision rather than a surprise.</div>
+    <div style="display: flex; align-items: flex-end; gap: 30px; margin-top: 70px;">
+      <div style="flex: 1;">
+        <div style="display: flex; align-items: flex-end; gap: 26px; height: 300px;">
+          <div style="flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 16px;">
+            <span style="font-family: 'Baloo 2', cursive; font-weight: 800; font-size: 38px; color: #b9b0d6;">1×</span>
+            <span style="width: 100%; height: 60px; border-radius: 14px 14px 0 0; background: #7f8fb0;"></span>
+          </div>
+          <div style="flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 16px;">
+            <span style="font-family: 'Baloo 2', cursive; font-weight: 800; font-size: 38px; color: #cfc7e6;">3×</span>
+            <span style="width: 100%; height: 150px; border-radius: 14px 14px 0 0; background: var(--teal);"></span>
+          </div>
+          <div style="flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 16px;">
+            <span style="font-family: 'Baloo 2', cursive; font-weight: 800; font-size: 38px; color: var(--amber);">8×</span>
+            <span style="width: 100%; height: 280px; border-radius: 14px 14px 0 0; background: linear-gradient(180deg, #ffc84d, #e8a020);"></span>
+          </div>
+        </div>
+        <div style="display: flex; gap: 26px; margin-top: 22px;">
+          <div style="flex: 1; text-align: center;">
+            <div style="font-size: var(--type-small); font-weight: 800; color: #ffffff;">Common</div>
+            <div style="font-size: var(--type-micro); font-weight: 600; color: #9a92bd; margin-top: 6px;">No decay</div>
+          </div>
+          <div style="flex: 1; text-align: center;">
+            <div style="font-size: var(--type-small); font-weight: 800; color: #ffffff;">Rich</div>
+            <div style="font-size: var(--type-micro); font-weight: 600; color: #9a92bd; margin-top: 6px;">Drains in 4 days</div>
+          </div>
+          <div style="flex: 1; text-align: center;">
+            <div style="font-size: var(--type-small); font-weight: 800; color: #ffffff;">Apex</div>
+            <div style="font-size: var(--type-micro); font-weight: 600; color: #9a92bd; margin-top: 6px;">Burns out in 51h</div>
+          </div>
+        </div>
+      </div>
+      <div style="flex: 1; background: rgba(255,255,255,.07); border-radius: 28px; padding: 44px 40px;">
+        <div style="font-size: var(--type-micro); font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--amber);">Why it works</div>
+        <div style="font-size: var(--type-body); font-weight: 600; color: #e2dcf2; line-height: 1.45; margin-top: 20px;">The richest ground is the most temporary and the most contested. Players who camp fall behind on yield; players who chase Apex veins expose their convoys to interception.</div>
+        <div style="font-size: var(--type-small); font-weight: 700; color: #9a92bd; line-height: 1.45; margin-top: 26px;">Neither camping nor chasing is dominant, so the map stays in motion without any forced timer.</div>
+      </div>
+    </div>
+  </section>
+
+  <section data-label="Alliance Territory" data-screen-label="09" data-speaker-notes="The world map is the social surface. Allies harvest the same region at full rate, so grouping up is mechanically rewarded rather than just social." style="background: linear-gradient(150deg, #e6eef3, #e9f6ee); display: flex; align-items: center; padding: var(--pad-top) var(--pad-x) var(--pad-bottom); gap: 90px;">
+    <img src="shots/world-map.png" alt="World map screen" style="height: 860px; width: auto; border-radius: 40px; box-shadow: 0 24px 60px rgba(46,42,61,.22); flex: none;">
+    <div style="flex: 1;">
+      <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: var(--type-title); line-height: 1.05; letter-spacing: -.02em; color: var(--ink);">Alliance Territory</div>
+      <div style="font-size: var(--type-body); font-weight: 600; color: #4f4a63; line-height: 1.45; margin-top: 22px;">Region colour reads yield at a glance. Allied Arks harvest the same ground at full rate, so clustering is a mechanical advantage, not just a chat window.</div>
+      <div style="display: flex; flex-direction: column; gap: 20px; margin-top: 46px;">
+        <div style="display: flex; align-items: center; gap: 20px;">
+          <span style="width: 26px; height: 26px; border-radius: 8px; background: var(--green); flex: none;"></span>
+          <span style="font-size: var(--type-small); font-weight: 700; color: var(--ink);">Rich — full co-op rate for every allied Ark present</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 20px;">
+          <span style="width: 26px; height: 26px; border-radius: 8px; background: var(--coral); flex: none;"></span>
+          <span style="font-size: var(--type-small); font-weight: 700; color: var(--ink);">Contested — yield splits across every Ark in the region</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 20px;">
+          <span style="width: 26px; height: 26px; border-radius: 8px; background: var(--amber); flex: none;"></span>
+          <span style="font-size: var(--type-small); font-weight: 700; color: var(--ink);">Apex — eight times base, and never uncontested</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-label="Apex Rally" data-screen-label="10" data-speaker-notes="The rally is where composition beats raw power. Total rally power can exceed the garrison and still fail if nobody brings a Pierce unit to break the Breaker wall. That is the design thesis in one screen." style="background: var(--paper); display: flex; align-items: center; padding: var(--pad-top) var(--pad-x) var(--pad-bottom); gap: 90px;">
+    <div style="flex: 1;">
+      <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: var(--type-title); line-height: 1.05; letter-spacing: -.02em; color: var(--ink);">The Apex Rally</div>
+      <div style="font-size: var(--type-body); font-weight: 600; color: #5d5670; line-height: 1.45; margin-top: 22px;">Nine allies commit defenders to a timed assault. Units sent cannot defend home until they return, so joining is a real cost.</div>
+      <div style="background: #ffffff; border-radius: 28px; padding: 40px 38px; margin-top: 44px;">
+        <div style="font-size: var(--type-micro); font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--mute);">The design thesis</div>
+        <div style="font-size: var(--type-body); font-weight: 700; color: var(--ink); line-height: 1.4; margin-top: 18px;">A rally can out-power the garrison and still lose. Without a Pierce unit in the group, the Breaker wall holds regardless of total power.</div>
+        <div style="font-size: var(--type-small); font-weight: 600; color: #7d7691; line-height: 1.45; margin-top: 20px;">Composition decides outcomes, which is what sends players back to breed rather than back to the store.</div>
+      </div>
+    </div>
+    <img src="shots/alliance-rally.png" alt="Alliance Rally screen" style="height: 860px; width: auto; border-radius: 40px; box-shadow: 0 24px 60px rgba(46,42,61,.22); flex: none;">
+  </section>
+
+  <section data-label="Creature Cast" data-screen-label="11" data-speaker-notes="Six founders, each distinguishable in pure silhouette at forty pixels. Founders are live-ops content: one new founder per season is a headline, and each addition multiplies the pairing space." style="background: var(--paper); display: flex; flex-direction: column; padding: var(--pad-top) var(--pad-x) var(--pad-bottom);">
+    <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: var(--type-title); line-height: 1.05; letter-spacing: -.02em; color: var(--ink);">Creature Cast</div>
+    <div style="font-size: var(--type-body); font-weight: 600; color: #5d5670; line-height: 1.45; margin-top: 20px; max-width: 1200px;">Six founders, each readable in silhouette alone at forty pixels. Shape carries the role before any card is read.</div>
+    <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 20px; margin-top: 60px;">
+      <div style="background: #dceff6; border-radius: 24px; padding: 26px 18px; text-align: center;">
+        <svg viewBox="0 0 110 90" width="100%" height="112"><g stroke="#4f8ba3" stroke-width="7" stroke-linecap="round"><path d="M36 64 v10M50 66 v8M64 66 v8M78 64 v10"></path></g><ellipse cx="57" cy="50" rx="29" ry="17" fill="#6ba7c0"></ellipse><path d="M33 43 a24 18 0 0 1 48 0 z" fill="#8dc0d4"></path><circle cx="57" cy="32" r="8" fill="#6ba7c0"></circle></svg>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 34px; color: var(--ink); margin-top: 12px;">Vetch</div>
+        <div style="font-size: var(--type-micro); font-weight: 700; color: #3c7f98; margin-top: 6px;">Wall</div>
+      </div>
+      <div style="background: #fbeae7; border-radius: 24px; padding: 26px 18px; text-align: center;">
+        <svg viewBox="0 0 110 90" width="100%" height="112"><g stroke="#c2695c" stroke-width="6" stroke-linecap="round"><path d="M48 62 v14M64 62 v14"></path></g><ellipse cx="56" cy="46" rx="14" ry="19" fill="#e5867a"></ellipse><circle cx="56" cy="24" r="10" fill="#e5867a"></circle><path d="M56 8 l6 11 h-12 z" fill="#c2695c"></path></svg>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 34px; color: var(--ink); margin-top: 12px;">Ember</div>
+        <div style="font-size: var(--type-micro); font-weight: 700; color: #b3564a; margin-top: 6px;">Splash</div>
+      </div>
+      <div style="background: #fdf1d8; border-radius: 24px; padding: 26px 18px; text-align: center;">
+        <svg viewBox="0 0 110 90" width="100%" height="112"><g stroke="#c49a3a" stroke-width="3" stroke-linecap="round"><path d="M44 52 L28 74M50 54 L40 76M64 54 L74 76M70 52 L86 74M40 48 L22 56M74 48 L92 56"></path></g><ellipse cx="57" cy="46" rx="15" ry="11" fill="#e8b34a"></ellipse><circle cx="57" cy="32" r="6" fill="#e8b34a"></circle></svg>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 34px; color: var(--ink); margin-top: 12px;">Skitter</div>
+        <div style="font-size: var(--type-micro); font-weight: 700; color: #8e6d15; margin-top: 6px;">Swarm</div>
+      </div>
+      <div style="background: #efe9fb; border-radius: 24px; padding: 26px 18px; text-align: center;">
+        <svg viewBox="0 0 110 90" width="100%" height="112"><g stroke="#6b5fa8" stroke-width="4" stroke-linecap="round"><path d="M50 58 L46 78M64 58 L68 78"></path></g><ellipse cx="57" cy="50" rx="13" ry="10" fill="#7a6ac0"></ellipse><path d="M57 41 C57 29, 71 25, 71 15" fill="none" stroke="#7a6ac0" stroke-width="6" stroke-linecap="round"></path><circle cx="73" cy="12" r="6" fill="#7a6ac0"></circle></svg>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 34px; color: var(--ink); margin-top: 12px;">Hollow</div>
+        <div style="font-size: var(--type-micro); font-weight: 700; color: #6b5fa8; margin-top: 6px;">Sniper</div>
+      </div>
+      <div style="background: #e8f5ec; border-radius: 24px; padding: 26px 18px; text-align: center;">
+        <svg viewBox="0 0 110 90" width="100%" height="112"><ellipse cx="63" cy="58" rx="26" ry="15" fill="#7cc492"></ellipse><ellipse cx="40" cy="55" rx="13" ry="11" fill="#7cc492"></ellipse><ellipse cx="29" cy="54" rx="8" ry="7" fill="#5aa87a"></ellipse><g fill="#5aa87a"><circle cx="64" cy="42" r="6"></circle><circle cx="78" cy="45" r="5"></circle><circle cx="50" cy="43" r="5"></circle></g></svg>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 34px; color: var(--ink); margin-top: 12px;">Loam</div>
+        <div style="font-size: var(--type-micro); font-weight: 700; color: #43704f; margin-top: 6px;">Support</div>
+      </div>
+      <div style="background: #eef0f6; border-radius: 24px; padding: 26px 18px; text-align: center;">
+        <svg viewBox="0 0 110 90" width="100%" height="112"><path d="M57 44 C37 28, 18 31, 10 44 C25 47, 42 49, 57 49 Z" fill="#a9b0c4"></path><path d="M57 44 C77 28, 96 31, 104 44 C89 47, 72 49, 57 49 Z" fill="#c1c7d6"></path><ellipse cx="57" cy="56" rx="9" ry="13" fill="#8d94ab"></ellipse><circle cx="57" cy="42" r="6" fill="#8d94ab"></circle></svg>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 34px; color: var(--ink); margin-top: 12px;">Pale</div>
+        <div style="font-size: var(--type-micro); font-weight: 700; color: #4f5875; margin-top: 6px;">Control</div>
+      </div>
+    </div>
+  </section>
+
+  <section data-label="Counter Design" data-screen-label="12" data-speaker-notes="Eight raiders on eight counter axes. Every founder hard-counters at least one raider, so no founder becomes the obvious skip. Wave design rule: never send two raiders answered by the same trait." style="background: linear-gradient(150deg, #2e2a3d, #3a3350); display: flex; flex-direction: column; padding: var(--pad-top) var(--pad-x) var(--pad-bottom);">
+    <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: var(--type-title); line-height: 1.05; letter-spacing: -.02em; color: #ffffff;">Counter Design</div>
+    <div style="font-size: var(--type-body); font-weight: 600; color: #cfc7e6; line-height: 1.45; margin-top: 20px; max-width: 1220px;">Eight raiders, eight different answers. Every founder owns at least one, so none becomes the obvious skip.</div>
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-top: 58px;">
+      <div style="background: rgba(255,255,255,.07); border-radius: 22px; padding: 30px 26px;">
+        <div style="font-size: var(--type-small); font-weight: 800; color: #ffffff;">Skirmisher</div>
+        <div style="font-size: var(--type-micro); font-weight: 700; color: var(--coral); margin-top: 12px;">Splash · Ember</div>
+      </div>
+      <div style="background: rgba(255,255,255,.07); border-radius: 22px; padding: 30px 26px;">
+        <div style="font-size: var(--type-small); font-weight: 800; color: #ffffff;">Breaker</div>
+        <div style="font-size: var(--type-micro); font-weight: 700; color: #a99ed6; margin-top: 12px;">Pierce · Hollow</div>
+      </div>
+      <div style="background: rgba(255,255,255,.07); border-radius: 22px; padding: 30px 26px;">
+        <div style="font-size: var(--type-small); font-weight: 800; color: #ffffff;">Lash</div>
+        <div style="font-size: var(--type-micro); font-weight: 700; color: #8dc0d4; margin-top: 12px;">Taunt · Vetch</div>
+      </div>
+      <div style="background: rgba(255,255,255,.07); border-radius: 22px; padding: 30px 26px;">
+        <div style="font-size: var(--type-small); font-weight: 800; color: #ffffff;">Courser</div>
+        <div style="font-size: var(--type-micro); font-weight: 700; color: #c1c7d6; margin-top: 12px;">Chill · Pale</div>
+      </div>
+      <div style="background: rgba(255,255,255,.07); border-radius: 22px; padding: 30px 26px;">
+        <div style="font-size: var(--type-small); font-weight: 800; color: #ffffff;">Brood</div>
+        <div style="font-size: var(--type-micro); font-weight: 700; color: var(--coral); margin-top: 12px;">Cinder · Ember</div>
+      </div>
+      <div style="background: rgba(255,255,255,.07); border-radius: 22px; padding: 30px 26px;">
+        <div style="font-size: var(--type-small); font-weight: 800; color: #ffffff;">Drift</div>
+        <div style="font-size: var(--type-micro); font-weight: 700; color: #a99ed6; margin-top: 12px;">Reach · Hollow</div>
+      </div>
+      <div style="background: rgba(255,255,255,.07); border-radius: 22px; padding: 30px 26px;">
+        <div style="font-size: var(--type-small); font-weight: 800; color: #ffffff;">Bulwark</div>
+        <div style="font-size: var(--type-micro); font-weight: 700; color: var(--amber); margin-top: 12px;">Sprint · Skitter</div>
+      </div>
+      <div style="background: rgba(255,255,255,.07); border-radius: 22px; padding: 30px 26px;">
+        <div style="font-size: var(--type-small); font-weight: 800; color: #ffffff;">Delver</div>
+        <div style="font-size: var(--type-micro); font-weight: 700; color: var(--green); margin-top: 12px;">Burrow · Loam</div>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 22px; background: rgba(232,179,74,.14); border-radius: 22px; padding: 30px 34px; margin-top: 34px;">
+      <span style="font-size: var(--type-micro); font-weight: 800; letter-spacing: .12em; color: var(--amber); flex: none;">WAVE RULE</span>
+      <span style="font-size: var(--type-small); font-weight: 700; color: #e2dcf2;">Never send two raiders answered by the same trait, or one perfect defender clears the wave.</span>
+    </div>
+  </section>
+
+  <section data-label="Monetization" data-screen-label="13" data-speaker-notes="Dual path. Free players reach everything; paying players get there faster. The Custom Chest lets players pick three of six rewards, which historically converts best because nothing in it is filler." style="background: linear-gradient(150deg, #ede6fb, #ffe8d8); display: flex; align-items: center; padding: var(--pad-top) var(--pad-x) var(--pad-bottom); gap: 80px;">
+    <div style="flex: 1;">
+      <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: var(--type-title); line-height: 1.05; letter-spacing: -.02em; color: var(--ink);">Monetization</div>
+      <div style="font-size: var(--type-body); font-weight: 600; color: #5d5670; line-height: 1.45; margin-top: 22px;">Everything sold is a speed-up. No trait, creature or counter is purchase-only, so the competitive ladder stays credible.</div>
+      <div style="display: flex; flex-direction: column; gap: 18px; margin-top: 42px;">
+        <div style="background: rgba(255,255,255,.8); border-radius: 24px; padding: 30px 32px;">
+          <div style="font-size: var(--type-small); font-weight: 800; color: var(--ink);">Custom Chest</div>
+          <div style="font-size: var(--type-micro); font-weight: 600; color: #7d7691; line-height: 1.4; margin-top: 10px;">Player picks three of six rewards, with live value maths. Nothing in the chest is filler.</div>
+        </div>
+        <div style="background: rgba(255,255,255,.8); border-radius: 24px; padding: 30px 32px;">
+          <div style="font-size: var(--type-small); font-weight: 800; color: var(--ink);">Breeder Pass</div>
+          <div style="font-size: var(--type-micro); font-weight: 600; color: #7d7691; line-height: 1.4; margin-top: 10px;">Seasonal, dual track. Every paid-track trait is obtainable free, just slower.</div>
+        </div>
+        <div style="background: rgba(255,255,255,.8); border-radius: 24px; padding: 30px 32px;">
+          <div style="font-size: var(--type-small); font-weight: 800; color: var(--ink);">Scout reports</div>
+          <div style="font-size: var(--type-micro); font-weight: 600; color: #7d7691; line-height: 1.4; margin-top: 10px;">Micro-spend on information: rival ETA, escort strength, a five minute head start.</div>
+        </div>
+      </div>
+    </div>
+    <img src="shots/store.png" alt="Store screen" style="height: 860px; width: auto; border-radius: 40px; box-shadow: 0 24px 60px rgba(46,42,61,.22); flex: none;">
+  </section>
+
+  <section data-label="Live Ops Cadence" data-screen-label="14" data-speaker-notes="A weekly rhythm the team can staff. Gene Lab runs the server goal, Apex veins surface twice a week, and the season runs six weeks with one new founder per season." style="background: var(--paper); display: flex; flex-direction: column; padding: var(--pad-top) var(--pad-x) var(--pad-bottom);">
+    <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: var(--type-title); line-height: 1.05; letter-spacing: -.02em; color: var(--ink);">Live Ops Cadence</div>
+    <div style="font-size: var(--type-body); font-weight: 600; color: #5d5670; line-height: 1.45; margin-top: 20px; max-width: 1220px;">A rhythm small enough for one live-ops owner to run, with a seasonal headline that grows the game rather than inflating it.</div>
+    <div style="display: flex; gap: 22px; margin-top: 64px;">
+      <div style="flex: 1; background: #ffffff; border-radius: 26px; padding: 40px 34px;">
+        <div style="font-size: var(--type-micro); font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--violet);">Daily</div>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 40px; color: var(--ink); line-height: 1.1; margin-top: 16px;">Login gift, free pull, ally help</div>
+        <div style="font-size: var(--type-micro); font-weight: 600; color: #7d7691; line-height: 1.45; margin-top: 14px;">Cheap habit hooks. No timer anxiety.</div>
+      </div>
+      <div style="flex: 1; background: #ffffff; border-radius: 26px; padding: 40px 34px;">
+        <div style="font-size: var(--type-micro); font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--teal);">Twice weekly</div>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 40px; color: var(--ink); line-height: 1.1; margin-top: 16px;">Apex vein surfaces</div>
+        <div style="font-size: var(--type-micro); font-weight: 600; color: #7d7691; line-height: 1.45; margin-top: 14px;">Scheduled conflict. Alliances coordinate a rally.</div>
+      </div>
+      <div style="flex: 1; background: #ffffff; border-radius: 26px; padding: 40px 34px;">
+        <div style="font-size: var(--type-micro); font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--green);">Weekly</div>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 40px; color: var(--ink); line-height: 1.1; margin-top: 16px;">Gene Lab server goal</div>
+        <div style="font-size: var(--type-micro); font-weight: 600; color: #7d7691; line-height: 1.45; margin-top: 14px;">Whole server splices toward one target with tiered rewards.</div>
+      </div>
+      <div style="flex: 1; background: linear-gradient(160deg, #fdf0d0, #f7dfa8); border-radius: 26px; padding: 40px 34px;">
+        <div style="font-size: var(--type-micro); font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: #b58a2b;">Every 6 weeks</div>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 40px; color: #6d5010; line-height: 1.1; margin-top: 16px;">New founder species</div>
+        <div style="font-size: var(--type-micro); font-weight: 700; color: #8b6a1c; line-height: 1.45; margin-top: 14px;">One founder adds six pairings and a new counter axis.</div>
+      </div>
+    </div>
+  </section>
+
+  <section data-label="Where We Are" data-screen-label="15" data-speaker-notes="Twenty screens designed and interactive, the cast specified, the counter matrix resolved. What we need next is creature art, a combat prototype in engine, and an economy tuning pass." style="background: linear-gradient(150deg, #2e2a3d, #3d3550); display: flex; flex-direction: column; padding: var(--pad-top) var(--pad-x) var(--pad-bottom);">
+    <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: var(--type-title); line-height: 1.05; letter-spacing: -.02em; color: #ffffff;">Where We Are</div>
+    <div style="display: flex; gap: 26px; margin-top: 52px;">
+      <div style="flex: 1; background: rgba(124,196,146,.14); border-radius: 28px; padding: 44px 38px;">
+        <div style="font-size: var(--type-micro); font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--green);">Done</div>
+        <div style="display: flex; flex-direction: column; gap: 18px; margin-top: 26px;">
+          <div style="font-size: var(--type-small); font-weight: 700; color: #ffffff;">20 screens, fully interactive</div>
+          <div style="font-size: var(--type-small); font-weight: 700; color: #ffffff;">Character bible and shape language</div>
+          <div style="font-size: var(--type-small); font-weight: 700; color: #ffffff;">Counter matrix across 8 raiders</div>
+          <div style="font-size: var(--type-small); font-weight: 700; color: #ffffff;">Monetization and live-ops model</div>
+        </div>
+      </div>
+      <div style="flex: 1; background: rgba(232,179,74,.14); border-radius: 28px; padding: 44px 38px;">
+        <div style="font-size: var(--type-micro); font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--amber);">Next</div>
+        <div style="display: flex; flex-direction: column; gap: 18px; margin-top: 26px;">
+          <div style="font-size: var(--type-small); font-weight: 700; color: #ffffff;">Creature art against the silhouette spec</div>
+          <div style="font-size: var(--type-small); font-weight: 700; color: #ffffff;">Combat prototype in engine</div>
+          <div style="font-size: var(--type-small); font-weight: 700; color: #ffffff;">Economy tuning on charge regeneration</div>
+          <div style="font-size: var(--type-small); font-weight: 700; color: #ffffff;">Soft launch cohort and retention read</div>
+        </div>
+      </div>
+      <div style="flex: 1; background: rgba(122,106,192,.18); border-radius: 28px; padding: 44px 38px;">
+        <div style="font-size: var(--type-micro); font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: #a99ed6;">Open questions</div>
+        <div style="display: flex; flex-direction: column; gap: 18px; margin-top: 26px;">
+          <div style="font-size: var(--type-small); font-weight: 700; color: #ffffff;">Alliance size cap at 40 — too large?</div>
+          <div style="font-size: var(--type-small); font-weight: 700; color: #ffffff;">Should convoy interception be opt-in early?</div>
+          <div style="font-size: var(--type-small); font-weight: 700; color: #ffffff;">Season length: 6 weeks or 8?</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</x-import>
+</x-dc>
+</body>
+</html>

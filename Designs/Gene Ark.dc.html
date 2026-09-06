@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #e4dff0; font-family: "Nunito", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .lbl { font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #a29bb5; }
+  @keyframes glow { 0%, 100% { opacity: .4; } 50% { opacity: 1; } }
+  @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+  @keyframes puff { 0% { opacity: .5; transform: translateY(0) scale(.6); } 100% { opacity: 0; transform: translateY(-14px) scale(1.3); } }
+  @keyframes rollDash { to { stroke-dashoffset: -40; } }
+  @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-1.2px); } 75% { transform: translateX(1.2px); } }
+  .puff { transform-box: fill-box; transform-origin: center; animation: puff 1.8s ease-out infinite; }
+</style>
+</helmet>
+
+<div style="min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 24px 0; background: linear-gradient(160deg, #e6e0f5, #d3e7ef);">
+<div style="width: 430px; height: 932px; background: #f7f4fb; color: #3f3a52; border-radius: 34px; box-shadow: 0 18px 50px rgba(63,58,82,.28); display: flex; flex-direction: column; overflow: hidden;">
+
+  <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 26px 2px; font-size: 12px; font-weight: 800; color: #a29bb5;">
+    <span>9:41</span>
+    <span style="display: flex; gap: 7px;"><span>◦◦◦</span><span>84%</span></span>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 10px; padding: 8px 14px 10px;">
+    <div style="width: 34px; height: 34px; border-radius: 12px; background: #ffffff; display: grid; place-items: center; box-shadow: 0 1px 3px rgba(63,58,82,.1);">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6b5fa8" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 5 L7 12 l7 7"></path></svg>
+    </div>
+    <div style="flex: 1;">
+      <div class="lbl">Hollow Reach · R-05</div>
+      <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 21px; line-height: 1.1; letter-spacing: -.01em;">Mobile Gene Ark</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 6px; background: #ffffff; border-radius: 999px; padding: 6px 11px; box-shadow: 0 1px 3px rgba(63,58,82,.09);">
+      <span style="width: 8px; height: 8px; border-radius: 999px; background: {{ dot }};"></span>
+      <span style="font-size: 10.5px; font-weight: 800; color: #5d5670;">{{ statusLabel }}</span>
+    </div>
+  </div>
+
+  <div style="position: relative; margin: 0 12px; background: linear-gradient(170deg, #ffffff, #f0edf9); border-radius: 24px; box-shadow: 0 4px 16px rgba(63,58,82,.08); overflow: hidden;">
+    <svg viewBox="0 0 400 300" width="406" height="305" style="display: block;">
+      <defs>
+        <linearGradient id="hullTop" x1="0" y1="0" x2="0.6" y2="1">
+          <stop offset="0%" stop-color="#f0eafc"></stop>
+          <stop offset="100%" stop-color="#ddd3f4"></stop>
+        </linearGradient>
+        <radialGradient id="pad" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#dff3e7"></stop>
+          <stop offset="100%" stop-color="#eef1f6"></stop>
+        </radialGradient>
+      </defs>
+
+      <sc-if value="{{ isDeployed }}" hint-placeholder-val="{{ true }}">
+        <g>
+          <ellipse cx="200" cy="238" rx="150" ry="30" fill="#e7e2f3"></ellipse>
+          <ellipse cx="200" cy="236" rx="128" ry="24" fill="url(#pad)"></ellipse>
+          <path d="M200 96 L336 174 L200 252 L64 174 Z" fill="#e9e3f7"></path>
+          <path d="M64 174 L200 252 L336 174 L336 188 L200 266 L64 188 Z" fill="#cfc5ea"></path>
+          <g stroke="#ffffff" stroke-width="2" opacity=".8" fill="none">
+            <path d="M132 135 L268 213M268 135 L132 213"></path>
+          </g>
+          <g fill="#d9f0e2" stroke="#8fd0ab" stroke-width="2">
+            <path d="M92 152 L124 170 L92 188 L60 170 Z"></path>
+            <path d="M308 152 L340 170 L308 188 L276 170 Z"></path>
+          </g>
+          <g fill="#fbeed2" stroke="#e8c46f" stroke-width="2">
+            <path d="M200 216 L232 234 L200 252 L168 234 Z"></path>
+          </g>
+          <path d="M200 108 L268 148 L200 188 L132 148 Z" fill="url(#hullTop)" stroke="#c3b6e8" stroke-width="2"></path>
+          <path d="M132 148 L200 188 L200 216 L132 176 Z" fill="#b6a9dc"></path>
+          <path d="M268 148 L200 188 L200 216 L268 176 Z" fill="#cdc2e8"></path>
+          <path d="M200 62 L246 88 L200 114 L154 88 Z" fill="#ece5fb" stroke="#c3b6e8" stroke-width="2"></path>
+          <path d="M154 88 L200 114 L200 140 L154 114 Z" fill="#c8bce9"></path>
+          <path d="M246 88 L200 114 L200 140 L246 114 Z" fill="#ded4f5"></path>
+          <g stroke="#8878cf" stroke-width="2.5" stroke-linecap="round">
+            <path d="M200 62 V38"></path>
+          </g>
+          <circle cx="200" cy="33" r="6" fill="#8878cf" style="animation: glow 2s ease-in-out infinite;"></circle>
+          <g fill="#ffffff" opacity=".85">
+            <rect x="176" y="150" width="14" height="9" rx="2"></rect>
+            <rect x="210" y="150" width="14" height="9" rx="2"></rect>
+          </g>
+        </g>
+      </sc-if>
+
+      <sc-if value="{{ isPacking }}">
+        <g transform="translate(0 -30)">
+        <ellipse cx="200" cy="238" rx="132" ry="27" fill="#e7e2f3"></ellipse>
+        <ellipse cx="200" cy="236" rx="112" ry="21" fill="url(#pad)"></ellipse>
+        <g fill="#ffffff">
+          <circle class="puff" cx="112" cy="230" r="11"></circle>
+          <circle class="puff" cx="292" cy="232" r="9" style="animation-delay: .5s;"></circle>
+          <circle class="puff" cx="150" cy="244" r="8" style="animation-delay: .9s;"></circle>
+          <circle class="puff" cx="256" cy="242" r="10" style="animation-delay: 1.3s;"></circle>
+        </g>
+        <g style="animation: shake .35s ease-in-out infinite;">
+          <path d="M200 128 L312 190 L200 252 L88 190 Z" fill="#e9e3f7"></path>
+          <path d="M88 190 L200 252 L312 190 L312 204 L200 266 L88 204 Z" fill="#cfc5ea"></path>
+          <path d="M200 140 L262 174 L200 208 L138 174 Z" fill="url(#hullTop)" stroke="#c3b6e8" stroke-width="2"></path>
+          <path d="M138 174 L200 208 L200 236 L138 202 Z" fill="#b6a9dc"></path>
+          <path d="M262 174 L200 208 L200 236 L262 202 Z" fill="#cdc2e8"></path>
+          <g fill="#d9f0e2" stroke="#8fd0ab" stroke-width="2">
+            <path d="M144 168 L166 180 L144 192 L122 180 Z"></path>
+            <path d="M256 168 L278 180 L256 192 L234 180 Z"></path>
+          </g>
+          <path d="M200 118 L232 136 L200 154 L168 136 Z" fill="#ece5fb" stroke="#c3b6e8" stroke-width="2"></path>
+          <g stroke="#8878cf" stroke-width="2.5" stroke-linecap="round" opacity=".8">
+            <path d="M200 118 V104"></path>
+          </g>
+        </g>
+        </g>
+      </sc-if>
+
+      <sc-if value="{{ isTransit }}">
+        <g transform="translate(0 -48)">
+        <ellipse cx="200" cy="240" rx="118" ry="24" fill="#e7e2f3"></ellipse>
+        <ellipse cx="200" cy="238" rx="98" ry="18" fill="url(#pad)"></ellipse>
+        <g fill="#ffffff">
+          <circle class="puff" cx="92" cy="242" r="10"></circle>
+          <circle class="puff" cx="128" cy="250" r="8" style="animation-delay: .7s;"></circle>
+        </g>
+        <g style="animation: bob 1.4s ease-in-out infinite;">
+          <path d="M200 148 L288 196 L200 244 L112 196 Z" fill="#e9e3f7"></path>
+          <path d="M112 196 L200 244 L288 196 L288 210 L200 258 L112 210 Z" fill="#cfc5ea"></path>
+          <path d="M200 158 L252 186 L200 214 L148 186 Z" fill="url(#hullTop)" stroke="#c3b6e8" stroke-width="2"></path>
+          <path d="M148 186 L200 214 L200 238 L148 210 Z" fill="#b6a9dc"></path>
+          <path d="M252 186 L200 214 L200 238 L252 210 Z" fill="#cdc2e8"></path>
+          <g fill="#8d84a8">
+            <path d="M112 204 L152 227 L136 236 L96 213 Z"></path>
+            <path d="M288 204 L248 227 L264 236 L304 213 Z"></path>
+          </g>
+          <g stroke="#f1ecfa" stroke-width="2.5" stroke-dasharray="5 6" style="animation: rollDash .6s linear infinite;">
+            <path d="M104 208 L144 231M296 208 L256 231"></path>
+          </g>
+        </g>
+        <g stroke="#cfc5ea" stroke-width="3" stroke-linecap="round" opacity=".9">
+          <path d="M58 176 h34M42 200 h44M58 224 h30"></path>
+        </g>
+        </g>
+      </sc-if>
+    </svg>
+
+    <div style="position: absolute; left: 12px; top: 12px; background: rgba(255,255,255,.9); backdrop-filter: blur(6px); border-radius: 12px; padding: 7px 10px;">
+      <div class="lbl">Ark tier</div>
+      <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 17px; line-height: 1.1;">Mk III</div>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 5px; margin: 11px 12px 0; background: #ece7f6; border-radius: 14px; padding: 4px;">
+    <button type="button" onClick="{{ setDeployed }}" style="flex: 1; border: 0; cursor: pointer; font-family: 'Nunito', sans-serif; font-size: 11.5px; font-weight: 800; color: {{ tabDeployedColor }}; background: {{ tabDeployedBg }}; border-radius: 11px; padding: 9px 0;">Deployed</button>
+    <button type="button" onClick="{{ setPacking }}" style="flex: 1; border: 0; cursor: pointer; font-family: 'Nunito', sans-serif; font-size: 11.5px; font-weight: 800; color: {{ tabPackingColor }}; background: {{ tabPackingBg }}; border-radius: 11px; padding: 9px 0;">Packing up</button>
+    <button type="button" onClick="{{ setTransit }}" style="flex: 1; border: 0; cursor: pointer; font-family: 'Nunito', sans-serif; font-size: 11.5px; font-weight: 800; color: {{ tabTransitColor }}; background: {{ tabTransitBg }}; border-radius: 11px; padding: 9px 0;">In transit</button>
+  </div>
+
+  <div style="margin: 11px 12px 0; background: #ffffff; border-radius: 20px; padding: 12px 16px 14px; box-shadow: 0 2px 8px rgba(63,58,82,.06);">
+    <div style="display: flex; justify-content: space-between; align-items: baseline;">
+      <span class="lbl">{{ stateKicker }}</span>
+      <span style="font-family: 'Baloo 2', cursive; font-size: 14px; font-weight: 700; color: #6b5fa8;">{{ stateTimer }}</span>
+    </div>
+    <div style="font-size: 12px; font-weight: 700; color: #5d5670; line-height: 1.4; margin-top: 5px;">{{ stateBody }}</div>
+    <div style="height: 7px; border-radius: 999px; background: #f0ecf7; margin-top: 9px; overflow: hidden;">
+      <div style="height: 100%; border-radius: 999px; background: linear-gradient(90deg, #9585db, #6f5fbb); width: {{ stateProgress }};"></div>
+    </div>
+  </div>
+
+  <div style="flex: 1; margin: 11px 12px 0; background: #ffffff; border-radius: 20px; padding: 12px 16px 14px; box-shadow: 0 2px 8px rgba(63,58,82,.06); display: flex; flex-direction: column; overflow: hidden;">
+    <div style="display: flex; justify-content: space-between; align-items: baseline;">
+      <span class="lbl">Ark modules</span>
+      <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">{{ moduleNote }}</span>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 9px;">
+      <div style="display: flex; align-items: center; gap: 8px; background: #f8f6fc; border-radius: 12px; padding: 8px 9px;">
+        <span style="width: 8px; height: 8px; border-radius: 2px; background: #7a6ac0; flex: none;"></span>
+        <span style="flex: 1; font-size: 11px; font-weight: 800;">Splicing Chamber</span>
+        <span style="font-size: 10px; font-weight: 800; color: #a29bb5;">L7</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px; background: #f8f6fc; border-radius: 12px; padding: 8px 9px;">
+        <span style="width: 8px; height: 8px; border-radius: 2px; background: #6ba7c0; flex: none;"></span>
+        <span style="flex: 1; font-size: 11px; font-weight: 800;">Gene Vault</span>
+        <span style="font-size: 10px; font-weight: 800; color: #a29bb5;">L6</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px; background: #f8f6fc; border-radius: 12px; padding: 8px 9px;">
+        <span style="width: 8px; height: 8px; border-radius: 2px; background: #6cba8b; flex: none;"></span>
+        <span style="flex: 1; font-size: 11px; font-weight: 800;">Hatchery</span>
+        <span style="font-size: 10px; font-weight: 800; color: #a29bb5;">L5</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px; background: #f8f6fc; border-radius: 12px; padding: 8px 9px;">
+        <span style="width: 8px; height: 8px; border-radius: 2px; background: #e5867a; flex: none;"></span>
+        <span style="flex: 1; font-size: 11px; font-weight: 800;">Defense Wall</span>
+        <span style="font-size: 10px; font-weight: 800; color: #a29bb5;">L4</span>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px; background: {{ warnBg }}; border-radius: 13px; padding: 9px 11px; margin-top: 9px;">
+      <span style="width: 22px; height: 22px; border-radius: 999px; background: #ffffff; display: grid; place-items: center; flex: none;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="{{ warnStroke }}" stroke-width="2.4" stroke-linecap="round"><path d="M12 3 L22 20 H2 Z"></path><path d="M12 10 v4M12 17 v.01"></path></svg>
+      </span>
+      <span style="flex: 1; font-size: 11px; font-weight: 700; color: {{ warnText }}; line-height: 1.3;">{{ warnBody }}</span>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 9px; padding: 11px 12px 8px;">
+    <button type="button" style="flex: 1.35; border: 0; cursor: pointer; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 16px; color: #ffffff; background: linear-gradient(180deg, #8878cf, #6f5fbb); border-radius: 14px; padding: 13px 0; box-shadow: 0 3px 0 #5b4d9e, 0 6px 14px rgba(111,95,187,.28);" style-hover="background: linear-gradient(180deg, #9585db, #7a6ac6);" style-active="transform: translateY(2px); box-shadow: 0 1px 0 #5b4d9e;">{{ primaryCta }}</button>
+    <button type="button" style="flex: 1; border: 0; cursor: pointer; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 16px; color: #6b5fa8; background: #f1ecfa; border-radius: 14px; padding: 13px 0; box-shadow: inset 0 0 0 1px #e3dbf3;" style-hover="background: #eae3f7;" style-active="transform: translateY(1px);">{{ secondaryCta }}</button>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; background: #ffffff; padding: 6px 10px 18px;">
+    <a href="Splice World Map v2.dc.html" style="display: grid; place-items: center; gap: 4px; padding: 8px 0; text-decoration: none;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#b3adc2" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"><path d="M9 4 L3 6 v14 l6-2 6 2 6-2 V4 l-6 2 z"></path><path d="M9 4 v14M15 6 v14"></path></svg>
+      <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">Map</span></a>
+    <a href="Gene Ark.dc.html" style="display: grid; place-items: center; gap: 4px; padding: 8px 0; border-radius: 18px; background: #f1ecfa; text-decoration: none;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#6b5fa8" stroke-width="1.9" stroke-linejoin="round"><path d="M12 3 L20 7.5 v9 L12 21 L4 16.5 v-9 z"></path></svg>
+      <span style="font-size: 10px; font-weight: 800; color: #6b5fa8;">Ark</span></a>
+    <a href="Splice Chamber.dc.html" style="display: grid; place-items: center; gap: 4px; padding: 8px 0; text-decoration: none;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#b3adc2" stroke-width="1.9" stroke-linecap="round"><path d="M8 3 v5 L4 20 h16 L16 8 V3"></path><path d="M7 3 h10M6.5 14 h11"></path></svg>
+      <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">Splice</span></a>
+    <a href="Gene Lab.dc.html" style="display: grid; place-items: center; gap: 4px; padding: 8px 0; text-decoration: none;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#b3adc2" stroke-width="1.9" stroke-linejoin="round"><path d="M3 20 V9 l6-4 6 4 6-3 v14 z"></path><path d="M9 20 V9M15 20 V9"></path></svg>
+      <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">Lab</span></a>
+    <a href="Alliance Hub.dc.html" style="display: grid; place-items: center; gap: 4px; padding: 8px 0; text-decoration: none;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#b3adc2" stroke-width="1.9" stroke-linecap="round"><circle cx="9" cy="9" r="3.4"></circle><path d="M3 20 c0-3.4 2.7-5.6 6-5.6 s6 2.2 6 5.6"></path><path d="M16 6.2 a3.4 3.4 0 0 1 0 5.8M18 20 c0-2.6-1-4.4-2.4-5.4"></path></svg>
+      <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">Allies</span></a>
+  </div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:478,&quot;height&quot;:980}}">
+const STATES = {
+  deployed: {
+    statusLabel: "Deployed", dot: "#6cba8b",
+    stateKicker: "Harvesting Hollow Reach", stateTimer: "4d 11h left",
+    stateBody: "All six modules unfolded. Rich Deposit yield at 3× — depletes in four days, then it's worth moving.",
+    stateProgress: "79%", moduleNote: "all online",
+    warnBg: "#eef7f1", warnStroke: "#5aa87a", warnText: "#3d6b52",
+    warnBody: "Defense Wall L4 holds while unpacked — raids hit the Ark directly here.",
+    primaryCta: "Pack Up Ark", secondaryCta: "Upgrade"
+  },
+  packing: {
+    statusLabel: "Packing", dot: "#e8b34a",
+    stateKicker: "Folding modules", stateTimer: "02:14",
+    stateBody: "Arms retracting, Hatchery sealed. Harvesting has stopped and defenses are offline until the Ark is mobile.",
+    stateProgress: "46%", moduleNote: "4 of 6 sealed",
+    warnBg: "#fdf6e6", warnStroke: "#d19a1f", warnText: "#8e6d15",
+    warnBody: "Most vulnerable window — no walls, no yield. Rivals can see you packing on the map.",
+    primaryCta: "Rush (12 Shards)", secondaryCta: "Cancel"
+  },
+  transit: {
+    statusLabel: "In transit", dot: "#7a6ac0",
+    stateKicker: "En route to Vitrine Pan", stateTimer: "ETA 3h 05m",
+    stateBody: "Rolling south-east across two regions. Modules stay stowed — the Ark cannot splice or harvest while moving.",
+    stateProgress: "31%", moduleNote: "stowed",
+    warnBg: "#fbeee9", warnStroke: "#c96555", warnText: "#96463c",
+    warnBody: "Sable convoys spotted along the route — a hit in transit costs cargo, not buildings.",
+    primaryCta: "Reroute", secondaryCta: "Track"
+  }
+};
+
+const ACTIVE_BG = "#ffffff", ACTIVE_FG = "#6b5fa8", IDLE_BG = "transparent", IDLE_FG = "#a29bb5";
+
+class Component extends DCLogic {
+  state = { mode: "deployed" };
+  renderVals() {
+    const m = this.state.mode;
+    return {
+      ...STATES[m],
+      isDeployed: m === "deployed",
+      isPacking: m === "packing",
+      isTransit: m === "transit",
+      tabDeployedBg: m === "deployed" ? ACTIVE_BG : IDLE_BG,
+      tabDeployedColor: m === "deployed" ? ACTIVE_FG : IDLE_FG,
+      tabPackingBg: m === "packing" ? ACTIVE_BG : IDLE_BG,
+      tabPackingColor: m === "packing" ? ACTIVE_FG : IDLE_FG,
+      tabTransitBg: m === "transit" ? ACTIVE_BG : IDLE_BG,
+      tabTransitColor: m === "transit" ? ACTIVE_FG : IDLE_FG,
+      setDeployed: () => this.setState({ mode: "deployed" }),
+      setPacking: () => this.setState({ mode: "packing" }),
+      setTransit: () => this.setState({ mode: "transit" })
+    };
+  }
+}
+</script>
+</body>
+</html>

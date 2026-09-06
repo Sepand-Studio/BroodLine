@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #e4dff0; font-family: "Nunito", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .lbl { font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #a29bb5; }
+  @keyframes glow { 0%, 100% { opacity: .4; } 50% { opacity: 1; } }
+</style>
+</helmet>
+
+<div style="min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 24px 0; background: linear-gradient(160deg, #e6e0f5, #d3e7ef);">
+<div style="width: 430px; height: 932px; background: #f7f4fb; color: #3f3a52; border-radius: 34px; box-shadow: 0 18px 50px rgba(63,58,82,.28); display: flex; flex-direction: column; overflow: hidden;">
+
+  <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 26px 2px; font-size: 12px; font-weight: 800; color: #a29bb5;">
+    <span>9:41</span>
+    <span style="display: flex; gap: 7px;"><span>◦◦◦</span><span>84%</span></span>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 10px; padding: 8px 14px 8px;">
+    <div style="flex: 1;">
+      <div class="lbl">Hatchery · 14 of 20 slots</div>
+      <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 21px; line-height: 1.1;">Your hybrids</div>
+    </div>
+    <div style="width: 34px; height: 34px; border-radius: 12px; background: #ffffff; display: grid; place-items: center; box-shadow: 0 1px 3px rgba(63,58,82,.1); cursor: pointer;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6b5fa8" stroke-width="2.2" stroke-linecap="round"><path d="M4 6 h16M7 12 h10M10 18 h4"></path></svg>
+    </div>
+  </div>
+
+  <div onClick="{{ setFilter }}" style="display: flex; gap: 6px; padding: 0 12px 10px; flex-wrap: wrap;">
+    <div data-filter="all" style="flex: none; border-radius: 999px; padding: 7px 13px; cursor: pointer; background: {{ fAll }}; box-shadow: {{ rAll }};">
+      <span style="font-size: 11px; font-weight: 800; color: #3f3a52;">All 14</span>
+    </div>
+    <div data-filter="deployed" style="flex: none; border-radius: 999px; padding: 7px 13px; cursor: pointer; background: {{ fDeployed }}; box-shadow: {{ rDeployed }};">
+      <span style="font-size: 11px; font-weight: 800; color: #3f3a52;">On duty 4</span>
+    </div>
+    <div data-filter="growing" style="flex: none; border-radius: 999px; padding: 7px 13px; cursor: pointer; background: {{ fGrowing }}; box-shadow: {{ rGrowing }};">
+      <span style="font-size: 11px; font-weight: 800; color: #3f3a52;">Growing 3</span>
+    </div>
+    <div data-filter="mutant" style="flex: none; border-radius: 999px; padding: 7px 13px; cursor: pointer; background: {{ fMutant }}; box-shadow: {{ rMutant }};">
+      <span style="font-size: 11px; font-weight: 800; color: #3f3a52;">Mutants 2</span>
+    </div>
+  </div>
+
+  <div onClick="{{ pickCard }}" style="flex: 1; overflow-y: auto; padding: 0 12px 4px;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 9px;">
+
+      <div data-c="cinderplate" style="background: {{ cCinderplate }}; border-radius: 20px; padding: 11px 12px 12px; cursor: pointer; box-shadow: {{ sCinderplate }};">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 9px; font-weight: 800; letter-spacing: .08em; color: #6b5fa8; background: #ece4fa; border-radius: 6px; padding: 2px 6px;">G7 · B+</span>
+          <span style="width: 8px; height: 8px; border-radius: 999px; background: #6cba8b;"></span>
+        </div>
+        <div style="height: 74px; display: grid; place-items: center;">
+          <svg viewBox="0 0 40 40" width="64" height="64"><path d="M20 15 c7 0 12 4 12 9 s-5 8-12 8 -12-3-12-8 5-9 12-9 z" fill="#7a6ac0"></path><circle cx="20" cy="9.5" r="5.6" fill="#7a6ac0"></circle><path d="M7 19 l-6 4 2.5 3 6-4 z M33 19 l6 4-2.5 3-6-4 z" fill="#7a6ac0"></path><path d="M12 31 h5 v6 h-5 z M23 31 h5 v6 h-5 z" fill="#7a6ac0"></path><path d="M14 5 l2.5 4 h-5 z M26 5 l2.5 4 h-5 z" fill="#7a6ac0"></path></svg>
+        </div>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 16px; line-height: 1.1;">Cinderplate</div>
+        <div style="font-size: 10px; font-weight: 700; color: #a29bb5; margin-top: 1px;">Warform · on duty</div>
+        <div style="display: flex; gap: 4px; margin-top: 7px;">
+          <span style="font-size: 9px; font-weight: 800; color: #8e6d15; background: #fbf3e0; border-radius: 5px; padding: 2px 5px;">Ashveil</span>
+          <span style="font-size: 9px; font-weight: 800; color: #3c7f98; background: #e7f3f9; border-radius: 5px; padding: 2px 5px;">Carapace</span>
+        </div>
+      </div>
+
+      <div data-c="vetchwall" style="background: {{ cVetchwall }}; border-radius: 20px; padding: 11px 12px 12px; cursor: pointer; box-shadow: {{ sVetchwall }};">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 9px; font-weight: 800; letter-spacing: .08em; color: #3c7f98; background: #e7f3f9; border-radius: 6px; padding: 2px 6px;">G4 · C</span>
+          <span style="width: 8px; height: 8px; border-radius: 999px; background: #6cba8b;"></span>
+        </div>
+        <div style="height: 74px; display: grid; place-items: center;">
+          <svg viewBox="0 0 40 40" width="60" height="60"><ellipse cx="20" cy="23" rx="10" ry="9" fill="#6ba7c0"></ellipse><circle cx="20" cy="11" r="5.2" fill="#6ba7c0"></circle><path d="M9 20 l-5 5 2 2 5-4 z M31 20 l5 5-2 2-5-4 z" fill="#6ba7c0"></path><path d="M13 31 h4 v5 h-4 z M23 31 h4 v5 h-4 z" fill="#6ba7c0"></path></svg>
+        </div>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 16px; line-height: 1.1;">Vetch Wall</div>
+        <div style="font-size: 10px; font-weight: 700; color: #a29bb5; margin-top: 1px;">Adult · on duty</div>
+        <div style="display: flex; gap: 4px; margin-top: 7px;">
+          <span style="font-size: 9px; font-weight: 800; color: #3c7f98; background: #e7f3f9; border-radius: 5px; padding: 2px 5px;">Root Anchor</span>
+        </div>
+      </div>
+
+      <div data-c="emberspit" style="background: {{ cEmberspit }}; border-radius: 20px; padding: 11px 12px 12px; cursor: pointer; box-shadow: {{ sEmberspit }};">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 9px; font-weight: 800; letter-spacing: .08em; color: #b3564a; background: #fbeae7; border-radius: 6px; padding: 2px 6px;">G6 · B</span>
+          <span style="width: 8px; height: 8px; border-radius: 999px; background: #b3adc2;"></span>
+        </div>
+        <div style="height: 74px; display: grid; place-items: center;">
+          <svg viewBox="0 0 40 40" width="58" height="58"><ellipse cx="20" cy="24" rx="8" ry="8" fill="#e5867a"></ellipse><circle cx="20" cy="13" r="5" fill="#e5867a"></circle><path d="M20 4 l3 6 h-6 z" fill="#e5867a"></path><path d="M13 31 h4 v5 h-4 z M23 31 h4 v5 h-4 z" fill="#e5867a"></path></svg>
+        </div>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 16px; line-height: 1.1;">Ember Spit</div>
+        <div style="font-size: 10px; font-weight: 700; color: #a29bb5; margin-top: 1px;">Adult · reserve</div>
+        <div style="display: flex; gap: 4px; margin-top: 7px;">
+          <span style="font-size: 9px; font-weight: 800; color: #b3564a; background: #fbeae7; border-radius: 5px; padding: 2px 5px;">Cinder Spit</span>
+        </div>
+      </div>
+
+      <div data-c="skitterling" style="background: {{ cSkitterling }}; border-radius: 20px; padding: 11px 12px 12px; cursor: pointer; box-shadow: {{ sSkitterling }};">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 9px; font-weight: 800; letter-spacing: .08em; color: #43704f; background: #e8f5ec; border-radius: 6px; padding: 2px 6px;">G7 · —</span>
+          <span style="width: 8px; height: 8px; border-radius: 999px; background: #e8b34a; animation: glow 1.8s ease-in-out infinite;"></span>
+        </div>
+        <div style="height: 74px; display: grid; place-items: center;">
+          <svg viewBox="0 0 40 40" width="46" height="46"><ellipse cx="20" cy="23" rx="9.5" ry="9" fill="#bcb0da"></ellipse><circle cx="20" cy="11" r="5.2" fill="#bcb0da"></circle><path d="M13 31 h4 v5 h-4 z M23 31 h4 v5 h-4 z" fill="#bcb0da"></path></svg>
+        </div>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 16px; line-height: 1.1;">Ash Skitter</div>
+        <div style="font-size: 10px; font-weight: 700; color: #e8a33a; margin-top: 1px;">Growing · 2h 40m</div>
+        <div style="display: flex; gap: 4px; margin-top: 7px;">
+          <span style="font-size: 9px; font-weight: 800; color: #8d86a0; background: #f2eff8; border-radius: 5px; padding: 2px 5px;">Sprint II</span>
+        </div>
+      </div>
+
+      <div data-c="hollowmaw" style="background: {{ cHollowmaw }}; border-radius: 20px; padding: 11px 12px 12px; cursor: pointer; box-shadow: {{ sHollowmaw }};">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 9px; font-weight: 800; letter-spacing: .08em; color: #8e6d15; background: #fbf3e0; border-radius: 6px; padding: 2px 6px;">G5 · A−</span>
+          <span style="width: 8px; height: 8px; border-radius: 999px; background: #6cba8b;"></span>
+        </div>
+        <div style="height: 74px; display: grid; place-items: center;">
+          <svg viewBox="0 0 40 40" width="66" height="66"><path d="M20 14 c9 0 14 5 14 9 s-5 9-14 9 -14-5-14-9 5-9 14-9 z" fill="#c9a95f"></path><circle cx="20" cy="8.5" r="6.2" fill="#c9a95f"></circle><path d="M11 31 h6 v7 h-6 z M23 31 h6 v7 h-6 z" fill="#c9a95f"></path><path d="M12 2 l3 5 h-6 z M28 2 l3 5 h-6 z" fill="#c9a95f"></path></svg>
+        </div>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 16px; line-height: 1.1;">Hollow Maw</div>
+        <div style="font-size: 10px; font-weight: 700; color: #a29bb5; margin-top: 1px;">Apex form · on duty</div>
+        <div style="display: flex; gap: 4px; margin-top: 7px;">
+          <span style="font-size: 9px; font-weight: 800; color: #8e6d15; background: #fbf3e0; border-radius: 5px; padding: 2px 5px;">Gape</span>
+          <span style="font-size: 9px; font-weight: 800; color: #43704f; background: #e8f5ec; border-radius: 5px; padding: 2px 5px;">Regrow</span>
+        </div>
+      </div>
+
+      <div data-c="empty" style="border-radius: 20px; padding: 11px 12px 12px; cursor: pointer; background: #f2eff9; box-shadow: inset 0 0 0 2px #e3dbf3; display: grid; place-items: center; min-height: 178px;">
+        <div style="text-align: center;">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#a79bd0" stroke-width="2.4" stroke-linecap="round"><path d="M12 6 v12M6 12 h12"></path></svg>
+          <div style="font-size: 11px; font-weight: 800; color: #8d86a0; margin-top: 6px;">Splice a new hybrid</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div style="margin: 10px 12px 0; background: #ffffff; border-radius: 22px; padding: 12px 16px 14px; box-shadow: 0 -2px 12px rgba(63,58,82,.07);">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+      <div>
+        <span class="lbl" style="white-space: nowrap;">{{ kicker }}</span>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 22px; line-height: 1.1; margin-top: 2px;">{{ name }}</div>
+      </div>
+      <div style="text-align: right;">
+        <div class="lbl">Power</div>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 22px; line-height: 1.1; color: #6b5fa8; margin-top: 2px;">{{ power }}</div>
+      </div>
+    </div>
+    <div style="display: flex; gap: 7px; margin-top: 10px;">
+      <div style="flex: 1; background: #f8f6fc; border-radius: 12px; padding: 8px 10px;">
+        <div class="lbl">Armor</div>
+        <div style="font-size: 12px; font-weight: 700; margin-top: 3px;">{{ armor }}</div>
+      </div>
+      <div style="flex: 1; background: #f8f6fc; border-radius: 12px; padding: 8px 10px;">
+        <div class="lbl">Damage</div>
+        <div style="font-size: 12px; font-weight: 700; margin-top: 3px;">{{ damage }}</div>
+      </div>
+      <div style="flex: 1; background: #f8f6fc; border-radius: 12px; padding: 8px 10px;">
+        <div class="lbl">Speed</div>
+        <div style="font-size: 12px; font-weight: 700; margin-top: 3px;">{{ speed }}</div>
+      </div>
+    </div>
+    <div style="display: flex; gap: 9px; margin-top: 11px;">
+      <button type="button" style="flex: 1.3; border: 0; cursor: pointer; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 15px; color: #ffffff; background: linear-gradient(180deg, #8878cf, #6f5fbb); border-radius: 14px; padding: 12px 0; box-shadow: 0 3px 0 #5b4d9e;" style-active="transform: translateY(2px); box-shadow: 0 1px 0 #5b4d9e;">{{ cta }}</button>
+      <button type="button" style="flex: 1; border: 0; cursor: pointer; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 15px; color: #6b5fa8; background: #f1ecfa; border-radius: 14px; padding: 12px 0; box-shadow: inset 0 0 0 1px #e3dbf3;" style-active="transform: translateY(1px);">Lineage</button>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; background: #ffffff; padding: 6px 10px 18px; margin-top: 10px;">
+    <a href="Splice World Map v2.dc.html" style="display: grid; place-items: center; gap: 4px; padding: 8px 0; text-decoration: none;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#b3adc2" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"><path d="M9 4 L3 6 v14 l6-2 6 2 6-2 V4 l-6 2 z"></path><path d="M9 4 v14M15 6 v14"></path></svg>
+      <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">Map</span></a>
+    <a href="Gene Ark.dc.html" style="display: grid; place-items: center; gap: 4px; padding: 8px 0; text-decoration: none;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#b3adc2" stroke-width="1.9" stroke-linejoin="round"><path d="M12 3 L20 7.5 v9 L12 21 L4 16.5 v-9 z"></path></svg>
+      <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">Ark</span></a>
+<a href="Splice Chamber.dc.html" style="display: grid; place-items: center; gap: 4px; padding: 8px 0; border-radius: 18px; background: #f1ecfa; text-decoration: none;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#6b5fa8" stroke-width="1.9" stroke-linecap="round"><path d="M8 3 v5 L4 20 h16 L16 8 V3"></path><path d="M7 3 h10M6.5 14 h11"></path></svg>
+      <span style="font-size: 10px; font-weight: 800; color: #6b5fa8;">Splice</span>
+    </a>
+    <a href="Gene Lab.dc.html" style="display: grid; place-items: center; gap: 4px; padding: 8px 0; text-decoration: none;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#b3adc2" stroke-width="1.9" stroke-linejoin="round"><path d="M3 20 V9 l6-4 6 4 6-3 v14 z"></path><path d="M9 20 V9M15 20 V9"></path></svg>
+      <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">Lab</span>
+    </a>
+    <a href="Alliance Hub.dc.html" style="display: grid; place-items: center; gap: 4px; padding: 8px 0; text-decoration: none;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#b3adc2" stroke-width="1.9" stroke-linecap="round"><circle cx="9" cy="9" r="3.4"></circle><path d="M3 20 c0-3.4 2.7-5.6 6-5.6 s6 2.2 6 5.6"></path><path d="M16 6.2 a3.4 3.4 0 0 1 0 5.8M18 20 c0-2.6-1-4.4-2.4-5.4"></path></svg>
+      <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">Allies</span></a>
+  </div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:478,&quot;height&quot;:980}}">
+const CREATURES = {
+  cinderplate: { kicker: "G7 · Warform · on duty", name: "Cinderplate", power: "1,840", armor: "62", damage: "48", speed: "55", cta: "Recall from duty" },
+  vetchwall: { kicker: "G4 · Adult · on duty", name: "Vetch Wall", power: "980", armor: "84", damage: "18", speed: "31", cta: "Recall from duty" },
+  emberspit: { kicker: "G6 · Adult · reserve", name: "Ember Spit", power: "1,410", armor: "29", damage: "71", speed: "78", cta: "Send to duty" },
+  skitterling: { kicker: "G7 · Growing · 2h 40m", name: "Ash Skitter", power: "—", armor: "22", damage: "14", speed: "66", cta: "Rush growth · 12" },
+  hollowmaw: { kicker: "G5 · Apex form · on duty", name: "Hollow Maw", power: "2,260", armor: "77", damage: "88", speed: "40", cta: "Recall from duty" },
+  empty: { kicker: "Empty slot", name: "No hybrid", power: "—", armor: "—", damage: "—", speed: "—", cta: "Open Splicing Chamber" }
+};
+
+const SEL_BG = "#f4f0fd", SEL_RING = "inset 0 0 0 2px #8878cf, 0 2px 8px rgba(63,58,82,.06)";
+const BG = "#ffffff", RING = "0 2px 8px rgba(63,58,82,.06)";
+const ON = "#e6dcfa", ON_RING = "inset 0 0 0 2px #cbbdf2";
+const OFF = "#ffffff", OFF_RING = "0 1px 3px rgba(63,58,82,.08)";
+
+class Component extends DCLogic {
+  state = { sel: "cinderplate", filter: "all" };
+  renderVals() {
+    const c = CREATURES[this.state.sel] || CREATURES.cinderplate;
+    const card = (k) => (this.state.sel === k ? SEL_BG : BG);
+    const shadow = (k) => (this.state.sel === k ? SEL_RING : RING);
+    const fb = (k) => (this.state.filter === k ? ON : OFF);
+    const fr = (k) => (this.state.filter === k ? ON_RING : OFF_RING);
+    return {
+      ...c,
+      cCinderplate: card("cinderplate"), sCinderplate: shadow("cinderplate"),
+      cVetchwall: card("vetchwall"), sVetchwall: shadow("vetchwall"),
+      cEmberspit: card("emberspit"), sEmberspit: shadow("emberspit"),
+      cSkitterling: card("skitterling"), sSkitterling: shadow("skitterling"),
+      cHollowmaw: card("hollowmaw"), sHollowmaw: shadow("hollowmaw"),
+      fAll: fb("all"), rAll: fr("all"),
+      fDeployed: fb("deployed"), rDeployed: fr("deployed"),
+      fGrowing: fb("growing"), rGrowing: fr("growing"),
+      fMutant: fb("mutant"), rMutant: fr("mutant"),
+      pickCard: (e) => {
+        const el = e.target && e.target.closest && e.target.closest("[data-c]");
+        const k = el && el.getAttribute("data-c");
+        if (k && CREATURES[k]) this.setState({ sel: k });
+      },
+      setFilter: (e) => {
+        const el = e.target && e.target.closest && e.target.closest("[data-filter]");
+        const k = el && el.getAttribute("data-filter");
+        if (k) this.setState({ filter: k });
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #e4dff0; font-family: "Nunito", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .lbl { font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #a29bb5; }
+  @keyframes dash { to { stroke-dashoffset: -60; } }
+  @keyframes glow { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+  @keyframes ping { 0% { transform: scale(.7); opacity: .6; } 100% { transform: scale(1.8); opacity: 0; } }
+  @keyframes rush { to { offset-distance: 100%; } }
+  .ping { transform-box: fill-box; transform-origin: center; animation: ping 1.8s ease-out infinite; }
+  .raider { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px;
+            offset-path: path("M330 42 C300 96, 280 120, 236 148"); offset-rotate: 0deg;
+            animation: rush 3.4s linear infinite; }
+</style>
+</helmet>
+
+<div style="min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 24px 0; background: linear-gradient(160deg, #e6e0f5, #d3e7ef);">
+<div style="width: 430px; height: 932px; background: #f7f4fb; color: #3f3a52; border-radius: 34px; box-shadow: 0 18px 50px rgba(63,58,82,.28); display: flex; flex-direction: column; overflow: hidden;">
+
+  <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 26px 2px; font-size: 12px; font-weight: 800; color: #a29bb5;">
+    <span>9:41</span>
+    <span style="display: flex; gap: 7px;"><span>◦◦◦</span><span>84%</span></span>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 10px; margin: 8px 12px 0; background: linear-gradient(100deg, #fbeee9, #f7ddd8); border-radius: 18px; padding: 10px 13px; box-shadow: inset 0 0 0 1px rgba(201,101,85,.22);">
+    <span style="width: 28px; height: 28px; border-radius: 999px; background: #ffffff; display: grid; place-items: center; flex: none; animation: glow 1.5s ease-in-out infinite;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c96555" stroke-width="2.4" stroke-linecap="round"><path d="M12 3 L22 20 H2 Z"></path><path d="M12 10 v4M12 17 v.01"></path></svg>
+    </span>
+    <div style="flex: 1; min-width: 0;">
+      <div class="lbl" style="color: #c07f74;">Convoy under attack</div>
+      <div style="font-size: 12.5px; font-weight: 800; color: #8e3f33; line-height: 1.25;">Sable raiders closing on Collector 2</div>
+    </div>
+    <span style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 17px; color: #8e3f33;">{{ timer }}</span>
+  </div>
+
+  <div style="position: relative; margin: 11px 12px 0; height: 262px; background: linear-gradient(170deg, #eef4f7, #e2edf3); border-radius: 24px; box-shadow: 0 4px 16px rgba(63,58,82,.08); overflow: hidden;">
+    <svg viewBox="0 0 406 292" style="position: absolute; inset: 0;">
+      <g fill="#e6eff0">
+        <circle cx="80" cy="70" r="46"></circle>
+        <circle cx="340" cy="216" r="54"></circle>
+      </g>
+      <g stroke="#ffffff" stroke-width="1.4" opacity=".7" fill="none">
+        <path d="M0 60 h406M0 120 h406M0 180 h406M0 240 h406M70 0 v292M150 0 v292M230 0 v292M310 0 v292"></path>
+      </g>
+
+      <path d="M64 236 C130 224, 180 196, 236 148 C286 106, 320 82, 366 60" fill="none" stroke="#ffffff" stroke-width="7" stroke-linecap="round"></path>
+      <path d="M64 236 C130 224, 180 196, 236 148 C286 106, 320 82, 366 60" fill="none" stroke="#8fd0ab" stroke-width="3" stroke-dasharray="9 8" stroke-linecap="round" style="animation: dash 2.4s linear infinite;"></path>
+
+      <path d="M330 42 C300 96, 280 120, 236 148" fill="none" stroke="#f2c2ba" stroke-width="5" stroke-linecap="round"></path>
+      <path d="M330 42 C300 96, 280 120, 236 148" fill="none" stroke="#d4776a" stroke-width="2.4" stroke-dasharray="7 7" stroke-linecap="round" style="animation: dash 1.4s linear infinite;"></path>
+
+      <g transform="translate(64 236)">
+        <circle cx="0" cy="0" r="15" fill="#ffffff"></circle>
+        <circle cx="0" cy="0" r="11" fill="#7a6ac0"></circle>
+        <path d="M0 -5 L4.5 -2.5 v5 L0 5 L-4.5 2.5 v-5 Z" fill="#ffffff"></path>
+        <text x="0" y="-24" text-anchor="middle" font-family="Nunito, sans-serif" font-size="9" font-weight="800" letter-spacing=".1em" fill="#6b5fa8">YOUR ARK</text>
+      </g>
+
+      <g transform="translate(366 60)">
+        <circle cx="0" cy="0" r="13" fill="#ffffff"></circle>
+        <circle cx="0" cy="0" r="9" fill="#e8b34a"></circle>
+        <text x="-4" y="-22" text-anchor="middle" font-family="Nunito, sans-serif" font-size="9" font-weight="800" letter-spacing=".1em" fill="#8e6d15">APEX</text>
+      </g>
+
+      <circle class="ping" cx="236" cy="148" r="18" fill="none" stroke="#d4776a" stroke-width="3"></circle>
+      <g transform="translate(236 148)">
+        <ellipse cx="0" cy="15" rx="15" ry="4" fill="#3f3a52" opacity=".14"></ellipse>
+        <rect x="-16" y="-11" width="32" height="21" rx="5" fill="#ffffff" stroke="#6cba8b" stroke-width="2.4"></rect>
+        <rect x="-9" y="-5" width="18" height="9" rx="2" fill="#8fd0ab"></rect>
+        <circle cx="-9" cy="12" r="3.6" fill="#5d5670"></circle>
+        <circle cx="9" cy="12" r="3.6" fill="#5d5670"></circle>
+      </g>
+      <text x="236" y="182" text-anchor="middle" font-family="Nunito, sans-serif" font-size="9.5" font-weight="800" letter-spacing=".08em" fill="#43704f">COLLECTOR 2</text>
+    </svg>
+
+    <div style="position: absolute; inset: 0; pointer-events: none;">
+      <div class="raider">
+        <svg viewBox="0 0 40 40" width="22" height="22"><ellipse cx="20" cy="24" rx="9" ry="8" fill="#c96555"></ellipse><circle cx="20" cy="13" r="5" fill="#c96555"></circle><path d="M12 4 l3 6 h-6 z M28 4 l3 6 h-6 z" fill="#c96555"></path></svg>
+      </div>
+      <div class="raider" style="animation-delay: .6s;">
+        <svg viewBox="0 0 40 40" width="20" height="20"><ellipse cx="20" cy="24" rx="8" ry="7" fill="#d98d80"></ellipse><circle cx="20" cy="14" r="4.6" fill="#d98d80"></circle></svg>
+      </div>
+    </div>
+
+    <div style="position: absolute; left: 12px; top: 12px; background: rgba(255,255,255,.9); border-radius: 14px; padding: 8px 10px; display: grid; gap: 5px;">
+      <div style="display: flex; align-items: center; gap: 7px; font-size: 10px; font-weight: 700; color: #5d5670;"><span style="width: 14px; height: 3px; border-radius: 2px; background: #8fd0ab;"></span>Your haul route</div>
+      <div style="display: flex; align-items: center; gap: 7px; font-size: 10px; font-weight: 700; color: #5d5670;"><span style="width: 14px; height: 3px; border-radius: 2px; background: #d4776a;"></span>Raider vector</div>
+    </div>
+  </div>
+
+  <div style="margin: 11px 12px 0; background: #ffffff; border-radius: 22px; padding: 12px 16px 14px; box-shadow: 0 2px 8px rgba(63,58,82,.06);">
+    <div style="display: flex; justify-content: space-between; align-items: baseline;">
+      <span class="lbl">Cargo at risk</span>
+      <span style="font-size: 10px; font-weight: 700; color: #b3564a;">55% of a full haul</span>
+    </div>
+    <div style="display: flex; gap: 7px; margin-top: 10px;">
+      <div style="flex: 1; background: #f8f6fc; border-radius: 12px; padding: 9px 10px;">
+        <div class="lbl">Gene shards</div>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 17px; line-height: 1.05; margin-top: 2px;">1,150</div>
+      </div>
+      <div style="flex: 1; background: #f8f6fc; border-radius: 12px; padding: 9px 10px;">
+        <div class="lbl">Trait frags</div>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 17px; line-height: 1.05; margin-top: 2px;">3</div>
+      </div>
+      <div style="flex: 1; background: #f8f6fc; border-radius: 12px; padding: 9px 10px;">
+        <div class="lbl">Escort</div>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 17px; line-height: 1.05; margin-top: 2px;">1</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin: 11px 12px 0; background: #ffffff; border-radius: 22px; padding: 12px 16px 14px; box-shadow: 0 2px 8px rgba(63,58,82,.06);">
+    <span class="lbl">Choose a response</span>
+    <div onClick="{{ pick }}" style="display: grid; gap: 7px; margin-top: 9px;">
+      <div data-r="fight" style="display: flex; align-items: center; gap: 10px; border-radius: 14px; padding: 10px 11px; cursor: pointer; background: {{ bgFight }}; box-shadow: {{ ringFight }};">
+        <span style="width: 26px; height: 26px; border-radius: 9px; background: #fbeae7; display: grid; place-items: center; flex: none;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#c96555" stroke-width="2.4" stroke-linejoin="round"><path d="M12 3 L20 7.5 v9 L12 21 L4 16.5 v-9 z"></path></svg>
+        </span>
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-size: 12px; font-weight: 800;">Stand and fight</div>
+          <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5;">Escort holds — 62% to keep the full haul</div>
+        </div>
+      </div>
+      <div data-r="dump" style="display: flex; align-items: center; gap: 10px; border-radius: 14px; padding: 10px 11px; cursor: pointer; background: {{ bgDump }}; box-shadow: {{ ringDump }};">
+        <span style="width: 26px; height: 26px; border-radius: 9px; background: #e2f4e8; display: grid; place-items: center; flex: none;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4c9b74" stroke-width="2.4" stroke-linecap="round"><path d="M12 19 V5M6 13 l6 6 6-6"></path></svg>
+        </span>
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-size: 12px; font-weight: 800;">Dump half, run home</div>
+          <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5;">Guaranteed 575 shards, Collector survives</div>
+        </div>
+      </div>
+      <div data-r="allies" style="display: flex; align-items: center; gap: 10px; border-radius: 14px; padding: 10px 11px; cursor: pointer; background: {{ bgAllies }}; box-shadow: {{ ringAllies }};">
+        <span style="width: 26px; height: 26px; border-radius: 9px; background: #e6e9fb; display: grid; place-items: center; flex: none;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#5c63b0" stroke-width="2.2" stroke-linecap="round"><circle cx="9" cy="9" r="3.4"></circle><path d="M3 20 c0-3.4 2.7-5.6 6-5.6 s6 2.2 6 5.6"></path><path d="M16 6.2 a3.4 3.4 0 0 1 0 5.8"></path></svg>
+        </span>
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-size: 12px; font-weight: 800;">Call Crux for escort</div>
+          <div style="font-size: 10.5px; font-weight: 700; color: #a29bb5;">2 allies in range · arrives in 40s</div>
+        </div>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px; background: {{ noteBg }}; border-radius: 13px; padding: 9px 11px; margin-top: 10px;">
+      <span style="width: 22px; height: 22px; border-radius: 999px; background: #ffffff; display: grid; place-items: center; flex: none;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="{{ noteStroke }}" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 8 v.01M12 12 v4"></path></svg>
+      </span>
+      <span style="flex: 1; font-size: 11px; font-weight: 700; color: {{ noteText }}; line-height: 1.35;">{{ noteBody }}</span>
+    </div>
+  </div>
+
+  <div style="flex: 1; margin: 11px 12px 0; display: flex; align-items: center; gap: 9px; background: #ffffff; border-radius: 18px; padding: 0 14px; box-shadow: 0 2px 8px rgba(63,58,82,.06); overflow: hidden;">
+    <span style="font-size: 11.5px; font-weight: 800; color: #3d6b52; white-space: nowrap;">Collector 2 + 1 escort</span>
+    <span style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 13px; color: #b3adc2;">vs</span>
+    <span style="flex: 1; font-size: 11.5px; font-weight: 800; color: #96463c; white-space: nowrap;">2 Sable raiders</span>
+    <span style="font-size: 10.5px; font-weight: 700; color: #a29bb5; white-space: nowrap;">62% hold</span>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 9px; padding: 10px 12px 18px;">
+    <button type="button" style="flex: 1.5; border: 0; cursor: pointer; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 17px; color: #ffffff; background: {{ ctaBg }}; border-radius: 15px; padding: 14px 0; box-shadow: 0 3px 0 {{ ctaShadow }}, 0 6px 14px rgba(111,95,187,.24);" style-active="transform: translateY(2px);">{{ ctaLabel }}</button>
+    <button type="button" style="flex: 1; border: 0; cursor: pointer; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 16px; color: #6b5fa8; background: #f1ecfa; border-radius: 15px; padding: 14px 0; box-shadow: inset 0 0 0 1px #e3dbf3;" style-active="transform: translateY(1px);">Watch</button>
+  </div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:478,&quot;height&quot;:980}}">
+const ON = "#f4f0fd", RING_ON = "inset 0 0 0 2px #8878cf";
+const OFF = "#f8f6fc", RING_OFF = "inset 0 0 0 1px #ece7f6";
+
+const RESPONSES = {
+  fight: {
+    ctaLabel: "Engage raiders", ctaBg: "linear-gradient(180deg, #eda093, #d4776a)", ctaShadow: "#b35a4d",
+    noteBg: "#fbeee9", noteStroke: "#c96555", noteText: "#96463c",
+    noteBody: "A loss costs the whole haul and the Collector — you rebuild it for 200 shards."
+  },
+  dump: {
+    ctaLabel: "Dump and run", ctaBg: "linear-gradient(180deg, #8fd0ab, #5faa80)", ctaShadow: "#4d8f69",
+    noteBg: "#eef7f1", noteStroke: "#5aa87a", noteText: "#3d6b52",
+    noteBody: "Safest line: Sable takes 575 shards, you keep the Collector and the trait fragments."
+  },
+  allies: {
+    ctaLabel: "Request escort", ctaBg: "linear-gradient(180deg, #8878cf, #6f5fbb)", ctaShadow: "#5b4d9e",
+    noteBg: "#f1ecfa", noteStroke: "#7a6ac0", noteText: "#5d5670",
+    noteBody: "Allies arrive in 40 seconds — the convoy must survive that long on its own."
+  }
+};
+
+class Component extends DCLogic {
+  state = { pick: "fight" };
+  renderVals() {
+    const p = this.state.pick;
+    return {
+      ...RESPONSES[p],
+      timer: "00:38",
+      bgFight: p === "fight" ? ON : OFF, ringFight: p === "fight" ? RING_ON : RING_OFF,
+      bgDump: p === "dump" ? ON : OFF, ringDump: p === "dump" ? RING_ON : RING_OFF,
+      bgAllies: p === "allies" ? ON : OFF, ringAllies: p === "allies" ? RING_ON : RING_OFF,
+      pick: (e) => {
+        const el = e.target && e.target.closest && e.target.closest("[data-r]");
+        const k = el && el.getAttribute("data-r");
+        if (k && RESPONSES[k]) this.setState({ pick: k });
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

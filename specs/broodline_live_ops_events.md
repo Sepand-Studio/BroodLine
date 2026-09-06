@@ -1,230 +1,195 @@
+---
+status: current
+folder: 01-companions
+supersedes: 99-archive/broodline_live_ops_events_era2.md
+verified-against: broodline_bible.md (2026-09-05)
+note: >
+  The recurring calendar, reconciled to bible §2.2–2.3 (splice slots, mutation
+  and the Aberrant sub-roll), §6.3 (weekly tick), §7.6 (Roulette yields
+  samples), §8.3–8.4 and §8.6. Bible §8.4 is now the summary table and this is
+  the design behind each row. Raises three §8.4 amendments (register 6.8–6.10).
+---
+
 # Broodline — Live-Ops Events
 
-*Design spec, the recurring calendar*
+*Design spec, the recurring calendar. Companion to bible §8.4.*
 
 ---
 
-> **CURRENT — companion to the design bible.** This document is live and should
-> be built from. It owns detail that `broodline_bible.md` deliberately does not
-> duplicate. Where the two conflict, the bible is current and this document
-> needs an edit.
->
-> Last brought into line with the bible: 4 Sep 2026.
+## 1. What this document owns
 
+Bible §8.4 is a five-row table and a rule about FOMO. This is the design behind each row: mechanics, cadence, rewards and the calendar they form. Where §8.4 and this document differ, this document is the later ruling and §8.4 has been amended to match.
 
-## 1. Why This Document Exists
-
-Bible §8.4 carries five named events as a five-row table. Event-offer synchronisation is the reason Kingshot's ARPDAU outperforms Whiteout's, which makes this the revenue engine of the whole model, and a table row is not a design.
-
-Two of the five carry specific risk. **Splice Roulette is a paid randomised mechanic** — the same regulatory surface as the splice screen, which has a full specification while Roulette had a sentence. **Recipe Share is user-generated content**; its policy lives in `broodline_moderation_ugc.md`.
+Two events carry specific risk and get the most space. **Splice Roulette is a paid randomised mechanic** with the same regulatory surface as the splice screen. **Recipe Share is user-generated content** and depends on the moderation companion.
 
 ---
 
-## 2. The Weekly Tick
+## 2. The weekly tick
 
-Three systems already converge on one day: Rich Deposits rotate, alliance territory resolves, and Gene Lab launches. Bible §5.4 and §6.3 both cite this deliberately.
+Three systems already converge on one day: Rich Deposits rotate (§5.4), territory resolves (§6.3), and the weekly event launches. The bible makes this explicit in §6.3. This document treats it as the spine of the calendar.
 
-**Make it explicit and make it the week's event.** One day, one reason to log in, three things changing at once — the map reshuffles, territory changes hands, and the community goal resets. Scattering these across three days would triple the notifications and dilute all three.
-
-Everything else in the calendar is scheduled around the Tick rather than independently.
+**One day, one reason to log in, three things changing at once** — the map reshuffles, territory changes hands, the community goal resets. Everything else is scheduled around the tick, never independently of it.
 
 ---
 
-## 3. Gene Lab
+## 3. Splice Census — weekly
 
-**Weekly. Runs five days from the Tick, then two days dark.**
+*Renamed from "Gene Lab", which is now the facility (§7.1). An event and a building cannot share a name. Register 6.10.*
+
+**Runs five days from the tick, then two days dark.**
 
 A server-wide splice goal — a fixed target of completed splices for the whole server, with individual contribution tracked separately.
 
 | Layer | Reward |
 |---|---|
-| **Personal** | Contribution tiers, reached by most active players. Charges, shards, samples. |
+| **Personal** | Contribution tiers most active players reach. Charges, shards, samples. |
 | **Community** | Server milestones at 40%, 70%, 100%. Rewards everyone who contributed at all. |
 
-The two-layer structure is what makes this worth building. Personal tiers reward effort; community milestones make a solo player part of something without requiring an alliance, which directly serves the solo-viability principle at bible §6.10. A player with no alliance still gets a shared win once a week.
+Personal tiers reward effort; community milestones make a solo player part of something without requiring an alliance, which is the §6.10 solo-viability principle applied to live-ops. A player with no alliance still gets a shared win once a week.
 
-**The target must scale with active server population**, recalculated weekly. A fixed target that a mature server clears in two days and a young server never reaches produces a broken event on both ends.
+**The target scales with active server population**, recalculated at each tick. A fixed target that a mature server clears in two days and a young server never reaches is a broken event on both ends.
 
-### 3.1 The scaling formula
+**The two dark days matter.** A permanently live community goal is ambient noise; the gap is what makes the tick land.
 
-> **Target = 18 × A × D**
->
-> where **A** is the count of accounts that performed at least one splice in the trailing seven days, and **D** is a difficulty factor of **1.00**.
-
-Eighteen is the working figure: a core player splices about six times a day, per `broodline_sample_economy.md` §8, and the event runs five days. Eighteen is therefore about **three days of a core player's splicing**, which lands the 100% milestone somewhere on day four for a healthy server. Casual players contribute less and optimisers more, and the average across a real population is what **D** exists to correct once there is data.
-
-**Floor and ceiling, both necessary:**
-
-- **Floor: A is never counted below 200.** A server with sixty active players would otherwise face a target so low that 100% clears on day one and the event is over before most of them log in. Below the floor a young server has to stretch, which is the correct feeling.
-- **Ceiling: A is capped at 5,000.** Past that the target stops rising, so the largest servers clear it comfortably. That is deliberate — a mature server should feel like it wins together, and a server-wide goal that punishes success would be a strange thing to build.
-
-**A is measured on the trailing seven days, not live.** A live count would let the target move underneath players mid-event, which is the fastest way to make a collaborative goal feel rigged.
-
-**D is the only tuning dial and it moves once a season at most.** Weekly adjustment would mean a target that responds to last week's performance, and players notice when clearing an event makes the next one harder.
-
-The two dark days matter. A permanently-live community goal stops being an event and becomes ambient noise; the gap is what makes the Tick land.
+No alliance layer. It would deepen the social loop and disadvantage solo players in the one event designed to include them; the alliance already has Stake Assault and territory as its shared goals.
 
 ---
 
-## 4. Splice Roulette
+## 4. Splice Roulette — always on
 
-**Always available. Featured sample pool rotates every two weeks**, per bible §8.4. An on/off gacha creates artificial scarcity around a paid randomised mechanic, which is the wrong pressure to build; a rotating pool delivers the same freshness without it.
+**Permanently open. Featured sample pool rotates every two weeks.** Register 6.8.
 
-**Structure:**
-- Spin cost: **300 Gene Shards**
-- Dispenses **samples**, never traits, per bible §1.7. A sample raises coverage on a trait a creature already carries; it can never grant access to one.
-- Samples are trait-specific — a Chill sample fuses toward Chill coverage and nothing else
-- **Three samples of a tier fuse into one of the next**, per bible §7.6
+Bible §8.4 scheduled Roulette as a bi-weekly event. An on/off gacha creates artificial scarcity around a paid randomised mechanic, which is exactly the wrong pressure to build, and a rotating pool delivers the same freshness without it. A spin pack that appears every other week is also a worse store than one that is always there.
+
+**Structure** (bible §7.6, economy §7):
+
+- Spin cost **300 Gene Shards**
+- Dispenses **samples, never traits** — a spin raises coverage on traits the player already holds
+- The **featured pool** is six of the twelve traits, rotating at every second tick; a spin yields a sample of a trait from the pool, weighted toward traits the player's roster carries (§7.6)
 
 **Published odds:**
 
 | Outcome | Rate |
 |---|---|
-| Tier-I sample | 60% |
-| Tier-II sample | 32% |
-| Tier-III sample | 8% |
+| Tier-I sample | 82% |
+| Tier-II sample | 15% |
+| Tier-III sample | 3% |
 
-**Roulette dispenses coverage and nothing else. No trait, no Instinct, no Aberrant, at any price, ever.** Access comes only from breeding and mutation, and that guardrail is the entire reason the model can claim money buys attempts rather than outcomes. Roulette is where the claim is most likely to be quietly broken, so it should be stated on the screen itself.
+**Pity: a tier-III sample is guaranteed within 30 spins, counter visible.** A gacha without a published floor is where regulators and players both lose patience, and the counter costs nothing to show. At 300 a spin, a guaranteed tier-III costs at most 9,000 shards — about two and a half days of core-player income, meaningful without being a wall.
 
-**Featured pools are weighted, never exclusive.** A rotating pool raises the odds of samples for particular traits; it never gates any sample behind a window.
+**Roulette never grants access.** Samples for a trait the player does not hold are impossible by construction — the pool is filtered to traits already in the roster. There is no Aberrant outcome and no catalyst outcome at any price. State it on the screen: *"Roulette raises coverage on traits you own. It cannot give you a new one."*
 
-**Pity: a tier-III sample is guaranteed within 20 spins, with the counter visible.** A gacha without a published floor is where both regulators and players lose patience, and the counter costs nothing to display. In practice that is roughly 9,000 shards — about two and a half days of core-player income, meaningful without being a wall.
+**Odds are displayed before the first spin, not behind a link.** Same standard as the splice screen; the probability table is a shared component per the screen inventory.
 
-**Odds are displayed before the first spin, not behind a link.** Same standard as the splice screen. The probability table is a shared component per the screen inventory; build it once and use it in both places.
+Geneticist Tier 6's daily free sample pull (§8.2) is one Roulette spin from the current pool.
 
 ---
 
-## 5. Apex Cup
+## 5. Apex Cup — monthly
 
-**Monthly. Runs the last seven days of each month.**
+**Runs the last seven days of each month.**
 
-Bible §8.4 calls this a "competitive leaderboard using your best creatures," but the game has no direct PvP combat — raids and Stake Assault are both asynchronous and both already specced.
+The game has no direct PvP combat; raids and Stake Assault are both asynchronous. The Cup is therefore a **shared gauntlet**: every player faces the identical escalating wave sequence with their five best creatures, ranked by waves survived, then by time.
 
-**Recommendation: a shared gauntlet.** Every player faces the *identical* escalating wave sequence with their five best creatures. Ranking is by waves survived, then by time.
+- **Reuses the combat engine exactly.** No matchmaking, no new systems, no timezone advantage — everyone runs the same content whenever they like.
+- **Ranks on genetics and composition**, not spending or reflexes. A player who spliced well wins.
+- **Gauntlet waves obey §4.5** — never two raiders sharing a trait, never more than four types — and draw only from the eight raiders. The gauntlet may exceed the campaign's wave 60 in volume; it may never introduce a raider or demand a counter the campaign has not taught.
+- **Brackets by Core tier**, in threes (1–3, 4–6, 7–9, 10–12), so a month-two player is never ranked against a month-twenty one.
+- **Rewards are shards, Marks-shop-style cosmetics and leaderboard flair.** Never traits, creatures, catalysts or power.
+- **Waves are authored monthly.** Authored is better content and leaks in advance; the leak is acceptable because the gauntlet ranks execution against a known sequence, the same way a speedrun does.
 
-This is the right answer for several reasons at once. It needs no matchmaking and no new systems — it reuses the combat engine exactly. It has no timezone advantage, since everyone runs the same content whenever they like. And it ranks players on **genetics quality and composition**, not on spending, reflexes, or who was awake at 4am. A player who spliced well wins, which is the outcome bible §4.1 says the whole design exists to produce.
+---
 
-- **Brackets by Core tier**, so a month-two player is never ranked against a month-twenty one
-- Rewards are **shards, cosmetics, and leaderboard flair only** — never traits, never creatures, never power
-- The gauntlet's wave sequence is authored fresh each month
+## 6. Mutation Surge — six times a year
 
-### 5.1 Authoring the gauntlet
+**Seven days, every second month.** Register 6.9.
 
-**Twenty waves, one lane count, three attempts.**
+Bible §2.3 and §8.4 are precise about what the Surge does: it **raises the Aberrant sub-roll globally**, not the base mutation rate. The older calendar had it tripling the base rate; that is wrong under the bible and is corrected here.
 
-| | |
+| | Normal | Surge week | With a catalyst |
+|---|---|---|---|
+| Base mutation rate | ~9% | ~9% | ~9% |
+| Aberrant sub-roll | 5% | **25%** | 50% |
+
+The Surge is the only event that changes the odds of something unbuyable, which is what makes it an event rather than a banner. **It raises the chance; it never grants the trait, and its offer never contains one** (§8.4). The offer is charges — more attempts at the better odds, the same line the model draws everywhere.
+
+**Six a year rather than four.** The economy companion §8 puts an uncatalysed Aberrant at roughly one per thirteen days of active splicing. Six Surge weeks a year is about a fifth of the calendar at five times that rate — enough that the Aberrant chase has a rhythm players can plan around, not so much that the Surge stops being the week to save charges for. Quarterly was a thin supply line for the only route to Aberrants that does not run through an Apex Vein.
+
+Surge weeks never fall in a Cup week except once a year, deliberately (§8).
+
+---
+
+## 7. Recipe Share — always on
+
+Players publish a splice recipe: both parents' species and trait sets, the locked trait, the resulting child, and the **ancestry chain** (§2.7, §8.4). Others browse, rate and save.
+
+**Recipes are information, not shortcuts.** Following one reproduces the *choices* — body, locked slot — and the same odds on the rolled slot and Instinct, not the same child. The one-lock-of-three structure (§2.2) guarantees divergence, which is what stops shared recipes solving the game in week two. A recipe is a strategy, never a deterministic path.
+
+**Moderation.** Recipe titles and Founder names are free text; ratings can be manipulated. Both are covered by the moderation companion, which this event depends on and does not restate.
+
+Monetization is cosmetic recipe card frames (§8.6). Nothing else.
+
+---
+
+## 8. The calendar
+
+| Event | Cadence | Duration | Timed? |
+|---|---|---|---|
+| **Splice Census** | Weekly, from the tick | 5 days | Yes |
+| **Splice Roulette** | Always on; pool rotates at every second tick | — | No |
+| **Recipe Share** | Always on | — | No |
+| **Apex Cup** | Monthly | Last 7 days | Yes |
+| **Mutation Surge** | Six a year, every second month | 7 days | Yes |
+| **Season Pass** | Four-week cycles, aligned to campaign seasons | Continuous | No |
+
+**Overlap rule: never more than two timed events live at once**, always-on features excluded. This is the monetization addendum's cap, applied to events. The natural failure mode of a live-ops calendar is that something is always ending.
+
+The Census and one of Cup or Surge is the normal ceiling. **Cup and Surge overlap once a year**, on purpose — elevated Aberrant odds during the ranked gauntlet is the year's peak week — and the Census pauses that week so the rule holds.
+
+**Season Pass and campaign seasons share a clock.** Four weeks, same start day, so "this season" means one thing.
+
+---
+
+## 9. Offers
+
+Every event offer obeys bible §8.6, which now carries the full never-sold list. Nothing is restated here. In practice each event sells:
+
+| Event | Offer |
 |---|---|
-| Length | **20 waves**, continuous — no retries within a run |
-| Terrain | **One authored family for the whole gauntlet**, rotating monthly across the eight at `broodline_region_roster.md` §3 |
-| Integrity | **6**, fixed, and it does not reset between waves |
-| Roster | Five creatures, locked at the start of a run. Losses stay lost for the rest of the run |
-| Attempts | **Three per month.** Best run counts |
-| Budget | The standard formula, starting at wave 25 equivalent and running to wave 45 |
-
-**Integrity carrying across waves is what makes this a gauntlet rather than twenty campaign waves.** A leak on wave 3 is still costing the player on wave 17, which turns the run into a resource-management problem rather than twenty independent puzzles. Six is tight enough that a sloppy opening ends a run.
-
-**Losses persisting is the second half of that.** Five creatures at the start, and a creature that falls on wave 8 is gone for the remaining twelve. Roster *depth* stops mattering and roster *quality* starts to — which is the whole point of ranking on genetics.
-
-**One terrain family per month, rotating.** Every player faces the same ground, so there is no terrain lottery, and the family that month determines what the winning composition looks like. A Delta month rewards breadth; a Defile month rewards depth. Over a year that gives eight distinct metagames out of content that already exists.
-
-**Three attempts, best run counts.** One attempt makes a single misplacement worth a month; unlimited attempts makes the leaderboard a measure of free time. Three is enough to recover from a bad opening and not enough to brute-force.
-
-**Two rules the gauntlet must not break.** Its waves obey the same composition rules as everything else — never two raiders answered by the same trait, never more than four types, no raider gaining stats with depth. And **the Sunder never appears**, per `broodline_raider_roster.md` §7: it exists at campaign wave 60 and nowhere else.
-
----
-
-## 6. Mutation Surge — A Contradiction
-
-**Seasonal, four times a year, seven days.**
-
-The original monetization spec described Mutation Surge as a "temporary new trait type available only during event," with a "FOMO-driven limited trait pack."
-
-**That directly violates two standing guardrails.** Bible §8.6 forbids selling traits at all, and §1.6 makes Aberrants unreachable by purchase at any price. An event-exclusive trait sold in a pack is both event-locked and purchasable — it fails on both counts.
-
-**Resolution: Mutation Surge raises the Aberrant sub-roll globally. It introduces nothing.**
-
-- The base mutation rate stays at ~9%. **The Aberrant sub-roll inside it rises from 5% to 20%** for seven days.
-- No new traits, no event-exclusive traits, no trait packs, **and no catalysts** — catalysts come from Apex Vein extraction only, per bible §8.6
-- Monetization hook is **splice charges**, not outcomes — more attempts at better odds, which is the line the model draws everywhere else
-
-This is also the better event. It is the only week in the quarter when Aberrants enter the economy at real volume, and every player, paying or not, gets the same improved odds. The excitement stays in the free mechanic, which is the point.
-
----
-
-## 7. Founder's Recipe Share
-
-**Always on.**
-
-Players publish a splice recipe: the two parents' trait sets, the species body chosen, the resulting child, and the **visible ancestry chain** bible §3.7 calls for. Others browse, rate, and save.
-
-**Recipes are information, not shortcuts.** Following one produces the same probabilities, not the same child — one locked slot and two rolled slots, per bible §2.2, guarantees divergence. This is what stops shared recipes from solving the game in week two. A recipe is an aspiration and a strategy, never a deterministic path.
-
-**Recipe Share is structured data only** — no title, no description, no comments, rating by numeric score with no written review. That removes the entire moderation surface from the most public, most persistent, server-wide UGC feature in the game. See `broodline_moderation_ugc.md` §4.
-
-Monetization is cosmetic recipe card frames. That remains correct.
-
----
-
-## 8. The Calendar
-
-| Event | Cadence | Duration |
-|---|---|---|
-| Gene Lab | Weekly, from the Tick | 5 days |
-| Splice Roulette | Always on; pool rotates biweekly | — |
-| Recipe Share | Always on | — |
-| Apex Cup | Monthly | Last 7 days |
-| Mutation Surge | **6× a year**, every 8–9 weeks | 7 days |
-| Season Pass | 4-week cycles | Continuous |
-
-**Overlap rule: never more than two timed events active simultaneously**, excluding always-on features. Bible §8.4's own guardrail warns that FOMO burnout kills LTV faster than a missed sale, and the natural failure mode here is a calendar where something is always ending.
-
-**Five of the six Surges avoid Apex Cup weeks.** Two events both about roster quality landing together wastes one of them.
-
-The one intentional collision is **the sixth Surge landing inside an Apex Cup week**, once a year. Elevated Aberrant odds during the ranked gauntlet is the year's peak moment and worth scheduling on purpose — but exactly once, or the exception becomes the pattern.
-
----
-
-## 9. Offer Guardrails
-
-Each event ships a themed offer. The following may never appear in one:
-
-- **Traits of any kind, Aberrant or species**, in any bundle, at any price
-- **Catalysts**
-- **Raid Marks or Defense Marks** — non-purchasable, per bible §8.6
-- **Hold**, or anything accelerating it
-- **Event-exclusive traits or species** — everything must remain reachable after the event ends
-- **Creatures of a named species**, since every species carries a counter
-- **Campaign milestone skips**
-- Additional Stake slots, Vault build slots, or non-ally penalty increases
-
-Safe: charges, shards, cosmetics, timer skips, Season Pass tiers, Geneticist XP.
+| Splice Census | Charge and shard bundle, ladder-compliant (6.5) |
+| Splice Roulette | Discounted spin packs |
+| Apex Cup | Cosmetic flair and charges |
+| Mutation Surge | **Charges only** |
+| Recipe Share | Recipe card frames |
 
 ---
 
 ## 10. Guardrails
 
 - Roulette odds and pity counter visible before the first spin
-- Roulette dispenses samples only — never traits, Instincts or Aberrants
-- Mutation Surge changes odds only, never content
-- Apex Cup rewards are cosmetic and currency, never power
-- Gene Lab targets scale to server population
+- Roulette never yields a trait the player does not hold, an Aberrant, or a catalyst
+- Mutation Surge changes the Aberrant sub-roll only — never the base rate, never content
+- Apex Cup rewards are cosmetic and currency, never power; its waves obey §4.5 and the closed counter pool
+- Census targets scale to server population; the two dark days are never filled
 - Never more than two timed events live at once
+- No event or facility shares a name
 - Every event reward is reachable through free play
 
 ---
 
-## 11. Open Questions
+## 11. Bible amendments required
 
-1. **Is 8% the right tier-III rate?** It produces a tier-III sample per ~9,000 shards. Tuning it moves the entire value of Gene Shards, so it should not be adjusted independently of the economy model.
-2. **Does Gene Lab need an alliance layer?** A third contribution tier at alliance level would deepen the social loop, and it would also disadvantage solo players in an event specifically designed to include them.
-3. **Should the Apex Cup gauntlet use authored or generated waves?** Authored is better content and leaks in advance; generated is fair and blander.
-4. ~~**Quarterly Mutation Surge is too rare.**~~ **Resolved: six a year, not four.** At a 5% base sub-roll a casual player who never contests an Apex Vein sees an Aberrant roughly every nine months, which is close to never for the game's most distinctive object. Six Surges — every eight or nine weeks rather than every thirteen — brings that under six months.
-
-   **Surge frequency was the right lever rather than the base rate**, because raising the base rate makes Aberrants less rare for everyone including the players already finding them, while raising Surge frequency only helps the players currently shut out. It also keeps the Surge weeks feeling like weeks that matter.
-
-   The calendar at §8 moves to six, spaced so that only one Surge a year overlaps an Apex Cup — deliberately, as the year's peak week.
-5. **Recipe Share needs an anti-spam and rating-manipulation model** that no document covers. Structured-only publishing removes the text surface but not the vote surface.
+| § | Current | Ruling | Register |
+|---|---|---|---|
+| 8.4 | Splice Roulette bi-weekly | Always on, pool rotates every second tick | 6.8 |
+| 8.4 | Mutation Surge seasonal | Six a year, seven days | 6.9 |
+| 8.4 | Weekly event named "Gene Lab" | Renamed Splice Census; Gene Lab is the facility | 6.10 |
 
 ---
 
-*Owns: event mechanics, the Gene Lab scaling formula, Roulette odds and pity, the Apex Cup gauntlet format, the Mutation Surge cadence, and the calendar. Screens required: Event Hub, Splice Roulette, Gene Lab Event, Apex Cup, Recipe Share.*
+## 12. Open questions
+
+1. **Is 3% the right tier-III Roulette rate?** It sets the shard price of a guaranteed tier-III at ≤9,000 and so moves the value of every shard; tune it with the economy model, never alone.
+2. **Cup brackets by Core tier** rank a well-bred low-tier roster below a badly-bred high-tier one only if the gauntlet is volume-bound. Check at soft launch that bracket 1–3 winners are winning on composition.
+3. **Surge at 25%.** Five times baseline is a guess. The check: an active player should see about one Aberrant per Surge week uncatalysed. If most see none, raise it; if most see two, lower it.
+4. **Recipe rating manipulation** — deferred to the moderation companion, which needs a rule for it.

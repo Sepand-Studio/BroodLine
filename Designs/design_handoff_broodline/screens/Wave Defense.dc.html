@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #e4dff0; font-family: "Nunito", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .lbl { font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #a29bb5; }
+  @keyframes march { to { offset-distance: 100%; } }
+  @keyframes glow { 0%, 100% { opacity: .4; } 50% { opacity: 1; } }
+  @keyframes bobS { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+  @keyframes ring { 0% { transform: scale(.8); opacity: .55; } 100% { transform: scale(1.5); opacity: 0; } }
+  .foe { position: absolute; left: 0; top: 0; width: 26px; height: 26px; margin: -13px 0 0 -13px;
+         offset-path: path("M-26 54 C70 44, 88 116, 168 120 C246 124, 210 196, 130 204 C60 210, 90 262, 200 262 L352 262");
+         offset-rotate: 0deg; animation: march linear infinite; }
+</style>
+</helmet>
+
+<div style="min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 24px 0; background: linear-gradient(160deg, #e6e0f5, #d3e7ef);">
+<div style="width: 430px; height: 932px; background: #f7f4fb; color: #3f3a52; border-radius: 34px; box-shadow: 0 18px 50px rgba(63,58,82,.28); display: flex; flex-direction: column; overflow: hidden;">
+
+  <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 26px 2px; font-size: 12px; font-weight: 800; color: #a29bb5;">
+    <span>9:41</span>
+    <span style="display: flex; gap: 7px;"><span>◦◦◦</span><span>84%</span></span>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 8px; padding: 8px 14px 10px;">
+    <div style="width: 32px; height: 32px; border-radius: 11px; background: #ffffff; display: grid; place-items: center; box-shadow: 0 1px 3px rgba(63,58,82,.1); cursor: pointer;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6b5fa8" stroke-width="2.6" stroke-linecap="round"><path d="M8 5 v14M16 5 v14"></path></svg>
+    </div>
+    <div style="flex: 1;">
+      <div class="lbl">Hollow Reach · defense</div>
+      <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 20px; line-height: 1.1;">Wave {{ wave }} <span style="color: #b3adc2;">/ 12</span></div>
+    </div>
+    <div onClick="{{ toggleSpeed }}" style="display: flex; align-items: center; gap: 6px; background: #ffffff; border-radius: 999px; padding: 7px 12px; box-shadow: 0 1px 3px rgba(63,58,82,.09); cursor: pointer;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6b5fa8" stroke-width="2.4" stroke-linejoin="round"><path d="M4 5 l9 7-9 7z"></path><path d="M14 5 l7 7-7 7z"></path></svg>
+      <span style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 13px; line-height: 1;">{{ speedLabel }}</span>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 7px; padding: 0 12px 10px;">
+    <div style="flex: 1; display: flex; align-items: center; gap: 8px; background: #ffffff; border-radius: 14px; padding: 8px 11px; box-shadow: 0 1px 3px rgba(63,58,82,.08);">
+      <span style="width: 22px; height: 22px; border-radius: 999px; background: #e2f4e8; display: grid; place-items: center; flex: none;">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#4c9b74" stroke-width="2.6" stroke-linejoin="round"><path d="M13 2 L5 13 h6 l-1 9 8-11 h-6 z"></path></svg>
+      </span>
+      <div style="flex: 1; min-width: 0;">
+        <div class="lbl">Gene energy</div>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 15px; line-height: 1.05;">{{ energy }}</div>
+      </div>
+    </div>
+    <div style="flex: 1; display: flex; align-items: center; gap: 8px; background: #ffffff; border-radius: 14px; padding: 8px 11px; box-shadow: 0 1px 3px rgba(63,58,82,.08);">
+      <span style="width: 22px; height: 22px; border-radius: 999px; background: #fbeae7; display: grid; place-items: center; flex: none;">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#c96555" stroke-width="2.4" stroke-linejoin="round"><path d="M12 3 L20 7.5 v9 L12 21 L4 16.5 v-9 z"></path></svg>
+      </span>
+      <div style="flex: 1; min-width: 0;">
+        <div class="lbl">Ark integrity</div>
+        <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 15px; line-height: 1.05;">{{ integrity }}%</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="position: relative; margin: 0 12px; height: 300px; background: linear-gradient(170deg, #eef4f0, #e4eff5); border-radius: 24px; box-shadow: 0 4px 16px rgba(63,58,82,.08); overflow: hidden;">
+    <svg viewBox="0 0 406 300" width="406" height="300" style="position: absolute; inset: 0;">
+      <g fill="#e7f0e9">
+        <circle cx="60" cy="200" r="42"></circle>
+        <circle cx="330" cy="120" r="52"></circle>
+        <circle cx="200" cy="30" r="34"></circle>
+      </g>
+      <path d="M-26 54 C70 44, 88 116, 168 120 C246 124, 210 196, 130 204 C60 210, 90 262, 200 262 L352 262" fill="none" stroke="#d9cfbb" stroke-width="26" stroke-linecap="round"></path>
+      <path d="M-26 54 C70 44, 88 116, 168 120 C246 124, 210 196, 130 204 C60 210, 90 262, 200 262 L352 262" fill="none" stroke="#eee5d4" stroke-width="18" stroke-linecap="round"></path>
+      <path d="M-26 54 C70 44, 88 116, 168 120 C246 124, 210 196, 130 204 C60 210, 90 262, 200 262 L352 262" fill="none" stroke="#ffffff" stroke-width="2" stroke-dasharray="7 9" opacity=".85"></path>
+
+      <g transform="translate(370 262)">
+        <ellipse cx="0" cy="20" rx="24" ry="7" fill="#3f3a52" opacity=".12"></ellipse>
+        <path d="M0 -18 L22 -6 v20 L0 26 L-22 14 v-20 Z" fill="#bdb0e4" stroke="#7a6ac0" stroke-width="2.4" stroke-linejoin="round"></path>
+        <path d="M0 -6 L10 0 v10 L0 16 L-10 10 V0 Z" fill="#ffffff" opacity=".9"></path>
+      </g>
+      <text x="352" y="228" text-anchor="middle" font-family="Nunito, sans-serif" font-size="9.5" font-weight="800" letter-spacing="0.1em" fill="#6b5fa8">ARK</text>
+
+      <g transform="translate(-14 54)">
+        <path d="M0 -13 l9 13 -9 13 -9-13 z" fill="#e5867a"></path>
+      </g>
+      <text x="26" y="26" font-family="Nunito, sans-serif" font-size="9.5" font-weight="800" letter-spacing="0.1em" fill="#a29bb5">SPAWN</text>
+    </svg>
+
+    <div onClick="{{ tapSlot }}" style="position: absolute; inset: 0;">
+      <div data-slot="a" style="position: absolute; left: 122px; top: 46px; width: 54px; height: 54px; margin: -27px 0 0 -27px; cursor: pointer;">
+        <div style="position: absolute; inset: 0; border-radius: 16px; background: {{ slotABg }}; box-shadow: {{ slotARing }}; display: grid; place-items: center;">
+          <span style="font-size: 11px; font-weight: 800; color: #6b5fa8;">{{ slotALabel }}</span>
+        </div>
+      </div>
+      <div data-slot="b" style="position: absolute; left: 240px; top: 84px; width: 54px; height: 54px; margin: -27px 0 0 -27px; cursor: pointer;">
+        <div style="position: absolute; inset: 0; border-radius: 16px; background: {{ slotBBg }}; box-shadow: {{ slotBRing }}; display: grid; place-items: center;">
+          <span style="font-size: 11px; font-weight: 800; color: #6b5fa8;">{{ slotBLabel }}</span>
+        </div>
+      </div>
+      <div data-slot="c" style="position: absolute; left: 46px; top: 176px; width: 54px; height: 54px; margin: -27px 0 0 -27px; cursor: pointer;">
+        <div style="position: absolute; inset: 0; border-radius: 16px; background: {{ slotCBg }}; box-shadow: {{ slotCRing }}; display: grid; place-items: center;">
+          <span style="font-size: 11px; font-weight: 800; color: #6b5fa8;">{{ slotCLabel }}</span>
+        </div>
+      </div>
+      <div data-slot="d" style="position: absolute; left: 262px; top: 186px; width: 54px; height: 54px; margin: -27px 0 0 -27px; cursor: pointer;">
+        <div style="position: absolute; inset: 0; border-radius: 16px; background: {{ slotDBg }}; box-shadow: {{ slotDRing }}; display: grid; place-items: center;">
+          <span style="font-size: 11px; font-weight: 800; color: #6b5fa8;">{{ slotDLabel }}</span>
+        </div>
+      </div>
+    </div>
+    <div style="position: absolute; inset: 0; pointer-events: none;">
+      <div class="foe" style="animation-duration: {{ foeDur }}; animation-play-state: {{ play }}; animation-delay: 0s;">
+        <svg viewBox="0 0 40 40" width="26" height="26"><ellipse cx="20" cy="24" rx="9" ry="8" fill="#8d84a8"></ellipse><circle cx="20" cy="13" r="5" fill="#8d84a8"></circle><path d="M13 31 h4 v5 h-4 z M23 31 h4 v5 h-4 z" fill="#8d84a8"></path></svg>
+      </div>
+      <div class="foe" style="animation-duration: {{ foeDur }}; animation-play-state: {{ play }}; animation-delay: 1.6s;">
+        <svg viewBox="0 0 40 40" width="26" height="26"><ellipse cx="20" cy="24" rx="9" ry="8" fill="#8d84a8"></ellipse><circle cx="20" cy="13" r="5" fill="#8d84a8"></circle><path d="M13 31 h4 v5 h-4 z M23 31 h4 v5 h-4 z" fill="#8d84a8"></path></svg>
+      </div>
+      <div class="foe" style="animation-duration: {{ foeDur }}; animation-play-state: {{ play }}; animation-delay: 3.1s;">
+        <svg viewBox="0 0 40 40" width="30" height="30"><path d="M20 15 c7 0 11 4 11 8 s-4 8-11 8 -11-4-11-8 4-8 11-8 z" fill="#6f6684"></path><circle cx="20" cy="10" r="5.6" fill="#6f6684"></circle><path d="M12 31 h5 v6 h-5 z M23 31 h5 v6 h-5 z" fill="#6f6684"></path><path d="M14 4 l2.5 4 h-5 z M26 4 l2.5 4 h-5 z" fill="#6f6684"></path></svg>
+      </div>
+      <div class="foe" style="animation-duration: {{ foeDur }}; animation-play-state: {{ play }}; animation-delay: 4.7s;">
+        <svg viewBox="0 0 40 40" width="26" height="26"><ellipse cx="20" cy="24" rx="9" ry="8" fill="#8d84a8"></ellipse><circle cx="20" cy="13" r="5" fill="#8d84a8"></circle><path d="M13 31 h4 v5 h-4 z M23 31 h4 v5 h-4 z" fill="#8d84a8"></path></svg>
+      </div>
+      <div class="foe" style="animation-duration: {{ foeDur }}; animation-play-state: {{ play }}; animation-delay: 6.2s;">
+        <svg viewBox="0 0 40 40" width="34" height="34"><path d="M20 14 c9 0 14 5 14 9 s-5 9-14 9 -14-5-14-9 5-9 14-9 z" fill="#5d5670"></path><circle cx="20" cy="8.5" r="6.2" fill="#5d5670"></circle><path d="M11 31 h6 v7 h-6 z M23 31 h6 v7 h-6 z" fill="#5d5670"></path><path d="M12 2 l3 5 h-6 z M28 2 l3 5 h-6 z" fill="#5d5670"></path></svg>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="flex: 1; margin: 11px 12px 0; display: flex; flex-direction: column; overflow: hidden;">
+
+    <sc-if value="{{ showTray }}" hint-placeholder-val="{{ true }}">
+      <div style="background: #ffffff; border-radius: 22px; padding: 12px 14px 14px; box-shadow: 0 2px 8px rgba(63,58,82,.06);">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <span class="lbl">Deploy to slot {{ selName }}</span>
+          <span onClick="{{ clearSel }}" style="font-size: 11px; font-weight: 800; color: #a29bb5; cursor: pointer;">Cancel</span>
+        </div>
+        <div onClick="{{ deploy }}" style="display: flex; gap: 8px; margin-top: 10px;">
+          <div data-unit="cinderplate" style="flex: 1; background: #f8f6fc; border-radius: 16px; padding: 10px; cursor: pointer;">
+            <div style="width: 100%; height: 44px; display: grid; place-items: center;">
+              <svg viewBox="0 0 40 40" width="38" height="38"><path d="M20 15 c7 0 11 4 11 8 s-4 8-11 8 -11-4-11-8 4-8 11-8 z" fill="#7a6ac0"></path><circle cx="20" cy="10" r="5.6" fill="#7a6ac0"></circle><path d="M14 4 l2.5 4 h-5 z M26 4 l2.5 4 h-5 z" fill="#7a6ac0"></path></svg>
+            </div>
+            <div style="font-size: 11.5px; font-weight: 800; margin-top: 4px;">Cinderplate</div>
+            <div style="display: flex; align-items: center; gap: 4px; margin-top: 3px;">
+              <span style="width: 7px; height: 7px; border-radius: 2px; background: #4c9b74;"></span>
+              <span style="font-size: 10.5px; font-weight: 800; color: #a29bb5;">40 energy</span>
+            </div>
+          </div>
+          <div data-unit="vetch" style="flex: 1; background: #f8f6fc; border-radius: 16px; padding: 10px; cursor: pointer;">
+            <div style="width: 100%; height: 44px; display: grid; place-items: center;">
+              <svg viewBox="0 0 40 40" width="38" height="38"><ellipse cx="20" cy="23" rx="10" ry="9" fill="#6ba7c0"></ellipse><circle cx="20" cy="11" r="5.2" fill="#6ba7c0"></circle><path d="M9 20 l-5 5 2 2 5-4 z M31 20 l5 5-2 2-5-4 z" fill="#6ba7c0"></path></svg>
+            </div>
+            <div style="font-size: 11.5px; font-weight: 800; margin-top: 4px;">Vetch Wall</div>
+            <div style="display: flex; align-items: center; gap: 4px; margin-top: 3px;">
+              <span style="width: 7px; height: 7px; border-radius: 2px; background: #4c9b74;"></span>
+              <span style="font-size: 10.5px; font-weight: 800; color: #a29bb5;">25 energy</span>
+            </div>
+          </div>
+          <div data-unit="ember" style="flex: 1; background: #f8f6fc; border-radius: 16px; padding: 10px; cursor: pointer;">
+            <div style="width: 100%; height: 44px; display: grid; place-items: center;">
+              <svg viewBox="0 0 40 40" width="38" height="38"><ellipse cx="20" cy="24" rx="8" ry="8" fill="#e5867a"></ellipse><circle cx="20" cy="13" r="5" fill="#e5867a"></circle><path d="M20 4 l3 6 h-6 z" fill="#e5867a"></path></svg>
+            </div>
+            <div style="font-size: 11.5px; font-weight: 800; margin-top: 4px;">Ember Spit</div>
+            <div style="display: flex; align-items: center; gap: 4px; margin-top: 3px;">
+              <span style="width: 7px; height: 7px; border-radius: 2px; background: #4c9b74;"></span>
+              <span style="font-size: 10.5px; font-weight: 800; color: #a29bb5;">55 energy</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ showTower }}">
+      <div style="background: #ffffff; border-radius: 22px; padding: 12px 16px 14px; box-shadow: 0 2px 8px rgba(63,58,82,.06);">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <span class="lbl">Slot {{ selName }} · deployed</span>
+            <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 22px; line-height: 1.1; margin-top: 2px;">{{ towerName }}</div>
+          </div>
+          <div style="text-align: right;">
+            <div class="lbl">Rank</div>
+            <div style="font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 22px; line-height: 1.1; color: #6b5fa8;">{{ towerRank }}</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 10px;">
+          <div style="flex: 1; background: #f8f6fc; border-radius: 12px; padding: 8px 10px;">
+            <div class="lbl">Damage</div>
+            <div style="font-size: 12px; font-weight: 700; margin-top: 3px;">{{ towerDmg }}</div>
+          </div>
+          <div style="flex: 1; background: #f8f6fc; border-radius: 12px; padding: 8px 10px;">
+            <div class="lbl">Range</div>
+            <div style="font-size: 12px; font-weight: 700; margin-top: 3px;">{{ towerRange }}</div>
+          </div>
+          <div style="flex: 1; background: #f8f6fc; border-radius: 12px; padding: 8px 10px;">
+            <div class="lbl">Trait</div>
+            <div style="font-size: 12px; font-weight: 700; margin-top: 3px;">{{ towerTrait }}</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 11px;">
+          <button type="button" onClick="{{ upgrade }}" style="flex: 1.3; border: 0; cursor: pointer; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 14px; color: #ffffff; background: linear-gradient(180deg, #8878cf, #6f5fbb); border-radius: 13px; padding: 11px 0; box-shadow: 0 3px 0 #5b4d9e;" style-active="transform: translateY(2px); box-shadow: 0 1px 0 #5b4d9e;">Rank up · 30</button>
+          <button type="button" onClick="{{ recall }}" style="flex: 1; border: 0; cursor: pointer; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 14px; color: #6b5fa8; background: #f1ecfa; border-radius: 13px; padding: 11px 0; box-shadow: inset 0 0 0 1px #e3dbf3;" style-active="transform: translateY(1px);">Recall</button>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ showIdle }}">
+      <div style="background: #ffffff; border-radius: 22px; padding: 13px 16px 14px; box-shadow: 0 2px 8px rgba(63,58,82,.06);">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <span class="lbl">Incoming wave {{ wave }}</span>
+          <span style="font-size: 10.5px; font-weight: 800; color: #b3564a;">{{ waveTag }}</span>
+        </div>
+        <div style="font-size: 12px; font-weight: 700; color: #5d5670; line-height: 1.4; margin-top: 6px;">{{ waveBody }}</div>
+        <div style="display: flex; gap: 7px; margin-top: 10px;">
+          <div style="flex: 1; background: #f8f6fc; border-radius: 12px; padding: 8px 10px;">
+            <div class="lbl">Foes</div>
+            <div style="font-size: 12px; font-weight: 700; margin-top: 3px;">{{ waveFoes }}</div>
+          </div>
+          <div style="flex: 1; background: #f8f6fc; border-radius: 12px; padding: 8px 10px;">
+            <div class="lbl">Deployed</div>
+            <div style="font-size: 12px; font-weight: 700; margin-top: 3px;">{{ deployedCount }} / 4</div>
+          </div>
+          <div style="flex: 1; background: #f8f6fc; border-radius: 12px; padding: 8px 10px;">
+            <div class="lbl">Reward</div>
+            <div style="font-size: 12px; font-weight: 700; margin-top: 3px;">120 shards</div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <div style="margin-top: 10px; background: #ffffff; border-radius: 22px; padding: 12px 16px 14px; box-shadow: 0 2px 8px rgba(63,58,82,.06);">
+      <div style="display: flex; justify-content: space-between; align-items: baseline;">
+        <span class="lbl">On the field</span>
+        <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">tap a slot on the lane</span>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 9px;">
+        <div style="display: flex; align-items: center; gap: 8px; background: #f8f6fc; border-radius: 12px; padding: 8px 10px;">
+          <span style="width: 18px; height: 18px; border-radius: 6px; background: #ece7f6; display: grid; place-items: center; font-size: 9px; font-weight: 800; color: #6b5fa8; flex: none;">A</span>
+          <span style="flex: 1; font-size: 11px; font-weight: 800; color: #3f3a52;">{{ fieldA }}</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; background: #f8f6fc; border-radius: 12px; padding: 8px 10px;">
+          <span style="width: 18px; height: 18px; border-radius: 6px; background: #ece7f6; display: grid; place-items: center; font-size: 9px; font-weight: 800; color: #6b5fa8; flex: none;">B</span>
+          <span style="flex: 1; font-size: 11px; font-weight: 800; color: #3f3a52;">{{ fieldB }}</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; background: #f8f6fc; border-radius: 12px; padding: 8px 10px;">
+          <span style="width: 18px; height: 18px; border-radius: 6px; background: #ece7f6; display: grid; place-items: center; font-size: 9px; font-weight: 800; color: #6b5fa8; flex: none;">C</span>
+          <span style="flex: 1; font-size: 11px; font-weight: 800; color: #3f3a52;">{{ fieldC }}</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; background: #f8f6fc; border-radius: 12px; padding: 8px 10px;">
+          <span style="width: 18px; height: 18px; border-radius: 6px; background: #ece7f6; display: grid; place-items: center; font-size: 9px; font-weight: 800; color: #6b5fa8; flex: none;">D</span>
+          <span style="flex: 1; font-size: 11px; font-weight: 800; color: #3f3a52;">{{ fieldD }}</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="padding: 11px 12px 8px;">
+    <div style="height: 7px; border-radius: 999px; background: #ece7f6; overflow: hidden; margin-bottom: 10px;">
+      <div style="height: 100%; border-radius: 999px; background: linear-gradient(90deg, #9585db, #6f5fbb); width: {{ waveProgress }};"></div>
+    </div>
+    <button type="button" onClick="{{ toggleWave }}" style="width: 100%; border: 0; cursor: pointer; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 17px; color: #ffffff; background: {{ ctaBg }}; border-radius: 15px; padding: 14px 0; box-shadow: 0 3px 0 {{ ctaShadow }}, 0 6px 14px rgba(111,95,187,.24);" style-active="transform: translateY(2px);">{{ ctaLabel }}</button>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; background: #ffffff; padding: 6px 10px 18px;">
+    <a href="Splice World Map v2.dc.html" style="display: grid; place-items: center; gap: 4px; padding: 8px 0; text-decoration: none;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#b3adc2" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"><path d="M9 4 L3 6 v14 l6-2 6 2 6-2 V4 l-6 2 z"></path><path d="M9 4 v14M15 6 v14"></path></svg>
+      <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">Map</span></a>
+<a href="Gene Ark.dc.html" style="display: grid; place-items: center; gap: 4px; padding: 8px 0; border-radius: 18px; background: #f1ecfa; text-decoration: none;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#6b5fa8" stroke-width="1.9" stroke-linejoin="round"><path d="M12 3 L20 7.5 v9 L12 21 L4 16.5 v-9 z"></path></svg>
+      <span style="font-size: 10px; font-weight: 800; color: #6b5fa8;">Ark</span>
+    </a>
+<a href="Splice Chamber.dc.html" style="display: grid; place-items: center; gap: 4px; padding: 8px 0; text-decoration: none;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#b3adc2" stroke-width="1.9" stroke-linecap="round"><path d="M8 3 v5 L4 20 h16 L16 8 V3"></path><path d="M7 3 h10M6.5 14 h11"></path></svg>
+      <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">Splice</span>
+    </a>
+    <a href="Gene Lab.dc.html" style="display: grid; place-items: center; gap: 4px; padding: 8px 0; text-decoration: none;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#b3adc2" stroke-width="1.9" stroke-linejoin="round"><path d="M3 20 V9 l6-4 6 4 6-3 v14 z"></path><path d="M9 20 V9M15 20 V9"></path></svg>
+      <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">Lab</span></a>
+    <a href="Alliance Hub.dc.html" style="display: grid; place-items: center; gap: 4px; padding: 8px 0; text-decoration: none;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#b3adc2" stroke-width="1.9" stroke-linecap="round"><circle cx="9" cy="9" r="3.4"></circle><path d="M3 20 c0-3.4 2.7-5.6 6-5.6 s6 2.2 6 5.6"></path><path d="M16 6.2 a3.4 3.4 0 0 1 0 5.8M18 20 c0-2.6-1-4.4-2.4-5.4"></path></svg>
+      <span style="font-size: 10px; font-weight: 700; color: #a29bb5;">Allies</span></a>
+  </div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:478,&quot;height&quot;:980}}">
+const UNITS = {
+  cinderplate: { name: "Cinderplate", cost: 40, dmg: "48", range: "Medium", trait: "Ashveil", short: "CIN" },
+  vetch: { name: "Vetch Wall", cost: 25, dmg: "18", range: "Short", trait: "Carapace", short: "VET" },
+  ember: { name: "Ember Spit", cost: 55, dmg: "71", range: "Long", trait: "Cinder", short: "EMB" }
+};
+const NAMES = { a: "A", b: "B", c: "C", d: "D" };
+
+class Component extends DCLogic {
+  state = {
+    slots: { a: { unit: "vetch", rank: 2 }, b: null, c: null, d: { unit: "cinderplate", rank: 1 } },
+    sel: null, energy: 145, wave: 7, integrity: 82, running: false, speed: 1
+  };
+
+  slotVals(k) {
+    const s = this.state.slots[k];
+    const selected = this.state.sel === k;
+    return {
+      label: s ? UNITS[s.unit].short : "+",
+      bg: s ? "#ffffff" : "rgba(255,255,255,.62)",
+      ring: selected
+        ? "0 0 0 3px #7a6ac0, 0 4px 10px rgba(63,58,82,.16)"
+        : s ? "0 2px 8px rgba(63,58,82,.14)" : "inset 0 0 0 2px #c9c0e6"
+    };
+  }
+
+  renderVals() {
+    const { slots, sel, energy, wave, integrity, running, speed } = this.state;
+    const a = this.slotVals("a"), b = this.slotVals("b"), c = this.slotVals("c"), d = this.slotVals("d");
+    const selSlot = sel ? slots[sel] : null;
+    const deployedCount = Object.values(slots).filter(Boolean).length;
+    const tower = selSlot ? UNITS[selSlot.unit] : null;
+
+    return {
+      wave, energy, integrity,
+      speedLabel: speed === 1 ? "1×" : "2×",
+      foeDur: (running ? 11 / speed : 11) + "s",
+      play: running ? "running" : "paused",
+      waveProgress: running ? "46%" : "0%",
+      ctaLabel: running ? "Pause wave" : "Start wave " + wave,
+      ctaBg: running ? "linear-gradient(180deg, #eda093, #d4776a)" : "linear-gradient(180deg, #8878cf, #6f5fbb)",
+      ctaShadow: running ? "#b35a4d" : "#5b4d9e",
+      slotALabel: a.label, slotABg: a.bg, slotARing: a.ring,
+      slotBLabel: b.label, slotBBg: b.bg, slotBRing: b.ring,
+      slotCLabel: c.label, slotCBg: c.bg, slotCRing: c.ring,
+      slotDLabel: d.label, slotDBg: d.bg, slotDRing: d.ring,
+      showTray: !!sel && !selSlot,
+      showTower: !!sel && !!selSlot,
+      showIdle: !sel,
+      selName: sel ? NAMES[sel] : "",
+      towerName: tower ? tower.name : "",
+      towerRank: selSlot ? "R" + selSlot.rank : "",
+      towerDmg: tower ? tower.dmg : "",
+      towerRange: tower ? tower.range : "",
+      towerTrait: tower ? tower.trait : "",
+      deployedCount,
+      fieldA: slots.a ? UNITS[slots.a.unit].name + " R" + slots.a.rank : "Empty",
+      fieldB: slots.b ? UNITS[slots.b.unit].name + " R" + slots.b.rank : "Empty",
+      fieldC: slots.c ? UNITS[slots.c.unit].name + " R" + slots.c.rank : "Empty",
+      fieldD: slots.d ? UNITS[slots.d.unit].name + " R" + slots.d.rank : "Empty",
+      waveTag: wave >= 7 ? "ARMORED PUSH" : "STANDARD",
+      waveBody: "Five foes, two of them armored brutes. Vetch Wall slows the lane; keep Ember Spit behind it for damage.",
+      waveFoes: "5",
+      tapSlot: (e) => {
+        const el = e.target && e.target.closest && e.target.closest("[data-slot]");
+        const k = el && el.getAttribute("data-slot");
+        if (k) this.setState((s) => ({ sel: s.sel === k ? null : k }));
+      },
+      clearSel: () => this.setState({ sel: null }),
+      deploy: (e) => {
+        const el = e.target && e.target.closest && e.target.closest("[data-unit]");
+        const u = el && el.getAttribute("data-unit");
+        if (!u || !UNITS[u] || !this.state.sel) return;
+        const cost = UNITS[u].cost;
+        if (this.state.energy < cost) return;
+        this.setState((s) => ({
+          slots: { ...s.slots, [s.sel]: { unit: u, rank: 1 } },
+          energy: s.energy - cost,
+          sel: null
+        }));
+      },
+      upgrade: () => this.setState((s) => {
+        const k = s.sel; if (!k || !s.slots[k] || s.energy < 30) return {};
+        return { energy: s.energy - 30, slots: { ...s.slots, [k]: { ...s.slots[k], rank: s.slots[k].rank + 1 } } };
+      }),
+      recall: () => this.setState((s) => {
+        const k = s.sel; if (!k || !s.slots[k]) return {};
+        return { energy: s.energy + Math.round(UNITS[s.slots[k].unit].cost * 0.6), slots: { ...s.slots, [k]: null }, sel: null };
+      }),
+      toggleWave: () => this.setState((s) => ({ running: !s.running, sel: null })),
+      toggleSpeed: () => this.setState((s) => ({ speed: s.speed === 1 ? 2 : 1 }))
+    };
+  }
+}
+</script>
+</body>
+</html>
