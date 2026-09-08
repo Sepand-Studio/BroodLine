@@ -1,3 +1,12 @@
+---
+status: superseded
+folder: 99-archive
+superseded-by: broodline_combat_numbers.md
+note: >
+  Ten chassis under the abandoned damage triangle. The design is six
+  species.
+---
+
 # Broodline — Chassis Roster
 
 *Design spec, the ten base bodies*

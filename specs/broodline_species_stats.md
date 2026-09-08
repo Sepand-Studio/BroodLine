@@ -1,3 +1,12 @@
+---
+status: superseded
+folder: 99-archive
+superseded-by: broodline_combat_numbers.md
+note: >
+  Transitional chassis-to-species rename document. The six stat lines now
+  live in combat numbers section 3, which carries the full table.
+---
+
 # Broodline — Species Stat Lines
 
 *Design spec. The six bodies as numbers.*

@@ -1,3 +1,13 @@
+---
+status: superseded
+folder: 99-archive
+superseded-by: broodline_solo_execution.md
+note: >
+  Assumes a studio and describes ten chassis. Its unique material was
+  rescued into the solo execution and client architecture documents before
+  retirement.
+---
+
 # Broodline — Technical Architecture
 
 *System design spec. The runtime underneath every design document in the set.*

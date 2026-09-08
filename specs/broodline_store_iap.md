@@ -1,3 +1,11 @@
+---
+status: current
+folder: 03-technical
+note: >
+  Entitlement, validation, the Season Pass model, refunds, offer
+  placement, pricing plumbing.
+---
+
 # Broodline — Store & IAP
 
 *Technical spec, taking money without breaking the model*

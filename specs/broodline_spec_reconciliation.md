@@ -1,3 +1,12 @@
+---
+status: superseded
+folder: 99-archive
+superseded-by: broodline_reconciliation.md
+note: >
+  An earlier decision register, wrong on most rows. Its constants ledger
+  must not be used.
+---
+
 # Broodline — Spec Reconciliation
 
 *Change control across fourteen documents*

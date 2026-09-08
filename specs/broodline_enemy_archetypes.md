@@ -1,3 +1,13 @@
+---
+status: superseded
+folder: 99-archive
+superseded-by: broodline_raider_roster.md
+note: >
+  Era-2. Crawler, Hulk, Spitter, Herald, Shade and Sire under the
+  abandoned Sealed/Plated/Warded armour types and the
+  Kinetic/Corrosive/Neural triangle.
+---
+
 # Broodline — Enemy Archetypes
 
 *Design spec, what attacks the Ark*

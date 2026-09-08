@@ -1,3 +1,11 @@
+---
+status: current
+folder: 01-companions
+note: >
+  Creature supply, species distribution, the Founder guarantees, Instinct
+  weights. Owns the designed first loss at wave 6 and the withheld Pale.
+---
+
 # Broodline — Base Stock Supply
 
 *Design spec, where creatures come from*

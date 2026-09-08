@@ -1,3 +1,12 @@
+---
+status: current
+folder: 03-technical
+note: >
+  Tick order, determinism, lane geometry, the replay format, the capacity
+  model, breach diagnosis, termination and the batch runner. Absorbed the
+  simulation core document.
+---
+
 # Broodline — The Combat Engine
 
 *Technical spec, the simulation everything runs on*

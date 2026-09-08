@@ -1,3 +1,10 @@
+---
+status: current
+folder: 01-companions
+note: >
+  Alliances, Stakes, garrisons, convoy staging, decay, the weekly tick.
+---
+
 # Broodline — Alliance & Territory Control
 *Design spec, the coordination layer*
 

@@ -1,3 +1,10 @@
+---
+status: decision-record
+folder: 02-decisions
+note: >
+  What the design audit found and how it closed. Historical.
+---
+
 # Broodline — The Design Audit
 
 *Historical record. Closed.*

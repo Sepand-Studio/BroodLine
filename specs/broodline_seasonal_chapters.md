@@ -1,3 +1,11 @@
+---
+status: current
+folder: 01-companions
+note: >
+  Authoring past wave 60, the shape vocabulary, the cost of a ninth
+  raider.
+---
+
 # Broodline — Seasonal Chapters
 
 *Content spec, how to author waves 61 onward*

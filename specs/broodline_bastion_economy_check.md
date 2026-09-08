@@ -1,3 +1,11 @@
+---
+status: decision-record
+folder: 02-decisions
+note: >
+  Runs the Bastion against the economy model's sink table. Result: the
+  Bastion is free and equal to Core tier, not a purchasable module.
+---
+
 # Broodline — Bastion Economy Check
 
 *Runs the Bastion against the economy model's sink table. Corrects `broodline_wave_scaling_addenda.md` §5.3–§5.4.*

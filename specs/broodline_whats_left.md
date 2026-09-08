@@ -1,3 +1,11 @@
+---
+status: decision-record
+folder: 02-decisions
+note: >
+  The working list. Every open question in the set classified by who can
+  close it. Counts are behind the current file set and need a refresh.
+---
+
 # Broodline — What's Left
 
 *The state of the project, and the only document that says what is not done*
@@ -10,9 +18,11 @@
 
 ## 1. Where the project stands
 
-**Fifty-two files.** The design is finished. The content is finished — sixty waves, thirty regions, the graph. The technical foundations are specified — engine, data model, telemetry, server topology, store. The production plan exists and names its gates.
+**Seventy files, forty-four of them current.** The design is finished. The content is finished — sixty waves, thirty regions, the graph. The technical foundations are specified — engine, data model, telemetry, server topology, store. The production plan exists and names its gates.
 
-**One hundred and nineteen open questions remain across thirty-four current documents**, and **none of them can be answered by writing.** Every decision that could be taken on paper has been taken. What remains sorts into four kinds, and every one needs something other than a document.
+**One hundred and thirty-seven unresolved open questions remain across thirty-four current documents.** The claim that none can be answered by writing was very nearly right and not quite: a reconciliation pass closed six by cross-referencing documents that already contained the answers — tombstone name fields, `committed_to`, node state on an empty server, Pack Sense, globally-meaningful IDs, and replay retention — and found one live contradiction between two current documents that no amount of playtest would have settled. The rest still need something other than a document.
+
+**Treat "closable by reading" as a fifth kind.** It is small, but it is not zero, and it is the only kind that costs nothing to clear. What remains sorts into four kinds, and every one needs something other than a document.
 
 | Kind | Count | Closes when |
 |---|---|---|

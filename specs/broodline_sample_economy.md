@@ -1,3 +1,11 @@
+---
+status: current
+folder: 01-companions
+note: >
+  Sample rates, weighting, fusing, capacity, the catalyst, the Aberrant
+  sub-roll.
+---
+
 # Broodline — The Sample Economy
 
 *Design spec, coverage supply and the Aberrant supply line*

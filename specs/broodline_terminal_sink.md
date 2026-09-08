@@ -1,3 +1,11 @@
+---
+status: current
+folder: 01-companions
+note: >
+  Resolves economy model section 8 and its open question 5. Amends the
+  Calibration recommendation rather than replacing it.
+---
+
 # Broodline — The Terminal Sink
 
 *Resolves economy model §8 and open question 5. Amends the Calibration recommendation rather than replacing it.*

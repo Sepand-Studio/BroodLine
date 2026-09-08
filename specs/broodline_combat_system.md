@@ -1,3 +1,11 @@
+---
+status: superseded
+folder: 99-archive
+superseded-by: broodline_combat_engine.md
+note: >
+  Era-2. Names Pack Sense as same-chassis; the design is same-species.
+---
+
 # Broodline — Combat System
 *Design spec, tower defense core*
 

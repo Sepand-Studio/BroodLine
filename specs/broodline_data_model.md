@@ -1,3 +1,10 @@
+---
+status: current
+folder: 03-technical
+note: >
+  Entities, relationships, lineage retention and the authority split.
+---
+
 # Broodline — The Data Model
 
 *Technical spec, what is stored and where*

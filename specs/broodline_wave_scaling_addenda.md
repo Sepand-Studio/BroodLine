@@ -1,3 +1,12 @@
+---
+status: current
+folder: 01-companions
+note: >
+  Wave scaling addenda. Sections 5.3-5.4 retracted by the Bastion economy
+  check; the scaling, the +20% per level and the section 6 ratio table
+  stand.
+---
+
 # Broodline — Wave Scaling Addenda
 
 > **§5.3 and §5.4 are retracted.** The Bastion is not a purchasable module. It

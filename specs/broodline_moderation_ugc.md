@@ -1,3 +1,10 @@
+---
+status: current
+folder: 01-companions
+note: >
+  UGC surfaces, filtering, age gating, the 12+ decision.
+---
+
 # Broodline — Moderation & UGC Policy
 
 *Design spec, the submission requirement*

@@ -1,3 +1,11 @@
+---
+status: superseded
+folder: 99-archive
+superseded-by: broodline_region_roster.md
+note: >
+  Era-2 resource node system. Node types and depletion are now the region roster's and the server topology's.
+---
+
 # Splice — Resource Node System
 *Design spec, expanding the Mobile Gene Ark relocation mechanic*
 

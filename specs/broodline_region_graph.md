@@ -1,3 +1,10 @@
+---
+status: current
+folder: 04-content
+note: >
+  Thirty regions, forty-three edges, gate pairings.
+---
+
 # Broodline — The Region Graph
 
 *Content, the map's connectivity*

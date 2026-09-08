@@ -1,3 +1,10 @@
+---
+status: current
+folder: 03-technical
+note: >
+  The socket standard and the Phase 1 art gate.
+---
+
 # Broodline — Rig Proof Brief
 
 *Production, the Phase 1 gate*

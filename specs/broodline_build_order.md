@@ -1,3 +1,10 @@
+---
+status: current
+folder: 03-technical
+note: >
+  The production plan. Phases, procurement, what playtest has to answer.
+---
+
 # Broodline — Build Order
 
 *Production plan, what to make and in what order*

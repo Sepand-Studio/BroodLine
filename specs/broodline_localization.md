@@ -1,3 +1,11 @@
+---
+status: current
+folder: 01-companions
+note: >
+  Launch languages, naming policy, pricing per storefront, fonts,
+  jurisdiction.
+---
+
 # Broodline — Localization
 
 *Design spec, shipping in more than one language*

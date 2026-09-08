@@ -1,3 +1,11 @@
+---
+status: decision-record
+folder: 02-decisions
+note: >
+  Closes the three items the errata pass escalated, plus a fourth found
+  while resolving them.
+---
+
 # Broodline — Four Decisions
 
 *Closes the three items flagged in `broodline_errata_pass.md` §12–§14, plus a fourth found while resolving them.*

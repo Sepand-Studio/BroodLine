@@ -1,3 +1,12 @@
+---
+status: superseded
+folder: 99-archive
+superseded-by: broodline_whats_left.md
+note: >
+  Audit of the 27-file era against the bible, with its fix pass applied.
+  Superseded as the working list.
+---
+
 # Broodline — Gap & Inconsistency Register
 
 *Audit of all 27 project files against `broodline_bible.md`.*

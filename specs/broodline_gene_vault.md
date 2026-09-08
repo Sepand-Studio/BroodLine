@@ -1,3 +1,11 @@
+---
+status: superseded
+folder: 99-archive
+superseded-by: broodline_sample_economy.md
+note: >
+  Era-2.
+---
+
 # Broodline — Gene Vault Progression
 
 *Design spec, the Ark's infrastructure layer*

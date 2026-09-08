@@ -1,3 +1,12 @@
+---
+status: current
+folder: 03-technical
+note: >
+  Client layering, the simulation-to-render contract, frame and memory
+  budgets, runtime creature assembly, content packaging, local
+  persistence, the offline outbox and build configuration.
+---
+
 # Broodline — Client Architecture
 
 *Technical spec, how the Unity client is put together*

@@ -1,3 +1,12 @@
+---
+status: superseded
+folder: 99-archive
+superseded-by: broodline_wave_scaling_addenda.md
+note: >
+  Partly superseded. Section 2's diagnosis stands and its fix is now the
+  design; its tables use a lane schedule that no longer applies.
+---
+
 # Broodline — Wave Scaling Audit
 
 > **Partly superseded.** §2's diagnosis stands and its fix is now the design.

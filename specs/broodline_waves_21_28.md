@@ -1,3 +1,10 @@
+---
+status: current
+folder: 04-content
+note: >
+  Authored waves 21-28.
+---
+
 # Broodline — Campaign Waves 21–28
 
 *Content, chapter four authored*

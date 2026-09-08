@@ -1,3 +1,12 @@
+---
+status: current
+folder: 03-technical
+note: >
+  Deployables, runtime, reliability, repository layout, release, storage
+  mechanics, the config pipeline, the language boundary, account lifecycle
+  and milestone scoping for a single developer.
+---
+
 # Broodline — Solo Execution Plan
 
 *Technical spec, how one person builds this*

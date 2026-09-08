@@ -1,3 +1,13 @@
+---
+status: superseded
+folder: 99-archive
+superseded-by: broodline_combat_engine.md
+note: >
+  Five sections merged into the combat engine: lane geometry, the capacity
+  model, the composition invariants, termination and the batch runner. Its
+  tick order and assignment rule were not taken.
+---
+
 # Broodline — Simulation Core
 
 *Engineering spec. Step 1 of the build order, and the thing everything else waits on.*
