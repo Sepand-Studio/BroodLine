@@ -5,7 +5,8 @@
 > **PROPOSED — not yet in the supersession map.** Owns the execution shape:
 > deployables, repository layout, storage mechanics, the language boundary, and
 > milestone scoping. Does not own entity shapes (`broodline_data_model.md`),
-> the simulation (`broodline_combat_engine.md`), server population
+> the simulation (`broodline_combat_engine.md`), the client
+> (`broodline_client_architecture.md`), server population
 > (`broodline_server_topology.md`), or the production plan
 > (`broodline_build_order.md`). Where this document appears to contradict any
 > of those, they win and this is a bug — except at §9, which records eight
@@ -101,6 +102,33 @@ Until then commerce reaches the rest of the system through exactly two things �
 
 Estimated cost before players: **$25–50/month.** Cloud Run scales to zero; the Postgres instance is the only always-on component.
 
+### 3.1 Reliability and observability
+
+`broodline_telemetry.md` is **design** telemetry — its own scope line is "the seven playtest questions as events, metrics and thresholds." Nothing in the set owns operational monitoring, so it is owned here.
+
+**Service level objectives.** Three, and only three, because a solo developer cannot act on more:
+
+| | |
+|---|---|
+| `GET /v1/sync` | p99 under 300 ms — it is on every cold start |
+| Wave submission end to end | p99 under 500 ms, including re-simulation |
+| Raid alert delivered | within 5 s at p95 |
+
+The third is a **gameplay requirement, not an ops preference.** `broodline_collectors_raiding.md` gives the defender a ninety-second window from the push; delivery that eats twenty of them changes the game.
+
+**Graceful degradation, decided in advance rather than at 2am:**
+
+| If this is down | Then |
+|---|---|
+| `sim` | Campaign submissions queue and reward optimistically, reconciled on recovery. Bounded exposure, and the player feels nothing |
+| Push delivery | Raids auto-resolve without an alert; the defender gets the replay and a mail apology |
+| Live state / chat | Degrades to polling |
+| `api` | Nothing about this is graceful. It is the one service with a real SLO and the one that must not be down |
+
+**What is watched.** Cloud Run request latency and error rate per route, Cloud SQL connection count against the cap, the ledger-versus-wallet invariant job (§5.3), simulation hash-mismatch rate, and the nightly determinism diff. **Alert on the invariant job and the mismatch rate**; graph everything else. A duplication exploit and a determinism drift are the two failures that get worse the longer they run.
+
+**Deploy safety.** With one server there is no canary population, so the substitutes are: deploy behind a health check, keep the previous Cloud Run revision one command away, and never deploy a schema migration and the code that depends on it in the same step. Once a second server exists, canary-by-server is available for free and is the strongest release tool the architecture offers.
+
 ---
 
 ## 4. Servers, and how many to run
@@ -121,6 +149,20 @@ The schema shape is the expensive part to retrofit and it costs nothing now. Pro
 **Assignment and transfers follow `broodline_server_topology.md` §5 exactly: assignment by storefront region at signup, no transfers, ever.** A player wanting to play elsewhere creates a second unlinked account. This also closes the guest-account question the architecture document left open — assignment is not something a client can influence, so a guest cannot reroll onto a low-population server to farm its Apex Veins.
 
 **Tick slot is one of the three fixed slots in `broodline_server_topology.md` §5**, chosen at creation and never changed.
+
+**Multi-region is nearly free, provided one decision is made now: servers are region-pinned, and account data is region-partitioned from day one even while only the US exists.**
+
+| Layer | US launch | EU | APAC |
+|---|---|---|---|
+| Servers and their data | `us-central1` | `europe-west1` | `asia-northeast1` |
+| Account / identity | `us-central1` | `europe-west1`, EU residency | home region + replica |
+| Commerce | `us-central1` | routes by account region | routes by account region |
+| Telemetry | pseudonymised, single region | EU raw retained in EU | same |
+| Static content and CDN | global | global | global |
+
+**Data residency is the reason to build the partition before it is needed.** Once EU players exist, moving their data into the EU is a migration under legal pressure. A `home_region` column and a routing rule written now cost nothing — and `broodline_localization.md` §9 already fixes per-jurisdiction age thresholds, which is the same partition seen from the policy side.
+
+The account record is the only genuinely global component, which is why §5.1 keeps it small.
 
 **Store it at minute granularity, not hour.** Every server in a region ticking at the same minute makes the weekly tick simultaneously the heaviest scheduled job and the largest push fan-out in the game. Spreading servers across the first half hour of their slot flattens that spike and is invisible to players, because nothing in the game is cross-server. Storing an hour and needing minutes later is a migration; storing minutes and only ever using `:00` costs nothing — §9.7.
 
@@ -157,6 +199,21 @@ Per `broodline_data_model.md` §7 and `broodline_server_topology.md` §7, **most
 **A server's entire map state is a few kilobytes.** Storing region definitions per server would be a data migration every time a region is tuned.
 
 This extends to the rest of the config surface. Event definitions, pack contents, trait tables, wave definitions and localised strings are a **versioned JSON bundle on GCS behind CDN**, not an API. `/v1/sync` returns the required bundle version; the client fetches and caches it. Live-ops changes stay off the API path and are CDN-cheap at any scale.
+
+**The publish pipeline, which the bundle format implies and nothing else owns:**
+
+1. **Authored in-repo as JSON**, reviewed as a diff. The LiveOps console replaces this step later — §10 — and publishes through the same path
+2. **Validated at publish time**, not at read time. The client must never receive a bundle it cannot parse, because a bad bundle is shipped to every player at once and cannot be recalled by an app update
+3. **Published immutably under a version**, never overwritten. `/v1/sync` names the version; rollback is naming the previous one
+4. **Rollback is a config change**, not a deploy
+
+**Validation runs the invariants the design documents already state**, as tests over the bundle:
+
+- The **monotonic pack ladder** from `broodline_monetization.md` — value per dollar must never decrease as pack size rises. This was broken once by hand; the machine should enforce it
+- `broodline_combat_engine.md`'s **two wave-composition rules** — never two raiders answered by the same trait, never more than four raider types. The engine asserts these at wave load, so catching them at publish turns a runtime throw into a failed publish
+- Every localised string key present in every launch locale, per `broodline_localization.md`
+
+A bundle that fails validation is not published. That is the entire safety model, and it is worth more than a console.
 
 ### 5.3 The ledger
 
@@ -272,6 +329,13 @@ Retry therefore means *resend the identical request with the identical key*, wit
 
 Server assignment happens once at account creation from storefront region and is immutable — §4.
 
+**Account lifecycle, which nothing else in the set owns:**
+
+- **Deletion is a product requirement, not a nicety.** The App Store requires an in-app path to account deletion for any app that supports account creation. It is a soft delete plus a scheduled purge: the account is disabled immediately, player-visible data is removed on a timer, and the **ledger is retained in pseudonymised form** because it is a financial record and because `broodline_store_iap.md`'s refund path depends on it. Creature tombstones (§5.6) survive too — a deleted player's descendants still render in other players' lineage views, which is exactly why tombstones are minimal
+- **Recovery is Apple's problem, deliberately.** Sign in with Apple means there is no password to reset and no recovery flow to build or abuse. A guest account that was never bound is **unrecoverable**, and the FTUE must say so before it matters
+- **Device migration is sign-in, nothing more.** No state lives on the device that is not reconstructible from `/v1/sync` — see `broodline_client_architecture.md` for what the client is permitted to cache
+- **Guest upgrade never migrates data.** Binding the Apple `sub` to the existing account id means there is no merge, and therefore no merge conflict. A player who signs in with an Apple ID already bound to another account is offered that account, not a merge
+
 ---
 
 ## 7. Repository layout
@@ -320,6 +384,22 @@ broodline/
 Requires **Asset Serialization: Force Text** and **Version Control: Visible Meta Files** from the start. `.meta` files are committed.
 
 **CI paths.** Workflows filter by path. Touching `services/api/` does not rebuild Unity. Touching `engine/` triggers everything.
+
+### 7.0 Release
+
+Three artifacts ship on three different cadences, and they must be able to move independently or the slowest one gates the others.
+
+| Artifact | Cadence | Gated by |
+|---|---|---|
+| Config bundle | Any time | Publish-time validation — §5.2 |
+| `api` and `sim` | Any time | Tests, then a health-checked Cloud Run revision |
+| The client | App Review | TestFlight, then phased release |
+
+**The client is the slow one, and everything else is designed around that.** Config is a bundle so live-ops does not wait on App Review. `minimumClientVersion` in `/v1/sync` — §6.2 — is what lets a server change outrun a client that cannot be updated in time.
+
+**The server must tolerate old clients**, because App Review plus phased rollout means several client versions are live simultaneously. That is what versions the API (`/v1`) and what makes additive-only bundle changes a rule rather than a preference.
+
+**Never deploy a schema migration and the code that requires it together.** Expand, deploy, migrate, contract — the same discipline that makes rollback possible.
 
 ### 7.1 Determinism enforced by tooling
 
@@ -371,13 +451,13 @@ Two deliberate deviations:
 
 **The backend arrives earlier.** The milestone is explicitly *server-authoritative*, because server authority and the ledger are the two things in `broodline_data_model.md` §8 that cannot be retrofitted. Building the loop client-only and adding authority later means rewriting every grant path.
 
-**The rig proof does not run in parallel — it runs first, alone.** `broodline_build_order.md` calls it a gate rather than a milestone: if two dissimilar bodies cannot carry the same twelve trait parts in either socket at acceptable quality, the twenty-four-asset budget is wrong and the art plan changes before money is spent. One developer cannot run it in parallel with engine work, and a failed gate discovered late is more expensive than a serialised one.
+**Two proofs run first, not in parallel with anything.** `broodline_build_order.md` calls it a gate rather than a milestone: if two dissimilar bodies cannot carry the same twelve trait parts in either socket at acceptable quality, the twenty-four-asset budget is wrong and the art plan changes before money is spent. One developer cannot run it in parallel with engine work, and a failed gate discovered late is more expensive than a serialised one.
 
 ### 8.2 Order
 
 | Phase | What lands | Done when |
 |---|---|---|
-| **0. Rig proof** | `broodline_rig_proof.md` gate — Vetch and Pale, twelve parts, both sockets | Pass/fail recorded against that document's criteria |
+| **0. Two proofs** | `broodline_rig_proof.md` — Vetch and Pale, twelve parts, both sockets. **And the entity-count proof** — wave 44's ~100 entities at target frame rate on the oldest supported device, per `broodline_client_architecture.md` §4 | Both pass/fail recorded against their documents' criteria. Either failure changes the art budget or the renderer, and both are cheaper to find now |
 | **1. Foundations** | Repo, LFS, Unity settings, `engine` project, banned-API analyzer, Cecil scan, xUnit harness, self-hosted CI | A toy sim passes golden and fuzz on CoreCLR and IL2CPP |
 | **2. Combat engine** | One lane, one raider, five pockets, the counter check, tick order, termination, replay format, batch runner | A 90-second wave simulates identically twice; corpus test runs |
 | **3. Unity client** | Renderer for `SimState`, interpolation, input capture, placeholder art, Codex bottom sheet | A wave played on device replays bit-identically in xUnit |
@@ -392,7 +472,7 @@ Nothing before Phase 4 requires GCP to exist. The cloud bill is zero for the fir
 
 | Phase | Full-time | Nights & weekends |
 |---|---|---|
-| 0. Rig proof | 2–3 weeks | 6 weeks |
+| 0. Two proofs | 3–4 weeks | 8 weeks |
 | 1. Foundations | 2 weeks | 5 weeks |
 | 2. Combat engine | 6–8 weeks | 4–5 months |
 | 3. Unity client | 6–8 weeks | 4–5 months |
@@ -400,7 +480,7 @@ Nothing before Phase 4 requires GCP to exist. The cloud bill is zero for the fir
 | 5. Validation | 2 weeks | 5 weeks |
 | 6. The loop | 3 weeks | 7 weeks |
 | 7. Slice polish | 4–6 weeks | 3 months |
-| **Total** | **6.5–8.5 months** | **18–21 months** |
+| **Total** | **6.5–8.5 months** | **19–21 months** |
 
 Phase 2 is far wider than the "one engineer for about a week" the retired `broodline_sim_core.md` §12 budgeted for its first two steps, because that estimate assumes an engineer who already writes C#. Phase 3 carries the Unity editor learning curve.
 
@@ -414,11 +494,11 @@ Phase 2 is far wider than the "one engineer for about a week" the retired `brood
 
 ## 9. Decisions taken against the design set
 
-**`broodline_supersession_map.md` is behind the document set.** It accounts for fifty-three files and all fifty-three exist, but there are now sixty-eight — thirteen unmapped documents in `specs/`, plus `broodline_technical_architecture.md` and `broodline_sim_core.md` in `plans/`.
+**`broodline_supersession_map.md` is behind the document set.** It accounts for fifty-three files and all fifty-three exist, but there are now seventy — thirteen unmapped documents in `specs/`, plus four in `plans/`: `broodline_technical_architecture.md`, `broodline_sim_core.md`, this document and `broodline_client_architecture.md`.
 
 That mattered for how these were decided. "Not in the map" is evidence a document has not been ratified; it is **not** evidence it was rejected, because the map has simply not been run since these were written. So each of the following was decided on merit, with the mapped document as the default where merit was close.
 
-**Four of these require edits outside this document**, listed at §9.9.
+**Five of them require edits to documents this one does not own**, listed at §9.9.
 
 ### 9.1 The two unmapped documents are retired
 
@@ -434,7 +514,19 @@ That mattered for how these were decided. "Not in the map" is evidence a documen
 >
 > Its tick order, its unified counter phase and its assignment rule (§9.6) do **not** merge. `broodline_combat_engine.md` §4 and §5 stand.
 
-> **`broodline_technical_architecture.md` → ❌ superseded** by this document, which absorbs its target-state material into the deferred-triggers table at §10. It is written for a studio, and it describes ten chassis — `broodline_chassis_roster.md` is ❌ superseded for exactly that premise.
+> **`broodline_technical_architecture.md` → ❌ superseded**, but only after its unique material is rescued, because it was the sole owner of several topics. It is written for a studio, and it describes ten chassis — `broodline_chassis_roster.md` is ❌ superseded for exactly that premise.
+
+| Rescued to | What |
+|---|---|
+| §3.1 here | SLOs, graceful degradation, what is watched and alerted |
+| §4 here | The multi-region layer table and the data-residency argument |
+| §5.2 here | The config publish pipeline and its validation invariants |
+| §6.4 here | Account deletion, recovery and device migration |
+| §7.0 here | The three release cadences and old-client tolerance |
+| `broodline_client_architecture.md` | Addressables and remote content, install size as a conversion metric, the iPad orientation caveat |
+| §10 here | The deferred-triggers table, which records *when* each remaining piece arrives |
+
+An earlier revision of this document retired it into the triggers table alone. That was wrong: the table records when things arrive, not what they are, so four topics — observability, residency, the config pipeline and account lifecycle — briefly had no owner at all.
 
 ### 9.2 The engine is shared source, not a DLL
 
@@ -523,7 +615,9 @@ Nothing to build at milestone 1. The only thing that must be right now is the co
 | `broodline_data_model.md` | Rewrite §8 to make campaign waves server-validated — §9.3. Close §11.2 — §9.5 |
 | `broodline_sim_core.md` | Add a ❌ superseded header once the merge lands |
 | `broodline_technical_architecture.md` | Add a ❌ superseded header |
-| `broodline_supersession_map.md` | Re-run it. Fifteen documents are unaccounted for |
+| `broodline_supersession_map.md` | Re-run it. Seventeen documents are unaccounted for, including this one and `broodline_client_architecture.md` |
+
+**A second gap this document created and has now closed:** retiring `broodline_technical_architecture.md` left the client with no owner at all — no document covered Addressables, install size, memory, the render budget, local persistence or offline behaviour, and `broodline_combat_engine.md` §9 explicitly hands rendering to a document that did not exist. `broodline_client_architecture.md` is that document.
 
 **Still open, and not resolvable without reading them** — two possible duplicate owners among the unmapped thirteen:
 
@@ -562,7 +656,7 @@ Nothing speculative. Each has a named condition.
 | Risk | | Mitigation |
 |---|---|---|
 | **Determinism drift** | Trust failure, not load failure. Surfaces as players believing the game cheats | Three tooling-enforced rules, four test layers, nightly cross-runtime diff, manual device runs before release |
-| **Rig proof fails** | Changes the asset budget and the art plan | It is Phase 0 and it is a gate. `broodline_rig_proof.md` states what passing looks like |
+| **Either Phase 0 proof fails** | The rig proof changes the asset budget; the entity-count proof changes the renderer | Both are Phase 0 gates, run before anything is built on them. `broodline_rig_proof.md` and `broodline_client_architecture.md` §4 state what passing looks like |
 | **Unity editor learning curve** | Schedule risk concentrated in Phase 3 | Phases 1–2 teach C# outside the editor first |
 | **Art acquisition** | Gates Phase 7, least predictable line item | Ship on placeholder art if needed; art is a parallel track, not a blocker |
 | **Two build systems over one source tree** | Low, but unusual enough to confuse tooling | Unity compiles `engine/Runtime` via the asmdef; .NET compiles the same files via the csproj. CI builds both on every `engine/` change |
@@ -583,7 +677,10 @@ Nothing speculative. Each has a named condition.
 - Static region content ships with the build; only node, controller and presence state is stored
 - Git LFS and Force Text serialization are set before the first art commit
 - Generated API clients are committed and never hand-edited
+- A config bundle that fails publish-time validation is not published
+- A schema migration and the code requiring it never deploy together
+- The server tolerates old clients; API and bundle changes are additive
 
 ---
 
-*Owns: deployables, runtime, repository layout, storage mechanics, the language boundary and milestone scoping. Defers to: `broodline_bible.md` for the design, `broodline_combat_engine.md` for the simulation, `broodline_data_model.md` for entity shapes and authority, `broodline_server_topology.md` for population and lifecycle, `broodline_build_order.md` for the production plan.*
+*Owns: deployables, runtime, reliability and observability, repository layout, release, storage mechanics, the config publish pipeline, the language boundary, account lifecycle, multi-region posture and milestone scoping. Defers to: `broodline_client_architecture.md` for everything inside the app, `broodline_bible.md` for the design, `broodline_combat_engine.md` for the simulation, `broodline_data_model.md` for entity shapes and authority, `broodline_server_topology.md` for population and lifecycle, `broodline_build_order.md` for the production plan.*
