@@ -62,23 +62,29 @@ Three consequences that are easy to get wrong:
 
 ## 3. Frame and memory budgets
 
-**Target: 60 fps.** At 30 Hz simulation and 60 Hz rendering, one simulation step lands every other frame, so the worst frame carries a full tick plus a full render inside **16.6 ms**.
+**Reference device: A13 with 3 GB — iPhone 11, iPhone SE (2020), iPad 9th gen.**
+
+The floor is set by the cheap devices, not the old flagships. The SE line and the base iPad are exactly the price-sensitive hardware a free-to-play audience runs, and excluding them is a revenue decision rather than a technical one. The consequential difference between the A13 and A14 bands is **memory, not GPU** — the SE (2020) and iPad 9 carry 3 GB where every A14 device carries 4.
+
+**Frame rate: 60 target, 30 fallback.** At 30 Hz simulation and 60 Hz rendering, one simulation step lands every other frame, so the worst frame carries a full tick plus a full render inside **16.6 ms**. A locked 30 fps is the last rung of the degradation ladder (§4) and a battery option in settings, which doubles the budget to 33.3 ms when it engages.
+
+**Interpolation stays regardless** — §2. Rendering 1:1 with ticks at a locked 30 fps would delete it, but a 60 fps target with a 30 fps fallback needs it, and capping 60 down is always possible where adding it back is not.
 
 The engine is not the problem. A hundred entities of integer arithmetic with one targeting pass is well under a millisecond. **Rendering owns essentially the whole budget**, which is why it needs a number and a proof rather than an assumption.
 
-**Memory: 800 MB peak.** iOS terminates on memory pressure without a crash log worth reading, and the oldest supported device sets the ceiling. 800 MB leaves room under jetsam on a 4 GB device with a wave running, the UI resident and Addressables warm.
+**Memory: 600 MB peak.** iOS terminates on memory pressure without a crash log worth reading, and the reference device sets the ceiling. 600 MB leaves room under jetsam on a **3 GB** device with a wave running, the UI resident and Addressables warm. This is the single tightest constraint in the client and it is a direct consequence of the device floor.
 
 ---
 
-## 4. The entity-count proof — a Phase 1 gate
+## 4. The entity-count proof — a Phase 0 gate
 
 `broodline_combat_engine.md` §9 asks for this explicitly and it has not been scheduled.
 
 **Wave 44 is the test case.** `broodline_waves_37_44.md` §7 and both later wave documents flag the same worry: wave 44 and five of chapter 8's waves put close to **a hundred entities** on the board — sixty Skirmishers, three Broods becoming thirty-nine, five creatures.
 
-> **The proof: wave 44's entity count, rendered at 60 fps on the oldest supported device, with real creature meshes rather than capsules.**
+> **The proof: wave 44's entity count, rendered on an A13 / 3 GB device with real creature meshes rather than capsules, measured at both 60 and 30 fps and against the 600 MB ceiling.**
 
-It runs in Phase 1 alongside `broodline_rig_proof.md`, and for the same reason: **it can invalidate an assumption that everything downstream is built on.** If a hundred skinned meshes cannot hold 60 fps, the answer is a rendering strategy change — crowd impostors, baked vertex animation, fewer unique bodies on screen — and that changes the art budget. Discovering it in Phase 3 means rebuilding the renderer after the content is authored against it.
+It runs alongside `broodline_rig_proof.md` in Phase 1 of `broodline_build_order.md` — Phase 0 of `broodline_solo_execution.md` §8.2 — and for the same reason: **it can invalidate an assumption that everything downstream is built on.** If a hundred skinned meshes cannot hold 60 fps, the answer is a rendering strategy change — crowd impostors, baked vertex animation, fewer unique bodies on screen — and that changes the art budget. Discovering it in Phase 3 means rebuilding the renderer after the content is authored against it.
 
 Two things `broodline_combat_engine.md` §9 already asks the engine for, which this depends on:
 
@@ -92,6 +98,9 @@ Two things `broodline_combat_engine.md` §9 already asks the engine for, which t
 | Under 40 | Full fidelity — individual skinned meshes, full VFX |
 | 40–70 | Identical raider types collapse to instanced rendering; hit VFX pooled and capped |
 | Over 70 | Animation update rate halves for non-foreground entities; death VFX becomes a single shared effect |
+| Still short | **Drop to 30 fps for the remainder of the wave**, never mid-wave more than once |
+
+The frame-rate rung is last because it is the most visible, and it latches for the wave rather than oscillating — a frame rate that hunts between 60 and 30 reads as worse than either.
 
 The ladder keys off the engine's entity count, which is deterministic — so **two players watching the same replay see the same fidelity**, and a device that degrades never diverges from one that does not. Degradation touches rendering only; it can never touch `SimState`.
 
@@ -119,14 +128,20 @@ A creature is **assembled, not authored**: a species body plus up to two trait a
 
 Everything past the first hour streams.
 
+**The first hour needs four species, not two.** `broodline_base_stock.md` §5.1 hands the player a **Vetch** and an **Ember** at wave 1 as the tutorial splice parents, consumed at beat 6 to produce Cinderplate; Founder 1 is a **Hollow**, arriving session one at beat 3 as the creature the player names; and §5.2 grants a **Pale** from the Wave Defeat screen at wave 6, which `broodline_build_order.md` Phase 2 places inside the first hour. Skitter arrives day 2 and Loam day 3, so all six are in hand within 72 hours.
+
 | In the binary | Streamed via Addressables |
 |---|---|
 | The first hour, per `broodline_build_order.md` Phase 2 | Remaining regions and terrain families |
-| Two base-stock species, fully rigged | The other four species |
+| **Vetch, Ember, Hollow and Pale**, fully rigged | **Skitter and Loam** — needed at day 2 and day 3, so prefetched from first launch against a window measured in days |
 | Waves 1–6 and their raiders | Chapters 2–8 |
 | One region's environment | Event and seasonal content |
 | Shared UI components, icon atlas, trait pips | Cosmetics |
 | Launch-locale strings and fonts | Additional locales and CJK font substitutes |
+
+**Rough budget:** the Unity runtime with URP under IL2CPP is 35–50 MB before any content and is the largest single item; four rigged species ~16 MB, twelve trait attachments ~4 MB, early raiders ~8 MB, one region ~25 MB, UI atlases ~15 MB, audio ~12 MB, Latin fonts ~2 MB. **Roughly 117–132 MB**, so 150 MB survives with less headroom than it appears — and the two dominant variables, the engine binary and the region environment, are not things that can be trimmed late.
+
+The cellular download ceiling is no longer the constraint; iOS lets users download over cellular at any size. 150 MB is a conversion target, not a compliance one.
 
 Two rules that keep this honest:
 
@@ -186,6 +201,28 @@ Mobile networks are always flaky, and `broodline_solo_execution.md` §6.3 alread
 
 **Pushed sub-screens hide the bottom nav and carry a back chevron.**
 
+**Layout is size- and aspect-tolerant by construction** — safe-area driven, no fixed pixel positions, and a declared minimum window size. §10 explains why this is now a requirement rather than good practice. It is cheap as a rule from the first screen and expensive as a retrofit across fifty-nine.
+
+**The tab bar's progressive reveal stores nothing.** Onboarding starts with two tabs and reveals the rest as systems unlock, but unlock state is not persisted anywhere: the bar is a **pure function of campaign progress and Geneticist Tier**, both already returned by `/v1/sync`. There is no local state to lose on reinstall and no new server field.
+
+**The gate thresholds live in the config bundle**, not in code — which wave reveals the Lab, which tier reveals Allies. `broodline_build_order.md` §5 makes FTUE the thing playtest has to answer, so retuning the reveal must be a bundle publish rather than an App Review cycle.
+
+Deriving this on the client is safe because it is an **affordance, not a capability**. The server refuses an alliance join below the gate regardless of what the tab bar shows. The client decides what to display; the server decides what to allow. A fresh install with no cached snapshot shows the minimum two tabs until the first sync returns — correct for a new player, and wrong for a reinstalling veteran only for the length of one network call.
+
+### 9.1 The replay viewer
+
+`broodline_screen_inventory_v2.md` makes it launch-critical, and §9.4 of `broodline_solo_execution.md` means a replay recorded under a superseded engine version cannot be played back at all. That does not need two screens.
+
+> **One screen. The outcome and breach diagnosis are always primary; playback is an action on it.**
+
+Entering a replay always shows the same thing — result, integrity remaining, and the three-boolean breach diagnosis from `broodline_combat_engine.md` §7. That diagnosis *is* the actionable content: it names whether the trait was absent, present at insufficient coverage, or misplaced, which is what `broodline_collectors_raiding.md` means when it calls the replay the thing that makes losing survivable. It is stored, so it survives an engine change.
+
+A **Watch** button appears when the engine version matches, loading Wave Defense additively with input disabled. A superseded replay loses the button and gains a one-line notice.
+
+Three things this buys: the raid mail list is browsable without loading a 3D scene per entry, §9.4's degradation becomes an absent button rather than a special case, and Wave Defense gains one flag — input enabled or not — rather than a second renderer.
+
+**Scrubbing is nearly free, which is unusual.** Re-simulating from tick 0 to any point in a 90-second wave costs roughly 20 ms, so seeking backward is a full re-run nobody notices. Most replay systems need keyframes to do this; determinism gives it away.
+
 **The nine shared components in `broodline_screen_inventory_v2.md` §11 are prefabs with explicit APIs, built before the screens that use them.** The creature card and the trait pip are the two that matter most — the pip is the most-repeated element in the app and the card appears on at least nine screens. `broodline_build_order.md` Phase 1 already puts the Codex bottom sheet first for the same reason: it is a dependency of nearly every screen rather than a screen of its own.
 
 **The probability table is regulatory-relevant.** Splice and Roulette both display published odds, and `broodline_data_model.md` §8 makes the roll server-side precisely so those odds are demonstrable. The component renders numbers from config; it never computes them.
@@ -198,9 +235,17 @@ Mobile networks are always flaky, and `broodline_solo_execution.md` §6.3 alread
 |---|---|
 | Scripting backend | IL2CPP, ARM64 |
 | Graphics | Metal |
-| Orientation | Portrait-locked |
+| Orientation | Portrait only — see below |
 | Binary | Universal iPhone and iPad |
 | Managed stripping | Enabled, with an explicit `link.xml` |
+
+**Portrait-only no longer means fixed-size.** `UIRequiresFullScreen` is deprecated, and under the iOS 27 SDK declaring portrait alone in `UISupportedInterfaceOrientations` does not opt the app out of resizing — it makes the app **non-continuously resizable**, so the window snaps between discrete states instead of reflowing while dragged. Apple's framing is that this "enables discrete resizing that respects your supported interface orientations so games always render at full quality," which reads as a deliberate carve-out for this exact case.
+
+**Do not take the continuous-resizability workaround.** It requires declaring all four orientations in `Info.plist` plus per-view-controller overrides, and widening the plist sets an app-wide ceiling that also **enables upside-down rotation on iPhone** — which Apple recommends against and which a portrait-designed game does not want.
+
+**What this actually requires**, and it is a §9 rule rather than a build setting: the UI must tolerate being resized. Safe-area-driven layout, no fixed pixel positions, a minimum window size declared through `UIWindowScene.sizeRestriction`, and a combat camera framed by a design-safe region rather than a fixed aspect ratio.
+
+**Verified September 2026, against beta-period behaviour with acknowledged gaps between Apple's stated intent and shipping behaviour. Re-verify before the iPad layout work rather than trusting this paragraph.**
 
 **The `link.xml` is not optional.** Managed stripping removes types that appear unused, and generated API clients deserialize into types nothing statically references. Stripping them produces a runtime failure that appears only in release builds on device — the worst place to find it. Preserve `Broodline.Api.Client` and `Broodline.Model` explicitly.
 
@@ -222,17 +267,33 @@ Mobile networks are always flaky, and `broodline_solo_execution.md` §6.3 alread
 - A failed content fetch degrades and explains; it never blocks on a spinner
 - Creature assemblies are cached by `(species, traitA, traitB)`
 - The probability table renders published odds and never computes them
+- Layout is safe-area driven with no fixed pixel positions, and declares a minimum window size
+- The frame-rate degradation rung latches for the wave and never oscillates
+- The first hour ships four species; nothing in it waits on a download
+- Tab reveal is derived from progression and stored nowhere
 
 ---
 
-## 12. Open questions
+## 12. Decisions and what remains open
 
-1. **What is the oldest supported device?** Everything in §3 and §4 depends on it, and it is a business decision rather than a technical one. A 2020-era A14 device is the natural floor — old enough to cover a long tail, new enough that 60 fps with a hundred entities is plausible. It must be fixed before the entity-count proof runs, because the proof is meaningless without a target.
-2. **60 fps or 30?** §3 assumes 60. A portrait tower defence at 30 fps is defensible and roughly doubles the render budget, at a real cost to how the game feels in the hand. The entity-count proof should measure both and let the answer be evidence.
-3. **Does the 150 MB target survive two rigged species?** `broodline_build_order.md` budgets thirty-six character assets. Two fully rigged species plus a region plus UI may not fit under 150 MB, in which case either the target moves or the first hour ships with one species and streams the second.
-4. **iPad orientation and multitasking.** A portrait-locked universal binary is the cheapest correct answer for a portrait-designed game, but App Review's expectations for iPad builds have moved between guideline revisions. Verify against current guidance before committing the layout work rather than inheriting last year's answer.
-5. **Where does the replay viewer live?** `broodline_screen_inventory_v2.md` makes it launch-critical and it is `Run()` plus the Wave Defense renderer — but §9.4 of `broodline_solo_execution.md` means a superseded replay renders a result card instead. Whether that is the same screen in two states or two screens is a UX question with a real architectural consequence.
-6. **Is the tab bar's progressive reveal driven by server state or local progression?** Onboarding starts with two tabs. If the unlock state is local, a reinstall mid-onboarding shows the wrong bar; if it is server-side, it belongs in `/v1/sync`. The second is probably right and costs a field.
+**Resolved:**
+
+| | |
+|---|---|
+| **Reference device** | A13 / 3 GB — iPhone 11, iPhone SE (2020), iPad 9th gen. The floor is set by the cheap devices, and memory is the binding constraint |
+| **Frame rate** | 60 target with a locked-30 fallback as the last degradation rung and a battery setting. Interpolation stays |
+| **Memory ceiling** | 600 MB peak, a direct consequence of the 3 GB floor |
+| **Binary contents** | Four species — Vetch, Ember, Hollow, Pale. Skitter and Loam prefetch against a 24–48 hour window |
+| **Install target** | 150 MB, estimated at 117–132 MB. The engine binary and the region environment carry the risk |
+| **iPad** | Portrait only, discrete resizing, size-tolerant layout. No all-four-orientations workaround |
+| **Replay viewer** | One screen; diagnosis primary, playback an action |
+| **Tab reveal** | Derived from progression, thresholds in config, nothing stored |
+
+**Still open:**
+
+1. **Does Unity 6 expose what iPadOS 27 now needs?** §10's requirements assume access to the scene-based lifecycle and `UIWindowScene.sizeRestriction`. Whether Unity 6's iOS player surfaces those cleanly, or needs a native plugin, is unverified — and there is active discussion about iPadOS 27 behaviour with Unity games specifically. **This should be checked during the Phase 0 entity-count proof**, since that proof already puts a real build on a real device.
+2. **Does 150 MB survive real art?** §6's budget is an estimate against stylised mobile assets. The first honest measurement comes from the rig proof, which produces two finished species — enough to extrapolate the other two.
+3. **Re-verify the iPad rules before the layout work.** §10 is dated and describes beta-period behaviour.
 
 ---
 

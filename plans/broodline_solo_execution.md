@@ -457,7 +457,7 @@ Two deliberate deviations:
 
 | Phase | What lands | Done when |
 |---|---|---|
-| **0. Two proofs** | `broodline_rig_proof.md` — Vetch and Pale, twelve parts, both sockets. **And the entity-count proof** — wave 44's ~100 entities at target frame rate on the oldest supported device, per `broodline_client_architecture.md` §4 | Both pass/fail recorded against their documents' criteria. Either failure changes the art budget or the renderer, and both are cheaper to find now |
+| **0. Two proofs** | `broodline_rig_proof.md` — Vetch and Pale, twelve parts, both sockets. **And the entity-count proof** — wave 44's ~100 entities on an A13 / 3 GB reference device at both 60 and 30 fps, per `broodline_client_architecture.md` §4 | Both pass/fail recorded against their documents' criteria. Either failure changes the art budget or the renderer, and both are cheaper to find now |
 | **1. Foundations** | Repo, LFS, Unity settings, `engine` project, banned-API analyzer, Cecil scan, xUnit harness, self-hosted CI | A toy sim passes golden and fuzz on CoreCLR and IL2CPP |
 | **2. Combat engine** | One lane, one raider, five pockets, the counter check, tick order, termination, replay format, batch runner | A 90-second wave simulates identically twice; corpus test runs |
 | **3. Unity client** | Renderer for `SimState`, interpolation, input capture, placeholder art, Codex bottom sheet | A wave played on device replays bit-identically in xUnit |
