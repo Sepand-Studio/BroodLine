@@ -210,11 +210,11 @@ Per player, and smaller than it looks.
 
 ## 11. Open questions
 
-1. **Does a tombstone need a name field?** A pruned Founder is impossible by §4, but a pruned creature the player renamed is not — except renaming is Founders-only, so it may genuinely never occur. Worth confirming rather than assuming.
+1. ~~**Does a tombstone need a name field?**~~ **Resolved — no field.** §2 makes `name` Founders-only and §4 retains every Founder permanently, so a creature that can be pruned can never have carried a name. Add the field only if renaming is ever opened beyond Founders.
 2. ~~**Thirty-day replay retention against the revenge token's 24 hours** is generous.~~ **Resolved — thirty stands.** Storage is not the constraint at any realistic scale: thirty days plus twenty pinned is roughly 290 KB per player, about 14 GB at 50k DAU. The CI replay corpus is a separate collection with its own retention and is not governed by this — `broodline_solo_execution.md` §9.5.
-3. **Node state on a dead server.** Rotation, depletion and the weekly tick all assume the tick runs. A server with no active players still accrues state, and whether that matters depends on server lifecycle decisions nobody has made.
-4. **`committed_to` as a single field assumes a creature has one commitment.** A creature cannot garrison and escort simultaneously, so that holds — but it should be confirmed against the alliance and raiding specs rather than inferred.
-5. **Discovery timestamps are stored per entry and shown in the Codex.** That is 34 timestamps per player for a feature nobody has asked for. It is cheap, and it may be worth cutting anyway.
+3. ~~**Node state on a dead server.**~~ **Resolved — let the tick run.** The lifecycle decisions this waited on now exist: `broodline_server_topology.md` §4 opens servers on a population trigger, never closes one with active players, and answers decline by merging. §7 of that document puts a server's entire map state at a few kilobytes, so ticking an empty server costs one scheduled job over a few KB. Nothing needs freezing.
+4. ~~**`committed_to` as a single field assumes a creature has one commitment.**~~ **Confirmed — a single field is correct.** Both specs state the exclusivity outright. `broodline_alliance_territory.md` §5: garrisoned creatures are "unavailable for anything else while garrisoned — no raids, no escorts, no campaign." `broodline_collectors_raiding.md` §5: escorts get "no defence, no campaign, no garrison."
+5. **Discovery timestamps are stored per entry and shown in the Codex.** **Leaning cut, and the evidence moved.** The only document that specified a *Discovered date* field was `broodline_trait_codex.md`, which is now `status: superseded, folder: 99-archive`. Bible §4.7 defines what the Codex shows — "every discovered trait by category, what it counters, what coverage each tier provides, and a plain description of each Instinct's behaviour" — and **does not include a date**. The discovery *bits* stay, since the bible needs discovered-versus-not; the per-entry `discovered_at` has no current owner. Cut unless a live document asks for it.
 
 ---
 

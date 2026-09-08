@@ -14,6 +14,20 @@ note: >
 
 *Design spec, the progression spine. Companion to bible §4.8 and §7.3.*
 
+> **⚠️ PARTLY STALE — do not build the campaign from §3, §4 or §7.** The seven
+> wave documents are the authored content and they have diverged from this
+> file. They introduce **Skirmisher and Lash** in chapter 1, **Courser** with
+> the designed loss at **wave 6**, then Brood, Drift, Bulwark, Delver, and
+> **Breaker last at waves 45–52** — where §3 still shows Breaker second at
+> wave 3 and Delver last. §7's Founder set is likewise reversed:
+> `broodline_base_stock.md` §5.1–5.2 and `broodline_waves_01_12.md` make the
+> Founders **Hollow**, Vetch, Ember, Skitter and Loam, withhold **Pale**, and
+> grant the Pale from the Wave Defeat screen on the wave-6 Courser loss.
+>
+> §11 volume tuning, §12 campaign vs region defence, §13 seasonal extension
+> and §14 guardrails are unaffected. **A rewrite against the authored waves is
+> owed.**
+
 ---
 
 ## 1. Why this document exists
@@ -247,7 +261,7 @@ The trap: seasonal campaigns that require seasonal creatures turn a Season Pass 
 
 ## 15. Open questions
 
-1. **Founder set.** Vetch, Ember, Skitter, Loam, Pale, with Hollow withheld, is the pick. It makes Breaker the first loss and Hollow the first goal. The alternative — withhold Pale, make Courser the first loss — teaches the purer lesson but delays it to chapter 3, which is too late for §9.3.
+1. ~~**Founder set.** Vetch, Ember, Skitter, Loam, Pale, with Hollow withheld.~~ **Resolved against this document — the alternative won.** The Founders are **Hollow**, Vetch, Ember, Skitter and Loam; **Pale is withheld**; the designed first loss is **Courser at wave 6**, and the Wave Defeat screen grants the Pale itself. This document's objection was that withholding Pale "delays it to chapter 3, which is too late" — `broodline_base_stock.md` §5.2 answers it by moving the Courser to wave 6, and `broodline_waves_01_12.md` authors that wave. `broodline_whats_left.md` §2 records "the Pale grant fires on defeat" as a taken decision. §3, §4 and §7 of this document still describe the losing option and are owed a rewrite.
 2. **Is wave 50 enough?** One utility-trait wave in sixty is a token. If the utility traits get real weight, chapters 6 and 7 should each carry one.
 3. **Base-stock cadence.** Every fourth wave is a guess. It should be set against the Hatchery floor of 20 and the splice-charge regen so a player is neither starved of parents nor drowning in Gen-1 stock.
 4. **Post-60 window.** Confirm the first season ships before the first cohort's projected wave-60 date.

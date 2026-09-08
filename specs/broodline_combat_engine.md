@@ -298,6 +298,9 @@ It is also how sixty authored waves get tuned without playing them sixty times, 
 4. ~~**Skittish's reposition is the only RNG the player sees affecting an outcome.**~~ **Resolved — nearest free pocket away from the threat, deterministic. That reduces the RNG surface to tie-breaks only.**
 5. ~~**The retarget lockout at 0.4s is doing more balance work than any other number in this document.**~~ **Moved — the retarget lockout is now a first-class tunable in `broodline_combat_numbers.md` §5.**
 
+6. **Capacity values 1 / 3 / 5 are placeholders**, inherited with the capacity model at §5.3. The bible's examples fit — Splash III catches five of eight Skirmishers, Cinder III catches the second split generation — but **Reach scales by lane and there are at most three lanes**, so III = 5 is meaningless for it. Reach probably caps at lane count. Confirm before the Codex copy is written, since `broodline_trait_codex.md` must state coverage in concrete terms.
+7. **Sprint's 0.4 s window** — the rule that gives Bulwark's shield a concrete degradation threshold — was invented in the merged document rather than derived from the design. **Needs a design decision, not an engineering one.**
+
 ---
 
 *Owns: tick order, determinism requirements, lane geometry, replay format, targeting resolution, counter application sites and the capacity model, wave-composition invariants, breach diagnosis, termination, the batch runner, and where simulation runs. Does not own: any value (`broodline_combat_numbers.md`), wave contents (the seven wave documents), rendering or the client (`broodline_client_architecture.md`), or where the engine is deployed (`broodline_solo_execution.md`).*
