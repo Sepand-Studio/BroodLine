@@ -2,6 +2,15 @@
 
 *Engineering spec. Step 1 of the build order, and the thing everything else waits on.*
 
+> **❌ SUPERSEDED by `broodline_combat_engine.md`.** Its five unique sections —
+> geometry without vectors (§3), the capacity model and the composition
+> invariants (§5), termination and the stall detector (§7), and the
+> batch-runner argument (§11) — have been merged there. Its tick order, its
+> unified counter phase and its lowest-raider-ID assignment rule were **not**
+> merged; `broodline_combat_engine.md` §4, §5 and §5.1 stand instead.
+> Deployment and packaging decisions move to `broodline_solo_execution.md`.
+> Retained for history. Do not build from this file.
+
 ---
 
 ## 1. Why This Document Exists

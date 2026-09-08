@@ -146,11 +146,15 @@ Thirty days covers the revenge-token window, the weekly tick and a season. Pinni
 
 Not "the server owns everything." **Three categories, and conflating them costs either responsiveness or integrity.**
 
-### Client-authoritative, server-validated on submit
+### Client-simulated, server-verified
 
-Campaign waves and region defence. No adversary, so a cheating player only cheats themselves — and the rewards are capped by the wave definition, so the exposure is bounded.
+Campaign waves and region defence. **The client simulates and submits the input log; the server re-runs it and compares.** Every submission, never sampled — the same treatment raids get, and the same code path.
 
-**The client simulates and submits the outcome plus the replay inputs.** The server checks the outcome is possible for that wave and grants rewards. Full re-simulation is available if a player's results look anomalous, and it is cheap because the engine is deterministic.
+**This was previously client-authoritative with a plausibility check and re-simulation only on anomaly.** It changed on cost grounds rather than strictness. A plausibility model has to know what outcomes are possible for each of sixty authored waves, plus an anomaly heuristic, plus the re-simulation path anyway as the escalation — strictly more code than always re-simulating, and a second model of the game that must stay in sync with the first. At roughly 20 ms per wave it is under two CPU-hours daily at 50k DAU.
+
+The old reasoning — no adversary, exposure bounded by the wave definition — argued that sampling would be *acceptable*, not that it was cheaper. And the bound is per wave: a modified client can claim all sixty immediately and collect all twelve campaign milestones, whose currency enters the ledger.
+
+Submissions made offline queue and validate on reconnect, granting optimistically. An honest client always validates, so a clawback only ever touches a modified one. Decision and reasoning at `broodline_solo_execution.md` §9.3.
 
 ### Server-verified
 
@@ -207,7 +211,7 @@ Per player, and smaller than it looks.
 ## 11. Open questions
 
 1. **Does a tombstone need a name field?** A pruned Founder is impossible by §4, but a pruned creature the player renamed is not — except renaming is Founders-only, so it may genuinely never occur. Worth confirming rather than assuming.
-2. **Thirty-day replay retention against the revenge token's 24 hours** is generous. Seven days would be cheaper and would still cover the token, the daily raid cap and a weekly tick. Thirty is chosen for the pinning case, which may not need it.
+2. ~~**Thirty-day replay retention against the revenge token's 24 hours** is generous.~~ **Resolved — thirty stands.** Storage is not the constraint at any realistic scale: thirty days plus twenty pinned is roughly 290 KB per player, about 14 GB at 50k DAU. The CI replay corpus is a separate collection with its own retention and is not governed by this — `broodline_solo_execution.md` §9.5.
 3. **Node state on a dead server.** Rotation, depletion and the weekly tick all assume the tick runs. A server with no active players still accrues state, and whether that matters depends on server lifecycle decisions nobody has made.
 4. **`committed_to` as a single field assumes a creature has one commitment.** A creature cannot garrison and escort simultaneously, so that holds — but it should be confirmed against the alliance and raiding specs rather than inferred.
 5. **Discovery timestamps are stored per entry and shown in the Codex.** That is 34 timestamps per player for a feature nobody has asked for. It is cheap, and it may be worth cutting anyway.

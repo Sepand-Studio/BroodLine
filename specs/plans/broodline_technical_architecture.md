@@ -2,6 +2,16 @@
 
 *System design spec. The runtime underneath every design document in the set.*
 
+> **❌ SUPERSEDED by `broodline_solo_execution.md` and
+> `broodline_client_architecture.md`.** It assumes a studio, and it describes
+> ten chassis — `broodline_chassis_roster.md` is superseded for exactly that
+> premise; the design is six species. Its unique material was rescued before
+> retirement: SLOs and degradation, the multi-region layer table, the config
+> publish pipeline, account lifecycle and the release cadences to
+> `broodline_solo_execution.md` §3.1, §4, §5.2, §6.4 and §7.0; Addressables,
+> install size and the iPad caveat to `broodline_client_architecture.md`.
+> Retained for history. Do not build from this file.
+
 ---
 
 ## 1. Why This Document Exists
