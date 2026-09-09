@@ -242,34 +242,17 @@ Install Unity 6 LTS through Unity Hub with the **iOS Build Support** module. The
   - Target Architectures: **ARM64**
   - `Edit → Project Settings → Player → Resolution and Presentation`: **Default Orientation: Portrait**, all other orientations unchecked
 
-- [ ] **Step 3: Write the verification script**
+- [ ] **Step 3: Verify with `implementation/scripts/verify-unity-settings.sh`**
 
-```bash
-#!/usr/bin/env bash
-# implementation/scripts/verify-unity-settings.sh
-# Asserts the Unity settings that are expensive to discover late.
-set -euo pipefail
-cd "$(dirname "$0")/../.."
-fail=0
-check () { # name file pattern
-  if grep -qE "$3" "$2"; then
-    printf '  ok    %s\n' "$1"
-  else
-    printf '  FAIL  %s  (expected /%s/ in %s)\n' "$1" "$3" "$2"; fail=1
-  fi
-}
-E=client/ProjectSettings/EditorSettings.asset
-P=client/ProjectSettings/ProjectSettings.asset
-check "Asset Serialization: Force Text"  "$E" 'm_SerializationMode: 2'
-check "Version Control: Visible Meta"    "$E" 'm_ExternalVersionControlSupport: Visible Meta Files'
-check "Portrait default orientation"     "$P" 'defaultScreenOrientation: 0'
-check "Portrait upside-down disabled"    "$P" 'allowedAutorotateToPortraitUpsideDown: 0'
-check "Landscape left disabled"          "$P" 'allowedAutorotateToLandscapeLeft: 0'
-check "Landscape right disabled"         "$P" 'allowedAutorotateToLandscapeRight: 0'
-exit $fail
-```
+The script exists. It asserts only values that live in **committed** files, which excludes two things worth knowing about:
 
-Note on `defaultScreenOrientation: 0` — Unity serialises Portrait as `0`. If your Unity version writes a different value, read the file after setting Portrait in the editor and use what it actually wrote. Assert the observed value, never a guessed one.
+- **The active build target is not checked.** It lives in `client/Library/`, which is gitignored, so no committed file records whether you switched to iOS. Switch it anyway — Task 5 cannot build without it.
+- **The iOS scripting backend is not checked.** iOS supports only IL2CPP, so there is nothing to get wrong.
+
+Two assertions are written the way they are for a reason, and both were wrong on the first attempt:
+
+- Unity 6 omits `m_ExternalVersionControlSupport` when it holds the default, so the script asserts the observable consequence — that `.meta` files exist under `client/Assets` — rather than a key that is absent precisely when the setting is correct.
+- Always Included Shaders are stored **by GUID, never by name**. The script greps for `933532a4fcc9baf4fa0491de14d08ed7`, URP's `Lit.shader`. A grep for the string "Universal Render Pipeline/Lit" matches nothing even when the shader is correctly added.
 
 - [ ] **Step 4: Run it and confirm every line passes**
 
