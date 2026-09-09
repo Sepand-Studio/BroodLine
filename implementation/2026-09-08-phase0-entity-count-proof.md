@@ -771,6 +771,15 @@ namespace Broodline.Benchmark
             QualitySettings.vSyncCount = 0;
 
             var sb = new StringBuilder();
+            // Provenance first. A budget is only meaningful against the device it
+            // was measured on, and these files will outlive the memory of which
+            // phone produced them.
+            sb.AppendLine("# device=" + SystemInfo.deviceModel);
+            sb.AppendLine("# gpu=" + SystemInfo.graphicsDeviceName);
+            sb.AppendLine("# memory_mb=" + SystemInfo.systemMemorySize);
+            sb.AppendLine("# os=" + SystemInfo.operatingSystem);
+            sb.AppendLine("# unity=" + Application.unityVersion);
+            sb.AppendLine("# entities=" + WaveBenchmark.Wave44Composition);
             sb.AppendLine(BenchmarkResult.CsvHeader);
 
             foreach (var tris in triangleSteps)
@@ -814,13 +823,19 @@ namespace Broodline.Benchmark
 
 `Profiler.GetTotalAllocatedMemoryLong()` already includes the managed heap, so do **not** add `GC.GetTotalMemory` to it — that double-counts and will make every row fail the 600 MB check for no reason.
 
-- [ ] **Step 2: Build the scene**
+- [ ] **Step 2: Build the scene from a script, not by hand**
 
-- `File → New Scene`, save as `client/Assets/Scenes/Benchmark.unity`
-- Add an empty GameObject named `SweepRunner`, attach the `SweepRunner` component
-- Position the Main Camera to frame roughly a 12×12 metre area at origin — every entity must be **on screen and drawn**, or the benchmark measures culling instead of rendering
-- `Edit → Project Settings → Graphics → Always Included Shaders`: add **Universal Render Pipeline/Lit**. `Shader.Find` only resolves shaders present in the build, and nothing in this scene references that shader at build time — without this the device run renders magenta and the numbers are meaningless
-- Add the scene to `File → Build Settings → Scenes In Build` as index 0
+Create `client/Assets/Editor/BenchmarkSceneBuilder.cs` exposing `[MenuItem("Broodline/Build Benchmark Scene")]` and a static method callable from the CLI. It must:
+
+- create a scene at `client/Assets/Scenes/Benchmark.unity`, creating the `Scenes` folder if absent
+- add a GameObject named `SweepRunner` carrying the `SweepRunner` component
+- add a camera positioned to frame roughly a 12×12 metre area at origin — **every entity must be on screen and drawn**, or the benchmark measures frustum culling instead of rendering
+- add a directional light, so the URP/Lit material actually shades and the GPU cost is representative
+- set the scene as index 0 in `EditorBuildSettings.scenes`
+
+A scripted scene is reproducible and reviewable as text; a hand-built one is neither, and this scene is the measuring instrument.
+
+URP/Lit is already in Always Included Shaders — `Phase0Setup.Apply` did it, and `verify-unity-settings.sh` asserts its GUID.
 
 - [ ] **Step 3: Run it in the editor as a smoke test**
 
@@ -828,11 +843,18 @@ Press Play. Expected: `[sweep]` lines in the Console, one per combination, endin
 
 **Editor numbers are not the result** — they measure your Mac. This step only proves the harness runs to completion without throwing.
 
-- [ ] **Step 4: Build and run on the reference device**
+- [ ] **Step 4: Build and run on device — two tiers, and only one of them produces the budget**
 
-Connect an **A13 / 3 GB device** — iPhone 11, iPhone SE (2020) or iPad 9th gen. `File → Build And Run`. Watch the Xcode console for `[sweep]` lines.
+**Use Xcode `Build And Run`. Not TestFlight.** TestFlight is for distributing to testers and its installed apps do not expose their container to Xcode's Download Container, so the sweep would run and the CSV would be unreachable. A development build via Build And Run is what Step 5 depends on.
 
-Take the device off charge and let it reach a steady thermal state before trusting the numbers. A benchmark run on a cold phone plugged into mains reports a device you do not ship to.
+| Tier | Device | What the run is worth |
+|---|---|---|
+| **Ceiling** | Any modern iPhone — an A17 / 8 GB device, say | Proves the harness works end to end and gives an upper bound. **Cannot produce the budget** |
+| **Floor** | **A13 / 3 GB** — iPhone 11, iPhone SE (2020), iPad 9th gen | The only run whose numbers may enter the commission brief |
+
+A modern phone holds 60 fps at triangle and bone counts an SE (2020) cannot approach, and 600 MB is nothing against 8 GB. A budget derived from the ceiling looks authoritative and fails on the hardware the audience actually owns — which is worse than having no number, because it arrives after the art is paid for.
+
+Take the device off charge and let it reach a steady thermal state before trusting anything. A cold phone on mains reports a device you do not ship to.
 
 - [ ] **Step 5: Retrieve the CSV**
 
@@ -842,6 +864,8 @@ Copy it to `implementation/results/entity-budget.csv` (gitignored).
 
 - [ ] **Step 6: Record the budget in this plan document**
 
+**Only from a floor-device run.** A ceiling run records an upper bound and nothing else.
+
 Find the highest triangle/bone/material combination whose row has `holds_60=1` **and** `under_600mb=1`. That is the per-creature budget.
 
 Append to this file, filling in the measured values:
@@ -849,7 +873,8 @@ Append to this file, filling in the measured values:
 ```markdown
 ## Phase 0 result — recorded <date>
 
-**Device:** <model, iOS version>
+**Device:** <model, iOS version — copy from the CSV's `# device=` line>
+**Tier:** <floor (A13/3GB — budget is valid) | ceiling (budget NOT valid, upper bound only)>
 **Per-creature budget at 104 entities, 60 fps, under 600 MB:**
 
 | | Budget |
