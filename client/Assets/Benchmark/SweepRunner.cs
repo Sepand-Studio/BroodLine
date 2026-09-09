@@ -17,6 +17,15 @@ namespace Broodline.Benchmark
 
         IEnumerator Start()
         {
+            yield return RunSweep(triangleSteps, boneSteps, materialSteps,
+                WaveBenchmark.Wave44Composition, warmupFrames, measureFrames,
+                Path.Combine(Application.persistentDataPath, "entity-budget.csv"));
+        }
+
+        public IEnumerator RunSweep(int[] triangleSteps, int[] boneSteps, int[] materialSteps,
+                                    int entityCount, int warmupFrames, int measureFrames,
+                                    string outputPath)
+        {
             Application.targetFrameRate = 60;
             QualitySettings.vSyncCount = 0;
 
@@ -29,7 +38,7 @@ namespace Broodline.Benchmark
             sb.AppendLine("# memory_mb=" + SystemInfo.systemMemorySize);
             sb.AppendLine("# os=" + SystemInfo.operatingSystem);
             sb.AppendLine("# unity=" + Application.unityVersion);
-            sb.AppendLine("# entities=" + WaveBenchmark.Wave44Composition);
+            sb.AppendLine("# entities=" + entityCount);
             sb.AppendLine(BenchmarkResult.CsvHeader);
 
             foreach (var tris in triangleSteps)
@@ -37,7 +46,7 @@ namespace Broodline.Benchmark
             foreach (var mats in materialSteps)
             {
                 var spec = new SyntheticCreatureSpec { Triangles = tris, Bones = bones, Materials = mats };
-                var spawned = WaveBenchmark.Spawn(spec, WaveBenchmark.Wave44Composition);
+                var spawned = WaveBenchmark.Spawn(spec, entityCount);
 
                 for (int i = 0; i < warmupFrames; i++) yield return null;
 
@@ -51,7 +60,7 @@ namespace Broodline.Benchmark
                     if (used > peak) peak = used;
                 }
 
-                var result = WaveBenchmark.Summarise(frames, spec, WaveBenchmark.Wave44Composition, peak);
+                var result = WaveBenchmark.Summarise(frames, spec, entityCount, peak);
                 sb.AppendLine(result.ToCsvRow());
                 Debug.Log("[sweep] " + result.ToCsvRow());
 
@@ -61,9 +70,8 @@ namespace Broodline.Benchmark
                 yield return null;
             }
 
-            var path = Path.Combine(Application.persistentDataPath, "entity-budget.csv");
-            File.WriteAllText(path, sb.ToString());
-            Debug.Log("[sweep] COMPLETE -> " + path);
+            File.WriteAllText(outputPath, sb.ToString());
+            Debug.Log("[sweep] COMPLETE -> " + outputPath);
         }
     }
 }
