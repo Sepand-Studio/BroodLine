@@ -845,14 +845,29 @@ Press Play. Expected: `[sweep]` lines in the Console, one per combination, endin
 
 - [ ] **Step 4: Build and run on device — two tiers, and only one of them produces the budget**
 
-**Use Xcode `Build And Run`. Not TestFlight.** TestFlight is for distributing to testers and its installed apps do not expose their container to Xcode's Download Container, so the sweep would run and the CSV would be unreachable. A development build via Build And Run is what Step 5 depends on.
+**The Unity side is scripted.** Unity moved its build window between versions — `File → Build Settings` became **Build Profiles** — so menu instructions rot. `client/Assets/Editor/BenchmarkBuilder.cs` uses `BuildPipeline.BuildPlayer`, which is stable across both, and switches the active build target itself:
+
+```bash
+/Applications/Unity/Hub/Editor/6000.6.0f1/Unity.app/Contents/MacOS/Unity \
+  -batchmode -quit -projectPath "$(pwd)/client" \
+  -executeMethod BenchmarkBuilder.BuildIOS \
+  -logFile "$(pwd)/implementation/results/ios-build.log"
+```
+
+Or `Broodline → Build iOS Xcode Project` with the editor open. Output is `build/ios/Unity-iPhone.xcodeproj`, gitignored — an Xcode project is a build artifact and regenerating it is cheaper than storing it.
+
+It builds with `BuildOptions.Development`, deliberately: that keeps managed stack traces so a throw on device is diagnosable, and it is what lets Xcode's **Download Container** reach the CSV at Step 5.
+
+**Then, in Xcode:** open the project, set your signing team under Signing & Capabilities, select the device, Run. Watch the console for `[sweep]` lines ending in `[sweep] COMPLETE`.
+
+**Not TestFlight.** It is for distributing to testers, and a TestFlight-installed app does not expose its container to Download Container — the sweep would run and the CSV would be unreachable.
 
 | Tier | Device | What the run is worth |
 |---|---|---|
 | **Ceiling** | Any modern iPhone — an A17 / 8 GB device, say | Proves the harness works end to end and gives an upper bound. **Cannot produce the budget** |
 | **Floor** | **A13 / 3 GB** — iPhone 11, iPhone SE (2020), iPad 9th gen | The only run whose numbers may enter the commission brief |
 
-A modern phone holds 60 fps at triangle and bone counts an SE (2020) cannot approach, and 600 MB is nothing against 8 GB. A budget derived from the ceiling looks authoritative and fails on the hardware the audience actually owns — which is worse than having no number, because it arrives after the art is paid for.
+A modern phone holds 60 fps at triangle and bone counts an SE (2020) cannot approach, and 600 MB is nothing against 8 GB. A budget derived from the ceiling looks authoritative and fails on the hardware the audience owns — worse than having no number, because it arrives after the art is paid for.
 
 Take the device off charge and let it reach a steady thermal state before trusting anything. A cold phone on mains reports a device you do not ship to.
 
