@@ -6,7 +6,7 @@
 
 **Architecture:** A Unity 6 project containing one benchmark scene that spawns **procedurally generated synthetic skinned meshes** at wave 44's entity counts, sweeps triangle/bone/material parameters, and records frame-time percentiles and peak memory. Synthetic geometry rather than real art, so the proof runs before any asset exists and its output constrains the art brief rather than waiting on it. The same harness re-runs against real meshes later as validation.
 
-**Tech Stack:** Unity 6 (version pinned at Task 0), C#, URP, Unity Test Framework, IL2CPP / ARM64 / Metal, Git LFS, Xcode.
+**Tech Stack:** Unity **6000.6.0f1**, C#, URP, Unity Test Framework, IL2CPP / ARM64 / Metal, Git LFS, Xcode.
 
 ## Global Constraints
 
