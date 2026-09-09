@@ -31,6 +31,12 @@ node_modules/
 /.build/
 *.log
 
+# .NET build outputs (engine/ package — dotnet build regenerates these).
+# Named bin~/obj~ (not bin/obj) so Unity's Asset Database ignores them too —
+# see the comment in engine/Broodline.Sim.csproj.
+engine/bin~/
+engine/obj~/
+
 # Unity generated
 client/[Ll]ibrary/
 client/[Tt]emp/

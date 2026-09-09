@@ -1,0 +1,20 @@
+<Project>
+  <!--
+    Unity's Asset Database ignores any file or folder whose name ends in "~".
+    engine/ is imported by Unity as a package (see client/Packages/manifest.json),
+    so `dotnet build` output landing in the usual bin/ and obj/ gets picked up by
+    Unity as a precompiled-assembly plugin, colliding (CS1704) with the
+    asmdef-compiled Broodline.Sim assembly. Redirecting to bin~/ and obj~/ keeps
+    .NET's build output invisible to Unity's importer.
+
+    This must live in Directory.Build.props, not in the .csproj's own
+    PropertyGroup: MSBuild reads BaseIntermediateOutputPath while importing
+    Microsoft.Common.props, which happens before a project's own PropertyGroup
+    is evaluated, so setting it there is too late for NuGet restore output
+    (warning MSB3539). Directory.Build.props is imported first.
+  -->
+  <PropertyGroup>
+    <BaseOutputPath>bin~/</BaseOutputPath>
+    <BaseIntermediateOutputPath>obj~/</BaseIntermediateOutputPath>
+  </PropertyGroup>
+</Project>
