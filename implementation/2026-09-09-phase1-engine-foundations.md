@@ -476,7 +476,7 @@ T:System.Threading.Tasks.Task`1;as above.
 T:System.Threading.Tasks.ValueTask;as above.
 T:System.Threading.Tasks.ValueTask`1;as above.
 T:System.Threading.Tasks.Parallel;no parallelism inside a tick. Parallel.For/ForEach over a per-entity loop is the likeliest way it comes back.
-T:System.Threading.Thread;as above.
+T:System.Threading.Thread;no parallelism inside a tick.
 ```
 
 Each entry is `symbol;reason`, and the reason appears in the build error — which is the difference between a developer understanding the rule and working around it.

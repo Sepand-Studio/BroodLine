@@ -14,4 +14,4 @@ T:System.Threading.Tasks.Task`1;as above.
 T:System.Threading.Tasks.ValueTask;as above.
 T:System.Threading.Tasks.ValueTask`1;as above.
 T:System.Threading.Tasks.Parallel;no parallelism inside a tick. Parallel.For/ForEach over a per-entity loop is the likeliest way it comes back.
-T:System.Threading.Thread;as above.
+T:System.Threading.Thread;no parallelism inside a tick.
