@@ -599,15 +599,25 @@ namespace Broodline.Benchmark
     {
         public SyntheticCreatureSpec Spec;
         public int EntityCount;
-        public double MedianMs;
-        public double P95Ms;
+        public double CpuP95Ms;      // FrameTimingManager, real CPU work
+        public double GpuP95Ms;      // FrameTimingManager, real GPU work
+        public double WallP95Ms;     // Time.unscaledDeltaTime, kept for reference
         public long PeakMemoryBytes;
 
-        public static string CsvHeader =>
-            "triangles,bones,materials,entities,median_ms,p95_ms,peak_mb,holds_60,holds_30,under_600mb";
+        /// One frame at 60 fps is 1000/60 = 16.667 ms, not 16.6. A hardcoded 16.6
+        /// makes a flawless 60 fps read as failure — which is exactly what the
+        /// first device run reported.
+        public const double Frame60Ms = 1000.0 / 60.0;
+        public const double Frame30Ms = 1000.0 / 30.0;
 
-        public bool Holds60 => P95Ms <= 16.6;
-        public bool Holds30 => P95Ms <= 33.3;
+        public static string CsvHeader =>
+            "triangles,bones,materials,entities,cpu_p95_ms,gpu_p95_ms,wall_p95_ms,peak_mb,holds_60,holds_30,under_600mb";
+
+        /// Judged on real CPU and GPU work, never on wall-clock frame interval.
+        /// With a frame-rate cap or vsync, wall-clock reports the cap rather than
+        /// the cost and is flat regardless of load.
+        public bool Holds60 => System.Math.Max(CpuP95Ms, GpuP95Ms) <= Frame60Ms;
+        public bool Holds30 => System.Math.Max(CpuP95Ms, GpuP95Ms) <= Frame30Ms;
         public bool UnderMemoryCeiling => PeakMemoryBytes <= 600L * 1024 * 1024;
 
         public string ToCsvRow()
@@ -618,8 +628,9 @@ namespace Broodline.Benchmark
                 Spec.Bones.ToString(c),
                 Spec.Materials.ToString(c),
                 EntityCount.ToString(c),
-                MedianMs.ToString("F2", c),
-                P95Ms.ToString("F2", c),
+                CpuP95Ms.ToString("F2", c),
+                GpuP95Ms.ToString("F2", c),
+                WallP95Ms.ToString("F2", c),
                 (PeakMemoryBytes / (1024.0 * 1024.0)).ToString("F1", c),
                 Holds60 ? "1" : "0",
                 Holds30 ? "1" : "0",
@@ -629,7 +640,11 @@ namespace Broodline.Benchmark
 }
 ```
 
-Both thresholds come from the Global Constraints: 16.6 ms is the 60 fps frame budget, 33.3 ms the 30 fps fallback, 600 MB the memory ceiling on a 3 GB device.
+**Why CPU and GPU rather than wall-clock.** The first device run on an iPhone 15 Pro returned a median of **16.67 ms at every one of thirty settings**, from 400 triangles to 6000 — perfectly flat across a 15× range, while peak memory rose sensibly from 176 to 304 MB. `Application.targetFrameRate = 60` makes Unity sleep to hit the target, so `Time.unscaledDeltaTime` reports the cap, not the cost. A benchmark whose job is finding a ceiling cannot be measured by the thing capping it.
+
+`FrameTimingManager` reports actual CPU and GPU milliseconds per frame, unaffected by vsync or a frame-rate cap. It requires `PlayerSettings.enableFrameTimingStats = true`, set by `Phase0Setup`.
+
+Thresholds are `1000.0/60.0` and `1000.0/30.0`, not 16.6 and 33.3. One frame at 60 fps is **16.667 ms**, so the old constant made a flawless 60 fps read as failure — every row of the first run said `holds_60=0` while the phone rendered perfectly.
 
 - [ ] **Step 4: Write `WaveBenchmark.cs`**
 
