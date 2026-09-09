@@ -1,80 +1,21 @@
-# macOS
+# Unity generated
+client/[Ll]ibrary/
+client/[Tt]emp/
+client/[Oo]bj/
+client/[Bb]uild/
+client/[Bb]uilds/
+client/[Ll]ogs/
+client/[Uu]serSettings/
+client/[Mm]emoryCaptures/
+client/[Rr]ecordings/
+
+# Unity regenerates these; the hand-maintained solution is at the repo root
+client/*.csproj
+client/*.sln
+client/*.user
+
+# Benchmark output
+implementation/results/*.csv
+implementation/results/*.json
+
 .DS_Store
-.AppleDouble
-.LSOverride
-._*
-
-# Editor / IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-
-# Environment and secrets
-.env
-.env.*
-!.env.example
-*.pem
-*.p8
-*.keystore
-credentials.json
-secrets.json
-
-# Dependencies (future tooling)
-node_modules/
-.pnpm-store/
-
-# Build outputs
-/build/
-/dist/
-/.build/
-*.log
-
-# Unity (if used later)
-[Ll]ibrary/
-[Tt]emp/
-[Oo]bj/
-[Bb]uild/
-[Bb]uilds/
-[Ll]ogs/
-[Uu]ser[Ss]ettings/
-*.csproj
-*.unityproj
-*.sln
-*.suo
-*.user
-*.userprefs
-*.pidb
-*.booproj
-*.svd
-*.pdb
-*.mdb
-*.opendb
-*.VC.db
-
-# Godot (if used later)
-.godot/
-.import/
-export.cfg
-export_presets.cfg
-
-# Xcode / iOS (if used later)
-DerivedData/
-*.xcuserstate
-*.xcworkspace/xcuserdata/
-*.xcodeproj/xcuserdata/
-*.xcodeproj/project.xcworkspace/xcuserdata/
-
-# Android (if used later)
-.gradle/
-local.properties
-**/build/
-**/outputs/
-*.apk
-*.aab
-
-# Playwright / test artifacts (if used later)
-playwright-report/
-test-results/
-coverage/
