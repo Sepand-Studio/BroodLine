@@ -472,10 +472,16 @@ T:System.Collections.Generic.Dictionary`2;hash iteration order differs across ru
 T:System.Collections.Generic.HashSet`1;as above.
 M:System.String.GetHashCode;randomized per process on CoreCLR, not on Unity's Mono. Guaranteed to disagree between the two runtimes.
 T:System.Threading.Tasks.Task;no parallelism inside a tick.
+T:System.Threading.Tasks.Task`1;as above.
+T:System.Threading.Tasks.ValueTask;as above.
+T:System.Threading.Tasks.ValueTask`1;as above.
+T:System.Threading.Tasks.Parallel;no parallelism inside a tick. Parallel.For/ForEach over a per-entity loop is the likeliest way it comes back.
 T:System.Threading.Thread;as above.
 ```
 
 Each entry is `symbol;reason`, and the reason appears in the build error — which is the difference between a developer understanding the rule and working around it.
+
+`BannedApiAnalyzers` matches on the exact DocID, and generic arity is part of it: an arity-0 entry for `Task` does not bind `Task<TResult>`, and the same applies to `ValueTask`/`ValueTask<TResult>`. Both arities are listed for each type for that reason, matching the existing arity-explicit notation used for `` Dictionary`2 `` and `` HashSet`1 `` above. `Parallel` is listed separately since it is not a `Task`/`ValueTask` arity variant — it is the static parallel-loop helper, and a per-entity `Parallel.For` is the most likely way parallelism gets reintroduced inside a tick.
 
 - [ ] **Step 2: Wire the analyzer**
 

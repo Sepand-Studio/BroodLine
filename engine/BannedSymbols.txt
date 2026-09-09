@@ -10,4 +10,8 @@ T:System.Collections.Generic.Dictionary`2;hash iteration order differs across ru
 T:System.Collections.Generic.HashSet`1;as above.
 M:System.String.GetHashCode;randomized per process on CoreCLR, not on Unity's Mono. Guaranteed to disagree between the two runtimes.
 T:System.Threading.Tasks.Task;no parallelism inside a tick.
+T:System.Threading.Tasks.Task`1;as above.
+T:System.Threading.Tasks.ValueTask;as above.
+T:System.Threading.Tasks.ValueTask`1;as above.
+T:System.Threading.Tasks.Parallel;no parallelism inside a tick. Parallel.For/ForEach over a per-entity loop is the likeliest way it comes back.
 T:System.Threading.Thread;as above.
