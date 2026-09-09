@@ -502,6 +502,7 @@ pessimistic — the real budget can only be better."
   - `WaveBenchmark.Wave44Composition -> int` (constant, `104`)
   - `BenchmarkResult` with fields `double MedianMs, double P95Ms, long PeakMemoryBytes, int EntityCount, SyntheticCreatureSpec Spec`
   - `BenchmarkResult.ToCsvRow() -> string` and `BenchmarkResult.CsvHeader -> string`
+  - `WaveBenchmark.Despawn(GameObject[] spawned) -> void` — destroys the entities **and the materials they own**
 
 - [ ] **Step 1: Write the failing test**
 
@@ -533,6 +534,35 @@ public class WaveBenchmarkTests
             Assert.IsNotNull(go.GetComponent<SkinnedMeshRenderer>());
             Object.DestroyImmediate(go);
         }
+    }
+
+    [Test]
+    public void Spawn_WithUnevenMaterialSplit_StillProducesExactTriangleCount()
+    {
+        // 1000 across 3 submeshes is 333/333/334 — the remainder path.
+        var spec = new SyntheticCreatureSpec { Triangles = 1000, Bones = 8, Materials = 3 };
+        var spawned = WaveBenchmark.Spawn(spec, 1);
+        var mesh = spawned[0].GetComponent<SkinnedMeshRenderer>().sharedMesh;
+
+        int triangles = 0;
+        for (int i = 0; i < mesh.subMeshCount; i++)
+            triangles += (int)(mesh.GetIndexCount(i) / 3);
+
+        Assert.AreEqual(1000, triangles, "remainder must land on the last submesh");
+        WaveBenchmark.Despawn(spawned);
+    }
+
+    [Test]
+    public void Despawn_DestroysEntitiesAndTheirMaterials()
+    {
+        var spec = new SyntheticCreatureSpec { Triangles = 300, Bones = 8, Materials = 2 };
+        var spawned = WaveBenchmark.Spawn(spec, 3);
+        var material = spawned[0].GetComponent<SkinnedMeshRenderer>().sharedMaterials[0];
+
+        WaveBenchmark.Despawn(spawned);
+
+        Assert.IsTrue(material == null, "materials must be destroyed, not merely orphaned");
+        foreach (var go in spawned) Assert.IsTrue(go == null, "entities must be destroyed");
     }
 
     [Test]
@@ -632,6 +662,29 @@ namespace Broodline.Benchmark
             return made;
         }
 
+        /// Destroys spawned entities AND the materials they own.
+        /// `SyntheticCreature.Build` calls `new Material(shader)` per entity, and
+        /// destroying a GameObject does not reclaim materials it created. Over a
+        /// sweep of ~30 combinations at 104 entities this accumulates thousands of
+        /// native Material allocations, which inflates the very peak-memory number
+        /// the proof exists to measure.
+        public static void Despawn(GameObject[] spawned)
+        {
+            if (spawned == null) return;
+            foreach (var go in spawned)
+            {
+                if (go == null) continue;
+                var smr = go.GetComponent<SkinnedMeshRenderer>();
+                if (smr != null)
+                {
+                    foreach (var m in smr.sharedMaterials)
+                        if (m != null) Object.DestroyImmediate(m);
+                    if (smr.sharedMesh != null) Object.DestroyImmediate(smr.sharedMesh);
+                }
+                Object.DestroyImmediate(go);
+            }
+        }
+
         /// Frame times in milliseconds, sorted ascending, from a captured run.
         public static BenchmarkResult Summarise(
             List<double> frameMs, SyntheticCreatureSpec spec, int entityCount, long peakBytes)
@@ -663,7 +716,7 @@ namespace Broodline.Benchmark
 ./implementation/scripts/run-unity-tests.sh EditMode
 ```
 
-Expected: exit 0, `total=4 passed=4 failed=0` — the one test from Task 3 plus the three added here.
+Expected: exit 0, `total=6 passed=6 failed=0` — the one test from Task 3 plus the five added here.
 
 - [ ] **Step 6: Commit**
 
@@ -743,7 +796,7 @@ namespace Broodline.Benchmark
                 sb.AppendLine(result.ToCsvRow());
                 Debug.Log("[sweep] " + result.ToCsvRow());
 
-                foreach (var go in spawned) Destroy(go);
+                WaveBenchmark.Despawn(spawned);
                 yield return Resources.UnloadUnusedAssets();
                 System.GC.Collect();
                 yield return null;
