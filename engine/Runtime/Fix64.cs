@@ -13,6 +13,48 @@ namespace Broodline.Sim
     /// (DeterminismRuleTests.SimulationCore_ContainsNoFloatingPoint), but
     /// Broodline.Sim.Fix64 is not, so no float or double may appear anywhere in
     /// this file — not in a signature, not in a body, not in a cast.
+    ///
+    /// <para>
+    /// Edge-case contract, inherited unchanged from the vendored implementation
+    /// and pinned by the "Pinned_" tests in Fix64Tests.cs:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description>
+    /// Division by zero, and any quotient whose magnitude overflows a
+    /// <see langword="long"/>, saturates to <see cref="long.MaxValue"/> —
+    /// always a large <i>positive</i> value, regardless of the operands'
+    /// signs. A negative dividend divided by zero does not produce a large
+    /// negative result; it produces the same saturated positive value a
+    /// positive dividend would. This falls out of <c>DivPrecise</c>'s overflow
+    /// guard, which returns before the result's sign is reapplied. No
+    /// exception is thrown either way.
+    /// </description></item>
+    /// <item><description>
+    /// <see cref="Sqrt"/> of a negative value returns <see cref="Zero"/>
+    /// rather than throwing. The vendored <c>SqrtPrecise</c> routes negative
+    /// input through <c>FixedUtil.InvalidArgument</c>, whose default handler
+    /// is a no-op, so the invalid call is silently absorbed and falls through
+    /// to the same early-return as <c>Sqrt(Zero)</c>.
+    /// </description></item>
+    /// <item><description>
+    /// <c>*</c> and <c>/</c> round in different directions at the bit they
+    /// discard. Multiplication (<c>Mul</c>) truncates toward negative
+    /// infinity — it floors — for both signs alike. Division
+    /// (<c>DivPrecise</c>) truncates toward zero: it divides the operands'
+    /// magnitudes and reapplies the sign afterward. So
+    /// <c>(-a) / b == -(a / b)</c> always holds, but
+    /// <c>(-a) * b == -(a * b)</c> does not whenever the exact product has a
+    /// fractional remainder below the format's 2⁻³² resolution.
+    /// </description></item>
+    /// </list>
+    /// <para>
+    /// None of this is a defect in this wrapper — it is exactly what the
+    /// vendored implementation does, kept deliberately rather than patched
+    /// with a sign guard, a thrown exception, or a rounding-mode branch added
+    /// to arithmetic that runs per-entity, per-tick. Changing any of these
+    /// three behaviours is a deliberate decision to revisit, not a bug fix —
+    /// and it must update this comment and the "Pinned_" tests together.
+    /// </para>
     public readonly struct Fix64 : IEquatable<Fix64>, IComparable<Fix64>
     {
         public static readonly Fix64 Zero = new Fix64(FixPointCS.Fixed64.Zero);

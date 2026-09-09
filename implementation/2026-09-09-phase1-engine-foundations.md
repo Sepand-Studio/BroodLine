@@ -651,6 +651,20 @@ namespace Broodline.Sim.Tests
 }
 ```
 
+**Fix round 1 extended this file.** The five tests above exercise only about half the mandated API surface — `FromRaw`, `==`, `!=`, `<=`, `>`, `>=`, `Equals(Fix64)`, `Equals(object)`, `GetHashCode`, and `CompareTo` were untested, so a transposed comparator (`>=` written as `a.Raw <= b.Raw`, say) would have left this suite green. Separately, `DivPrecise`'s overflow guard and `SqrtPrecise`'s negative-input path have real edge-case behaviour (saturation to `long.MaxValue` regardless of sign; silently returning `Zero`) that was neither documented nor pinned, and `Mul`/`DivPrecise` round in different directions (floor vs. truncate-toward-zero) with no test distinguishing them. The human ruling for that round was: document the contract on `Fix64` itself (see the type's header comment) and pin it with tests, but make no behavioural change to `Fix64` — the wrapper stays a thin delegation to the vendored implementation.
+
+Eleven tests were added to `Fix64Tests.cs`, split into two clearly-labelled groups:
+
+*Contract-pinning tests* (prefixed `Pinned_`; snapshot today's inherited behaviour on purpose — a failure means the behaviour changed, which is a decision to revisit, not a bug to chase):
+- `Pinned_DivideByZero_PositiveDividend_SaturatesToLongMaxValue` and `Pinned_DivideByZero_NegativeDividend_AlsoSaturatesToLongMaxValue` — `FromInt(5) / Zero` and `FromInt(-5) / Zero` both give `Raw == long.MaxValue`; the sign of the dividend is never reapplied on the overflow path.
+- `Pinned_Sqrt_OfNegative_ReturnsZeroRatherThanThrowing` — `Sqrt(FromInt(-4)) == Zero`, no exception.
+- `Pinned_Multiply_FloorsTowardNegativeInfinity` — `FromRaw(-1) * FromRaw(3)` gives `Raw == -1` (floors), not `0` (which truncate-toward-zero would give).
+- `Pinned_Divide_TruncatesTowardZero` — `FromInt(-1) / FromInt(3)` gives `Raw == -1431655765` (truncates toward zero), not `-1431655766` (which flooring, as `Mul` does, would give).
+
+*Property tests* (assert invariants that must hold for any `Fix64` value — a failure here is a real defect): `ComparisonOperators_AgreeWithSignOfCompareTo`, `CompareTo_IsAntisymmetric`, and `CompareTo_IsTransitive` sweep all pairs/triples of a fixed `SampleRaws` array (`long.MinValue`, `long.MinValue + 1`, values either side of `±(1L << 32)`, `-1`, `0`, `1`, and `long.MaxValue - 1`, `long.MaxValue`) checking `<`, `<=`, `>`, `>=`, `==`, `!=` all agree with the sign of `CompareTo`, and that `CompareTo` is antisymmetric and transitive across that set — deliberately including `long.MinValue`, whose negation overflows, as the edge most likely to break a hand-rolled comparator. `FromRaw_RoundTripsThroughRaw` asserts `FromRaw(r).Raw == r` over the same set. `Equality_AgreesAcrossEqualsAndOperatorsAndHashCode` asserts `Equals(Fix64)`, `Equals(object)`, `==`/`!=` all agree over every sampled pair, and that equal values produce equal `GetHashCode()`. `Equals_Object_RejectsNullAndOtherTypes` covers `Equals(object)` against `null`, a string, and a boxed `int`.
+
+All eleven values above were taken from an actual `dotnet test` run, not derived by hand and assumed — see Step 6 below.
+
 - [ ] **Step 4: Run and watch them fail**
 
 ```bash
@@ -671,7 +685,9 @@ Expected: compile error — `Fix64` does not exist yet.
 dotnet test Broodline.sln
 ```
 
-Expected: **7 passed** — the two pre-existing determinism tests (`SimulationCore_ContainsNoFloatingPoint` and `IsFloat_RecursesIntoArrayElementType`, the latter added during Task 2's fix round) plus the five here.
+Expected at this task's original implementation: **7 passed** — the two pre-existing determinism tests (`SimulationCore_ContainsNoFloatingPoint` and `IsFloat_RecursesIntoArrayElementType`, the latter added during Task 2's fix round) plus the five here.
+
+**Fix round 1 raised this to 18 passed** — the same two determinism tests plus sixteen in `Fix64Tests.cs` (the original five plus the eleven described in Step 3 above: five contract-pinning, six property). Confirmed by an actual `dotnet test Broodline.sln` run, not computed by hand.
 
 - [ ] **Step 7: Commit**
 
