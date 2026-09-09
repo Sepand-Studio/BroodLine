@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="stylesheet" href="_ds/broadsheet-fa7bace2-3f67-4d6e-9f44-f437fb1e5da5/styles.css">
+<script src="./doc-page.js"></script>
+<style>
+doc-page:not(:defined){visibility:hidden}
+body{margin:0}
+a{color:var(--color-accent-700)}
+a:hover{color:var(--color-accent-600)}
+</style>
+</helmet>
+<doc-page width="36in" height="24in">
+<section class="page" data-screen-label="Runtime and scale" style="box-sizing:border-box;width:100%;padding:96px 70px 50px;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body)">
+
+<header style="display:flex;flex-direction:column;gap:0;margin-bottom:26px">
+<div style="height:9px;background:var(--color-text)"></div>
+<div style="display:flex;align-items:flex-end;justify-content:space-between;gap:60px;padding:18px 0 12px">
+<div>
+<div style="font:600 18px/1 var(--font-heading);letter-spacing:.28em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:8px">Broodline &middot; System architecture &middot; Sheet 2</div>
+<h1 style="margin:0;font:600 92px/0.95 var(--font-heading);letter-spacing:-.025em;white-space:nowrap">Runtime, data and scale</h1>
+</div>
+<div style="font:400 17px/1.45 var(--font-body);color:var(--color-neutral-800);max-width:660px;text-align:right;padding-bottom:8px">What each piece is written in, what a request actually touches, how the database is laid out, and what growth costs. <strong>The honest conclusion of the load estimate: this is not a large system.</strong> The scaling risk in Broodline is operational, not computational &mdash; which is why the right-hand column is an ops list rather than a capacity chart.</div>
+</div>
+<div style="height:2px;background:var(--color-text)"></div>
+</header>
+
+<div style="position:relative;width:3316px;height:1900px">
+
+<svg viewBox="0 0 3316 1900" width="3316" height="1900" style="position:absolute;left:0;top:0;overflow:visible">
+<defs>
+<marker id="bi" viewBox="0 0 12 10" refX="11" refY="5" markerWidth="9" markerHeight="8" orient="auto"><path d="M0,0 L12,5 L0,10 z" style="fill:var(--color-neutral-700)"></path></marker>
+<marker id="bc" viewBox="0 0 12 10" refX="11" refY="5" markerWidth="6" markerHeight="5" orient="auto"><path d="M0,0 L12,5 L0,10 z" style="fill:var(--color-accent-600)"></path></marker>
+</defs>
+<g style="fill:none;stroke:var(--color-neutral-700);stroke-width:2">
+<path d="M1286,175 L968,175" marker-end="url(#bi)"></path>
+<path d="M2030,175 L2348,175" marker-end="url(#bi)"></path>
+<path d="M570,260 L570,300" marker-end="url(#bi)"></path>
+<path d="M2746,260 L2746,300" marker-end="url(#bi)"></path>
+<path d="M1938,890 L1938,930" marker-end="url(#bi)"></path>
+</g>
+<g style="fill:none;stroke:var(--color-accent);stroke-width:4">
+<path d="M516,785 L552,785" marker-end="url(#bc)"></path>
+<path d="M1076,785 L1112,785" marker-end="url(#bc)"></path>
+<path d="M1636,785 L1672,785" marker-end="url(#bc)"></path>
+<path d="M2196,785 L2232,785" marker-end="url(#bc)"></path>
+<path d="M2756,785 L2792,785" marker-end="url(#bc)"></path>
+</g>
+<g style="fill:none;stroke:var(--color-neutral-700);stroke-width:2">
+<path d="M1330,1372 L1366,1372" marker-end="url(#bi)"></path>
+<path d="M1530,1372 L1566,1372" marker-end="url(#bi)"></path>
+<path d="M1730,1372 L1766,1372" marker-end="url(#bi)"></path>
+<path d="M1930,1372 L1966,1372" marker-end="url(#bi)"></path>
+</g>
+</svg>
+
+<div style="position:absolute;left:0;top:0;white-space:nowrap;font:600 19px/1 var(--font-heading);letter-spacing:.18em;text-transform:uppercase;color:var(--color-accent-700)">One core, compiled twice</div>
+<div style="position:absolute;left:520px;top:2px;width:1700px;font:400 17px/1 var(--font-body);color:var(--color-neutral-800)">The highest-risk item in the project: the same simulation must produce bit-identical results on an iPhone and in a Linux container.</div>
+
+<div style="position:absolute;left:1290px;top:90px;width:736px;height:170px;box-sizing:border-box;padding:14px 16px;background:var(--color-neutral-200);border:2px solid var(--color-text);border-radius:var(--radius-md)">
+<div style="font:600 26px/1.1 var(--font-heading)">Broodline.Sim &mdash; plain C#, <code style="font:600 22px/1.1 var(--font-body)">netstandard2.1</code></div>
+<div style="font:400 17px/1.35 var(--font-body);color:var(--color-neutral-800);margin-top:7px">A pure library: no engine dependency, no rendering, no allocation in the hot loop. It lives <em>outside</em> the Unity assembly graph as a compiled DLL rather than as source in <code style="font:400 16px/1 var(--font-body)">Assets/</code> &mdash; an assembly definition with no <code style="font:400 16px/1 var(--font-body)">UnityEngine</code> reference is what physically prevents someone reaching for <code style="font:400 16px/1 var(--font-body)">Time.deltaTime</code> inside it.</div>
+</div>
+
+<div style="position:absolute;left:180px;top:105px;width:788px;height:140px;box-sizing:border-box;padding:13px 16px;background:var(--color-accent-100);border:1px solid var(--color-accent-400);border-radius:var(--radius-md)">
+<div style="font:600 24px/1.15 var(--font-heading)">Unity 6 client &mdash; IL2CPP, ARM64, Metal</div>
+<div style="font:400 17px/1.35 var(--font-body);color:var(--color-neutral-800);margin-top:6px">Links the core for live play. Unity's own systems are banned from the simulation: no physics, no coroutines, no <code style="font:400 16px/1 var(--font-body)">Update()</code> driving game logic. Unity renders the sim's output; it does not participate in it.</div>
+</div>
+<div style="position:absolute;left:2348px;top:105px;width:788px;height:140px;box-sizing:border-box;padding:13px 16px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="font:600 24px/1.15 var(--font-heading)"><code style="font:600 24px/1.15 var(--font-body)">sim</code> service &mdash; headless .NET, Linux container</div>
+<div style="font:400 17px/1.35 var(--font-body);color:var(--color-neutral-800);margin-top:6px">Runs the identical core for wave validation, raid auto-resolve and replays. Short, self-contained, CPU-bound calls &mdash; precisely the shape Cloud Run is built for.</div>
+</div>
+<div style="position:absolute;left:980px;top:120px;width:300px;font:400 16px/1.3 var(--font-body);color:var(--color-neutral-700);text-align:center">compiled into the player</div>
+<div style="position:absolute;left:2040px;top:120px;width:300px;font:400 16px/1.3 var(--font-body);color:var(--color-neutral-700);text-align:center">compiled into a container</div>
+
+<div style="position:absolute;left:190px;top:300px;width:571px;height:170px;box-sizing:border-box;padding:13px 15px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="font:600 22px/1.1 var(--font-heading)">No floating point</div>
+<div style="font:400 16px/1.35 var(--font-body);color:var(--color-neutral-800);margin-top:6px">Anywhere in the core. Fixed-point <code style="font:400 15px/1 var(--font-body)">long</code> at Q32.32; trigonometry and square roots come from lookup tables, never from <code style="font:400 15px/1 var(--font-body)">Math</code>.</div>
+</div>
+<div style="position:absolute;left:781px;top:300px;width:571px;height:170px;box-sizing:border-box;padding:13px 15px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="font:600 22px/1.1 var(--font-heading)">Fixed timestep</div>
+<div style="font:400 16px/1.35 var(--font-body);color:var(--color-neutral-800);margin-top:6px">30&nbsp;Hz. Rendering interpolates between two snapshots; the simulation never sees a variable delta and never learns that rendering exists.</div>
+</div>
+<div style="position:absolute;left:1372px;top:300px;width:571px;height:170px;box-sizing:border-box;padding:13px 15px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="font:600 22px/1.1 var(--font-heading)">Seeded PRNG</div>
+<div style="font:400 16px/1.35 var(--font-body);color:var(--color-neutral-800);margin-top:6px">xorshift128+, one stream per simulation, <strong>seed supplied by the server</strong>. Never <code style="font:400 15px/1 var(--font-body)">System.Random</code>, never <code style="font:400 15px/1 var(--font-body)">UnityEngine.Random</code>.</div>
+</div>
+<div style="position:absolute;left:1963px;top:300px;width:571px;height:170px;box-sizing:border-box;padding:13px 15px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="font:600 22px/1.1 var(--font-heading)">Deterministic iteration</div>
+<div style="font:400 16px/1.35 var(--font-body);color:var(--color-neutral-800);margin-top:6px">No <code style="font:400 15px/1 var(--font-body)">Dictionary</code> or <code style="font:400 15px/1 var(--font-body)">HashSet</code> traversal &mdash; sorted arrays and stable entity IDs only. <strong>This is the failure that always ships, because it is invisible on one machine.</strong></div>
+</div>
+<div style="position:absolute;left:2554px;top:300px;width:571px;height:170px;box-sizing:border-box;padding:13px 15px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="font:600 22px/1.1 var(--font-heading)">No wall-clock reads</div>
+<div style="font:400 16px/1.35 var(--font-body);color:var(--color-neutral-800);margin-top:6px">Time is tick count. Determinism holds under IL2CPP because the core contains no floating point and no unordered iteration.</div>
+</div>
+
+<div style="position:absolute;left:0;top:496px;width:3316px;box-sizing:border-box;padding:12px 16px;border-left:4px solid var(--color-accent-2);background:var(--color-accent-2-100)">
+<div style="font:400 17px/1.35 var(--font-body)"><strong>The CI gate is the whole mitigation.</strong> A nightly job replays a corpus of a few thousand stored replays on both an iOS device-farm build and the server build, diffing outcome hashes; any drift fails the build. The nightly diff compares CoreCLR against a macOS ARM64 IL2CPP build, and a physical device run before each release closes the remaining gap. Without it the two builds diverge silently within a month &mdash; and simulation drift is not a load failure, it is a <em>trust</em> failure: every player who watches a replay that doesn't match what they saw stops believing the game is fair. &nbsp;<em style="color:var(--color-neutral-700)">Alternative considered and rejected: a Rust core with a Swift/C# FFI shim &mdash; stronger determinism guarantees, more velocity than this team should spend. C#, and buy the determinism back with discipline and this gate.</em></div>
+</div>
+
+<div style="position:absolute;left:0;top:620px;white-space:nowrap;font:600 19px/1 var(--font-heading);letter-spacing:.18em;text-transform:uppercase;color:var(--color-accent-700)">What one request touches</div>
+<div style="position:absolute;left:520px;top:622px;width:1700px;font:400 17px/1 var(--font-body);color:var(--color-neutral-800)">REST/JSON over HTTP/2. No Kubernetes at launch: the workload is stateless request/response plus scheduled jobs.</div>
+
+<div style="position:absolute;left:0;top:680px;width:516px;height:210px;box-sizing:border-box;padding:13px 15px;background:var(--color-accent-100);border:1px solid var(--color-accent-400);border-radius:var(--radius-md)">
+<div style="font:600 16px/1 var(--font-heading);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-700)">01</div>
+<div style="font:600 23px/1.1 var(--font-heading);margin-top:7px">Device</div>
+<div style="font:400 16px/1.35 var(--font-body);color:var(--color-neutral-800);margin-top:6px">Unity's HTTP stack &mdash; the path of least resistance, and the reason this is REST and not gRPC. Roughly 40 calls a session, three sessions a day.</div>
+</div>
+<div style="position:absolute;left:560px;top:680px;width:516px;height:210px;box-sizing:border-box;padding:13px 15px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="font:600 16px/1 var(--font-heading);letter-spacing:.14em;text-transform:uppercase;color:var(--color-neutral-700)">02</div>
+<div style="font:600 23px/1.1 var(--font-heading);margin-top:7px">Cloud Load Balancing</div>
+<div style="font:400 16px/1.35 var(--font-body);color:var(--color-neutral-800);margin-top:6px">One front door for the whole fleet, TLS terminated at the edge. Shards live behind it; the client never addresses a shard directly.</div>
+</div>
+<div style="position:absolute;left:1120px;top:680px;width:516px;height:210px;box-sizing:border-box;padding:13px 15px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="font:600 16px/1 var(--font-heading);letter-spacing:.14em;text-transform:uppercase;color:var(--color-neutral-700)">03</div>
+<div style="font:600 23px/1.1 var(--font-heading);margin-top:7px">Cloud Armor</div>
+<div style="font:400 16px/1.35 var(--font-body);color:var(--color-neutral-800);margin-top:6px">WAF and rate limiting. Worth being clear: this is not the anti-cheat. <strong>Server authority is the actual defence</strong> &mdash; jailbreak detection is worth a token effort and no more.</div>
+</div>
+<div style="position:absolute;left:1680px;top:680px;width:516px;height:210px;box-sizing:border-box;padding:13px 15px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="font:600 16px/1 var(--font-heading);letter-spacing:.14em;text-transform:uppercase;color:var(--color-neutral-700)">04</div>
+<div style="font:600 23px/1.1 var(--font-heading);margin-top:7px"><code style="font:600 23px/1.1 var(--font-body)">game</code> on Cloud Run</div>
+<div style="font:400 16px/1.35 var(--font-body);color:var(--color-neutral-800);margin-top:6px">Scales per request to hundreds of instances. Nothing is held in memory that has to be reconstructed. Cloud Run costs roughly one platform engineer a year less than GKE.</div>
+</div>
+<div style="position:absolute;left:2240px;top:680px;width:516px;height:210px;box-sizing:border-box;padding:13px 15px;background:var(--color-neutral-200);border:2px solid var(--color-accent-2);border-radius:var(--radius-md)">
+<div style="font:600 16px/1 var(--font-heading);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-2-700)">05 &middot; the failure that arrives with success</div>
+<div style="font:600 23px/1.1 var(--font-heading);margin-top:7px">PgBouncer</div>
+<div style="font:400 16px/1.35 var(--font-body);color:var(--color-neutral-800);margin-top:6px">Transaction-pooling mode in front of every instance, with a hard cap on per-instance pool size. Without it, Cloud Run opens a pool per instance and <strong>Postgres runs out of connections long before it runs out of CPU.</strong></div>
+</div>
+<div style="position:absolute;left:2800px;top:680px;width:516px;height:210px;box-sizing:border-box;padding:13px 15px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="font:600 16px/1 var(--font-heading);letter-spacing:.14em;text-transform:uppercase;color:var(--color-neutral-700)">06</div>
+<div style="font:600 23px/1.1 var(--font-heading);margin-top:7px">Cloud SQL Postgres</div>
+<div style="font:400 16px/1.35 var(--font-body);color:var(--color-neutral-800);margin-top:6px">HA with a failover replica and point-in-time recovery. The ledger makes economy state reconstructible even from a bad restore.</div>
+</div>
+
+<div style="position:absolute;left:1680px;top:930px;width:516px;height:150px;box-sizing:border-box;padding:12px 15px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="font:600 21px/1.1 var(--font-heading)">Memorystore Redis</div>
+<div style="font:400 16px/1.35 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Beside the request path, not in it. One instance per shard-group: hot counters, rate limits, presence, chat pub/sub.</div>
+</div>
+<div style="position:absolute;left:0;top:930px;width:1640px;height:150px;box-sizing:border-box;padding:12px 16px;border-left:4px solid var(--color-neutral-600);background:var(--color-neutral-100)">
+<div style="font:400 17px/1.35 var(--font-body)"><strong>Why REST.</strong> The client's query shapes are known and fixed, so GraphQL's flexibility buys nothing while costing a caching story, and the request volume doesn't justify gRPC's friction. <strong>Intent endpoints, not CRUD</strong> &mdash; the server owns what a splice means. Reads take deltas via <code style="font:400 16px/1 var(--font-body)">?since=&lt;cursor&gt;</code>, so a warm client fetches almost nothing. <strong>Config is not an API:</strong> event definitions, pack contents, trait tables, wave definitions and strings are a versioned JSON bundle on CDN, which keeps live-ops changes off the API path entirely and CDN-cheap at any scale.</div>
+</div>
+<div style="position:absolute;left:2240px;top:930px;width:1076px;height:150px;box-sizing:border-box;padding:12px 16px;border-left:4px solid var(--color-accent);background:var(--color-accent-100)">
+<div style="font:400 17px/1.35 var(--font-body)"><strong>Deploys canary by shard</strong> &mdash; push to one shard, watch for an hour, roll the fleet. The shard model gives this for free and almost nothing else in the design does. <strong>SLOs:</strong> <code style="font:400 16px/1 var(--font-body)">/v1/sync</code> p99 under 300&nbsp;ms &middot; wave validation p99 under 500&nbsp;ms &middot; raid alert delivered within 5&nbsp;s p95, which is a gameplay requirement rather than an ops one.</div>
+</div>
+
+<div style="position:absolute;left:0;top:1130px;white-space:nowrap;font:600 19px/1 var(--font-heading);letter-spacing:.18em;text-transform:uppercase;color:var(--color-accent-700)">The database, laid out</div>
+<div style="position:absolute;left:1128px;top:1130px;white-space:nowrap;font:600 19px/1 var(--font-heading);letter-spacing:.18em;text-transform:uppercase;color:var(--color-accent-700)">Capacity is measured in shards</div>
+<div style="position:absolute;left:2256px;top:1130px;white-space:nowrap;font:600 19px/1 var(--font-heading);letter-spacing:.18em;text-transform:uppercase;color:var(--color-accent-700)">Hosting, regions, failure order</div>
+
+<div style="position:absolute;left:0;top:1180px;width:1060px;height:230px;box-sizing:border-box;padding:11px 14px;border:1px dashed var(--color-neutral-500);border-radius:var(--radius-md)">
+<div style="font:600 16px/1 var(--font-heading);letter-spacing:.12em;text-transform:uppercase;color:var(--color-neutral-700)">Region &mdash; <code style="font:600 16px/1 var(--font-body)">us-central1</code></div>
+<div style="margin-top:9px;padding:10px 12px;border:1px solid var(--color-neutral-400);background:var(--color-neutral-100);border-radius:var(--radius-md)">
+<div style="font:600 20px/1.1 var(--font-heading)">Cloud SQL instance &mdash; <code style="font:600 19px/1.1 var(--font-body)">db-custom-4-16</code></div>
+<div style="font:400 16px/1.3 var(--font-body);color:var(--color-neutral-800);margin-top:3px">~15,000 DAU, which it handles without noticing. Adding capacity is adding an instance.</div>
+<div style="margin-top:9px;padding:9px 12px;border:1px solid var(--color-accent-400);background:var(--color-accent-100);border-radius:var(--radius-md)">
+<div style="font:600 19px/1.1 var(--font-heading)">Shard-group &mdash; ~10 game shards</div>
+<div style="margin-top:8px;padding:8px 11px;border:1px solid var(--color-neutral-500);background:var(--color-bg);border-radius:var(--radius-md)">
+<div style="font:600 19px/1.1 var(--font-heading)">Shard &mdash; one Postgres schema, one Redis keyspace</div>
+<div style="font:400 16px/1.3 var(--font-body);color:var(--color-neutral-800);margin-top:3px">500&ndash;1,500 DAU &middot; 30 regions &middot; a closed world. A hot shard moves to its own instance without touching anything else, because nothing joins across schemas.</div>
+</div>
+</div>
+</div>
+</div>
+
+<div style="position:absolute;left:0;top:1432px;width:1060px;box-sizing:border-box;padding:11px 14px;border-left:4px solid var(--color-neutral-600);background:var(--color-neutral-100)">
+<div style="font:400 16px/1.4 var(--font-body)"><strong>Design so a migration stays mechanical:</strong> <code style="font:400 15px/1 var(--font-body)">shard_id</code> leads every partition key &middot; no cross-shard foreign keys &middot; no global sequences &middot; <strong>no primary key globally meaningful</strong>, so an eventual shard merge is a re-keying exercise rather than a rewrite. <em>Not Spanner at launch</em> &mdash; it is the right answer to a global-writes problem this design does not have, at roughly ten times the cost.</div>
+</div>
+
+<div style="position:absolute;left:0;top:1552px;width:1060px;box-sizing:border-box">
+<div style="font:600 16px/1 var(--font-heading);letter-spacing:.12em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:9px">Core tables &mdash; every one carries <code style="font:600 16px/1 var(--font-body)">shard_id</code></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+<div style="padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md);font:400 16px/1.4 var(--font-body)"><strong>Player</strong><br><code style="font:400 15px/1.4 var(--font-body)">players &middot; creatures &middot; samples &middot; lab_modules &middot; campaign_progress</code></div>
+<div style="padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md);font:400 16px/1.4 var(--font-body)"><strong>World</strong><br><code style="font:400 15px/1.4 var(--font-body)">regions &middot; nodes &middot; harvest_claims &middot; arks</code></div>
+<div style="padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md);font:400 16px/1.4 var(--font-body)"><strong>Raid</strong><br><code style="font:400 15px/1.4 var(--font-body)">collectors &middot; convoys &middot; raids</code></div>
+<div style="padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md);font:400 16px/1.4 var(--font-body)"><strong>Social</strong><br><code style="font:400 15px/1.4 var(--font-body)">alliances &middot; alliance_members &middot; stakes</code></div>
+</div>
+<div style="margin-top:9px;padding:11px 13px;background:var(--color-accent-100);border:2px solid var(--color-accent);border-radius:var(--radius-md)">
+<div style="font:600 21px/1.1 var(--font-heading)"><code style="font:600 21px/1.1 var(--font-body)">ledger</code> &mdash; the highest-value 200 lines in the backend</div>
+<div style="font:400 16px/1.35 var(--font-body);color:var(--color-neutral-800);margin-top:5px"><code style="font:400 15px/1 var(--font-body)">entry_id, player_id, currency, delta, balance_after, reason_code, ref_type, ref_id, idempotency_key, created_at</code> &mdash; append-only, written in the <em>same transaction</em> as the balance update, for every currency. It buys exact answers to &ldquo;where did my shards go&rdquo;, a duplication tripwire (sum the ledger, compare to balances), the faucet/sink input the economy model needs, and a refund path that isn't guesswork. <strong>Games that add this after launch never fully reconstruct the first six months.</strong></div>
+</div>
+</div>
+
+<div style="position:absolute;left:1128px;top:1180px;width:1060px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+<div style="padding:11px 14px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="font:600 34px/1 var(--font-heading);letter-spacing:-.02em">35&ndash;100</div>
+<div style="font:400 16px/1.35 var(--font-body);color:var(--color-neutral-800);margin-top:5px">shards at 50,000 DAU. Growth is answered by <em>creating shards</em> &mdash; bounded, automatable, testable &mdash; not by re-architecting a global world under load.</div>
+</div>
+<div style="padding:11px 14px;background:var(--color-accent-100);border:1px solid var(--color-accent-400);border-radius:var(--radius-md)">
+<div style="font:600 34px/1 var(--font-heading);letter-spacing:-.02em">3 warm</div>
+<div style="font:400 16px/1.35 var(--font-body);color:var(--color-neutral-800);margin-top:5px">empty shards kept at all times, with a replacement provisioned the moment one is claimed. Otherwise a launch spike means hand-running Terraform at 2am while sign-ups queue.</div>
+</div>
+</div>
+
+<div style="position:absolute;left:1128px;top:1330px;width:1060px;font:600 16px/1 var(--font-heading);letter-spacing:.12em;text-transform:uppercase;color:var(--color-neutral-700)">Opening a shard is <em>one</em> automated operation</div>
+<div style="position:absolute;left:1130px;top:1348px;width:200px;height:48px;box-sizing:border-box;padding:6px 9px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md);font:400 16px/1.15 var(--font-body)">Terraform module</div>
+<div style="position:absolute;left:1370px;top:1348px;width:160px;height:48px;box-sizing:border-box;padding:6px 9px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md);font:400 16px/1.15 var(--font-body)">Schema migration</div>
+<div style="position:absolute;left:1570px;top:1348px;width:160px;height:48px;box-sizing:border-box;padding:6px 9px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md);font:400 16px/1.15 var(--font-body)">30 seeded regions</div>
+<div style="position:absolute;left:1770px;top:1348px;width:160px;height:48px;box-sizing:border-box;padding:6px 9px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md);font:400 16px/1.15 var(--font-body)">Registry row</div>
+<div style="position:absolute;left:1970px;top:1348px;width:160px;height:48px;box-sizing:border-box;padding:6px 9px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md);font:400 16px/1.15 var(--font-body)">Health check</div>
+
+<sc-if value="{{ showLoadTable }}" hint-placeholder-val="{{ true }}">
+<div style="position:absolute;left:1128px;top:1424px;width:1060px">
+<div style="font:600 16px/1 var(--font-heading);letter-spacing:.12em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:6px">Worked from 50,000 DAU</div>
+<div style="display:grid;grid-template-columns:1fr 300px;gap:0 18px;font:400 16px/1.35 var(--font-body)">
+<div style="padding:8px 0;border-top:1px solid var(--color-neutral-400)">API requests &mdash; 40 calls &times; 3 sessions &times; 50k</div><div style="padding:8px 0;border-top:1px solid var(--color-neutral-400);text-align:right"><strong>~70 rps mean &middot; ~300 peak</strong></div>
+<div style="padding:8px 0;border-top:1px solid var(--color-neutral-300)">Wave validations &mdash; ~6 per player per day, ~20&nbsp;ms each</div><div style="padding:8px 0;border-top:1px solid var(--color-neutral-300);text-align:right"><strong>~1.7 CPU-hours/day</strong></div>
+<div style="padding:8px 0;border-top:1px solid var(--color-neutral-300)">Raid auto-resolves &mdash; 2/day cap, ~20% participation</div><div style="padding:8px 0;border-top:1px solid var(--color-neutral-300);text-align:right"><strong>~20k/day</strong></div>
+<div style="padding:8px 0;border-top:1px solid var(--color-neutral-300)">Replay storage at ~2&nbsp;KB each</div><div style="padding:8px 0;border-top:1px solid var(--color-neutral-300);text-align:right"><strong>~40&nbsp;MB/day &middot; ~15&nbsp;GB/year</strong></div>
+<div style="padding:8px 0;border-top:1px solid var(--color-neutral-300)">Player data at ~50&nbsp;KB each</div><div style="padding:8px 0;border-top:1px solid var(--color-neutral-300);text-align:right"><strong>~2.5&nbsp;GB</strong></div>
+<div style="padding:8px 0;border-top:1px solid var(--color-neutral-300);border-bottom:1px solid var(--color-neutral-400)">Push notifications &mdash; raid alerts, tick, events</div><div style="padding:8px 0;border-top:1px solid var(--color-neutral-300);border-bottom:1px solid var(--color-neutral-400);text-align:right"><strong>~200k/day, staggered</strong></div>
+</div>
+<div style="margin-top:10px;padding:10px 13px;border-left:4px solid var(--color-accent);background:var(--color-accent-100);font:400 16px/1.35 var(--font-body)">A handful of Cloud Run instances and five Postgres instances carry this, at <strong>$2&ndash;4k a month excluding asset CDN egress</strong> &mdash; which will likely exceed all compute combined, and is the one line item worth optimising before launch.</div>
+</div>
+</sc-if>
+
+<div style="position:absolute;left:1128px;top:1764px;width:1060px;box-sizing:border-box;padding:11px 14px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="font:600 20px/1.1 var(--font-heading)">Concurrency &mdash; narrow, and named</div>
+<div style="font:400 16px/1.35 var(--font-body);color:var(--color-neutral-800);margin-top:6px">Player-owned state is single-writer by nature, so it takes <strong>optimistic concurrency</strong>: a <code style="font:400 15px/1 var(--font-body)">version</code> column, compare-and-set, retry once, conflict on the second failure. No locks. Contended state is exactly three things &mdash; <strong>node extraction totals, alliance treasury, Stake Hold</strong>. Extraction is the one that matters, because depletion tracks total extraction across all harvesters rather than wall-clock time: the running total lives in a Redis atomic counter at <code style="font:400 15px/1 var(--font-body)">shard:{id}:node:{id}:extracted</code>, flushed to Postgres every 30&nbsp;s and on depletion crossing. <strong>Harvest is never ticked</strong> &mdash; it is computed on read from <code style="font:400 15px/1 var(--font-body)">last_settled_at</code>, so fifty thousand sleeping players cost zero background CPU.</div>
+</div>
+
+<div style="position:absolute;left:2256px;top:1180px;width:1060px">
+<div style="display:grid;grid-template-columns:1.1fr 1fr 1fr 1fr;gap:0 14px;font:400 16px/1.3 var(--font-body)">
+<div style="padding:7px 0;border-bottom:2px solid var(--color-text);font-weight:600">Layer</div>
+<div style="padding:7px 0;border-bottom:2px solid var(--color-text);font-weight:600">US launch</div>
+<div style="padding:7px 0;border-bottom:2px solid var(--color-text);font-weight:600">EU</div>
+<div style="padding:7px 0;border-bottom:2px solid var(--color-text);font-weight:600">APAC</div>
+<div style="padding:8px 0;border-bottom:1px solid var(--color-neutral-300)">Shards + shard DBs</div>
+<div style="padding:8px 0;border-bottom:1px solid var(--color-neutral-300)"><code style="font:400 15px/1.3 var(--font-body)">us-central1</code></div>
+<div style="padding:8px 0;border-bottom:1px solid var(--color-neutral-300)"><code style="font:400 15px/1.3 var(--font-body)">europe-west1</code></div>
+<div style="padding:8px 0;border-bottom:1px solid var(--color-neutral-300)"><code style="font:400 15px/1.3 var(--font-body)">asia-northeast1</code></div>
+<div style="padding:8px 0;border-bottom:1px solid var(--color-neutral-300)">Account / identity</div>
+<div style="padding:8px 0;border-bottom:1px solid var(--color-neutral-300)"><code style="font:400 15px/1.3 var(--font-body)">us-central1</code></div>
+<div style="padding:8px 0;border-bottom:1px solid var(--color-neutral-300)">EU residency</div>
+<div style="padding:8px 0;border-bottom:1px solid var(--color-neutral-300)">home region + replica</div>
+<div style="padding:8px 0;border-bottom:1px solid var(--color-neutral-300)">Commerce</div>
+<div style="padding:8px 0;border-bottom:1px solid var(--color-neutral-300)"><code style="font:400 15px/1.3 var(--font-body)">us-central1</code></div>
+<div style="padding:8px 0;border-bottom:1px solid var(--color-neutral-300)">routes by account region</div>
+<div style="padding:8px 0;border-bottom:1px solid var(--color-neutral-300)">routes by account region</div>
+<div style="padding:8px 0;border-bottom:1px solid var(--color-neutral-300)">Telemetry</div>
+<div style="padding:8px 0;border-bottom:1px solid var(--color-neutral-300)">pseudonymised, one BigQuery region</div>
+<div style="padding:8px 0;border-bottom:1px solid var(--color-neutral-300)">EU raw retained in EU</div>
+<div style="padding:8px 0;border-bottom:1px solid var(--color-neutral-300)">same</div>
+<div style="padding:8px 0;border-bottom:1px solid var(--color-neutral-400)">Static content + CDN</div>
+<div style="padding:8px 0;border-bottom:1px solid var(--color-neutral-400)">global</div>
+<div style="padding:8px 0;border-bottom:1px solid var(--color-neutral-400)">global</div>
+<div style="padding:8px 0;border-bottom:1px solid var(--color-neutral-400)">global</div>
+</div>
+<div style="margin-top:11px;padding:10px 13px;border-left:4px solid var(--color-accent);background:var(--color-accent-100);font:400 16px/1.35 var(--font-body)"><strong>Shards are region-pinned and accounts are region-partitioned from day one, while only the US exists.</strong> A <code style="font:400 15px/1 var(--font-body)">home_region</code> column and a routing rule cost nothing now; once EU players exist, moving their data into the EU is a migration under legal pressure.</div>
+</div>
+
+<sc-if value="{{ showWhatBreaks }}" hint-placeholder-val="{{ true }}">
+<div style="position:absolute;left:2256px;top:1560px;width:1060px">
+<div style="font:600 16px/1 var(--font-heading);letter-spacing:.12em;text-transform:uppercase;color:var(--color-accent-2-700);margin-bottom:8px">What breaks first, in the order it will actually happen</div>
+<div style="display:grid;grid-template-columns:44px 1fr;gap:9px 12px;font:400 16px/1.35 var(--font-body)">
+<div style="font:600 22px/1.2 var(--font-heading);color:var(--color-accent-2-700)">1</div><div><strong>Shard provisioning is manual.</strong> Fix before launch: one automated operation, three shards warm.</div>
+<div style="font:600 22px/1.2 var(--font-heading);color:var(--color-accent-2-700)">2</div><div><strong>Cloud SQL connection exhaustion.</strong> PgBouncer in transaction mode, hard per-instance pool cap.</div>
+<div style="font:600 22px/1.2 var(--font-heading);color:var(--color-accent-2-700)">3</div><div><strong>A synchronised weekly tick.</strong> Every shard rotating deposits, resolving territory and pushing notifications in the same minute is the largest fan-out in the game. <strong>Settled:</strong> the topology spec wins &mdash; tick hour is one of three fixed slots (APAC, EMEA, Americas prime evening), set at shard creation and never changed, and the tick runs as a five-minute announced maintenance window with an hour of visible countdown. That concentrates a third of the fleet in one window, so the engineering fix is per-shard jitter <em>inside</em> the slot, not a wider spread: territory resolves before node rotation on every shard, start times staggered across the five minutes.</div>
+<div style="font:600 22px/1.2 var(--font-heading);color:var(--color-accent-2-700)">4</div><div><strong>Redis hot keys on contested nodes.</strong> An Apex Vein with fifty harvesters is one counter taking every write. Survivable at this scale; shard the counter by player-hash into sixteen sub-counters if it isn't.</div>
+<div style="font:600 22px/1.2 var(--font-heading);color:var(--color-accent-2-700)">5</div><div><strong>Simulation drift.</strong> Not a load failure &mdash; a trust failure, and the worst on the list. The nightly cross-platform replay diff is the entire mitigation.</div>
+</div>
+<div style="margin-top:12px;padding:10px 13px;border-left:4px solid var(--color-accent);background:var(--color-accent-100);font:400 16px/1.35 var(--font-body)"><strong>Both open conflicts now resolved against <code style="font:400 15px/1 var(--font-body)">broodline_server_topology.md</code>.</strong> Tick hour: <strong>three fixed slots</strong>, not a 24-hour spread, fixed at creation. Shard assignment: <strong>storefront region at signup, no transfers</strong> &mdash; not an invite-code pin. A player who wants to play with a friend elsewhere gets a free unlinked second account, which means the invite code carries no shard semantics and the referral system must be built without one. Population per shard is derived, not chosen: <strong>500&ndash;1,500 DAU</strong>, from a Rich Deposit lasting two to four days at 1.5&ndash;3 concurrent harvesters.</div>
+</div>
+</sc-if>
+
+</div>
+</section>
+
+<section class="page" data-screen-label="Screen flow" style="box-sizing:border-box;width:100%;padding:96px 70px 50px;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body)">
+
+<header style="display:flex;flex-direction:column;gap:0;margin-bottom:26px">
+<div style="height:9px;background:var(--color-text)"></div>
+<div style="display:flex;align-items:flex-end;justify-content:space-between;gap:60px;padding:18px 0 12px">
+<div>
+<div style="font:600 18px/1 var(--font-heading);letter-spacing:.28em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:8px">Broodline &middot; System architecture &middot; Sheet 3</div>
+<h1 style="margin:0;font:600 92px/0.95 var(--font-heading);letter-spacing:-.025em;white-space:nowrap">The screen graph</h1>
+</div>
+<div style="font:400 17px/1.45 var(--font-body);color:var(--color-neutral-800);max-width:660px;text-align:right;padding-bottom:8px">Every screen in the inventory, hung off the five tabs, with what pushes, what overlays and what is reachable from anywhere. Build tier and design status on each node; the five journeys players actually take are traced along the foot of the sheet.</div>
+</div>
+<div style="height:2px;background:var(--color-text)"></div>
+</header>
+
+<div style="position:relative;width:3316px;height:1900px">
+
+<svg viewBox="0 0 3316 1900" width="3316" height="1900" style="position:absolute;left:0;top:0;overflow:visible">
+<defs>
+<marker id="ci" viewBox="0 0 12 10" refX="11" refY="5" markerWidth="9" markerHeight="8" orient="auto"><path d="M0,0 L12,5 L0,10 z" style="fill:var(--color-neutral-700)"></path></marker>
+<marker id="cc" viewBox="0 0 12 10" refX="11" refY="5" markerWidth="6" markerHeight="5" orient="auto"><path d="M0,0 L12,5 L0,10 z" style="fill:var(--color-accent-600)"></path></marker>
+<marker id="cm" viewBox="0 0 12 10" refX="11" refY="5" markerWidth="7" markerHeight="6" orient="auto"><path d="M0,0 L12,5 L0,10 z" style="fill:var(--color-accent-2-600)"></path></marker>
+</defs>
+<g style="fill:none;stroke:var(--color-neutral-700);stroke-width:2">
+<path d="M620,125 L666,125" marker-end="url(#ci)"></path>
+<path d="M1294,125 L1340,125" marker-end="url(#ci)"></path>
+<path d="M1968,125 L2014,125" marker-end="url(#ci)"></path>
+<path d="M2332,190 L2332,232" marker-end="url(#ci)"></path>
+</g>
+<g style="fill:none;stroke:var(--color-accent);stroke-width:5">
+<path d="M310,302 L310,432" marker-end="url(#cc)"></path>
+<path d="M984,302 L984,432" marker-end="url(#cc)"></path>
+<path d="M1658,302 L1658,432" marker-end="url(#cc)"></path>
+<path d="M2332,302 L2332,432" marker-end="url(#cc)"></path>
+<path d="M3006,302 L3006,432" marker-end="url(#cc)"></path>
+</g>
+<g style="fill:none;stroke:var(--color-neutral-700);stroke-width:2">
+<path d="M30,544 L30,1361"></path>
+<path d="M30,619 L52,619" marker-end="url(#ci)"></path>
+<path d="M30,725 L52,725" marker-end="url(#ci)"></path>
+<path d="M30,831 L52,831" marker-end="url(#ci)"></path>
+<path d="M30,937 L52,937" marker-end="url(#ci)"></path>
+<path d="M30,1043 L52,1043" marker-end="url(#ci)"></path>
+<path d="M30,1149 L52,1149" marker-end="url(#ci)"></path>
+<path d="M30,1255 L52,1255" marker-end="url(#ci)"></path>
+<path d="M30,1361 L52,1361" marker-end="url(#ci)"></path>
+<path d="M704,544 L704,1149"></path>
+<path d="M704,619 L726,619" marker-end="url(#ci)"></path>
+<path d="M704,725 L726,725" marker-end="url(#ci)"></path>
+<path d="M704,831 L726,831" marker-end="url(#ci)"></path>
+<path d="M704,937 L726,937" marker-end="url(#ci)"></path>
+<path d="M704,1043 L726,1043" marker-end="url(#ci)"></path>
+<path d="M704,1149 L726,1149" marker-end="url(#ci)"></path>
+<path d="M1378,544 L1378,1255"></path>
+<path d="M1378,619 L1400,619" marker-end="url(#ci)"></path>
+<path d="M1378,725 L1400,725" marker-end="url(#ci)"></path>
+<path d="M1378,831 L1400,831" marker-end="url(#ci)"></path>
+<path d="M1378,937 L1400,937" marker-end="url(#ci)"></path>
+<path d="M1378,1043 L1400,1043" marker-end="url(#ci)"></path>
+<path d="M1378,1149 L1400,1149" marker-end="url(#ci)"></path>
+<path d="M1378,1255 L1400,1255" marker-end="url(#ci)"></path>
+<path d="M2052,544 L2052,1361"></path>
+<path d="M2052,619 L2074,619" marker-end="url(#ci)"></path>
+<path d="M2052,725 L2074,725" marker-end="url(#ci)"></path>
+<path d="M2052,831 L2074,831" marker-end="url(#ci)"></path>
+<path d="M2052,937 L2074,937" marker-end="url(#ci)"></path>
+<path d="M2052,1043 L2074,1043" marker-end="url(#ci)"></path>
+<path d="M2052,1149 L2074,1149" marker-end="url(#ci)"></path>
+<path d="M2052,1255 L2074,1255" marker-end="url(#ci)"></path>
+<path d="M2052,1361 L2074,1361" marker-end="url(#ci)"></path>
+<path d="M2726,544 L2726,1255"></path>
+<path d="M2726,619 L2748,619" marker-end="url(#ci)"></path>
+<path d="M2726,725 L2748,725" marker-end="url(#ci)"></path>
+<path d="M2726,831 L2748,831" marker-end="url(#ci)"></path>
+<path d="M2726,937 L2748,937" marker-end="url(#ci)"></path>
+<path d="M2726,1043 L2748,1043" marker-end="url(#ci)"></path>
+<path d="M2726,1149 L2748,1149" marker-end="url(#ci)"></path>
+<path d="M2726,1255 L2748,1255" marker-end="url(#ci)"></path>
+</g>
+<g style="fill:none;stroke:var(--color-accent-2);stroke-width:3" stroke-dasharray="12 8">
+<path d="M0,1436 L3316,1436"></path>
+<path d="M263,1436 L263,1466" marker-end="url(#cm)"></path>
+<path d="M821,1436 L821,1466" marker-end="url(#cm)"></path>
+<path d="M1379,1436 L1379,1466" marker-end="url(#cm)"></path>
+<path d="M1937,1436 L1937,1466" marker-end="url(#cm)"></path>
+<path d="M2495,1436 L2495,1466" marker-end="url(#cm)"></path>
+<path d="M3053,1436 L3053,1466" marker-end="url(#cm)"></path>
+</g>
+</svg>
+
+<div style="position:absolute;left:0;top:60px;width:620px;height:130px;box-sizing:border-box;padding:11px 14px;background:var(--color-accent-100);border:1px solid var(--color-accent-400);border-radius:var(--radius-md)">
+<div style="font:600 23px/1.1 var(--font-heading)">Cold launch</div>
+<div style="font:400 16px/1.3 var(--font-body);color:var(--color-neutral-800);margin-top:6px">The persistent root scene loads and everything else is additive. The cached snapshot renders <em>immediately</em>, then <code style="font:400 15px/1 var(--font-body)">/v1/sync</code> replaces it &mdash; a player never watches a spinner to see their own roster.</div>
+</div>
+<div style="position:absolute;left:674px;top:60px;width:620px;height:130px;box-sizing:border-box;padding:11px 14px;background:var(--color-neutral-100);border:2px solid var(--color-accent-2);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:9px"><div style="font:600 23px/1.1 var(--font-heading)">Age Gate</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2-700);background:var(--color-accent-2-100);padding:3px 6px;border-radius:var(--radius-sm)">new</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-accent-2-700)">submission-gating</div></div>
+<div style="font:400 16px/1.3 var(--font-body);color:var(--color-neutral-800);margin-top:6px">At account creation, <strong>before any name entry</strong>. Drives under-13 restricted mode: curated Founder-name pool, generated display name, chat off, Recipe Share read-only.</div>
+</div>
+<div style="position:absolute;left:1348px;top:60px;width:620px;height:130px;box-sizing:border-box;padding:11px 14px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="font:600 23px/1.1 var(--font-heading)">Sign in with Apple &middot; or guest</div>
+<div style="font:400 16px/1.3 var(--font-body);color:var(--color-neutral-800);margin-top:6px">Guest-first, because FTUE friction matters more than identity here; binding is prompted at the first purchase or alliance join. <strong>The shard is assigned at this point</strong> and a player does not transfer.</div>
+</div>
+<div style="position:absolute;left:2022px;top:60px;width:620px;height:130px;box-sizing:border-box;padding:11px 14px;background:var(--color-accent-100);border:1px solid var(--color-accent-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:9px"><div style="font:600 23px/1.1 var(--font-heading)">Onboarding</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700);background:var(--color-accent-200);padding:3px 6px;border-radius:var(--radius-sm)">rework</div></div>
+<div style="font:400 16px/1.3 var(--font-body);color:var(--color-neutral-800);margin-top:6px">Eight beats. Beat 3 names the Hollow Founder; <strong>beat 5 teaches counters by letting one work</strong>; beat 6 is the tutorial splice; beat 8 closes on Lineage View. Two tabs only.</div>
+</div>
+<div style="position:absolute;left:2696px;top:60px;width:620px;height:130px;box-sizing:border-box;padding:11px 14px;border-left:4px solid var(--color-neutral-600);background:var(--color-neutral-100)">
+<div style="font:400 16px/1.35 var(--font-body)"><strong>The first hour ships in the binary</strong> and never waits on a download: four species, waves 1&ndash;6 and their raiders, one region. A fresh install with no cached snapshot shows the minimum two tabs until the first sync returns &mdash; correct for a new player, wrong for a reinstalling veteran for the length of one network call.</div>
+</div>
+
+<div style="position:absolute;left:0;top:240px;width:3316px;height:62px;box-sizing:border-box;padding:11px 16px;background:var(--color-neutral-200);border:2px solid var(--color-text);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:space-between;gap:30px">
+<div style="font:600 22px/1.1 var(--font-heading);white-space:nowrap">Persistent root scene</div>
+<div style="font:400 16px/1.2 var(--font-body);color:var(--color-neutral-800)"><strong>Top bar</strong> Splice Charges + regen timer &middot; Gene Shards &middot; Geneticist Tier progress &middot; mail badge &middot; active-event badge</div>
+<div style="font:400 16px/1.2 var(--font-body);color:var(--color-neutral-800)"><strong>Tab bar</strong> a pure function of campaign progress and Geneticist Tier &mdash; two tabs at first launch, thresholds in the config bundle, nothing stored</div>
+</div>
+
+<div style="position:absolute;left:0;top:440px;width:620px;height:104px;box-sizing:border-box;padding:11px 14px;background:var(--color-accent-100);border:2px solid var(--color-accent);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:9px"><div style="font:600 16px/1 var(--font-heading);letter-spacing:.16em;text-transform:uppercase;color:var(--color-accent-700)">Map tab</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-800);background:var(--color-neutral-200);padding:3px 6px;border-radius:var(--radius-sm)">current</div></div>
+<div style="font:600 26px/1.1 var(--font-heading);margin-top:6px">World Map</div>
+<div style="font:400 15px/1.2 var(--font-body);color:var(--color-neutral-800);margin-top:3px">Heat-map states, Ark markers, Collector routes, Apex pulses.</div>
+</div>
+<div style="position:absolute;left:674px;top:440px;width:620px;height:104px;box-sizing:border-box;padding:11px 14px;background:var(--color-accent-100);border:2px solid var(--color-accent);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:9px"><div style="font:600 16px/1 var(--font-heading);letter-spacing:.16em;text-transform:uppercase;color:var(--color-accent-700)">Ark tab</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-800);background:var(--color-neutral-200);padding:3px 6px;border-radius:var(--radius-sm)">current</div></div>
+<div style="font:600 26px/1.1 var(--font-heading);margin-top:6px">Gene Ark</div>
+<div style="font:400 15px/1.2 var(--font-body);color:var(--color-neutral-800);margin-top:3px">Pack, travel and unpack as one continuous transform.</div>
+</div>
+<div style="position:absolute;left:1348px;top:440px;width:620px;height:104px;box-sizing:border-box;padding:11px 14px;background:var(--color-accent-100);border:2px solid var(--color-accent);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:9px"><div style="font:600 16px/1 var(--font-heading);letter-spacing:.16em;text-transform:uppercase;color:var(--color-accent-700)">Splice tab</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700);background:var(--color-accent-200);padding:3px 6px;border-radius:var(--radius-sm)">rebuild</div></div>
+<div style="font:600 26px/1.1 var(--font-heading);margin-top:6px">Splice Chamber</div>
+<div style="font:400 15px/1.2 var(--font-body);color:var(--color-neutral-800);margin-top:3px">The core loop. Three slots, lock on combat slot 1, coverage tiers.</div>
+</div>
+<div style="position:absolute;left:2022px;top:440px;width:620px;height:104px;box-sizing:border-box;padding:11px 14px;background:var(--color-accent-100);border:2px solid var(--color-accent);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:9px"><div style="font:600 16px/1 var(--font-heading);letter-spacing:.16em;text-transform:uppercase;color:var(--color-accent-700)">Lab tab</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700);background:var(--color-accent-200);padding:3px 6px;border-radius:var(--radius-sm)">rework</div></div>
+<div style="font:600 26px/1.1 var(--font-heading);margin-top:6px">Gene Lab</div>
+<div style="font:400 15px/1.2 var(--font-body);color:var(--color-neutral-800);margin-top:3px">Six facilities. Core caps all others and shows its milestone.</div>
+</div>
+<div style="position:absolute;left:2696px;top:440px;width:620px;height:104px;box-sizing:border-box;padding:11px 14px;background:var(--color-accent-100);border:2px solid var(--color-accent);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:9px"><div style="font:600 16px/1 var(--font-heading);letter-spacing:.16em;text-transform:uppercase;color:var(--color-accent-700)">Allies tab</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700);background:var(--color-accent-200);padding:3px 6px;border-radius:var(--radius-sm)">rework</div></div>
+<div style="font:600 26px/1.1 var(--font-heading);margin-top:6px">Alliance Hub</div>
+<div style="font:400 15px/1.2 var(--font-body);color:var(--color-neutral-800);margin-top:3px">Three tabs. The head-of-alliance role is <strong>Leader</strong>, not Founder.</div>
+</div>
+
+<div style="position:absolute;left:60px;top:570px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Region Detail</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700);background:var(--color-accent-200);padding:3px 6px;border-radius:var(--radius-sm)">rework</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T2</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Add lane count &mdash; relocation changes defensive terrain, and hiding that makes the move a gamble.</div>
+</div>
+<div style="position:absolute;left:60px;top:676px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Relocate Ark</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700);background:var(--color-accent-200);padding:3px 6px;border-radius:var(--radius-sm)">rework</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T5</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Intercept-risk column removed &mdash; the Ark is never a raid target. Costs always shown.</div>
+</div>
+<div style="position:absolute;left:60px;top:782px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Apex Alert</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700);background:var(--color-accent-200);padding:3px 6px;border-radius:var(--radius-sm)">rework</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T5</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Add the catalyst to the yield. The scout report sells detail and a head start, never access.</div>
+</div>
+<div style="position:absolute;left:60px;top:888px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Collector Dispatch</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2-700);background:var(--color-accent-2-100);padding:3px 6px;border-radius:var(--radius-sm)">new</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T4</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Class, cargo, escort slots, route options. Escorting creatures become unavailable.</div>
+</div>
+<div style="position:absolute;left:60px;top:994px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Route Plotter</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2-700);background:var(--color-accent-2-100);padding:3px 6px;border-radius:var(--radius-sm)">new</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T4</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Collector routes only. Every gate named, its controller shown, exposure 20 / 10 / 0 minutes.</div>
+</div>
+<div style="position:absolute;left:60px;top:1100px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Convoy Status</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2-700);background:var(--color-accent-2-100);padding:3px 6px;border-radius:var(--radius-sm)">new</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T4</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Which gate the convoy is approaching or inside, window counting down. Immune everywhere else, and it should look immune.</div>
+</div>
+<div style="position:absolute;left:60px;top:1206px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Transit Board</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2-700);background:var(--color-accent-2-100);padding:3px 6px;border-radius:var(--radius-sm)">new</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T4</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">The raider's side. Cargo band, escort count, minutes remaining &mdash; never a figure, never escort traits.</div>
+</div>
+<div style="position:absolute;left:60px;top:1312px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Collector Intercept</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-800);background:var(--color-neutral-200);padding:3px 6px;border-radius:var(--radius-sm)">current</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T4</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Time-boxed decision, ally escort. Entered from an APNs alert, not from the tab.</div>
+</div>
+
+<div style="position:absolute;left:734px;top:570px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Campaign Select</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2-700);background:var(--color-accent-2-100);padding:3px 6px;border-radius:var(--radius-sm)">new</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T2</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Wave list, completion, replay rewards, and the <strong>raider composition preview &mdash; never hidden</strong>.</div>
+</div>
+<div style="position:absolute;left:734px;top:676px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-200);border:2px solid var(--color-text);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Wave Defense</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700);background:var(--color-accent-200);padding:3px 6px;border-radius:var(--radius-sm)">rework</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T1</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px"><strong>The only additive 3D scene</strong>, and the only one with a per-frame budget. Loads and unloads on exit. 1&ndash;3 lanes from the region.</div>
+</div>
+<div style="position:absolute;left:734px;top:782px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Post-Wave</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2-700);background:var(--color-accent-2-100);padding:3px 6px;border-radius:var(--radius-sm)">new</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T2</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Rewards, sample drops, creature outcomes, regeneration assignments. Granted optimistically, reconciled after validation.</div>
+</div>
+<div style="position:absolute;left:734px;top:888px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Wave Defeat</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-800);background:var(--color-neutral-200);padding:3px 6px;border-radius:var(--radius-sm)">current</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T2</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Names the raider that broke through and the answering trait &mdash; <strong>the single most important teaching screen in the game</strong>. Free retry, no paywall.</div>
+</div>
+<div style="position:absolute;left:734px;top:994px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:2px solid var(--color-accent-2);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Replay Viewer</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2-700);background:var(--color-accent-2-100);padding:3px 6px;border-radius:var(--radius-sm)">new</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-accent-2-700)">launch-critical</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px"><strong>One screen.</strong> Diagnosis primary; <em>Watch</em> is an action that loads Wave Defense additively with input disabled, and disappears when the engine version is superseded.</div>
+</div>
+<div style="position:absolute;left:734px;top:1100px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Regeneration Tracker</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2-700);background:var(--color-accent-2-100);padding:3px 6px;border-radius:var(--radius-sm)">new</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T5</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Creatures in regen, timers, skip cost.</div>
+</div>
+
+<div style="position:absolute;left:1408px;top:570px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Splice Confirm</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2-700);background:var(--color-accent-2-100);padding:3px 6px;border-radius:var(--radius-sm)">new</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T1</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Dialog naming both parents; a second one for Founders. <strong>Never suppressible.</strong> Overlays &mdash; it is not a destination.</div>
+</div>
+<div style="position:absolute;left:1408px;top:676px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Splice Reveal</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-800);background:var(--color-neutral-200);padding:3px 6px;border-radius:var(--radius-sm)">current</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T1</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Animates a result the <em>server</em> rolled. The client never rolls, which is also what makes the published odds demonstrable.</div>
+</div>
+<div style="position:absolute;left:1408px;top:782px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Founder Naming</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2-700);background:var(--color-accent-2-100);padding:3px 6px;border-radius:var(--radius-sm)">new</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-accent-2-700)">filter path gates release</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">First five creatures, one prompt in session one. A permanent public unfiltered name entered here is the surface most likely to fail review.</div>
+</div>
+<div style="position:absolute;left:1408px;top:888px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Creature Roster</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700);background:var(--color-accent-200);padding:3px 6px;border-radius:var(--radius-sm)">rework</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T1</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Two trait pips, not four, plus an Instinct badge. Filter by species, generation, trait, coverage tier.</div>
+</div>
+<div style="position:absolute;left:1408px;top:994px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Creature Detail</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2-700);background:var(--color-accent-2-100);padding:3px 6px;border-radius:var(--radius-sm)">new</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T2</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Species, two combat traits with coverage tier, Instinct, generation, ceiling, Aberrant marker, assignment.</div>
+</div>
+<div style="position:absolute;left:1408px;top:1100px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Lineage View</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2-700);background:var(--color-accent-2-100);padding:3px 6px;border-radius:var(--radius-sm)">new</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T2 &middot; high priority</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Five-generation tree and the species composition strip. <strong>The game's distinctive artifact, and it closes session one.</strong></div>
+</div>
+<div style="position:absolute;left:1408px;top:1206px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Growth</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700);background:var(--color-accent-200);padding:3px 6px;border-radius:var(--radius-sm)">rework</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T5</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Cosmetic, advances on age, grants nothing. Remove feeding entirely.</div>
+</div>
+
+<div style="position:absolute;left:2082px;top:570px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Splice Roulette</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2-700);background:var(--color-accent-2-100);padding:3px 6px;border-radius:var(--radius-sm)">new</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T3</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">A permanent Lab tab, not an event screen. Pity counter visible <em>before</em> the first spin; the shared probability table renders published odds and never computes them.</div>
+</div>
+<div style="position:absolute;left:2082px;top:676px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Sample Store</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700);background:var(--color-accent-200);padding:3px 6px;border-radius:var(--radius-sm)">rework</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T3</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Renamed from Gene Vault. Twelve species traits only. Samples, Fuse, Archive.</div>
+</div>
+<div style="position:absolute;left:2082px;top:782px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Event Hub</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2-700);background:var(--color-accent-2-100);padding:3px 6px;border-radius:var(--radius-sm)">new</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T3</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Live-ops calendar, active events, timers, themed offers. Authored in the console, published as a config bundle &mdash; no app update.</div>
+</div>
+<div style="position:absolute;left:2082px;top:888px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Splice Census</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700);background:var(--color-accent-200);padding:3px 6px;border-radius:var(--radius-sm)">rework</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T5</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Renamed from &ldquo;Gene Lab Event&rdquo;, because Gene Lab is the facility. Milestones at 40 / 70 / 100%.</div>
+</div>
+<div style="position:absolute;left:2082px;top:994px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Apex Cup &middot; Recipe Share</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2-700);background:var(--color-accent-2-100);padding:3px 6px;border-radius:var(--radius-sm)">new</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-accent-2-700)">UGC surfaces</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Reportable rows and an anonymous-entry option; recipes are <strong>structured data only</strong> &mdash; no title, no description, no comments.</div>
+</div>
+<div style="position:absolute;left:2082px;top:1100px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Geneticist Profile</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700);background:var(--color-accent-200);padding:3px 6px;border-radius:var(--radius-sm)">rework</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T3</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Renamed from Breeder Profile. Tier 6 perk becomes a sample pull.</div>
+</div>
+<div style="position:absolute;left:2082px;top:1206px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Marks Shop</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2-700);background:var(--color-accent-2-100);padding:3px 6px;border-radius:var(--radius-sm)">new</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T5</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">One Marks currency, not two. <strong>No purchase path of any kind appears on this screen.</strong></div>
+</div>
+<div style="position:absolute;left:2082px;top:1312px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Alliance Tech</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2-700);background:var(--color-accent-2-100);padding:3px 6px;border-radius:var(--radius-sm)">new</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T4</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Three branches, treasury contribution, unlocked perks. Logistics only &mdash; reached from the Allies tab.</div>
+</div>
+
+<div style="position:absolute;left:2756px;top:570px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Join / Apply</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2-700);background:var(--color-accent-2-100);padding:3px 6px;border-radius:var(--radius-sm)">new</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T4</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Browse and application state; join mode is set by the Leader. The server refuses a join below the gate whatever the tab bar shows.</div>
+</div>
+<div style="position:absolute;left:2756px;top:676px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Stake Management</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2-700);background:var(--color-accent-2-100);padding:3px 6px;border-radius:var(--radius-sm)">new</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T4</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Five slots, Hold accrual, contest state, weekly tick countdown, decay warnings well in advance.</div>
+</div>
+<div style="position:absolute;left:2756px;top:782px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Stake Assault</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2-700);background:var(--color-accent-2-100);padding:3px 6px;border-radius:var(--radius-sm)">new</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T4</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Target selection, rate-limit state, entry to the combat engine &mdash; the same engine, never a stat roll.</div>
+</div>
+<div style="position:absolute;left:2756px;top:888px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Garrison Assignment</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2-700);background:var(--color-accent-2-100);padding:3px 6px;border-radius:var(--radius-sm)">new</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T4</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Warn when garrisoning a creature carrying a counter the player holds nowhere else.</div>
+</div>
+<div style="position:absolute;left:2756px;top:994px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Alliance Rally</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-800);background:var(--color-neutral-200);padding:3px 6px;border-radius:var(--radius-sm)">current</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T4</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">The <code style="font:400 15px/1 var(--font-body)">hasPierce</code> check gating outcome independently of power is the design thesis in working form. <strong>Keep exactly as built.</strong></div>
+</div>
+<div style="position:absolute;left:2756px;top:1100px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">World Chat</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700);background:var(--color-accent-200);padding:3px 6px;border-radius:var(--radius-sm)">rework</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-accent-2-700)">UGC surface</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Rides the SSE stream. <strong>No UGC surface ships without filter, report and block</strong> &mdash; long-press to report with context captured automatically.</div>
+</div>
+<div style="position:absolute;left:2756px;top:1206px;width:560px;height:98px;box-sizing:border-box;padding:9px 12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:var(--radius-md)">
+<div style="display:flex;align-items:baseline;gap:8px"><div style="font:600 21px/1.1 var(--font-heading)">Store</div><div style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700);background:var(--color-accent-200);padding:3px 6px;border-radius:var(--radius-sm)">rework</div><div style="font:600 16px/1 var(--font-heading);color:var(--color-neutral-700)">T3</div></div>
+<div style="font:400 16px/1.25 var(--font-body);color:var(--color-neutral-800);margin-top:5px"><strong>No Store tab</strong> &mdash; reached contextually from offers, currency taps and the Event Hub. Pack descriptions say sample pulls, never trait pulls.</div>
+</div>
+
+<div style="position:absolute;left:0;top:1418px;white-space:nowrap;font:600 16px/1 var(--font-heading);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-2-700);background:var(--color-bg);padding-right:12px">Overlay layer &mdash; reachable from any screen, never in a back stack</div>
+
+<div style="position:absolute;left:0;top:1466px;width:526px;height:150px;box-sizing:border-box;padding:10px 13px;border:1px dashed var(--color-accent-2);border-radius:var(--radius-md)">
+<div style="font:600 21px/1.1 var(--font-heading)">Trait Codex</div>
+<div style="font:400 16px/1.3 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Opened from <em>every trait pip in the app</em>, so making it a destination would put it in the back stack of every screen. Built first &mdash; it is a dependency of nearly every screen rather than a screen of its own. Without it the counter system is learnable only by losing.</div>
+</div>
+<div style="position:absolute;left:558px;top:1466px;width:526px;height:150px;box-sizing:border-box;padding:10px 13px;border:1px dashed var(--color-accent-2);border-radius:var(--radius-md)">
+<div style="font:600 21px/1.1 var(--font-heading)">Confirmation dialog</div>
+<div style="font:400 16px/1.3 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Two levels &mdash; standard, and named-entry for Founders. <strong>Never suppressible.</strong> One shared component; splice destruction is the case it exists for.</div>
+</div>
+<div style="position:absolute;left:1116px;top:1466px;width:526px;height:150px;box-sizing:border-box;padding:10px 13px;border:1px dashed var(--color-accent-2);border-radius:var(--radius-md)">
+<div style="font:600 21px/1.1 var(--font-heading)">Report / Block</div>
+<div style="font:400 16px/1.3 var(--font-body);color:var(--color-neutral-800);margin-top:5px"><strong>One affordance, six surfaces</strong> &mdash; chat, recipe cards, profiles, alliances, leaderboard rows and names. Captures surrounding context automatically. Gates store submission.</div>
+</div>
+<div style="position:absolute;left:1674px;top:1466px;width:526px;height:150px;box-sizing:border-box;padding:10px 13px;border:1px dashed var(--color-accent-2);border-radius:var(--radius-md)">
+<div style="font:600 21px/1.1 var(--font-heading)">Mail / Notifications</div>
+<div style="font:400 16px/1.3 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Raid alerts, alliance notices, event announcements, reward grants &mdash; and the apology path: a dropped outbox entry, or a raid resolved without an alert, arrives here.</div>
+</div>
+<div style="position:absolute;left:2232px;top:1466px;width:526px;height:150px;box-sizing:border-box;padding:10px 13px;border:1px dashed var(--color-accent-2);border-radius:var(--radius-md)">
+<div style="font:600 21px/1.1 var(--font-heading)">Settings / Account / Support</div>
+<div style="font:400 16px/1.3 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Required for submission. Carries the published support contact, the block list and the age-gate result. Accessibility preferences are local &mdash; they follow the device, not the account.</div>
+</div>
+<div style="position:absolute;left:2790px;top:1466px;width:526px;height:150px;box-sizing:border-box;padding:10px 13px;border:1px dashed var(--color-neutral-500);border-radius:var(--radius-md)">
+<div style="font:600 21px/1.1 var(--font-heading)">Nine shared components</div>
+<div style="font:400 16px/1.3 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Creature card &middot; trait pip &middot; currency header &middot; probability table &middot; region tile &middot; timer chip &middot; confirmation dialog &middot; gate chip &middot; report control. <strong>Prefabs with explicit APIs, built before the screens that use them.</strong></div>
+</div>
+
+<div style="position:absolute;left:0;top:1650px;width:3316px">
+<div style="font:600 16px/1 var(--font-heading);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:10px">Five journeys through the graph</div>
+<div style="display:grid;grid-template-columns:210px 1fr;gap:7px 20px;font:400 16px/1.35 var(--font-body)">
+<div style="font-weight:600;padding:5px 0;border-top:1px solid var(--color-neutral-400)">First hour</div><div style="padding:5px 0;border-top:1px solid var(--color-neutral-400)">Age Gate &rarr; Sign in / guest &rarr; <strong>Onboarding</strong> beat 3, name the Hollow Founder &rarr; <strong>Wave Defense</strong>, beat 5 teaches a counter by letting it work &rarr; <strong>Splice Chamber</strong> &rarr; Splice Confirm &rarr; <strong>Splice Reveal</strong>, beat 6 consumes the Vetch and the Ember &rarr; <strong>Lineage View</strong> closes session one</div>
+<div style="font-weight:600;padding:5px 0;border-top:1px solid var(--color-neutral-300)">Splice</div><div style="padding:5px 0;border-top:1px solid var(--color-neutral-300)">Creature Roster &rarr; Splice Chamber &rarr; Splice Confirm, never suppressible &rarr; <em>the server rolls</em> &rarr; Splice Reveal &rarr; Founder Naming &rarr; Creature Detail &rarr; Lineage View. Coverage comes in from Sample Store and Splice Roulette; nothing is rolled on the device</div>
+<div style="font-weight:600;padding:5px 0;border-top:1px solid var(--color-neutral-300)">Wave</div><div style="padding:5px 0;border-top:1px solid var(--color-neutral-300)">Gene Ark &rarr; Campaign Select, raider composition previewed &rarr; Wave Defense loads additively &rarr; Post-Wave <em>or</em> Wave Defeat, which names the raider and the answering trait &rarr; Regeneration Tracker &rarr; back to Campaign Select</div>
+<div style="font-weight:600;padding:5px 0;border-top:1px solid var(--color-neutral-300)">Raid</div><div style="padding:5px 0;border-top:1px solid var(--color-neutral-300)">Collector Dispatch &rarr; Route Plotter, gate by gate &rarr; Convoy Status. On the raider's side: Transit Board &rarr; launch. The defender gets an <strong>APNs alert</strong> &rarr; Collector Intercept inside 90 seconds &rarr; unanswered, it auto-resolves on the server &rarr; Replay Viewer, plus mail</div>
+<div style="font-weight:600;padding:5px 0;border-top:1px solid var(--color-neutral-300);border-bottom:1px solid var(--color-neutral-400)">Sign-up &amp; shard</div><div style="padding:5px 0;border-top:1px solid var(--color-neutral-300);border-bottom:1px solid var(--color-neutral-400)">Cold launch &rarr; Age Gate &rarr; Sign in with Apple, or guest &rarr; shard assigned <strong>by storefront region</strong> and never changed &rarr; cached snapshot renders &rarr; <code style="font:400 15px/1 var(--font-body)">/v1/sync</code> returns &rarr; the tab bar resolves from campaign progress and Geneticist Tier</div>
+</div>
+</div>
+
+<div style="position:absolute;left:0;top:1888px;width:3316px;padding-top:14px;border-top:1px solid var(--color-neutral-400);display:flex;flex-direction:column;gap:10px;font:400 16px/1.3 var(--font-body)">
+<div style="display:flex;gap:40px;align-items:center">
+<div style="display:flex;align-items:center;gap:10px;white-space:nowrap"><div style="width:46px;height:2px;background:var(--color-neutral-700);position:relative"><div style="position:absolute;right:-2px;top:-5px;width:0;height:0;border-top:6px solid transparent;border-bottom:6px solid transparent;border-left:11px solid var(--color-neutral-700)"></div></div><span>Push &mdash; back chevron, bottom nav hidden</span></div>
+<div style="display:flex;align-items:center;gap:10px;white-space:nowrap"><div style="width:46px;height:0;border-top:3px dashed var(--color-accent-2)"></div><span>Overlay or bottom sheet</span></div>
+<div style="display:flex;align-items:center;gap:10px;white-space:nowrap"><div style="width:46px;height:5px;background:var(--color-accent)"></div><span>Tab switch</span></div>
+<div style="display:flex;align-items:center;gap:8px;white-space:nowrap"><span style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-800);background:var(--color-neutral-200);padding:3px 6px;border-radius:var(--radius-sm)">current</span><span style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700);background:var(--color-accent-200);padding:3px 6px;border-radius:var(--radius-sm)">rework</span><span style="font:600 15px/1 var(--font-heading);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-2-700);background:var(--color-accent-2-100);padding:3px 6px;border-radius:var(--radius-sm)">new</span><span>20 designed, 14 of them needing rework, 28 never designed</span></div>
+<div style="white-space:nowrap"><strong>T1&ndash;T5</strong> build tier &mdash; T1 proves the core loop without any of the rest</div>
+</div>
+<div><strong>Counted from the tables: 48 screens</strong>, drawn here in full &mdash; 9 Map, 7 Ark, 9 Splice, 3 Lab, 8 Allies, 7 store and events, 5 onboarding and system. Nothing is missing from the graph. The inventory's headline total of <strong>34</strong> is stale, carried over verbatim from the superseded era-2 document while its tables grew, and its prose undercounts its own rework markers by one &mdash; fourteen carry <em>rework</em>, the header says thirteen. <strong>The 59 is unsourced and needs a line-by-line diff, not an explanation:</strong> it appears as a bare figure in the client-architecture module table (and again as &ldquo;across fifty-nine&rdquo; in its layout rule), and the supersession map attributes 59 to the very inventory whose header says 34. No document anywhere lists 59 screens. It is not inert &mdash; the localization spec sizes the string budget at ~4,000 from &ldquo;UI strings across 59 screens,&rdquo; so the figure is already load-bearing in a cost estimate.</div>
+</div>
+
+</div>
+</section>
+</doc-page>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showLoadTable&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Sheet contents&quot;},&quot;showWhatBreaks&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Sheet contents&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      showLoadTable: this.props.showLoadTable ?? true,
+      showWhatBreaks: this.props.showWhatBreaks ?? true,
+    };
+  }
+}
+
+</script>
+</body>
+</html>
