@@ -18,7 +18,8 @@ namespace Broodline.Sim.Tests
             typeof(SimVersion).Assembly.Location;
 
         static bool IsVendored(TypeDefinition t) =>
-            t.FullName.StartsWith(VendoredNamespace, StringComparison.Ordinal);
+            t.Namespace == VendoredNamespace ||
+            t.Namespace.StartsWith(VendoredNamespace + ".", StringComparison.Ordinal);
 
         [Fact]
         public void SimulationCore_ContainsNoFloatingPoint()
@@ -50,8 +51,10 @@ namespace Broodline.Sim.Tests
                             offenders.Add($"local {type.FullName}.{m.Name} : {v.VariableType.Name}");
 
                     foreach (var i in m.Body.Instructions)
-                        if (i.OpCode == OpCodes.Ldc_R4 || i.OpCode == OpCodes.Ldc_R8)
-                            offenders.Add($"literal {type.FullName}.{m.Name} : {i.OpCode}");
+                        if (i.OpCode == OpCodes.Ldc_R4 || i.OpCode == OpCodes.Ldc_R8 ||
+                            i.OpCode == OpCodes.Conv_R4 || i.OpCode == OpCodes.Conv_R8 ||
+                            i.OpCode == OpCodes.Conv_R_Un)
+                            offenders.Add($"float op {type.FullName}.{m.Name} : {i.OpCode}");
                 }
             }
 
@@ -59,7 +62,36 @@ namespace Broodline.Sim.Tests
                 "floating point in the simulation core:\n  " + string.Join("\n  ", offenders));
         }
 
-        static bool IsFloat(TypeReference t) =>
-            t.MetadataType == MetadataType.Single || t.MetadataType == MetadataType.Double;
+        static bool IsFloat(TypeReference t)
+        {
+            if (t == null) return false;
+            if (t.MetadataType == MetadataType.Single || t.MetadataType == MetadataType.Double)
+                return true;
+            if (t is ArrayType a) return IsFloat(a.ElementType);
+            if (t is ByReferenceType r) return IsFloat(r.ElementType);
+            if (t is PointerType p) return IsFloat(p.ElementType);
+            if (t is GenericInstanceType g)
+            {
+                foreach (var arg in g.GenericArguments)
+                    if (IsFloat(arg)) return true;
+            }
+            return false;
+        }
+
+        // Permanent regression test for the array-recursion fix: constructs a
+        // Mono.Cecil ArrayType with a float element directly (no production code
+        // involved) and asserts IsFloat follows the recursion into it. IsFloat stays
+        // private — this test lives in the same class, so no InternalsVisibleTo is
+        // needed to reach it.
+        [Fact]
+        public void IsFloat_RecursesIntoArrayElementType()
+        {
+            using var asm = AssemblyDefinition.ReadAssembly(AssemblyPath);
+            var floatElement = asm.MainModule.ImportReference(typeof(float));
+            var intElement = asm.MainModule.ImportReference(typeof(int));
+
+            Assert.True(IsFloat(new ArrayType(floatElement)));
+            Assert.False(IsFloat(new ArrayType(intElement)));
+        }
     }
 }
