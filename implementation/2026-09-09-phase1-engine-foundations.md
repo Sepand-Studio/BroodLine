@@ -89,7 +89,7 @@ xUnit suite, neither of which Unity provides."
 The point of this task is one source tree that .NET and Unity each compile their own way. Get it wrong and every later task compiles in one place and fails in the other.
 
 **Files:**
-- Create: `engine/package.json`, `engine/Broodline.Sim.csproj`
+- Create: `engine/package.json`, `engine/Broodline.Sim.csproj`, `engine/Directory.Build.props`
 - Create: `engine/Runtime/Broodline.Sim.asmdef`, `engine/Runtime/SimVersion.cs`
 - Create: `Broodline.sln`
 - Modify: `client/Packages/manifest.json`
@@ -171,11 +171,32 @@ namespace Broodline.Sim
 }
 ```
 
+- [ ] **Step 4b: Keep .NET's build output invisible to Unity**
+
+`engine/Directory.Build.props`:
+
+```xml
+<Project>
+  <PropertyGroup>
+    <BaseOutputPath>bin~/</BaseOutputPath>
+    <BaseIntermediateOutputPath>obj~/</BaseIntermediateOutputPath>
+  </PropertyGroup>
+</Project>
+```
+
+**Without this the two toolchains collide.** Unity imports `engine/` as a package, so `dotnet build` output landing in the usual `bin/` and `obj/` is picked up by Unity's Asset Database as a **precompiled-assembly plugin** — which then collides with the asmdef-compiled `Broodline.Sim` as a duplicate assembly (CS1704). Unity ignores any path ending in `~`, so redirecting the output makes it invisible.
+
+It must live in `Directory.Build.props` rather than the csproj's own `PropertyGroup`: MSBuild reads `BaseIntermediateOutputPath` while importing `Microsoft.Common.props`, which happens *before* a project's own properties are evaluated. Setting it in the csproj is too late for NuGet restore and produces `MSB3539`.
+
+Add `engine/bin~/` and `engine/obj~/` to `.gitignore`.
+
 - [ ] **Step 5: Create the solution**
+
+The .NET 10 SDK defaults `dotnet new sln` to the newer `.slnx` format; `--format sln` produces the classic `Broodline.sln` this plan refers to throughout.
 
 ```bash
 cd "$(git rev-parse --show-toplevel)"
-dotnet new sln --name Broodline
+dotnet new sln --name Broodline --format sln
 dotnet sln Broodline.sln add engine/Broodline.Sim.csproj
 dotnet build Broodline.sln
 ```
