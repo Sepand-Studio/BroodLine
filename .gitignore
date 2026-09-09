@@ -47,9 +47,9 @@ client/*.csproj
 client/*.sln
 client/*.user
 
-# Benchmark output
-implementation/results/*.csv
-implementation/results/*.json
+# Benchmark and test output — regenerated, never a source of truth.
+# Findings are promoted into the plan document instead.
+implementation/results/
 
 # Xcode / iOS (if used later)
 DerivedData/
