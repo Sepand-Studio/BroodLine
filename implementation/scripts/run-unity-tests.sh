@@ -7,6 +7,12 @@ PLATFORM="${1:-EditMode}"
 RESULTS="$(pwd)/implementation/results/test-results-$PLATFORM.xml"
 mkdir -p implementation/results
 
+# Delete any previous results FIRST. Without this, a run that never starts —
+# the editor holding the project is the common case — leaves the old XML in
+# place and this script parses it, printing a green summary beside a non-zero
+# exit code. A stale pass is worse than a failure.
+rm -f "$RESULTS"
+
 [ -x "$UNITY" ] || { echo "FAIL: Unity not found at $UNITY"; exit 127; }
 [ -d client ] || { echo "FAIL: no client/ project — Task 2 must run first"; exit 1; }
 
@@ -31,7 +37,9 @@ for tc in r.iter("test-case"):
         if m is not None and m.text: print("   ", m.text.strip().splitlines()[0])
 PY
 else
-  echo "no results file written"
+  echo "FAIL: Unity wrote no results file — the run did not reach the tests."
+  echo "      Most often the editor has the project open; Unity refuses a second instance."
+  exit 1
 fi
 # Unity: 0 = all passed, 2 = tests failed
 exit $code
