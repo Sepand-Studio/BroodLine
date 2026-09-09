@@ -19,6 +19,12 @@ else
   bad "Xcode missing, or command line tools not selected"
 fi
 
+if dotnet --list-sdks >/dev/null 2>&1; then
+  ok ".NET SDK $(dotnet --list-sdks | head -1 | awk '{print $1}')"
+else
+  bad ".NET SDK missing — brew install --cask dotnet-sdk"
+fi
+
 EDITORS="/Applications/Unity/Hub/Editor"
 if [ -d "$EDITORS" ] && [ -n "$(ls -A "$EDITORS" 2>/dev/null)" ]; then
   for v in "$EDITORS"/*; do
