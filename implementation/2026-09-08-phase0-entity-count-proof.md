@@ -6,7 +6,7 @@
 
 **Architecture:** A Unity 6 project containing one benchmark scene that spawns **procedurally generated synthetic skinned meshes** at wave 44's entity counts, sweeps triangle/bone/material parameters, and records frame-time percentiles and peak memory. Synthetic geometry rather than real art, so the proof runs before any asset exists and its output constrains the art brief rather than waiting on it. The same harness re-runs against real meshes later as validation.
 
-**Tech Stack:** Unity 6, C#, URP, Unity Test Framework, Unity Performance Testing Extension, IL2CPP / ARM64 / Metal, Git LFS.
+**Tech Stack:** Unity 6 (version pinned at Task 0), C#, URP, Unity Test Framework, IL2CPP / ARM64 / Metal, Git LFS, Xcode.
 
 ## Global Constraints
 
@@ -25,6 +25,68 @@ Copied verbatim from `specs/plans/broodline_client_architecture.md`:
 
 ---
 
+### Task 0: Prerequisites
+
+The plan assumed a toolchain. Verify it before anything else — Task 2 is a hard stop without a Unity editor, and discovering that after Task 1 wastes the run.
+
+**Files:**
+- Create: `implementation/scripts/verify-prereqs.sh`
+
+**Interfaces:**
+- Consumes: nothing.
+- Produces: `verify-prereqs.sh`, exit 0 when the toolchain is complete. Re-run after each install.
+
+- [ ] **Step 1: Run the check**
+
+```bash
+./implementation/scripts/verify-prereqs.sh
+```
+
+It reports git-lfs, Xcode, and every installed Unity editor together with whether that editor carries the **iOS Build Support** module. An editor without the module passes a naive "is Unity installed" check and then fails at Build Settings, which is why the script looks for `PlaybackEngines/iOSSupport` specifically rather than for the editor alone.
+
+- [ ] **Step 2: Install git-lfs if it is missing**
+
+```bash
+brew install git-lfs && git lfs install
+```
+
+`git lfs install` writes the global hooks; without it the filters in `.gitattributes` are inert and binaries commit as plain blobs.
+
+- [ ] **Step 3: Install Unity if it is missing**
+
+This is a GUI flow — the Hub's headless CLI needs an interactive sign-in, so it cannot be scripted from here.
+
+1. Open **Unity Hub** and sign in
+2. **Installs → Install Editor → Unity 6 LTS** (the newest `6000.x` marked LTS)
+3. In the module list, tick **iOS Build Support**. Nothing in this plan works without it
+4. Wait for the download — it is several gigabytes
+
+- [ ] **Step 4: Re-run the check until it exits 0**
+
+```bash
+./implementation/scripts/verify-prereqs.sh; echo "exit=$?"
+```
+
+Expected: three `ok` lines and `exit=0`.
+
+- [ ] **Step 5: Pin the Unity version in this plan**
+
+Determinism work later depends on knowing which editor produced a build. Record the installed version in the Tech Stack line at the top of this document, replacing `Unity 6 (version pinned at Task 0)` with the exact version string, for example `Unity 6000.0.32f1`.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add implementation/scripts/verify-prereqs.sh implementation/
+git commit -m "chore: prerequisites check for Phase 0
+
+Verifies git-lfs, Xcode and Unity with the iOS Build Support module.
+Checks for PlaybackEngines/iOSSupport rather than the editor alone,
+because an editor without the module passes a naive check and then fails
+at Build Settings."
+```
+
+---
+
 ### Task 1: Repository skeleton and Git LFS
 
 Git LFS must be configured **before the first binary is committed** — retrofitting it means rewriting history.
@@ -38,13 +100,13 @@ Git LFS must be configured **before the first binary is committed** — retrofit
 - Consumes: nothing.
 - Produces: a repository where `client/Assets/Art/**` binaries route to LFS and Unity's generated files are ignored.
 
-- [ ] **Step 1: Confirm Git LFS is installed**
+- [ ] **Step 1: Confirm the toolchain is ready**
 
 ```bash
-git lfs version
+./implementation/scripts/verify-prereqs.sh
 ```
 
-Expected: a version string. If it errors, install it (`brew install git-lfs`) and re-run. Do not continue without it.
+Expected: exit 0. Task 0 covers installation; this is the gate.
 
 - [ ] **Step 2: Write `.gitattributes`**
 
