@@ -1,0 +1,7 @@
+{
+  "name": "Broodline.Benchmark.Tests",
+  "rootNamespace": "Broodline.Benchmark.Tests",
+  "references": ["Broodline.Benchmark", "UnityEngine.TestRunner", "UnityEditor.TestRunner"],
+  "optionalUnityReferences": ["TestAssemblies"],
+  "includePlatforms": []
+}
