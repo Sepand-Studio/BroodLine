@@ -315,10 +315,22 @@ The proof needs meshes with controllable cost before any art exists. This genera
   "name": "Broodline.Benchmark.Tests",
   "rootNamespace": "Broodline.Benchmark.Tests",
   "references": ["Broodline.Benchmark", "UnityEngine.TestRunner", "UnityEditor.TestRunner"],
-  "optionalUnityReferences": ["TestAssemblies"],
-  "includePlatforms": []
+  "includePlatforms": ["Editor"],
+  "excludePlatforms": [],
+  "overrideReferences": true,
+  "precompiledReferences": ["nunit.framework.dll"],
+  "autoReferenced": false,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+  "versionDefines": [],
+  "noEngineReferences": false
 }
 ```
+
+Three fields here are load-bearing and a test assembly silently fails to compile without them:
+
+- **`precompiledReferences: ["nunit.framework.dll"]` with `overrideReferences: true`** — this is how the assembly sees NUnit. `optionalUnityReferences: ["TestAssemblies"]` is the **legacy** form, removed years ago; it produces "Scripts have compiler errors" with no message naming the cause.
+- **`includePlatforms: ["Editor"]`** — EditMode tests compile for the editor only.
+- **`defineConstraints: ["UNITY_INCLUDE_TESTS"]`** — keeps the test assembly out of player builds.
 
 - [ ] **Step 2: Write the failing test**
 
