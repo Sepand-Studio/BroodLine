@@ -42,11 +42,22 @@ namespace Broodline.Benchmark
                 if (smr != null)
                 {
                     foreach (var m in smr.sharedMaterials)
-                        if (m != null) Object.DestroyImmediate(m);
-                    if (smr.sharedMesh != null) Object.DestroyImmediate(smr.sharedMesh);
+                        if (m != null) DestroySafely(m);
+                    if (smr.sharedMesh != null) DestroySafely(smr.sharedMesh);
                 }
-                Object.DestroyImmediate(go);
+                DestroySafely(go);
             }
+        }
+
+        /// Unity requires DestroyImmediate in EditMode — a deferred Destroy would
+        /// leave the object alive for the rest of the test — and forbids it at
+        /// runtime, where Destroy defers to end of frame. Task 5's SweepRunner is
+        /// a MonoBehaviour, so Despawn must work correctly in both contexts.
+        static void DestroySafely(Object o)
+        {
+            if (o == null) return;
+            if (Application.isPlaying) Object.Destroy(o);
+            else Object.DestroyImmediate(o);
         }
 
         /// Frame times in milliseconds, sorted ascending, from a captured run.
