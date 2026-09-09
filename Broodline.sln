@@ -7,6 +7,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "engine", "engine", "{D58529
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Broodline.Sim", "engine\Broodline.Sim.csproj", "{4C7979D6-3DD1-4378-A777-AF2FEDD83B99}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "engine", "engine", "{47423DF4-5F46-6F55-D698-B9AE53641A92}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Broodline.Sim.Tests", "tests\engine\Broodline.Sim.Tests.csproj", "{2B85B70F-83B2-42EF-81D9-DA9D2916D242}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -29,11 +35,25 @@ Global
 		{4C7979D6-3DD1-4378-A777-AF2FEDD83B99}.Release|x64.Build.0 = Release|Any CPU
 		{4C7979D6-3DD1-4378-A777-AF2FEDD83B99}.Release|x86.ActiveCfg = Release|Any CPU
 		{4C7979D6-3DD1-4378-A777-AF2FEDD83B99}.Release|x86.Build.0 = Release|Any CPU
+		{2B85B70F-83B2-42EF-81D9-DA9D2916D242}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2B85B70F-83B2-42EF-81D9-DA9D2916D242}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2B85B70F-83B2-42EF-81D9-DA9D2916D242}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{2B85B70F-83B2-42EF-81D9-DA9D2916D242}.Debug|x64.Build.0 = Debug|Any CPU
+		{2B85B70F-83B2-42EF-81D9-DA9D2916D242}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{2B85B70F-83B2-42EF-81D9-DA9D2916D242}.Debug|x86.Build.0 = Debug|Any CPU
+		{2B85B70F-83B2-42EF-81D9-DA9D2916D242}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2B85B70F-83B2-42EF-81D9-DA9D2916D242}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2B85B70F-83B2-42EF-81D9-DA9D2916D242}.Release|x64.ActiveCfg = Release|Any CPU
+		{2B85B70F-83B2-42EF-81D9-DA9D2916D242}.Release|x64.Build.0 = Release|Any CPU
+		{2B85B70F-83B2-42EF-81D9-DA9D2916D242}.Release|x86.ActiveCfg = Release|Any CPU
+		{2B85B70F-83B2-42EF-81D9-DA9D2916D242}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{4C7979D6-3DD1-4378-A777-AF2FEDD83B99} = {D585295F-7994-3649-1065-7AA403C41681}
+		{47423DF4-5F46-6F55-D698-B9AE53641A92} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{2B85B70F-83B2-42EF-81D9-DA9D2916D242} = {47423DF4-5F46-6F55-D698-B9AE53641A92}
 	EndGlobalSection
 EndGlobal

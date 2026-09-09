@@ -37,6 +37,11 @@ node_modules/
 engine/bin~/
 engine/obj~/
 
+# .NET build outputs (tests/ projects — pure .NET, no Unity import concern,
+# so these use the standard bin/obj names rather than engine/'s bin~/obj~/).
+tests/**/bin/
+tests/**/obj/
+
 # Unity generated
 client/[Ll]ibrary/
 client/[Tt]emp/
