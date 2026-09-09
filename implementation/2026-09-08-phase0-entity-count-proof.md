@@ -372,9 +372,11 @@ public class SyntheticCreatureTests
 
 - [ ] **Step 3: Run it and confirm it fails**
 
-In Unity: `Window → General → Test Runner → EditMode → Run All`.
+```bash
+./implementation/scripts/run-unity-tests.sh EditMode
+```
 
-Expected: compile error — `SyntheticCreature` and `SyntheticCreatureSpec` do not exist. A compile failure is a valid failing state here; do not proceed until you have seen it.
+Expected: non-zero exit with a compile error — `SyntheticCreature` and `SyntheticCreatureSpec` do not exist. A compile failure is a valid failing state here; do not proceed until you have seen it.
 
 - [ ] **Step 4: Write the implementation**
 
@@ -469,7 +471,11 @@ namespace Broodline.Benchmark
 
 - [ ] **Step 5: Run the test and confirm it passes**
 
-`Test Runner → EditMode → Run All`. Expected: `Build_ProducesRequestedTriangleBoneAndMaterialCounts` **PASS**.
+```bash
+./implementation/scripts/run-unity-tests.sh EditMode
+```
+
+Expected: exit 0, and `total=1 passed=1 failed=0`.
 
 If the triangle count is short, the submesh remainder distribution is wrong — the last submesh takes `spec.Triangles - cursor`, not `perSub`.
 
@@ -551,7 +557,11 @@ public class WaveBenchmarkTests
 
 - [ ] **Step 2: Run and confirm failure**
 
-`Test Runner → EditMode → Run All`. Expected: compile error — `WaveBenchmark` and `BenchmarkResult` do not exist.
+```bash
+./implementation/scripts/run-unity-tests.sh EditMode
+```
+
+Expected: non-zero exit, compile error — `WaveBenchmark` and `BenchmarkResult` do not exist.
 
 - [ ] **Step 3: Write `BenchmarkResult.cs`**
 
@@ -654,7 +664,11 @@ namespace Broodline.Benchmark
 
 - [ ] **Step 5: Run the tests and confirm they pass**
 
-`Test Runner → EditMode → Run All`. Expected: all three **PASS**.
+```bash
+./implementation/scripts/run-unity-tests.sh EditMode
+```
+
+Expected: exit 0, `total=4 passed=4 failed=0` — the one test from Task 3 plus the three added here.
 
 - [ ] **Step 6: Commit**
 
