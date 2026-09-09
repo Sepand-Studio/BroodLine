@@ -60,10 +60,23 @@ public class WaveBenchmarkTests
         var r = new BenchmarkResult
         {
             Spec = new SyntheticCreatureSpec { Triangles = 600, Bones = 16, Materials = 1 },
-            EntityCount = 104, MedianMs = 12.5, P95Ms = 16.1, PeakMemoryBytes = 400L * 1024 * 1024
+            EntityCount = 104, CpuP95Ms = 12.5, GpuP95Ms = 11.0, WallP95Ms = 16.1,
+            PeakMemoryBytes = 400L * 1024 * 1024
         };
         Assert.AreEqual(
             BenchmarkResult.CsvHeader.Split(',').Length,
             r.ToCsvRow().Split(',').Length);
+    }
+
+    [Test]
+    public void Holds60_UsesRealFrameBudgetNotHardcoded16Point6()
+    {
+        // One frame at 60 fps is 1000/60 = 16.667 ms. A 16.6 ceiling would make
+        // a flawless 60 fps read as failure, which is the bug this fix removes.
+        var atBudget = new BenchmarkResult { CpuP95Ms = 16.6, GpuP95Ms = 16.6 };
+        Assert.IsTrue(atBudget.Holds60, "16.6/16.6 ms is within the real 16.667 ms budget");
+
+        var overBudget = new BenchmarkResult { CpuP95Ms = 16.7, GpuP95Ms = 16.7 };
+        Assert.IsFalse(overBudget.Holds60, "16.7/16.7 ms exceeds the real 16.667 ms budget");
     }
 }

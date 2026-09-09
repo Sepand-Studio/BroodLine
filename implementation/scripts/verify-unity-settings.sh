@@ -35,6 +35,11 @@ for k in allowedAutorotateToPortraitUpsideDown allowedAutorotateToLandscapeLeft 
     || bad "$k is enabled" "Player > Resolution and Presentation > untick it"
 done
 
+grep -q 'enableFrameTimingStats: 1' "$P" \
+  && ok "Frame timing stats enabled" \
+  || bad "enableFrameTimingStats is off" \
+         "run Broodline > Apply Phase 0 Setup  (FrameTimingManager returns NO data without it, so the sweep's cpu_ms and gpu_ms columns come back empty)"
+
 grep -q 'com.unity.render-pipelines.universal' "$M" \
   && ok "URP package present" || bad "URP missing from manifest.json" "install com.unity.render-pipelines.universal"
 

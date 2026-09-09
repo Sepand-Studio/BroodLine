@@ -31,6 +31,10 @@ public static class Phase0Setup
         //     a player otherwise, and every device run renders magenta.
         AddAlwaysIncludedShader("Universal Render Pipeline/Lit");
 
+        // --- FrameTimingManager returns nothing without this enabled.
+        PlayerSettings.enableFrameTimingStats = true;
+        Debug.Log("[Phase0Setup] enableFrameTimingStats -> true");
+
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
         Debug.Log("[Phase0Setup] DONE");

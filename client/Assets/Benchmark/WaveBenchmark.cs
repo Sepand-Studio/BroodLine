@@ -62,15 +62,19 @@ namespace Broodline.Benchmark
 
         /// Frame times in milliseconds, sorted ascending, from a captured run.
         public static BenchmarkResult Summarise(
-            List<double> frameMs, SyntheticCreatureSpec spec, int entityCount, long peakBytes)
+            List<double> cpuMs, List<double> gpuMs, List<double> wallMs,
+            SyntheticCreatureSpec spec, int entityCount, long peakBytes)
         {
-            frameMs.Sort();
+            cpuMs.Sort();
+            gpuMs.Sort();
+            wallMs.Sort();
             return new BenchmarkResult
             {
                 Spec = spec,
                 EntityCount = entityCount,
-                MedianMs = Percentile(frameMs, 0.50),
-                P95Ms = Percentile(frameMs, 0.95),
+                CpuP95Ms = Percentile(cpuMs, 0.95),
+                GpuP95Ms = Percentile(gpuMs, 0.95),
+                WallP95Ms = Percentile(wallMs, 0.95),
                 PeakMemoryBytes = peakBytes
             };
         }

@@ -6,15 +6,22 @@ namespace Broodline.Benchmark
     {
         public SyntheticCreatureSpec Spec;
         public int EntityCount;
-        public double MedianMs;
-        public double P95Ms;
+        public double CpuP95Ms;      // FrameTimingManager, real CPU work
+        public double GpuP95Ms;      // FrameTimingManager, real GPU work
+        public double WallP95Ms;     // Time.unscaledDeltaTime, kept for reference
         public long PeakMemoryBytes;
 
-        public static string CsvHeader =>
-            "triangles,bones,materials,entities,median_ms,p95_ms,peak_mb,holds_60,holds_30,under_600mb";
+        /// One frame at 60 fps is 1000/60 = 16.667 ms, not 16.6. A hardcoded 16.6
+        /// makes a flawless 60 fps read as failure — which is what the first
+        /// device run reported.
+        public const double Frame60Ms = 1000.0 / 60.0;
+        public const double Frame30Ms = 1000.0 / 30.0;
 
-        public bool Holds60 => P95Ms <= 16.6;
-        public bool Holds30 => P95Ms <= 33.3;
+        public static string CsvHeader =>
+            "triangles,bones,materials,entities,cpu_p95_ms,gpu_p95_ms,wall_p95_ms,peak_mb,holds_60,holds_30,under_600mb";
+
+        public bool Holds60 => System.Math.Max(CpuP95Ms, GpuP95Ms) <= Frame60Ms;
+        public bool Holds30 => System.Math.Max(CpuP95Ms, GpuP95Ms) <= Frame30Ms;
         public bool UnderMemoryCeiling => PeakMemoryBytes <= 600L * 1024 * 1024;
 
         public string ToCsvRow()
@@ -25,8 +32,9 @@ namespace Broodline.Benchmark
                 Spec.Bones.ToString(c),
                 Spec.Materials.ToString(c),
                 EntityCount.ToString(c),
-                MedianMs.ToString("F2", c),
-                P95Ms.ToString("F2", c),
+                CpuP95Ms.ToString("F2", c),
+                GpuP95Ms.ToString("F2", c),
+                WallP95Ms.ToString("F2", c),
                 (PeakMemoryBytes / (1024.0 * 1024.0)).ToString("F1", c),
                 Holds60 ? "1" : "0",
                 Holds30 ? "1" : "0",

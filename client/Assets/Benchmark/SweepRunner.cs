@@ -50,17 +50,26 @@ namespace Broodline.Benchmark
 
                 for (int i = 0; i < warmupFrames; i++) yield return null;
 
-                var frames = new List<double>(measureFrames);
+                var cpu = new List<double>(measureFrames);
+                var gpu = new List<double>(measureFrames);
+                var wall = new List<double>(measureFrames);
                 long peak = 0;
                 for (int i = 0; i < measureFrames; i++)
                 {
                     yield return null;
-                    frames.Add(Time.unscaledDeltaTime * 1000.0);
+                    FrameTimingManager.CaptureFrameTimings();
+                    var ft = new FrameTiming[1];
+                    if (FrameTimingManager.GetLatestTimings(1, ft) > 0)
+                    {
+                        cpu.Add(ft[0].cpuFrameTime);
+                        gpu.Add(ft[0].gpuFrameTime);
+                    }
+                    wall.Add(Time.unscaledDeltaTime * 1000.0);
                     long used = UnityEngine.Profiling.Profiler.GetTotalAllocatedMemoryLong();
                     if (used > peak) peak = used;
                 }
 
-                var result = WaveBenchmark.Summarise(frames, spec, entityCount, peak);
+                var result = WaveBenchmark.Summarise(cpu, gpu, wall, spec, entityCount, peak);
                 sb.AppendLine(result.ToCsvRow());
                 Debug.Log("[sweep] " + result.ToCsvRow());
 
