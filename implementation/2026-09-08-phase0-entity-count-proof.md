@@ -879,8 +879,25 @@ It builds with `BuildOptions.Development`, deliberately: that keeps managed stac
 
 | Tier | Device | What the run is worth |
 |---|---|---|
-| **Ceiling** | Any modern iPhone — an A17 / 8 GB device, say | Proves the harness works end to end and gives an upper bound. **Cannot produce the budget** |
-| **Floor** | **A13 / 3 GB** — iPhone 11, iPhone SE (2020), iPad 9th gen | The only run whose numbers may enter the commission brief |
+| **Ceiling** | A17 / 8 GB, e.g. iPhone 15 Pro | Proves the harness end to end, upper bound only. **Never a budget** |
+| **Proxy** | **A14 / 4 GB**, e.g. iPad Air 4 | A **provisional** budget, with the margin below. Good enough to commission the rig proof, whose bodies are throwaway |
+| **Floor** | **A13 / 3 GB** — iPhone 11, iPhone SE (2020), iPad 9th gen | The only run that produces a budget for **production** assets |
+
+### The proxy margin, and why it is a judgment rather than a measurement
+
+An iPad Air 4 is not the floor, and it differs in two directions at once:
+
+| | iPhone SE (2020) — floor | iPad Air 4 — proxy |
+|---|---|---|
+| SoC | A13 | A14, roughly 15–25% faster GPU |
+| Memory | 3 GB | 4 GB |
+| Pixels | 1334×750 ≈ 1.0M | 2360×1640 ≈ 3.9M |
+
+The iPad pushes **nearly four times the pixels**, so for fill-bound work it is *harder* than the SE, while for vertex and skinning work it is easier. This benchmark is skinned-mesh heavy and lands between the two.
+
+**Memory measured on the proxy is conservative** — larger framebuffers mean the iPad's peak overstates the SE's, so a proxy run passing 600 MB is a genuine pass.
+
+**Timing is not conservative**, so apply a margin: **take the highest passing combination and multiply triangles and bones by 0.7.** That 30% is an engineering judgment covering the generational GPU gap plus uncertainty in the fill-versus-vertex mix. It is not derived from measurement and must not be presented as though it were.
 
 A modern phone holds 60 fps at triangle and bone counts an SE (2020) cannot approach, and 600 MB is nothing against 8 GB. A budget derived from the ceiling looks authoritative and fails on the hardware the audience owns — worse than having no number, because it arrives after the art is paid for.
 
@@ -894,7 +911,7 @@ Copy it to `implementation/results/entity-budget.csv` (gitignored).
 
 - [ ] **Step 6: Record the budget in this plan document**
 
-**Only from a floor-device run.** A ceiling run records an upper bound and nothing else.
+**A ceiling run records an upper bound and nothing else.** A proxy run produces a provisional budget after the 0.7 margin. Only a floor run produces a budget for production assets.
 
 Find the highest triangle/bone/material combination whose row has `holds_60=1` **and** `under_600mb=1`. That is the per-creature budget.
 
@@ -954,7 +971,9 @@ The proof is only useful if it reaches the artist. `specs/broodline_rig_proof.md
 Insert immediately before the `**Deliverables:**` line, substituting the measured numbers:
 
 ```markdown
-**Per-asset budget**, measured rather than assumed — `implementation/2026-09-08-phase0-entity-count-proof.md`:
+**Per-asset budget — PROVISIONAL.** Measured on an **A14 / 4 GB proxy** (iPad Air 4), not on the A13 / 3 GB reference device, then reduced by 30% to cover the gap. Source and reasoning: `implementation/2026-09-08-phase0-entity-count-proof.md`.
+
+**This is sufficient for the rig proof and not for production.** §7 of this document makes the proof's two bodies throwaway — *"They will be remade"* — and §7 also states the proof is not a performance test. A provisional budget is therefore adequate to commission it. **Re-measure on an A13 / 3 GB device and replace these numbers before any of the remaining four species are modelled.**
 
 | | Budget | Why |
 |---|---|---|
