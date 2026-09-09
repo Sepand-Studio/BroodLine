@@ -573,7 +573,7 @@ Obtain the FixPointCS sources (MIT) and place the fixed-point implementation fil
 
 Vendoring rather than a package reference is deliberate: the engine has no dependencies, and Unity consumes this as source.
 
-**Expect `TreatWarningsAsErrors` to fail the build here.** Task 1 set it, and third-party sources routinely carry warnings that our own code would not. Do **not** turn the flag off — suppress narrowly instead, scoped to the vendored directory:
+Task 1 set `TreatWarningsAsErrors`, and third-party sources routinely carry warnings that our own code would not. If the build fails here, do **not** turn the flag off — suppress narrowly instead, scoped to the vendored directory:
 
 ```xml
   <ItemGroup>
@@ -584,6 +584,8 @@ Vendoring rather than a package reference is deliberate: the engine has no depen
 ```
 
 Add only the warning codes the build actually reports, and record them in your report. A blanket suppression across the whole project would hide warnings in the simulation code, which is where they matter most.
+
+At the vendored revision pinned for this task (`a852f05b428a942f8dc274ee516a893ae224e0d4`), the build did not in fact fail: `dotnet build engine/Broodline.Sim.csproj -t:Rebuild -v normal` shows both vendored files compiling under `/warnaserror+` (BannedApiAnalyzers loaded, `/warnaserror+:NU1605,RS0030`) with 0 warnings and 0 errors, so no suppression block was added. The guidance above still stands for whichever future revision of the vendored sources first introduces one.
 
 - [ ] **Step 2: Confirm the exclusion in Task 2's scan is doing real work**
 
@@ -669,7 +671,7 @@ Expected: compile error — `Fix64` does not exist yet.
 dotnet test Broodline.sln
 ```
 
-Expected: **6 passed** — the IL scan plus the five here.
+Expected: **7 passed** — the two pre-existing determinism tests (`SimulationCore_ContainsNoFloatingPoint` and `IsFloat_RecursesIntoArrayElementType`, the latter added during Task 2's fix round) plus the five here.
 
 - [ ] **Step 7: Commit**
 
