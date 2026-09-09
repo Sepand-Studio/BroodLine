@@ -304,8 +304,12 @@ namespace Broodline.Sim.Tests
         static string AssemblyPath =>
             typeof(SimVersion).Assembly.Location;
 
+        // Compare the namespace with a real boundary. Prefix-matching FullName
+        // would also skip a type named e.g. FixPointCSHelper sitting in our own
+        // namespace — defeating the exclusion's whole point.
         static bool IsVendored(TypeDefinition t) =>
-            t.FullName.StartsWith(VendoredNamespace, StringComparison.Ordinal);
+            t.Namespace == VendoredNamespace ||
+            t.Namespace.StartsWith(VendoredNamespace + ".", StringComparison.Ordinal);
 
         [Fact]
         public void SimulationCore_ContainsNoFloatingPoint()
@@ -337,8 +341,14 @@ namespace Broodline.Sim.Tests
                             offenders.Add($"local {type.FullName}.{m.Name} : {v.VariableType.Name}");
 
                     foreach (var i in m.Body.Instructions)
-                        if (i.OpCode == OpCodes.Ldc_R4 || i.OpCode == OpCodes.Ldc_R8)
-                            offenders.Add($"literal {type.FullName}.{m.Name} : {i.OpCode}");
+                        // Conversions matter as much as literals: casting on the IL
+                        // stack — (int)((float)a / (float)b) — materialises no float
+                        // local, field, parameter or literal and would evade everything
+                        // else here.
+                        if (i.OpCode == OpCodes.Ldc_R4 || i.OpCode == OpCodes.Ldc_R8 ||
+                            i.OpCode == OpCodes.Conv_R4 || i.OpCode == OpCodes.Conv_R8 ||
+                            i.OpCode == OpCodes.Conv_R_Un)
+                            offenders.Add($"float op {type.FullName}.{m.Name} : {i.OpCode}");
                 }
             }
 
@@ -346,8 +356,24 @@ namespace Broodline.Sim.Tests
                 "floating point in the simulation core:\n  " + string.Join("\n  ", offenders));
         }
 
-        static bool IsFloat(TypeReference t) =>
-            t.MetadataType == MetadataType.Single || t.MetadataType == MetadataType.Double;
+        // Must recurse. float[] has MetadataType.Array, not Single — and arrays are
+        // the one collection type these constraints permit, so a bare outer-type
+        // check is the likeliest evasion of all.
+        static bool IsFloat(TypeReference t)
+        {
+            if (t == null) return false;
+            if (t.MetadataType == MetadataType.Single || t.MetadataType == MetadataType.Double)
+                return true;
+            if (t is ArrayType a) return IsFloat(a.ElementType);
+            if (t is ByReferenceType r) return IsFloat(r.ElementType);
+            if (t is PointerType p) return IsFloat(p.ElementType);
+            if (t is GenericInstanceType g)
+            {
+                foreach (var arg in g.GenericArguments)
+                    if (IsFloat(arg)) return true;
+            }
+            return false;
+        }
     }
 }
 ```
@@ -381,6 +407,14 @@ dotnet test Broodline.sln
 Expected: **FAIL**, with a message naming `return Broodline.Sim.SimVersion.get_Tripwire : Single` and `literal ... Ldc_R4`.
 
 **Do not skip this step.** A scan that passes because it is looking in the wrong place is worse than no scan, and this is the only moment it is cheap to find out.
+
+Run **three** tripwires, not one — the first version of this scan passed all of these while being blind to every one:
+
+| Tripwire | Must fail naming |
+|---|---|
+| `public static float[] T1 = new float[4];` | a `Single[]` field |
+| `public static int T2(long a, long b) => (int)((float)a / (float)b);` | `conv.r4` |
+| `public class FixPointCSHelper { public static float S() => 2.5f; }` | `FixPointCSHelper` — proving the vendored exclusion is namespace-bounded, not a prefix match |
 
 - [ ] **Step 5: Remove the tripwire and confirm green**
 
