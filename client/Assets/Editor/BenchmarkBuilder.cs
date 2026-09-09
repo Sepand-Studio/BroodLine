@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using UnityEditor;
+using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
 
@@ -16,9 +17,33 @@ public static class BenchmarkBuilder
 {
     const string ScenePath = "Assets/Scenes/Benchmark.unity";
 
+    // Unity's URP template leaves applicationIdentifier as
+    // com.Unity-Technologies.com.unity.template.urp-blank — Unity's own id, with
+    // a malformed double "com.". No team can provision it, so signing has
+    // nothing to attach to and Xcode's Signing & Capabilities looks broken.
+    const string BundleId = "com.buildobox.broodlinebench";
+    const string TeamId   = "R4Z6W7AW86";
+
+    /// Configures signing in Unity so the generated Xcode project needs no
+    /// manual step. The team holds a wildcard profile (R4Z6W7AW86.*), so any
+    /// identifier under it provisions automatically.
+    [MenuItem("Broodline/Configure iOS Signing")]
+    public static void ConfigureSigning()
+    {
+        PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, BundleId);
+        PlayerSettings.iOS.appleDeveloperTeamID = TeamId;
+        PlayerSettings.iOS.appleEnableAutomaticSigning = true;
+        PlayerSettings.companyName = "Buildobox";
+        PlayerSettings.productName = "Broodline Bench";
+        AssetDatabase.SaveAssets();
+        Debug.Log("[BenchmarkBuilder] bundle=" + BundleId + " team=" + TeamId + " automatic signing on");
+    }
+
     [MenuItem("Broodline/Build iOS Xcode Project")]
     public static void BuildIOS()
     {
+        ConfigureSigning();
+
         if (!File.Exists(ScenePath))
             throw new FileNotFoundException("benchmark scene missing: " + ScenePath);
 
