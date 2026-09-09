@@ -70,3 +70,6 @@ local.properties
 playwright-report/
 test-results/
 coverage/
+
+# Unity Hub created a nested repo here; preserved, not tracked
+client/.git.disabled/
