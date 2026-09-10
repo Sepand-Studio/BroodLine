@@ -168,9 +168,19 @@ For whoever is briefed.
 
 **Read first:** bible §10 in full, then §1.2 for the six species and `broodline_raider_roster.md` §4 for the recognition rules. The Character Bible in the design handoff bundle is the visual reference.
 
-**Per-asset budget — PROVISIONAL.** Measured on an **A14 / 4 GB proxy** (iPad Air 4), not on the A13 / 3 GB reference device, then reduced by 30% to cover the gap. Source and reasoning: `implementation/2026-09-08-phase0-entity-count-proof.md`.
+### 8.1 What to make
 
-**This is sufficient for the rig proof and not for production.** §7 makes the proof's two bodies throwaway — *"They will be remade"* — and also states the proof is not a performance test. A provisional budget is therefore adequate to commission it. **Re-measure on an A13 / 3 GB device and replace these numbers before any of the remaining four species are modelled.**
+**Deliverables:** two rigged creature bodies with three sockets each, twelve socket-agnostic trait part assets, one Instinct cue with a trigger state, one raider body with two kits, a growth curve on one rig, and forty-eight combination renders plus 40px silhouette sheets.
+
+**Total roster this proves out:** 30 assets — 6 creature bodies, 12 trait parts, 4 raider bodies, 8 variant kits — **plus up to 6 Instinct cues, contingent** on §9.3. That contingency does not change anything asked for above: the proof delivers one cue either way, because it is what proves `sk_crown` works.
+
+### 8.2 The shape rules
+
+**The three shape rules at bible §10.2 go to the illustrator verbatim, with no exceptions.** They are the load-bearing part of the brief and they are already written to be handed over.
+
+### 8.3 The performance budget
+
+**Per-asset budget — PROVISIONAL.** Measured on an **A14 / 4 GB proxy** (iPad Air 4), not on the A13 / 3 GB reference device, then reduced by 30% to cover the gap. Source and reasoning: `implementation/2026-09-08-phase0-entity-count-proof.md`.
 
 | | Budget | Why |
 |---|---|---|
@@ -178,6 +188,8 @@ For whoever is briefed.
 | Bones per rig | **Not a constraint** | 80 bones per rig held 60 fps at every triangle count; no ceiling was reached |
 | Materials per body | **2** | Each material is a draw call before batching |
 | Trait part | Within the body budget, not additional | A body carries two parts, and a crown cue if §9.3 keeps them |
+
+**This is sufficient for the rig proof and not for production.** §7 makes the proof's two bodies throwaway — *"They will be remade"* — and also states the proof is not a performance test. A provisional budget is therefore adequate to commission it. **Re-measure on an A13 / 3 GB device and replace these numbers before any of the remaining four species are modelled.**
 
 **Bones are measured, and they are not what constrains you.** The Phase 0 harness now animates every bone every frame and sweeps rigs from 12 to 80 bones. Going from 12 bones to 80 — nearly seven times as many — costs **0.3 to 0.7 ms of CPU across all 104 on-screen creatures combined**, against a 16.667 ms frame, and about 5 MB of memory. Every bone count tested held 60 fps at every triangle count that passed, so no bone ceiling was found and none is quoted: inventing one from an unreached limit would be worse than saying it is not binding.
 
@@ -188,12 +200,6 @@ For whoever is briefed.
 **The triangle figure is optimistic, and by a knowable amount.** Every vertex in the synthetic meshes carries a single bone influence, while rigged art normally carries two to four — this project's own quality settings allow four. Per-vertex skinning is therefore cheaper in the proof than in the real thing, which inflates the triangle number rather than the bone one. The correction is not another synthetic run: `client_architecture` §4 already requires this harness to re-run against Vetch and Pale once they are delivered, and real meshes carry real weights. **Treat 7000 as an upper bound that will move down, not a target to fill.**
 
 **A body over budget is not a rejection of the art**; it is a request to hit the number, and it is far cheaper to hear now than after six bodies are final.
-
-**Deliverables:** two rigged creature bodies with three sockets each, twelve socket-agnostic trait part assets, one Instinct cue with a trigger state, one raider body with two kits, a growth curve on one rig, and forty-eight combination renders plus 40px silhouette sheets.
-
-**Total roster this proves out:** 30 assets — 6 creature bodies, 12 trait parts, 4 raider bodies, 8 variant kits — **plus up to 6 Instinct cues, contingent** on §9.3. That contingency does not change anything asked for above: the proof delivers one cue either way, because it is what proves `sk_crown` works.
-
-**The three shape rules at bible §10.2 go to the illustrator verbatim, with no exceptions.** They are the load-bearing part of the brief and they are already written to be handed over.
 
 ---
 
