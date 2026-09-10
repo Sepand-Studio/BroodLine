@@ -34,9 +34,22 @@ public static class CorpusPlayerHarness
     /// asked to quit before the player renders anything. The player still ships
     /// one deliberately empty scene — Unity 6000.6 refuses to build a player
     /// with none; see DeterminismHarness.ScenePath for that finding.
+    ///
+    /// Gated on BROODLINE_CORPUS_PLAYER, which DeterminismHarness sets via
+    /// extraScriptingDefines on its own build and nothing else sets. The
+    /// attribute fires in EVERY player built from this project, not only this
+    /// one, so ungated the quit-on-missing-argument path above reaches players
+    /// that were never meant to emit a corpus: it terminated the Phase 0
+    /// benchmark player before its scene loaded, which read on the device as the
+    /// app crashing on launch. Scoping the define rather than softening the quit
+    /// keeps a forgotten -corpusOut an immediate, obvious failure in the player
+    /// where that is the right answer.
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSplashScreen)]
     static void Emit()
     {
+#if !BROODLINE_CORPUS_PLAYER
+        return;
+#else
         var path = ReadOutputPath(Environment.GetCommandLineArgs());
         if (path == null)
         {
@@ -84,6 +97,7 @@ public static class CorpusPlayerHarness
         }
 
         Application.Quit(exitCode);
+#endif
     }
 
     /// Returns the value after -corpusOut, or null if the flag is absent or last.

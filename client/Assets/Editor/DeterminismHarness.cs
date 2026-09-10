@@ -101,7 +101,15 @@ public static class DeterminismHarness
                 subtarget = (int)StandaloneBuildSubtarget.Player,
                 // BuildOptions.None == non-development: no profiler, no script
                 // debugging, and the nondevelopment IL2CPP player variation.
-                options = BuildOptions.None
+                options = BuildOptions.None,
+                // Turns CorpusPlayerHarness on, and only here. Its
+                // RuntimeInitializeOnLoadMethod fires in every player built from
+                // this project, so without a define scoped to this build the
+                // corpus runner quits unrelated players — it terminated the
+                // Phase 0 benchmark player before its first scene loaded.
+                // extraScriptingDefines applies to this build alone and leaves
+                // the project's own define symbols untouched.
+                extraScriptingDefines = new[] { "BROODLINE_CORPUS_PLAYER" }
             };
 
             Debug.Log(Tag + "building to " + outPath);
