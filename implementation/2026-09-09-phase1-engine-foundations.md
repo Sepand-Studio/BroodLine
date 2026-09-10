@@ -775,17 +775,24 @@ namespace Broodline.Sim.Tests
         [Fact]
         public void KnownSeed_ProducesKnownFirstDraw()
         {
-            // Pins the algorithm. If this changes, every stored replay is invalid
-            // and sim_version must change with it.
+            // Pins the algorithm, not just "seed 1 is reproducible" -- the literal
+            // below is xorshift128+'s actual first draw for seed 1 under this
+            // type's seed-splitting scheme (two chained SplitMix64 applications;
+            // see the constructor's doc comment on Rng), taken verbatim from a
+            // real run, never computed by hand. If this changes -- the shift
+            // triple, the operation order, or the seed-splitting scheme -- every
+            // stored replay is invalid and sim_version must change with it.
             var r = new Rng(1);
             ulong first = r.NextULong();
-            Assert.True(first != 0, "first draw must not be zero for seed 1");
+            Assert.Equal(10993463216891074725UL, first);
             var again = new Rng(1);
             Assert.Equal(first, again.NextULong());
         }
     }
 }
 ```
+
+**Correction folded in:** the brief's original version of this test asserted only `first != 0` and that two `Rng(1)` instances agree with each other — that passes for any PRNG and any seed-splitting scheme, so despite its own comment's claim it pinned nothing. The version above asserts the literal first draw instead. The constant was taken from an actual run, never computed by hand — Step 5 below is the run that proves it actually pins the algorithm.
 
 `tests/engine/HashTests.cs`:
 
@@ -843,9 +850,40 @@ Neither may allocate, use `System.Math`, or read wall-clock time. The banned-API
 dotnet test Broodline.sln
 ```
 
-Expected: **13 passed**.
+Expected: **30 passed** (23 existing + 4 in `RngTests` + 3 in `HashTests`). The brief's original "13 passed" was computed before earlier tasks' review rounds added tests to the suite; take the real count from this run, never by hand.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Prove the pin actually catches a change**
+
+Every other determinism check in this plan carries a deliberate-break step — Task 2 Step 4, Task 3 Step 4, Task 6 Step 5, Task 7 Step 6 — and this is the one that was missing it. A pin nobody has watched fail is not proven to pin anything.
+
+Temporarily perturb the seed-splitting in `Rng`'s constructor — for example, swap which `SplitMix64` output feeds which state word:
+
+```csharp
+_state1 = SplitMix64(ref z);
+_state0 = SplitMix64(ref z);
+```
+
+Then:
+
+```bash
+dotnet test Broodline.sln
+```
+
+Expected: **FAIL** — `KnownSeed_ProducesKnownFirstDraw` fails with `Assert.Equal() Failure`, `Expected: 10993463216891074725`, and an `Actual:` that differs (the exact value depends on the perturbation chosen). The other 29 tests still pass; only the pin notices.
+
+**Do not skip this step.** It is the only moment it is cheap to find out the pin is watching the seed-splitting scheme rather than passing by coincidence.
+
+- [ ] **Step 6: Restore and confirm green**
+
+Put the constructor back the way Step 3 left it, then:
+
+```bash
+dotnet test Broodline.sln
+```
+
+Expected: **30 passed**.
+
+- [ ] **Step 7: Commit**
 
 ```bash
 git add engine/ tests/engine/
