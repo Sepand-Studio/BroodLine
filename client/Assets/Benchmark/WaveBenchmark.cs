@@ -60,23 +60,32 @@ namespace Broodline.Benchmark
             else Object.DestroyImmediate(o);
         }
 
-        /// Frame times in milliseconds, sorted ascending, from a captured run.
+        /// Per-frame samples from a captured run. Percentiles are taken over
+        /// each component separately; the components are never combined here,
+        /// so a mistake in how they relate stays recoverable from the CSV.
         public static BenchmarkResult Summarise(
-            List<double> cpuMs, List<double> gpuMs, List<double> wallMs,
-            SyntheticCreatureSpec spec, int entityCount, long peakBytes)
+            List<FrameSample> samples, SyntheticCreatureSpec spec, int entityCount, long peakBytes)
         {
-            cpuMs.Sort();
-            gpuMs.Sort();
-            wallMs.Sort();
             return new BenchmarkResult
             {
                 Spec = spec,
                 EntityCount = entityCount,
-                CpuP95Ms = Percentile(cpuMs, 0.95),
-                GpuP95Ms = Percentile(gpuMs, 0.95),
-                WallP95Ms = Percentile(wallMs, 0.95),
-                PeakMemoryBytes = peakBytes
+                MainThreadP95Ms = P95Of(samples, s => s.MainThreadMs),
+                PresentWaitP95Ms = P95Of(samples, s => s.PresentWaitMs),
+                RenderThreadP95Ms = P95Of(samples, s => s.RenderThreadMs),
+                GpuP95Ms = P95Of(samples, s => s.GpuMs),
+                WallP95Ms = P95Of(samples, s => s.WallMs),
+                PeakMemoryBytes = peakBytes,
+                TimingSamples = samples.Count
             };
+        }
+
+        static double P95Of(List<FrameSample> samples, System.Func<FrameSample, double> pick)
+        {
+            var values = new List<double>(samples.Count);
+            foreach (var s in samples) values.Add(pick(s));
+            values.Sort();
+            return Percentile(values, 0.95);
         }
 
         static double Percentile(List<double> sorted, double p)

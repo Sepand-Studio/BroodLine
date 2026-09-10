@@ -148,7 +148,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2b93da577fa7642858493a3055e70a77, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Broodline.Benchmark::Broodline.Benchmark.SweepRunner
-  triangleSteps: 9001000020030000dc050000b80b000070170000i
+  triangleSteps: 9001000020030000dc050000b80b00007017000010270000803e0000i
   boneSteps: 0c0000001800000030000000i
   materialSteps: 0100000002000000i
   warmupFrames: 60
