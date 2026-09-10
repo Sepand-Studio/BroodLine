@@ -19,7 +19,9 @@ note: >
 
 **The design is done.** Seventeen current documents, one bible, every mechanic specified, every constant set to a soft-launch starting value. The remaining open questions in those documents are tuning questions, and tuning questions are answered by playtest rather than by writing.
 
-**Almost none of the game is made.** Fifty-nine screens, of which nine exist and are current. Sixty campaign waves, none authored. Thirty-six character assets, none modelled. Twenty animation clips and eleven behaviour previews, none produced. Two procurement items with external lead times that nobody has started.
+**Almost none of the game is made.** Thirty-four screens, of which twenty are designed — thirteen of those needing rework — and fourteen missing, per `broodline_screen_inventory_v2.md`. Thirty-six character assets, none modelled. Twenty animation clips and eleven behaviour previews, none produced. Two procurement items with external lead times that nobody has started.
+
+**What does exist is the foundation under it.** All sixty campaign waves are authored, the region graph is complete (§4), and two implementation phases have landed. The **entity-count proof** produced the per-creature render budget the art commission is briefed with — 7000 triangles, 2 materials, bones unconstrained. The **engine foundations** produced a deterministic simulation core, compiled by both .NET and Unity from one source tree and proven bit-identical across CoreCLR and IL2CPP over 500 scenarios. Neither is game code. Both are what had to be true before game code was safe to write.
 
 That asymmetry is the whole reason for this document. The register's habit — find the missing spec, write it — has no more moves. The next move is different in kind.
 

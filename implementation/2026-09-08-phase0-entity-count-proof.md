@@ -2,6 +2,21 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **STATUS — all tasks complete, gate NOT closed.** Every task in this plan is
+> done (40/40) and the budget below is delivered and in the commission brief.
+> The plan is not signed off, and cannot be until two external inputs exist:
+>
+> | Blocker | Needs | State as of 2026-09-10 |
+> |---|---|---|
+> | **Reference device** | An A13 / 3 GB device — iPhone 11, iPhone SE (2020), iPad 9th gen — to replace the A14 proxy measurement | Not available. The budget stays **PROVISIONAL**, and `rig_proof` §8.3 requires this re-measure *before the remaining four species are modelled* |
+> | **Real meshes** | `client_architecture` §4 requires the sweep run "with real creature meshes rather than capsules" — the rig proof's delivered Vetch and Pale | Not available. The rig proof commission (`whats_left` §3 item 3) has not been placed; it runs three weeks once it is |
+>
+> **What closes it:** swap `SyntheticCreature.Build` for the delivered prefabs,
+> re-run the sweep with every threshold unchanged, and re-measure on an A13.
+> See "What this plan deliberately does not do" at the end for the full
+> statement. Until both happen, treat the budget as sufficient to commission
+> the rig proof and insufficient for production assets.
+
 **Goal:** Produce a per-creature rendering budget — triangles, bones, materials — under which wave 44's ~100 entities hold 60 fps and stay inside 600 MB on an A13 / 3 GB device, so the rig proof commission can be briefed with a number instead of a hope.
 
 **Architecture:** A Unity 6 project containing one benchmark scene that spawns **procedurally generated synthetic skinned meshes** at wave 44's entity counts, sweeps triangle/bone/material parameters, and records frame-time percentiles and peak memory. Synthetic geometry rather than real art, so the proof runs before any asset exists and its output constrains the art brief rather than waiting on it. The same harness re-runs against real meshes later as validation.
