@@ -96,8 +96,55 @@ namespace Broodline.Sim
             var hash = Hash.Create();
             hash.Add(unchecked((long)ToySim.Run((ulong)(index + 1), entities, inputs, ticks)));
             FoldArithmeticSweep(ref hash);
+            hash.Add(unchecked((long)RunCombatScenario(index)));
             return hash.Value;
         }
+
+        /// Generates combat scenario N deterministically. Varies the Chill tier
+        /// (including absent), the pockets and the Instincts, so the corpus
+        /// executes both the answered and the unanswered path.
+        public static Broodline.Sim.Combat.Outcome CombatOutcome(int index)
+        {
+            var gen = new Rng((ulong)(index + 1) * 7919UL);
+
+            // Tier 0 means no Chill at all, which is the access=false path.
+            int tier = gen.NextInt(4);
+
+            // Deployment size varies 1..5, weighted toward smaller rosters,
+            // rather than always fielding a full squad. A fixed 5-creature
+            // roster beats a lone Wave6 Courser almost every time, which is
+            // why breach/breach-diagnosis code (the LOSS path) barely ran
+            // before this: it needs small, weak rosters to actually lose,
+            // and a uniform 1..5 spread still under-produced them.
+            int roll = gen.NextInt(9);
+            int count = roll < 3 ? 1 : roll < 5 ? 2 : roll < 7 ? 3 : roll < 8 ? 4 : 5;
+
+            var deployment = new Broodline.Sim.Combat.CreatureSpec[count];
+            for (int c = 0; c < count; c++)
+            {
+                deployment[c] = new Broodline.Sim.Combat.CreatureSpec
+                {
+                    Species = (Broodline.Sim.Combat.Species)gen.NextInt(6),
+                    Pocket = c,
+                    Instinct = (Broodline.Sim.Combat.Instinct)gen.NextInt(6)
+                };
+            }
+
+            if (tier > 0)
+            {
+                deployment[0].Species = Broodline.Sim.Combat.Species.Pale;
+                deployment[0].Trait1 = Broodline.Sim.Combat.Trait.Chill;
+                deployment[0].Tier1 = tier;
+            }
+
+            return Broodline.Sim.Combat.Sim.Run(
+                Broodline.Sim.Combat.WaveDef.Wave6(),
+                Broodline.Sim.Combat.Lane.Defile(),
+                deployment,
+                (ulong)(index + 1));
+        }
+
+        public static ulong RunCombatScenario(int index) => CombatOutcome(index).Hash;
 
         /// Folds Mul, /, Sqrt and ToIntFloor over every value (and every ordered
         /// pair of values) in <see cref="SweepRaws"/> into <paramref name="hash"/>,
