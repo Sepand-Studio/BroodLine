@@ -57,9 +57,9 @@ namespace Broodline.Sim.Tests.Combat
             // common rather than rare.
             s.RaiderProgress[0] = s.RaiderProgress[1] = Fix64.FromInt(10);
 
-            Assert.True(Capacity.Compare(s, 0, 1, pocket: 0) < 0);
-            Assert.True(Capacity.Compare(s, 1, 0, pocket: 0) > 0);
-            Assert.Equal(0, Capacity.Compare(s, 0, 0, pocket: 0));
+            Assert.True(Capacity.Compare(s, 0, 1) < 0);
+            Assert.True(Capacity.Compare(s, 1, 0) > 0);
+            Assert.Equal(0, Capacity.Compare(s, 0, 0));
         }
 
         [Fact]
@@ -86,6 +86,33 @@ namespace Broodline.Sim.Tests.Combat
             Assert.False(s.RaiderChilled[0]);
             Assert.False(s.RaiderChilled[1]);
             Assert.True(s.RaiderChilled[2]);
+        }
+
+        [Fact]
+        public void AssignChill_LeavesRaidersNoCarrierCanReachUnchilled()
+        {
+            // combat_engine 5.1 assigns "within range". A Pale in pocket 0
+            // (tile 6, range 5) reaches tiles 2-10 and nothing beyond, so a
+            // raider at tile 22 must stay at full speed however much spare
+            // capacity exists. Without the gate an unopposed Courser crosses
+            // in 48s against the 30s combat_numbers 240 describes.
+            var wave = new WaveDef(1, 9, 1, new[]
+            {
+                new SpawnEntry { Tick = 0, Type = RaiderType.Courser },
+                new SpawnEntry { Tick = 0, Type = RaiderType.Courser }
+            });
+            var s = new SimState(wave, Lane.Defile(), WithChill(tier: 3, copies: 1));
+            s.RaiderCount = 2;
+            s.RaiderAlive[0] = s.RaiderAlive[1] = true;
+
+            s.RaiderProgress[0] = Fix64.FromInt(6);    // beside the carrier
+            s.RaiderProgress[1] = Fix64.FromInt(22);   // far past it
+
+            Capacity.AssignChill(s, new int[2]);
+
+            // Chill III is capacity 4 - ample - so only range explains this.
+            Assert.True(s.RaiderChilled[0]);
+            Assert.False(s.RaiderChilled[1]);
         }
     }
 }
