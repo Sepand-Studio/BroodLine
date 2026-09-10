@@ -92,3 +92,6 @@ coverage/
 
 # Unity Hub created a nested repo here; preserved, not tracked
 client/.git.disabled/
+
+# Claude Code worktrees - isolated workspaces, never committed
+.claude/worktrees/
