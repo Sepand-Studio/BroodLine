@@ -665,6 +665,15 @@ Eleven tests were added to `Fix64Tests.cs`, split into two clearly-labelled grou
 
 All eleven values above were taken from an actual `dotnet test` run, not derived by hand and assumed — see Step 6 below.
 
+**Fix rounds 2 and 3 corrected that contract, which was wrong about signs.** Round 1 wrote the third bullet of the header comment as a pair of universals — `(-a) / b == -(a / b)` always holds; `(-a) * b == -(a * b)` fails only when the exact product has a remainder below 2⁻³². Round 2 narrowed the division half to exclude saturation, and both claims were still false. The root cause neither round named: **`Fix64` exposes no unary minus.** Negation has to be written `Fix64.Zero - a`, which is `Fixed64.Sub`'s plain unchecked `0 - a.Raw`, so at `a.Raw == long.MinValue` it wraps and returns `a` itself — negation is the *identity* there. Every "negating an operand negates the result" identity therefore fails at that one value, for reasons having nothing to do with saturation or rounding. Round 3 rewrote the list to state that fact once, up front, and to let the identity claims reference it instead of each carrying its own exception list, then restated each identity with the condition under which it actually holds: division's when the division does not saturate, multiplication's when the exact product `a.Raw * b.Raw` is a whole multiple of 2³².
+
+Round 3 also closed two gaps the contract had never covered:
+
+- **`Mul` has no overflow guard at all.** Where `DivPrecise` at least saturates, `Mul` is plain unchecked `long` arithmetic and wraps silently to an unrelated value, with no saturation and no exception — `FromInt(int.MaxValue) * FromInt(int.MaxValue)` returns the real value `1` for a true product of about 4.6·10¹⁸. The contract had documented `Mul`'s rounding *direction* while documenting division's overflow behaviour, an asymmetry a reader would naturally misread as symmetry.
+- **`DivPrecise`'s guard is not a "does it fit" test.** It is `(|a.Raw| >> 32) >= |b.Raw|`, which fires only once the exact quotient's raw magnitude reaches 2⁶⁴ — twice what a `long` holds. A quotient landing between `long.MaxValue` and 2⁶⁴ slips past it and is wrapped rather than saturated, often with the sign flipped: `FromRaw(long.MaxValue) / FromRaw(0xFFFFFFFF)` divides a positive by a positive and returns raw `-9223372034707292161`. This made round 1's first bullet ("any quotient whose magnitude overflows a `long` saturates") a third false universal, so round 3 corrected it too.
+
+Five more `Pinned_` tests were added for these facts, each verified against the vendored source and against a measured run before being written down: `Pinned_Negation_IsIdentityAtLongMinValue`; `Pinned_DivisionSignIdentity_FailsAtLongMinValue_WithoutSaturating` (with a contrast at `long.MinValue + 1`, where the same divisor and the same non-saturating path make the identity hold); `Pinned_MultiplicationSignIdentity_FailsAtLongMinValue_WithNoRemainderDiscarded` (the product is exactly −1.5, so no remainder is discarded, and the identity fails anyway); `Pinned_Multiply_OverflowsSilentlyWithoutSaturating`; and `Pinned_Divide_QuotientAboveLongMaxValueWrapsInsteadOfSaturating`, which pins the guard's threshold to the raw unit — divisor raw 2³¹−1 saturates, divisor raw 2³¹ wraps to `-2`.
+
 - [ ] **Step 4: Run and watch them fail**
 
 ```bash
@@ -688,6 +697,8 @@ dotnet test Broodline.sln
 Expected at this task's original implementation: **7 passed** — the two pre-existing determinism tests (`SimulationCore_ContainsNoFloatingPoint` and `IsFloat_RecursesIntoArrayElementType`, the latter added during Task 2's fix round) plus the five here.
 
 **Fix round 1 raised this to 18 passed** — the same two determinism tests plus sixteen in `Fix64Tests.cs` (the original five plus the eleven described in Step 3 above: five contract-pinning, six property). Confirmed by an actual `dotnet test Broodline.sln` run, not computed by hand.
+
+**Fix round 3 raised this to 23 passed** — the same two determinism tests plus twenty-one in `Fix64Tests.cs` (round 1's sixteen plus the five described in Step 3 above). Round 2 changed only the header comment, so it left the count at 18. Taken from an actual `dotnet test Broodline.sln` run, not computed by hand.
 
 - [ ] **Step 7: Commit**
 

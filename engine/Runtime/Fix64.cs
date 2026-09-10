@@ -20,45 +20,95 @@ namespace Broodline.Sim
     /// </para>
     /// <list type="bullet">
     /// <item><description>
-    /// Division by zero, and any quotient whose magnitude overflows a
-    /// <see langword="long"/>, saturates to <see cref="long.MaxValue"/> —
-    /// always a large <i>positive</i> value, regardless of the operands'
-    /// signs. A negative dividend divided by zero does not produce a large
-    /// negative result; it produces the same saturated positive value a
-    /// positive dividend would. This falls out of <c>DivPrecise</c>'s overflow
-    /// guard, which returns before the result's sign is reapplied. No
-    /// exception is thrown either way.
+    /// <b>There is no unary minus.</b> Negation has to be spelled out —
+    /// <c>Fix64.Zero - a</c>, or <c>Fix64.FromInt(-1) * a</c>, or
+    /// <c>Fix64.FromRaw(-a.Raw)</c> — and each of those reduces to unchecked
+    /// <see langword="long"/> negation: <c>Add</c> and <c>Sub</c> are plain
+    /// <c>a + b</c> and <c>a - b</c> with no overflow guard, so they wrap.
+    /// Therefore <b>negation is the identity at</b>
+    /// <c>a.Raw == long.MinValue</c> — <c>Fix64.Zero - a</c> hands back the
+    /// very same value. <see cref="Zero"/> and <c>FromRaw(long.MinValue)</c>
+    /// are the only two values that are their own negation, since
+    /// <c>x == -x</c> modulo 2⁶⁴ holds exactly when <c>2x</c> is a multiple
+    /// of 2⁶⁴. Every identity below of the form "negating an operand negates
+    /// the result" is stated for <c>a.Raw != long.MinValue</c> for this
+    /// reason alone: at that one value negating the operand changes nothing,
+    /// so the identity survives only in the degenerate case where the result
+    /// is itself one of those two self-negating values. This failure has
+    /// nothing to do with saturation and nothing to do with rounding.
+    /// </description></item>
+    /// <item><description>
+    /// Division by zero saturates to <see cref="long.MaxValue"/> — always a
+    /// large <i>positive</i> value, regardless of the operands' signs. A
+    /// negative dividend divided by zero does not produce a large negative
+    /// result; it produces the same saturated positive value a positive
+    /// dividend would, because <c>DivPrecise</c>'s guard returns before the
+    /// result's sign is reapplied. That guard is
+    /// <c>(|a.Raw| >> 32) >= |b.Raw|</c>, which is <i>not</i> the same test
+    /// as "the quotient fits": it fires only once the exact quotient's raw
+    /// magnitude reaches 2⁶⁴, twice what a <see langword="long"/> holds. A
+    /// quotient whose exact raw magnitude lands in the band above
+    /// <see cref="long.MaxValue"/> but below 2⁶⁴ therefore slips past the
+    /// guard and is wrapped into a <see langword="long"/> rather than
+    /// saturated, usually with the sign flipped:
+    /// <c>FromRaw(long.MaxValue) / FromRaw(0xFFFFFFFF)</c> divides a positive
+    /// by a positive and returns raw <c>-9223372034707292161</c>, where the
+    /// exact quotient is raw <c>+9223372039002259455</c>. No exception is
+    /// thrown on any of these paths.
     /// </description></item>
     /// <item><description>
     /// <see cref="Sqrt"/> of a negative value returns <see cref="Zero"/>
     /// rather than throwing. The vendored <c>SqrtPrecise</c> routes negative
     /// input through <c>FixedUtil.InvalidArgument</c>, whose default handler
     /// is a no-op, so the invalid call is silently absorbed and falls through
-    /// to the same early-return as <c>Sqrt(Zero)</c>.
+    /// to the same early-return as <c>Sqrt(Zero)</c>. This one holds for
+    /// every negative value, <c>FromRaw(long.MinValue)</c> included: the
+    /// vendored routine's first test is <c>a &lt;= 0</c>.
+    /// </description></item>
+    /// <item><description>
+    /// <b><c>Mul</c> has no overflow guard at all</b> — do not read the
+    /// division bullet above as evidence of symmetry here. It is
+    /// <c>LogicalShiftRight(af * bf, 32) + ai * b + af * bi</c> in plain
+    /// unchecked <see langword="long"/> arithmetic, so a product whose exact
+    /// raw value does not fit wraps silently to an unrelated value: nothing
+    /// clamps it to either extreme, and nothing throws. A wrapped result can
+    /// still land on an extremum by coincidence — that is the wrap, not
+    /// saturation. Nothing in the result signals that it is wrong, and the
+    /// value is generally nowhere near the true magnitude —
+    /// <c>FromInt(int.MaxValue) * FromInt(int.MaxValue)</c>
+    /// returns raw <c>4294967296</c>, which is the real value <c>1</c>, for a
+    /// true product of about 4.6·10¹⁸.
     /// </description></item>
     /// <item><description>
     /// <c>*</c> and <c>/</c> round in different directions at the bit they
     /// discard. Multiplication (<c>Mul</c>) truncates toward negative
     /// infinity — it floors — for both signs alike. Division
     /// (<c>DivPrecise</c>) truncates toward zero: it divides the operands'
-    /// magnitudes and reapplies the sign afterward. So, outside the
-    /// saturating case described in the first bullet above,
-    /// <c>(-a) / b == -(a / b)</c> holds — negating the dividend only
-    /// flips the sign reapplied at the end, not the magnitude division.
-    /// When the division saturates, <c>a / b</c> and <c>(-a) / b</c> both
-    /// collapse to the same positive <see cref="long.MaxValue"/>, so the
-    /// identity fails there instead. Separately,
-    /// <c>(-a) * b == -(a * b)</c> does not hold whenever the exact product
-    /// has a fractional remainder below the format's 2⁻³² resolution.
+    /// magnitudes and reapplies the sign afterward. Taking the first bullet's
+    /// <c>a.Raw != long.MinValue</c> as given throughout, the two sign
+    /// identities then hold under these exact conditions:
+    /// <c>(Zero - a) / b == Zero - (a / b)</c> holds precisely when the
+    /// division does not saturate, because negating the dividend only flips
+    /// the sign reapplied at the end and leaves the magnitude division
+    /// untouched; when it does saturate, <c>a / b</c> and <c>(Zero - a) / b</c>
+    /// collapse to the same positive <see cref="long.MaxValue"/> instead.
+    /// <c>(Zero - a) * b == Zero - (a * b)</c> holds precisely when the exact
+    /// product <c>a.Raw * b.Raw</c> is a whole multiple of 2³²; a remainder
+    /// below the format's 2⁻³² resolution makes the two sides floor to values
+    /// one raw unit apart. Multiplication overflow does <i>not</i> on its own
+    /// break this second identity, because the wrap applies symmetrically to
+    /// both sides — so the two sides agreeing is evidence of sign symmetry
+    /// only, never evidence that the product is correct.
     /// </description></item>
     /// </list>
     /// <para>
     /// None of this is a defect in this wrapper — it is exactly what the
     /// vendored implementation does, kept deliberately rather than patched
-    /// with a sign guard, a thrown exception, or a rounding-mode branch added
-    /// to arithmetic that runs per-entity, per-tick. Changing any of these
-    /// three behaviours is a deliberate decision to revisit, not a bug fix —
-    /// and it must update this comment and the "Pinned_" tests together.
+    /// with a unary minus, a sign guard, an overflow check, a thrown
+    /// exception, or a rounding-mode branch added to arithmetic that runs
+    /// per-entity, per-tick. Changing any of these behaviours is a deliberate
+    /// decision to revisit, not a bug fix — and it must update this comment
+    /// and the "Pinned_" tests together.
     /// </para>
     public readonly struct Fix64 : IEquatable<Fix64>, IComparable<Fix64>
     {

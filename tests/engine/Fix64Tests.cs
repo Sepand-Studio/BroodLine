@@ -110,6 +110,124 @@ namespace Broodline.Sim.Tests
             Assert.Equal(-1431655765L, (a / b).Raw);
         }
 
+        [Fact]
+        public void Pinned_Negation_IsIdentityAtLongMinValue()
+        {
+            // Fix64 exposes no unary minus. Negation is written Zero - a, which
+            // is Fixed64.Sub's plain unchecked `0 - a.Raw`, so it wraps: at
+            // Raw == long.MinValue it hands back the very same value. The other
+            // route to a negation reduces to the same unchecked long negation.
+            var a = Fix64.FromRaw(long.MinValue);
+            Assert.Equal(long.MinValue, (Fix64.Zero - a).Raw);
+            Assert.Equal(long.MinValue, (Fix64.FromInt(-1) * a).Raw);
+
+            // Zero and FromRaw(long.MinValue) are the only two values that are
+            // their own negation: x == -x modulo 2^64 exactly when 2x is a
+            // multiple of 2^64. One raw unit away, negation behaves normally.
+            Assert.Equal(0L, (Fix64.Zero - Fix64.Zero).Raw);
+            Assert.Equal(long.MaxValue, (Fix64.Zero - Fix64.FromRaw(long.MinValue + 1)).Raw);
+        }
+
+        [Fact]
+        public void Pinned_DivisionSignIdentity_FailsAtLongMinValue_WithoutSaturating()
+        {
+            // (Zero - a) / b == Zero - (a / b) fails at Raw == long.MinValue for
+            // the reason pinned above -- negating the dividend changes nothing --
+            // and NOT because the division saturated. This quotient is an
+            // ordinary computed value, nowhere near long.MaxValue.
+            var a = Fix64.FromRaw(long.MinValue);
+            var b = Fix64.FromInt(3);
+            var quotient = a / b;
+
+            Assert.Equal(-3074457345618258602L, quotient.Raw);
+            Assert.NotEqual(long.MaxValue, quotient.Raw);
+
+            // Negating the dividend leaves the quotient untouched...
+            Assert.Equal(quotient.Raw, ((Fix64.Zero - a) / b).Raw);
+            // ...while negating the quotient genuinely negates it, so the two
+            // sides of the identity disagree.
+            Assert.Equal(3074457345618258602L, (Fix64.Zero - quotient).Raw);
+            Assert.NotEqual(((Fix64.Zero - a) / b).Raw, (Fix64.Zero - quotient).Raw);
+
+            // One raw unit away the dividend negates properly, and with the same
+            // divisor on the same non-saturating path the identity does hold --
+            // so long.MinValue, not the divisor and not the rounding, is the
+            // cause of the failure above.
+            var negatable = Fix64.FromRaw(long.MinValue + 1);
+            Assert.Equal((Fix64.Zero - (negatable / b)).Raw, ((Fix64.Zero - negatable) / b).Raw);
+        }
+
+        [Fact]
+        public void Pinned_MultiplicationSignIdentity_FailsAtLongMinValue_WithNoRemainderDiscarded()
+        {
+            // Raw(long.MinValue) is the real value -2^31 and Raw(3) is 3*2^-32,
+            // so the exact product is -1.5 -- raw -6442450944, representable with
+            // nothing at all discarded below the format's 2^-32 resolution. The
+            // sign identity still fails, so a discarded remainder is not the only
+            // way it can fail; here the un-negatable operand is the sole cause.
+            var a = Fix64.FromRaw(long.MinValue);
+            var b = Fix64.FromRaw(3);
+            var product = a * b;
+
+            Assert.Equal(-6442450944L, product.Raw);
+            Assert.Equal(product.Raw, ((Fix64.Zero - a) * b).Raw);
+            Assert.Equal(6442450944L, (Fix64.Zero - product).Raw);
+            Assert.NotEqual(((Fix64.Zero - a) * b).Raw, (Fix64.Zero - product).Raw);
+
+            // Contrast: a negatable operand whose product is likewise exact --
+            // FromInt(-2) * Raw(3) is raw -6, again with no remainder -- and the
+            // identity holds.
+            var negatable = Fix64.FromInt(-2);
+            Assert.Equal(-6L, (negatable * b).Raw);
+            Assert.Equal((Fix64.Zero - (negatable * b)).Raw, ((Fix64.Zero - negatable) * b).Raw);
+        }
+
+        [Fact]
+        public void Pinned_Multiply_OverflowsSilentlyWithoutSaturating()
+        {
+            // Unlike DivPrecise, Mul carries no overflow guard whatsoever: it is
+            // plain unchecked long arithmetic, so a product too large for the
+            // format wraps to an unrelated value rather than saturating or
+            // throwing. int.MaxValue squared is about 4.6e18; Mul returns the
+            // real value 1.
+            var big = Fix64.FromInt(int.MaxValue);
+            Assert.Equal(Fix64.One, big * big);
+
+            // Raw(long.MinValue) is the real value -2^31. Times 2 the true
+            // product is -2^32 and the result is 0; times 3 it happens to land on
+            // long.MinValue. That extremum is a coincidence of the wrap, not
+            // saturation -- as the times-2 case landing on 0 demonstrates.
+            var a = Fix64.FromRaw(long.MinValue);
+            Assert.Equal(0L, (a * Fix64.FromInt(2)).Raw);
+            Assert.Equal(long.MinValue, (a * Fix64.FromInt(3)).Raw);
+        }
+
+        [Fact]
+        public void Pinned_Divide_QuotientAboveLongMaxValueWrapsInsteadOfSaturating()
+        {
+            // DivPrecise's overflow guard is (|a.Raw| >> 32) >= |b.Raw|, which is
+            // not the same test as "the quotient fits": it fires only once the
+            // exact quotient's raw magnitude reaches 2^64, twice what a long
+            // holds. A quotient landing between long.MaxValue and 2^64 slips past
+            // it and is wrapped -- here flipping the sign, so two positive
+            // operands produce a large negative result. The exact quotient is raw
+            // +9223372039002259455.
+            var a = Fix64.FromRaw(long.MaxValue);
+            var b = Fix64.FromRaw(0xFFFFFFFFL);
+            var quotient = a / b;
+
+            Assert.True(a.Raw > 0 && b.Raw > 0);
+            Assert.Equal(-9223372034707292161L, quotient.Raw);
+            Assert.NotEqual(long.MaxValue, quotient.Raw);
+
+            // The guard's threshold, pinned to the raw unit. For this dividend
+            // |a.Raw| >> 32 is 2^31 - 1, so a divisor of 2^31 - 1 fires the guard
+            // and saturates, while a divisor one raw unit larger does not fire it
+            // and wraps instead -- to raw -2, from a division of two positives.
+            Assert.Equal(long.MaxValue, (a / Fix64.FromRaw((1L << 31) - 1)).Raw);
+            Assert.Equal(-2L, (a / Fix64.FromRaw(1L << 31)).Raw);
+        }
+
         // --------------------------------------------------------------
         // Property tests.
         //
