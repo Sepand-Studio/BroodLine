@@ -921,8 +921,9 @@ universal tie-break available without storing a field for it."
 - Consumes: `SimState`, `Stats`, `Lane`.
 - Produces:
   - `static int TotalChillCapacity(SimState s)` — summed across live carriers
-  - `static int Compare(SimState s, int raiderA, int raiderB, int pocket)` — the `(distance, spawnIndex)` total order
-  - `static void AssignChill(SimState s, int[] scratch)` — fills `s.RaiderChilled`
+  - `static int NearestCarrierDistSq(SimState s, int raider)` — squared distance to the nearest live Chill carrier that has it in range, or `-1` when none can reach it
+  - `static int Compare(SimState s, int raiderA, int raiderB)` — the `(distance, spawnIndex)` total order
+  - `static void AssignChill(SimState s, int[] scratch)` — fills `s.RaiderChilled`, gated on carrier range
 
 - [ ] **Step 1: Write the failing test**
 
