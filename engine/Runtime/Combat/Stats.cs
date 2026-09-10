@@ -28,9 +28,9 @@ namespace Broodline.Sim.Combat
         };
 
         /// Attack interval in ticks. Source values are seconds: 1.5, 1.7, 0.4,
-        /// 2.5, 1.2, 1.1 - all exact multiples of a 30Hz tick except where
-        /// noted, so they are transcribed as ticks directly rather than
-        /// computed, keeping the value table free of rounding.
+        /// 2.5, 1.2, 1.1 - all exact multiples of a 30Hz tick, so they are
+        /// transcribed as ticks directly rather than computed, keeping the
+        /// value table free of rounding.
         public static int CreatureIntervalTicks(Species s) => s switch
         {
             Species.Vetch => 45, Species.Ember => 51, Species.Skitter => 12,

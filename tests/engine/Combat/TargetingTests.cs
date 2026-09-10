@@ -22,10 +22,15 @@ namespace Broodline.Sim.Tests.Combat
             s.Tick = 0;
             Phases.Spawn(s);
 
-            // Pocket 0 sits at tile 6. Raider 0 furthest along, raider 2 nearest.
+            // Pocket 0 sits at tile 6. Raider 2 sits BEHIND the pocket (tile
+            // 2, not yet reached it) rather than beside it, so "greatest
+            // progress along the lane" (0>1>2: 11>8>2) and "greatest distance
+            // from the pocket" (0>2>1: DistSq 26>17>5) rank raiders 1 and 2 in
+            // opposite order - which is what makes Vanguard and Overwatch
+            // distinguishable here instead of two names for the same rule.
             s.RaiderProgress[0] = Fix64.FromInt(11);
             s.RaiderProgress[1] = Fix64.FromInt(8);
-            s.RaiderProgress[2] = Fix64.FromInt(6);
+            s.RaiderProgress[2] = Fix64.FromInt(2);
             return s;
         }
 
@@ -58,6 +63,24 @@ namespace Broodline.Sim.Tests.Combat
         }
 
         [Fact]
+        public void Vanguard_TieBreaksOnSpawnIndexAscending()
+        {
+            // Only the nearest-predicate path (LastStand/Skittish/PackSense)
+            // had a tie test; Bloodscent, Vanguard and Overwatch did not. This
+            // covers Vanguard directly, and - because a tie on progress does
+            // NOT imply a tie on distance from the pocket once a raider sits
+            // behind it - also catches Vanguard and Overwatch's Prefers case
+            // bodies being swapped: under the swap, raider 2's greater
+            // distance from the pocket would beat the tied pair below.
+            var s = ThreeRaiders(Instinct.Vanguard, Species.Hollow, pocket: 0);
+            s.RaiderProgress[0] = Fix64.FromInt(8);   // tied with raider 1
+            s.RaiderProgress[1] = Fix64.FromInt(8);
+            s.RaiderProgress[2] = Fix64.FromInt(2);   // out of the way
+
+            Assert.Equal(0, Targeting.Select(s, 0));   // lower spawn index wins
+        }
+
+        [Fact]
         public void NearestPredicates_TieBreakOnSpawnIndexAscending()
         {
             var s = ThreeRaiders(Instinct.LastStand, Species.Hollow, pocket: 0);
@@ -73,7 +96,11 @@ namespace Broodline.Sim.Tests.Combat
         public void Select_IgnoresDeadAndOutOfRangeRaiders()
         {
             // Vetch range 2 from pocket 0 (tile 6) reaches tiles 5-7 only.
+            // ThreeRaiders' default puts raider 2 behind the pocket at tile 2
+            // (out of this narrow range), so it is moved back to tile 6 here
+            // to keep this test's own premise - a single reachable raider.
             var s = ThreeRaiders(Instinct.Vanguard, Species.Vetch, pocket: 0);
+            s.RaiderProgress[2] = Fix64.FromInt(6);
             Assert.Equal(2, Targeting.Select(s, 0));   // only the tile-6 raider
 
             s.RaiderAlive[2] = false;

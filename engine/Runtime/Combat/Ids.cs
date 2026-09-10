@@ -7,6 +7,15 @@ namespace Broodline.Sim.Combat
 
     public enum RaiderType { Courser = 0 }
 
+    /// The number of RaiderType values. MUST be updated whenever a raider
+    /// type is added - WaveDef's composition invariants bound their scans on
+    /// this count, and a stale value would silently stop enforcing them
+    /// instead of throwing.
+    public static class RaiderTypeCounts
+    {
+        public const int RaiderTypeCount = 1;
+    }
+
     public enum Trait { None = 0, Chill = 1 }
 
     public enum Instinct
@@ -16,7 +25,10 @@ namespace Broodline.Sim.Combat
     }
 
     /// The eight tick phases, in the normative order of combat_engine section 4.
-    /// Declared so tests can assert the order rather than trusting a comment.
+    /// Referenced by no engine code and no test - it documents that order for
+    /// readers. The actual enforcement lives in CombatEnforcementTests, which
+    /// greps Sim.cs's source text for the Phases.* calls in order, rather than
+    /// trusting this enum or a comment.
     public enum Phase
     {
         Spawn = 1, State = 2, Movement = 3, Targeting = 4,

@@ -23,7 +23,7 @@ namespace Broodline.Sim.Tests.Combat
             Assert.Equal(2, state.Integrity);
             Assert.Equal(0, state.Tick);
             Assert.Equal(0, state.RaiderCount);          // none spawned yet
-            Assert.Equal(1, state.RaiderHp.Length);      // but capacity for one
+            Assert.Single(state.RaiderHp);                // but capacity for one
             Assert.Equal(5, state.CreatureCount);
         }
 

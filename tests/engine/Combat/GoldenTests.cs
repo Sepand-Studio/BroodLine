@@ -114,12 +114,21 @@ namespace Broodline.Sim.Tests.Combat
         {
             // The panel must not tell a player they are covered and then lose
             // the wave to access. Section 7's "one function, two call sites"
-            // is what this asserts end to end.
+            // is what this asserts end to end: the SAME Access verdict must
+            // come back whether it is read off the pre-wave panel or off the
+            // loss screen produced by an actual Sim.Run.
             var noChill = new SimState(WaveDef.Wave6(), Lane.Defile(), DeploymentWithoutChill());
             Assert.False(Diagnosis.PreWaveCheck(noChill, RaiderType.Courser).Answered);
 
             var withChill = new SimState(WaveDef.Wave6(), Lane.Defile(), DeploymentWithChill());
             Assert.True(Diagnosis.PreWaveCheck(withChill, RaiderType.Courser).Answered);
+
+            var o = Broodline.Sim.Combat.Sim.Run(WaveDef.Wave6(), Lane.Defile(), DeploymentWithoutChill(), Seed);
+            var preWave = new SimState(WaveDef.Wave6(), Lane.Defile(), DeploymentWithoutChill());
+            Assert.Equal(1, o.BreachCount);
+            Assert.Equal(
+                Diagnosis.PreWaveCheck(preWave, RaiderType.Courser).Access,
+                o.Breaches[0].Access);
         }
     }
 }

@@ -63,6 +63,36 @@ namespace Broodline.Sim.Tests.Combat
         }
 
         [Fact]
+        public void Compare_PicksTheNearerRaiderWhenDistancesDiffer()
+        {
+            // Compare_TieBreaksOnSpawnIndexAscending builds a state with no
+            // Chill carrier at all, so both distances are the -1 sentinel and
+            // only the tie-break leg ever runs. This exercises the actual
+            // distance comparison: one Chill I carrier (capacity 1) with two
+            // live raiders in range at DIFFERENT distances must chill the
+            // nearer one, not the farther one.
+            var wave = new WaveDef(1, 9, 1, new[]
+            {
+                new SpawnEntry { Tick = 0, Type = RaiderType.Courser },
+                new SpawnEntry { Tick = 0, Type = RaiderType.Courser }
+            });
+            var s = new SimState(wave, Lane.Defile(), WithChill(tier: 1, copies: 1));
+            s.RaiderCount = 2;
+            s.RaiderAlive[0] = s.RaiderAlive[1] = true;
+
+            // A Pale in pocket 0 sits at tile 6 with range 5, reaching tiles
+            // 2-10. Both raiders below are in range, at different distances.
+            s.RaiderProgress[0] = Fix64.FromInt(9);   // farther from tile 6
+            s.RaiderProgress[1] = Fix64.FromInt(6);   // nearer to tile 6
+
+            Capacity.AssignChill(s, new int[2]);
+
+            // Chill I is capacity 1 - the nearer raider only.
+            Assert.False(s.RaiderChilled[0]);
+            Assert.True(s.RaiderChilled[1]);
+        }
+
+        [Fact]
         public void AssignChill_SlowsExactlyCapacityManyNearestFirst()
         {
             var wave = new WaveDef(1, 9, 1, new[]

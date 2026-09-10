@@ -90,12 +90,20 @@ namespace Broodline.Sim.Combat
                     // Still valid, but the preference may have moved.
                     int preferred = Combat.Targeting.Select(s, c);
                     if (preferred != current && s.Tick >= s.CreatureAcquireAt[c])
+                    {
                         s.CreatureTarget[c] = preferred;
+                        s.CreatureAcquireAt[c] = s.Tick + Stats.RetargetLockoutTicks;
+                    }
                     continue;
                 }
 
                 if (s.Tick >= s.CreatureAcquireAt[c])
-                    s.CreatureTarget[c] = Combat.Targeting.Select(s, c);
+                {
+                    int acquired = Combat.Targeting.Select(s, c);
+                    s.CreatureTarget[c] = acquired;
+                    if (acquired >= 0)
+                        s.CreatureAcquireAt[c] = s.Tick + Stats.RetargetLockoutTicks;
+                }
             }
         }
 
@@ -160,10 +168,12 @@ namespace Broodline.Sim.Combat
         }
 
         /// "Away from the threat" is away from the raider nearest the Ark,
-        /// which is the one the pocket most needs distance from. Scans pockets
-        /// in ascending index and takes the first free one whose distance to
-        /// that raider exceeds the current pocket's - lowest index wins ties,
-        /// so the choice is total-ordered like every other comparator here.
+        /// which is the one the pocket most needs distance from. Among free
+        /// pockets strictly farther from that raider than the current pocket,
+        /// this picks the NEAREST one to the creature's current pocket - the
+        /// shortest move that still increases distance from the threat -
+        /// tie-breaking on lowest pocket index so the choice is total-ordered
+        /// like every other comparator here.
         private static int NearestFreePocketAwayFromThreat(SimState s, int c)
         {
             int threat = -1;
@@ -175,14 +185,25 @@ namespace Broodline.Sim.Combat
             if (threat < 0) return -1;
 
             int threatTile = s.RaiderTile(threat);
-            int here = s.Lane.DistSq(s.CreaturePocket[c], threatTile);
+            int currentPocket = s.CreaturePocket[c];
+            int currentTile = s.Lane.PocketTiles[currentPocket];
+            int here = s.Lane.DistSq(currentPocket, threatTile);
 
+            int best = -1;
+            int bestMoveDistSq = int.MaxValue;
             for (int p = 0; p < s.Lane.PocketCount; p++)
             {
                 if (Occupied(s, p)) continue;
-                if (s.Lane.DistSq(p, threatTile) > here) return p;
+                if (s.Lane.DistSq(p, threatTile) <= here) continue;
+
+                int moveDistSq = s.Lane.DistSq(p, currentTile);
+                if (moveDistSq < bestMoveDistSq)
+                {
+                    bestMoveDistSq = moveDistSq;
+                    best = p;
+                }
             }
-            return -1;
+            return best;
         }
 
         private static bool Occupied(SimState s, int pocket)
@@ -246,7 +267,10 @@ namespace Broodline.Sim.Combat
             for (int r = 0; r < s.RaiderCount; r++)
                 if (s.RaiderAlive[r]) return Result.Running;
 
-            // Pending spawns count as remaining.
+            // Pending spawns count as remaining. When a splitting raider type
+            // (Brood) is added, its pending children must also count toward
+            // the win condition per combat_engine section 8 - this is where
+            // that future author will look.
             if (s.RaiderCount < s.Wave.Spawns.Length) return Result.Running;
 
             return Result.Win;

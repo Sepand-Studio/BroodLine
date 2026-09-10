@@ -86,6 +86,11 @@ namespace Broodline.Sim.Tests.Combat
         [Fact]
         public void IntegrityNeverGoesUnnoticedNegativeWithoutALoss()
         {
+            // The assertion below only runs when IntegrityRemaining <= 0, so a
+            // regression that stopped that branch from ever firing would leave
+            // this test green while asserting nothing. Count how often it
+            // fires and fail if it ever stops being exercised.
+            int fired = 0;
             for (int i = 0; i < 300; i++)
             {
                 var gen = new Rng((ulong)(i + 9001));
@@ -93,8 +98,13 @@ namespace Broodline.Sim.Tests.Combat
                 var o = Broodline.Sim.Combat.Sim.Run(wave, Lane.Defile(), RandomDeployment(ref gen), (ulong)i);
 
                 if (o.IntegrityRemaining <= 0)
+                {
+                    fired++;
                     Assert.Equal(Result.Loss, o.Result);
+                }
             }
+
+            Assert.True(fired > 0, "the IntegrityRemaining <= 0 branch never fired - this test is vacuous");
         }
 
         [Fact]

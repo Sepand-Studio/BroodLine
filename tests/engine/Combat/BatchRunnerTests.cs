@@ -40,6 +40,14 @@ namespace Broodline.Sim.Tests.Combat
             var b = BatchRunner.Run(WaveDef.Wave6(), Lane.Defile(),
                                     GoldenTests.DeploymentWithoutChill(), 7, 10);
             Assert.Equal(a.Hash, b.Hash);
+
+            // The seed is folded into every run's hash, so a batch that
+            // stopped advancing the seed between runs would still pass the
+            // equality check above while being silently broken. A different
+            // firstSeed must produce a different batch hash.
+            var c = BatchRunner.Run(WaveDef.Wave6(), Lane.Defile(),
+                                    GoldenTests.DeploymentWithoutChill(), 8, 10);
+            Assert.NotEqual(a.Hash, c.Hash);
         }
     }
 }

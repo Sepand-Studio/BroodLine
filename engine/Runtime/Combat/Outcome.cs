@@ -24,6 +24,12 @@ namespace Broodline.Sim.Combat
         public Result Result;
         public int Ticks;
         public int IntegrityRemaining;
+
+        /// The preallocated breach-log buffer. Its length is the wave's spawn
+        /// capacity, not the number of breaches recorded - callers MUST
+        /// iterate up to BreachCount, never Breaches.Length, or a loss screen
+        /// renders phantom breaches: on a cleared wave, a zeroed trailing
+        /// entry reads as "the trait was absent".
         public Breach[] Breaches;
         public int BreachCount;
         public ulong Hash;

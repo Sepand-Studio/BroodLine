@@ -1,4 +1,5 @@
 using System;
+using static Broodline.Sim.Combat.RaiderTypeCounts;
 
 namespace Broodline.Sim.Combat
 {
@@ -56,7 +57,7 @@ namespace Broodline.Sim.Combat
         {
             // Dense scan over the enum rather than a HashSet, which is banned.
             int count = 0;
-            for (int t = 0; t <= (int)RaiderType.Courser; t++)
+            for (int t = 0; t < RaiderTypeCount; t++)
             {
                 for (int i = 0; i < Spawns.Length; i++)
                 {
@@ -79,10 +80,10 @@ namespace Broodline.Sim.Combat
         /// types sharing a counter are not.
         private void AssertNoSharedCounter()
         {
-            for (int t = 0; t <= (int)RaiderType.Courser; t++)
+            for (int t = 0; t < RaiderTypeCount; t++)
             {
                 if (!ContainsType((RaiderType)t)) continue;
-                for (int u = t + 1; u <= (int)RaiderType.Courser; u++)
+                for (int u = t + 1; u < RaiderTypeCount; u++)
                 {
                     if (!ContainsType((RaiderType)u)) continue;
                     if (Stats.CounterFor((RaiderType)t) == Stats.CounterFor((RaiderType)u))
