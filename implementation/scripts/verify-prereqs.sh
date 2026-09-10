@@ -34,9 +34,14 @@ if [ -d "$EDITORS" ] && [ -n "$(ls -A "$EDITORS" 2>/dev/null)" ]; then
     else
       bad "Unity $ver present, but the iOS Build Support module is MISSING"
     fi
+    if [ -d "$v/PlaybackEngines/MacStandaloneSupport/Variations/macos_arm64_player_nondevelopment_il2cpp" ]; then
+      ok "Unity $ver with Mac Build Support (IL2CPP)"
+    else
+      bad "Unity $ver present, but the Mac Build Support (IL2CPP) module is MISSING"
+    fi
   done
 else
-  bad "No Unity editor — Unity Hub > Installs > Install Editor > Unity 6 LTS, tick iOS Build Support"
+  bad "No Unity editor — Unity Hub > Installs > Install Editor > Unity 6 LTS, tick iOS Build Support and Mac Build Support (IL2CPP)"
 fi
 
 echo
