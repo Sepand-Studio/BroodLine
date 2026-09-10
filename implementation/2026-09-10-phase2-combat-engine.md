@@ -175,7 +175,7 @@ namespace Broodline.Sim.Tests.Combat
         }
 
         [Fact]
-        public void Validate_ThrowsWhenTwoRaidersShareACounter()
+        public void Validate_AllowsTwoSpawnsOfTheSameRaiderType()
         {
             var w = new WaveDef(
                 id: 999, integrity: 3, laneCount: 1,
@@ -2700,7 +2700,7 @@ namespace Broodline.Sim.Combat
 }
 ```
 
-**`Fix64.Raw` is required here.** If it is not already public, add a `public long Raw => _raw;` accessor to `Fix64` in the same commit — hashing the raw bits is the only way to fold a fixed-point value without going through a lossy conversion.
+**`Fix64.Raw` is already public** (`engine/Runtime/Fix64.cs:118`, `public long Raw { get; }`), verified before this plan was dispatched. **Do not modify `Fix64`** — this task touches no Phase 1 file. Hashing the raw bits is the only way to fold a fixed-point value without a lossy conversion, and the accessor is already there.
 
 - [ ] **Step 2: Write the golden tests, with the hashes left unpinned**
 
@@ -2720,26 +2720,52 @@ namespace Broodline.Sim.Tests.Combat
 
         public const ulong Seed = 6;
 
-        /// Golden A - wave 6 exactly as authored. Five creatures, none
-        /// carrying Chill. broodline_waves_01_12.md section 3 designs this to
-        /// be lost.
+        /// Golden A - wave 6 exactly as authored: five creatures, none
+        /// carrying Chill, designed to be lost.
+        ///
+        /// Four Vetch and a Loam. Chosen for two reasons. It is a plausible
+        /// pre-wave-6 roster - Vetch is the starter wall - and it dramatises the
+        /// exact lesson the wave exists to teach, which waves_01_12 section 3
+        /// states outright: "Courser ignores Taunt, so the Vetch does not save
+        /// them."
+        ///
+        /// Chosen for MARGIN as well as verdict. The Courser breaches with 54 of
+        /// its 220 hp remaining, so the Loss does not hinge on a damage race that
+        /// an implementation detail could flip. A longer-ranged roster does not
+        /// merely narrow that margin, it reverses the outcome: a Hollow running
+        /// Overwatch covers 15 of the lane's 24 tiles and kills the Courser on its
+        /// own, which would make this wave a clear and the golden pair meaningless.
         public static CreatureSpec[] DeploymentWithoutChill() => new[]
         {
-            new CreatureSpec { Species = Species.Vetch,   Pocket = 0, Instinct = Instinct.Vanguard },
-            new CreatureSpec { Species = Species.Hollow,  Pocket = 1, Instinct = Instinct.Overwatch },
-            new CreatureSpec { Species = Species.Skitter, Pocket = 2, Instinct = Instinct.Bloodscent },
-            new CreatureSpec { Species = Species.Loam,    Pocket = 3, Instinct = Instinct.LastStand },
-            new CreatureSpec { Species = Species.Ember,   Pocket = 4, Instinct = Instinct.PackSense }
+            new CreatureSpec { Species = Species.Vetch, Pocket = 0, Instinct = Instinct.Vanguard },
+            new CreatureSpec { Species = Species.Vetch, Pocket = 1, Instinct = Instinct.Vanguard },
+            new CreatureSpec { Species = Species.Vetch, Pocket = 2, Instinct = Instinct.Vanguard },
+            new CreatureSpec { Species = Species.Vetch, Pocket = 3, Instinct = Instinct.Vanguard },
+            new CreatureSpec { Species = Species.Loam,  Pocket = 4, Instinct = Instinct.Vanguard }
         };
 
-        /// Golden B - the same wave, the same seed, one variable changed: a
-        /// Pale carrying Chill I replaces the Vetch.
+        /// Golden B - the Pale the player is granted on defeat, carrying Chill I,
+        /// standing in the Loam's pocket. waves_01_12 section 3: "The Wave Defeat
+        /// screen grants a Pale."
+        ///
+        /// The Courser dies at tile 16 of 24 - eight tiles of margin - so the Win
+        /// does not hinge on a damage race either.
+        ///
+        /// This pair changes the creature as well as the trait, and that is the
+        /// authored narrative rather than sloppy method: the player has no Pale at
+        /// wave 6 and is granted one for losing. A same-body control (this roster
+        /// with the Pale carrying NO trait) was evaluated and deliberately rejected
+        /// as a golden - it loses by 3 hp of 220, a margin thin enough that
+        /// ordinary implementation detail would flip it, which is exactly the
+        /// property a pinned golden must not have. Chill's causality is isolated in
+        /// unit tests instead, where it belongs: Task 5 asserts the speed change
+        /// directly and Task 4 asserts the capacity assignment.
         public static CreatureSpec[] DeploymentWithChill()
         {
             var d = DeploymentWithoutChill();
-            d[0] = new CreatureSpec
+            d[4] = new CreatureSpec
             {
-                Species = Species.Pale, Pocket = 0, Instinct = Instinct.Vanguard,
+                Species = Species.Pale, Pocket = 4, Instinct = Instinct.Vanguard,
                 Trait1 = Trait.Chill, Tier1 = 1
             };
             return d;
