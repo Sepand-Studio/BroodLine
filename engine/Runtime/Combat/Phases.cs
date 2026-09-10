@@ -57,5 +57,45 @@ namespace Broodline.Sim.Combat
                 : Stats.RaiderMilliTilesPerSec(s.RaiderType[r]);
             return Lane.SpeedPerTick(milli);
         }
+
+        /// Phase 4 - Targeting. Retarget any creature whose target is dead, out
+        /// of range, or whose Instinct preference now names a different valid
+        /// target. Respects the 0.4s retarget lockout.
+        ///
+        /// combat_engine section 6: "The 0.4s retarget lockout is a lockout on
+        /// ACQUIRING, not on firing." A creature whose target dies stops firing
+        /// immediately and acquires 12 ticks later. That gap is what makes
+        /// Splash a counter rather than a convenience, so dropping the target
+        /// eagerly while gating acquisition is load-bearing, not incidental.
+        public static void Targeting(SimState s)
+        {
+            for (int c = 0; c < s.CreatureCount; c++)
+            {
+                if (!s.CreatureAlive(c)) continue;
+
+                int current = s.CreatureTarget[c];
+                bool held = current >= 0 && Combat.Targeting.CanReach(s, c, current);
+
+                if (!held && current >= 0)
+                {
+                    // Drop immediately, and start the lockout.
+                    s.CreatureTarget[c] = -1;
+                    s.CreatureAcquireAt[c] = s.Tick + Stats.RetargetLockoutTicks;
+                    continue;
+                }
+
+                if (held)
+                {
+                    // Still valid, but the preference may have moved.
+                    int preferred = Combat.Targeting.Select(s, c);
+                    if (preferred != current && s.Tick >= s.CreatureAcquireAt[c])
+                        s.CreatureTarget[c] = preferred;
+                    continue;
+                }
+
+                if (s.Tick >= s.CreatureAcquireAt[c])
+                    s.CreatureTarget[c] = Combat.Targeting.Select(s, c);
+            }
+        }
     }
 }
