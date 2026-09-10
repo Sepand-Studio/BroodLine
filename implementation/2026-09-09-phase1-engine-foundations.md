@@ -1002,7 +1002,8 @@ The smallest simulation that can drift, so the harness can be proven to catch dr
 **Interfaces:**
 - Produces:
   - `struct ToyInput { public int Tick; public int EntityId; }`
-  - `static class ToySim` with `static ulong Run(ulong seed, int entityCount, ToyInput[] inputs, int ticks)` returning the terminal state hash, and `static ulong RunToTick(ulong seed, int entityCount, ToyInput[] inputs, int ticks, int checkpointEvery, System.Collections.Generic.List<ulong> checkpoints)`
+  - `static class ToySim` with `static ulong Run(ulong seed, int entityCount, ToyInput[] inputs, int ticks)` returning the hash of the whole run's folded history — every entity's state, every tick — and `static ulong RunToTick(ulong seed, int entityCount, ToyInput[] inputs, int ticks, int checkpointEvery, System.Collections.Generic.List<ulong> checkpoints)`.
+    **A whole-run hash, not just a terminal-state one**: it subsumes a terminal-state hash (identical runs still match) and additionally catches divergence that later reconverges. It also makes `RunToTick`'s checkpoints monotone — once two runs differ they differ forever — so a binary search over checkpoints locates the *first* divergent tick; per-tick-fresh snapshots can diverge and reconverge, which makes them invalid to bisect.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1134,7 +1135,7 @@ Run the suite. `GoldenHash_IsPinned` fails and reports the actual value. Replace
         // value; that is the point. An unexplained change is drift.
 ```
 
-Re-run: **19 passed**.
+Re-run: **39 passed** (33 baseline + 5 in `ToySimTests` + 1 in `FuzzTests`). The brief's original "19 passed" was computed before earlier tasks' review rounds added tests to the suite; take the real count from this run, never by hand.
 
 - [ ] **Step 5: Prove the golden test actually catches drift**
 
@@ -1184,7 +1185,7 @@ namespace Broodline.Sim
 {
     public static class Corpus
     {
-        /// Generates scenario N deterministically and returns its terminal hash.
+        /// Generates scenario N deterministically and returns its whole-run hash.
         /// Both runtimes must produce identical output for every index.
         public static ulong RunScenario(int index)
         {
