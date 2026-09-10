@@ -3126,12 +3126,24 @@ namespace Broodline.Sim.Tests.Combat
         }
 
         [Fact]
-        public void ADeliberateSoftLockIsCaughtByTheStallDetector()
+        public void AnUnopposedRaiderTerminatesPromptlyRatherThanCreepingToTheCap()
         {
-            // A wave whose only creature cannot reach the lane at all, against
-            // a raider that is chilled to a crawl - the shape section 8.1
-            // describes, forced on purpose. It must still terminate, and it
-            // must terminate as a Loss rather than by burning to the cap.
+            // Renamed and re-scoped from a "soft-lock" test that never reached
+            // the stall detector at all. The lone Vetch has range 2 and the
+            // Courser crosses essentially uncontested, so this is an ordinary
+            // resolution at roughly 450 ticks. Still worth asserting -- a raider
+            // that advances every tick must resolve promptly rather than creep
+            // toward the 5400-tick cap -- but it is NOT a stall test, and naming
+            // it one hid the fact that nothing covers StallTicks.
+            //
+            // THE STALL DETECTOR'S TRIP PATH IS UNREACHABLE IN THIS SLICE, and
+            // that is expected rather than a defect. The only raider is a
+            // Courser, which advances every tick even while chilled (0.5 t/s is
+            // 0.0167 tiles per tick, never zero), so the fingerprint always
+            // changes. combat_engine 8.1's soft-lock shape -- "a submerged
+            // Delver with no Burrow present and nothing able to reach it" --
+            // needs a raider that can stop moving, and none exists yet. Whoever
+            // adds Delver owns the first genuine test of StallTicks.
             var wave = new WaveDef(9999, 99, 1, new[]
             {
                 new SpawnEntry { Tick = 0, Type = RaiderType.Courser }
@@ -3142,11 +3154,14 @@ namespace Broodline.Sim.Tests.Combat
                                    Instinct = Instinct.Vanguard }
             };
 
-            var o = Sim.Run(wave, Lane.Defile(), d, 1);
+            var o = Broodline.Sim.Combat.Sim.Run(wave, Lane.Defile(), d, 1);
 
-            Assert.NotEqual(Result.Running, o.Result);
-            Assert.True(o.Ticks < Stats.HardTickCap,
-                "the raider still advances, so this must resolve well before the cap");
+            // Integrity 99 against one Courser costing 2: it breaches, and the
+            // wave is still won because nothing remains and the table is spent.
+            Assert.Equal(Result.Win, o.Result);
+            Assert.Equal(97, o.IntegrityRemaining);
+            Assert.True(o.Ticks < Stats.StallTicks * 2,
+                "an advancing raider must resolve promptly, not creep toward the cap");
         }
     }
 }
