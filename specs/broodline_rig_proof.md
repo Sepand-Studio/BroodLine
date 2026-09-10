@@ -162,11 +162,15 @@ For whoever is briefed.
 | | Budget | Why |
 |---|---|---|
 | Triangles per body | **7000** | Wave 44 puts 104 entities on screen at once; 10000 held 60 fps on the proxy, less the 30% margin |
-| Bones per rig | **33 — provisional, unmeasured** | See the caveat below before treating this as a constraint |
+| Bones per rig | **Not a constraint** | 80 bones per rig held 60 fps at every triangle count; no ceiling was reached |
 | Materials per body | **2** | Each material is a draw call before batching |
 | Trait part | Within the body budget, not additional | A body carries two parts and an Instinct cue |
 
-**The bone figure is not backed by measurement — re-measurement is in progress.** The Phase 0 harness built rigs at 12, 24 and 48 bones and recorded identical frame costs at every triangle count, because nothing animated them; a static skinned mesh does not exercise skinning. The harness now drives every bone each frame and sweeps to 80 bones, and this line will be replaced with a measured figure. Until then the triangle and material figures are measured and the bone figure is a placeholder carried at the same 30% margin. If a rig needs to exceed 33 bones to work, **say so rather than compromising the rig** — that is a signal to measure properly, not a limit to design around.
+**Bones are measured, and they are not what constrains you.** The Phase 0 harness now animates every bone every frame and sweeps rigs from 12 to 80 bones. Going from 12 bones to 80 — nearly seven times as many — costs **0.3 to 0.7 ms of CPU across all 104 on-screen creatures combined**, against a 16.667 ms frame, and about 5 MB of memory. Every bone count tested held 60 fps at every triangle count that passed, so no bone ceiling was found and none is quoted: inventing one from an unreached limit would be worse than saying it is not binding.
+
+**Rig the creatures as the animation requires.** If a body reads better at 60 bones than at 40, use 60. The measured cost of that decision is a fraction of a millisecond. What this does *not* cover is expensive animation *evaluation* — deep blend trees, many simultaneous layers, heavy IK — which is a different cost from the rig's bone count and is not measured here. If the rig depends on something in that category, flag it.
+
+**The number that does bind is triangles**, and it binds on the GPU.
 
 **The triangle figure is optimistic, and by a knowable amount.** Every vertex in the synthetic meshes carries a single bone influence, while rigged art normally carries two to four — this project's own quality settings allow four. Per-vertex skinning is therefore cheaper in the proof than in the real thing, which inflates the triangle number rather than the bone one. The correction is not another synthetic run: `client_architecture` §4 already requires this harness to re-run against Vetch and Pale once they are delivered, and real meshes carry real weights. **Treat 7000 as an upper bound that will move down, not a target to fill.**
 

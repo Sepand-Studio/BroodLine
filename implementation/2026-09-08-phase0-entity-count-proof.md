@@ -1024,40 +1024,58 @@ section 2 already recorded as a taken decision."
 
 ---
 
-## Phase 0 result — recorded 2026-09-09
+## Phase 0 result — recorded 2026-09-10
 
 **Device:** `iPad13,1` — iPad Air (4th generation), Apple A14 GPU, 3868 MB, iPadOS 27.0, Unity 6000.6.0f1.
-**Tier:** **proxy** (A14 / 4 GB). The budget below is **PROVISIONAL** — sufficient to commission the rig proof, not valid for production assets.
-**Source:** `implementation/results/entity-budget-ipadair4-run2.csv` — 42 combinations, 300 measured frames each, device off charge at a steady thermal state.
+**Tier:** **proxy** (A14 / 4 GB). **PROVISIONAL** — sufficient to commission the rig proof, not valid for production assets.
+**Source:** `implementation/results/entity-budget-ipadair4-run4-animated-bones.csv` — 40 combinations, 300 measured frames each, rigs animated every frame.
 
 **Per-creature budget at 104 entities, 60 fps, under 600 MB:**
 
 | | Measured | After the 0.7 proxy margin |
 |---|---|---|
 | Triangles | 10000 | **7000** |
-| Bones | 48 | **33** — not a measurement, see below |
+| Bones | 80, **no ceiling found** | **not a constraint — see below** |
 | Materials | 2 | **2** |
-| Measured p95 cost | 12.50 ms (GPU-bound) | |
-| Measured p95 main thread | 6.02 ms | |
-| Measured peak memory | 404 MB | |
+| Measured p95 cost | 11.64 ms (GPU-bound) | |
+| Measured p95 main thread | 6.37 ms | |
+| Measured peak memory | 394 MB | |
 
-**Verdict: PASS** — the modular pipeline is viable at this budget. The first failing rung is 16000 triangles: GPU p95 20.06 ms against a 16.667 ms frame, wall clock 33.50 ms as the device fell back to 30 fps, 536 MB peak. The ceiling therefore sits between 10000 and 16000 triangles and was not narrowed further.
+**Verdict: PASS.** Every combination at or below 10000 triangles holds 60 fps under 600 MB at every bone count swept. Every combination at 16000 triangles fails: GPU p95 19.2–20.1 ms against a 16.667 ms frame, wall clock 33.4 ms as the device falls to 30 fps, 526 MB peak. The ceiling sits between 10000 and 16000 triangles and is **GPU-bound, not CPU-bound or bone-bound**.
 
-### What this number does not cover
+### Bones are not the constraint, and now that is measured rather than assumed
 
-**The bone figure is a placeholder, not a measurement.** 12, 24 and 48 bones produce identical timings at every triangle count in the sweep, because `SyntheticCreature.Build` constructs a bone hierarchy and then nothing ever animates it. A static skinned mesh does not exercise skinning, and the main thread sitting flat at ~6 ms across a 40× triangle range is consistent with a CPU that was never asked to do the work. Task 5's own premise — *"skinning is the dominant per-entity CPU cost"* — is untested by this run. **Rotate the bones per frame and re-run before any bone count is quoted as a constraint.**
+Task 5 premised the bone axis on *"skinning is the dominant per-entity CPU cost."* With the rigs actually animated, that premise is false on this hardware. Main-thread p95 in milliseconds, triangle count held constant:
 
-**The harness renders bare geometry.** No textures, no shadows, no animation playback, one default URP Lit material. The triangle figure is an upper bound on the geometry axis alone and not a whole-creature cost.
+| triangles | 12 bones | 24 | 48 | 80 | 12 → 80 |
+|---|---|---|---|---|---|
+| 400 | 6.21 | 5.85 | 6.04 | 6.50 | +0.29 |
+| 1500 | 5.94 | 6.26 | 6.04 | 6.33 | +0.39 |
+| 6000 | 5.82 | 5.72 | 5.90 | 6.17 | +0.36 |
+| 10000 | 5.69 | 5.69 | 5.88 | 6.34 | +0.65 |
+| 16000 | 6.67 | 7.63 | 7.46 | 7.41 | +0.74 |
 
-**Peak memory is Unity's allocator**, from `Profiler.GetTotalAllocatedMemoryLong()`, not the process footprint iOS accounts against the 600 MB ceiling. The true figure exceeds 404 MB by the binary, system frameworks and driver allocations, and has not been read off Xcode's memory gauge.
+Nearly seven times the bones costs **0.3–0.7 ms of main thread across all 104 entities**, against a 16.667 ms frame. The effect is small but it is real: positive at every triangle count, which is what separates it from the previous run's exact zeros. Peak memory moves 318 → 323 MB over the same range.
+
+**80 bones passed, so the bone ceiling was not found.** Applying the 0.7 margin to an unfound ceiling would invent a limit rather than record one, so the brief states that bones are unconstrained at the counts a creature rig plausibly needs, and gives the measured slope instead of a number.
+
+**Why it is cheap:** `gpuSkinning` is enabled, so per-vertex skinning is GPU work that scales with vertices rather than with rig complexity, and Unity's transform hierarchy update is jobified off the main thread. What remains on the main thread is the per-bone write itself.
+
+**What this still does not measure:** `BoneAnimator` writes local rotations directly. A real `Animator` also evaluates a graph, samples curves and blends clips, none of which happen here. **This is the floor of a rig's per-frame cost, not its total.** A rig that is expensive to *evaluate* rather than expensive to *skin* is still unmeasured.
+
+### The triangle figure held across the change
+
+Run 2 measured a static rig and put the ceiling between 10000 and 16000 triangles. Run 4 animates every bone up to 80 and puts it in exactly the same place. The triangle budget is therefore robust to the defect that invalidated the bone figure — which is why 7000 did not move.
 
 ### Runs that produced no budget, and why
 
 Recorded so the same ground is not re-covered:
 
-1. **iPhone 15 Pro, ceiling tier** (`entity-budget-iphone15pro.csv`) — every row read 16.67 ms from 400 to 6000 triangles. `Time.unscaledDeltaTime` reports the frame-rate cap, not the cost.
-2. **iPad Air 4, first attempt** (`entity-budget-ipadair4-run1-capped-cpu.csv`) — GPU and memory columns valid, CPU column flat at ~16.8 ms. `cpuFrameTime` includes the main thread's block on present, so it reports the same cap a second time. This run's GPU curve is still usable.
-3. **iPad Air 4, second attempt** (`entity-budget-ipadair4-run2.csv`) — CPU column clamped to 0.00 by subtracting `cpuMainThreadPresentWaitTime` from `cpuMainThreadFrameTime`. Those two fields partition the frame rather than nesting, so the subtraction was wrong. **The budget above was recovered from this run's raw component columns without a fourth device trip** — which is the whole reason the components are recorded separately.
+1. **iPhone 15 Pro, ceiling tier** (`entity-budget-iphone15pro.csv`) — every row 16.67 ms from 400 to 6000 triangles. `Time.unscaledDeltaTime` reports the frame-rate cap, not the cost.
+2. **iPad Air 4, run 1** (`entity-budget-ipadair4-run1-capped-cpu.csv`) — GPU and memory valid, CPU flat at ~16.8 ms. `cpuFrameTime` includes the main thread's block on present, so it reported the same cap again.
+3. **iPad Air 4, run 2** (`entity-budget-ipadair4-run2.csv`) — CPU clamped to 0.00 by subtracting `cpuMainThreadPresentWaitTime` from `cpuMainThreadFrameTime`; those fields partition the frame rather than nesting. The triangle and material budget was recovered from this run's raw component columns without a further device trip. Its bone figure was never valid: nothing animated the rigs.
+4. **iPad Air 4, run 3** — suspended partway. iOS locked the screen on an unplugged device and the app stopped without failing. `Screen.sleepTimeout` now holds it awake, and the CSV is written after every combination so a stalled run is visible rather than indistinguishable from a slow one.
+5. **iPad Air 4, run 4 — this one.** Combinations 1–16 (400 and 1500 triangles) ran on mains; the device was unplugged for the remaining 24, which include every 6000, 10000 and 16000 triangle row. **Both rows that set the ceiling — 10000 passing and 16000 failing — were measured on battery.** The mains rows are the light end and are not the binding constraint.
 
 ## What this plan deliberately does not do
 
