@@ -836,8 +836,8 @@ PlayerSettings:
   webEnableSubmoduleStrippingCompatibility: 0
   webProgressiveAssetLoading: 0
   scriptingDefineSymbols:
-    Standalone: APP_UI_EDITOR_ONLY;SENTIS_ANALYTICS_ENABLED
-    iPhone: APP_UI_EDITOR_ONLY;SENTIS_ANALYTICS_ENABLED
+    Standalone: APP_UI_EDITOR_ONLY
+    iPhone: APP_UI_EDITOR_ONLY
   additionalCompilerArguments: {}
   platformArchitecture: {}
   scriptingBackend:

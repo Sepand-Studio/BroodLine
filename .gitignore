@@ -60,7 +60,15 @@ client/*.user
 
 # Benchmark and test output — regenerated, never a source of truth.
 # Findings are promoted into the plan document instead.
-implementation/results/
+# The trailing /* rather than / matters: git will not descend into an excluded
+# directory, so a negation inside one is never reached.
+implementation/results/*
+
+# ...except the sweep CSVs. "Regenerated" is not true of these — reproducing one
+# needs a particular physical device, off charge, for half an hour — and they are
+# the evidence behind a triangle budget that goes to an artist. 16 KB against
+# 3.5 MB of logs.
+!implementation/results/*.csv
 
 # Xcode / iOS (if used later)
 DerivedData/
