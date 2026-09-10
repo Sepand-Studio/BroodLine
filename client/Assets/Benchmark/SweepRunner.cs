@@ -31,6 +31,13 @@ namespace Broodline.Benchmark
             Application.targetFrameRate = 60;
             QualitySettings.vSyncCount = 0;
 
+            // A sweep runs for tens of minutes on a device nobody is touching,
+            // which is precisely how long it takes iOS to lock the screen. A lock
+            // suspends the app: the run appears alive and never finishes, and a
+            // lock landing inside a combination's 300 measured frames puts a
+            // multi-second stall in the middle of its p95.
+            Screen.sleepTimeout = SleepTimeout.NeverSleep;
+
             var sb = new StringBuilder();
             // Provenance first. A budget is only meaningful against the device it
             // was measured on, and these files will outlive the memory of which
@@ -81,6 +88,12 @@ namespace Broodline.Benchmark
                 var result = WaveBenchmark.Summarise(samples, spec, entityCount, peak);
                 sb.AppendLine(result.ToCsvRow());
 
+                // Written after every combination, not once at the end. A run
+                // that dies at combination 39 of 40 otherwise leaves nothing at
+                // all, and there is no way to see progress on a device that is
+                // deliberately unplugged from the console.
+                File.WriteAllText(outputPath, sb.ToString());
+
                 // A sweep whose timings never arrived writes a CSV that looks
                 // exactly like a passing one. Say so on the row and in the log,
                 // loudly enough that nobody quotes the budget by mistake.
@@ -120,7 +133,6 @@ namespace Broodline.Benchmark
                                gpuMax.ToString("F2") + " ms. Suspect the cap is being measured, " +
                                "not the cost. The budget from this run is NOT valid.");
 
-            File.WriteAllText(outputPath, sb.ToString());
             if (invalidRows > 0)
                 Debug.LogError("[sweep] " + invalidRows + " row(s) carried no usable timing. " +
                                "The budget from this run is NOT valid.");
