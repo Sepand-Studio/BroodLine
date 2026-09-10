@@ -1,0 +1,17 @@
+T:System.Random;implementation-defined and version-dependent. Use Broodline.Sim.Rng.
+T:System.Math;platform library, not deterministic across runtimes. Fix64 provides its own.
+T:System.MathF;as above, and float.
+T:System.DateTime;no wall-clock in the core. Time is tickIndex.
+T:System.DateTimeOffset;as above.
+T:System.Guid;non-deterministic identity.
+T:System.Environment;ambient machine state.
+N:System.Linq;iteration order and deferred execution. Use dense arrays in ID order.
+T:System.Collections.Generic.Dictionary`2;hash iteration order differs across runtimes.
+T:System.Collections.Generic.HashSet`1;as above.
+M:System.String.GetHashCode;randomized per process on CoreCLR, not on Unity's Mono. Guaranteed to disagree between the two runtimes.
+T:System.Threading.Tasks.Task;no parallelism inside a tick.
+T:System.Threading.Tasks.Task`1;as above.
+T:System.Threading.Tasks.ValueTask;as above.
+T:System.Threading.Tasks.ValueTask`1;as above.
+T:System.Threading.Tasks.Parallel;no parallelism inside a tick. Parallel.For/ForEach over a per-entity loop is the likeliest way it comes back.
+T:System.Threading.Thread;no parallelism inside a tick.

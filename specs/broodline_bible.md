@@ -1010,8 +1010,12 @@ A creature is **one body plus two visible trait parts plus one Instinct cue.**
 |---|---|
 | Species bodies | 6 |
 | Trait parts | 12 |
-| Instinct cues | 6 |
+| Instinct cues | 6 — **contingent, see below** |
 | **Total** | **24** |
+
+**The six Instinct cues are not settled, and this section and §10.4 disagree about them.** §10.4 gives Instinct a card badge when static — *because* a third element on the body would muddy the silhouette — and behaviour plus a trigger state in combat. Neither of those channels is body geometry, so the count above may be six, one shared cue, or none. What decides it is whether Bloodscent, Vanguard and Overwatch can be identified in a busy wave: §1.4 gives those three no trigger, so they have no in-combat signal beyond who they choose to attack. That is a playtest question and it is recorded at `broodline_rig_proof.md` §9.3.
+
+**`sk_crown` is authored on every body regardless of the answer.** A named transform costs nothing, and retrofitting an attachment point onto finished bodies is the expense this section exists to prevent. The rig proof mounts one cue there to prove the socket works — a socket that has never carried geometry is not standardised.
 
 Those 24 assets assemble into roughly 2,400 distinct creatures. At four trait slots the same approach would have needed double the parts and produced silhouettes too busy to read at 40px — the reduction to two combat traits is the single largest cost saving in the design.
 
@@ -1028,6 +1032,8 @@ Those 24 assets assemble into roughly 2,400 distinct creatures. At four trait sl
 The split is clean: **the body says which, the card says how much.**
 
 **Instinct uses two channels depending on context.** On a static card it is a badge — the body is already carrying two trait parts and a third would muddy the silhouette. In live combat it is the behaviour itself, plus a visible trigger state: an animation change or colour shift when Last Stand fires or Skittish repositions. A player watching a wave should be able to infer an Instinct without reading anything.
+
+**The trigger channel only covers half of them.** §1.4 gives Last Stand, Skittish and Pack Sense a trigger; Bloodscent, Vanguard and Overwatch have none. For those three the whole in-combat signal is targeting behaviour — who the creature picks — and Overwatch's is the subtlest, being a range and speed change rather than a choice of victim. Whether that is enough at a hundred entities is untested, and it is what decides §10.3's contingent cue count. If it is not enough, the answer is a second flat channel rather than geometry: colour never carries information alone here, so a shape-bearing badge, not a tint.
 
 **Aberrant traits take an iridescent white-hot treatment** with subtle motion — the only animated treatment in the system. As a class rather than a tier, an Aberrant is a distinct marker rather than a fourth pip. Keeping it white rather than gold avoids colliding with the map's gold Apex Vein pulse.
 

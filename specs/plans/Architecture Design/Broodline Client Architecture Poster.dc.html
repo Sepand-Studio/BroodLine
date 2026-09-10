@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="stylesheet" href="broadsheet.css">
+<script src="./doc-page.js"></script>
+<style>
+doc-page:not(:defined){visibility:hidden}
+body{margin:0}
+a{color:var(--color-accent-700);text-decoration-thickness:1px;text-underline-offset:2px}
+a:hover{color:var(--color-accent-600)}
+</style>
+</helmet>
+<doc-page width="24in" height="36in">
+<section class="page" data-screen-label="Poster" style="box-sizing:border-box;width:100%;padding:74px 80px 62px;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body);display:flex;flex-direction:column;gap:0">
+
+<header style="display:flex;flex-direction:column;gap:0">
+<div style="height:9px;background:var(--color-text)"></div>
+<div style="display:flex;align-items:flex-end;justify-content:space-between;gap:var(--space-8);padding:22px 0 16px">
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="font:600 18px/1 var(--font-heading);letter-spacing:.28em;text-transform:uppercase;color:var(--color-accent-700)">Broodline &middot; Runtime Sheet No. 1</div>
+<h1 style="margin:0;font:600 104px/0.95 var(--font-heading);letter-spacing:-.025em;white-space:nowrap">Client Architecture</h1>
+</div>
+<div style="display:flex;flex-direction:column;gap:6px;text-align:right;padding-bottom:14px;min-width:420px">
+<div style="font:600 20px/1.2 var(--font-heading)">One client, six assemblies,<br>one authoritative server.</div>
+<div style="font:400 16px/1.45 var(--font-body);color:var(--color-neutral-700)">A wall sheet for engineers. Every claim on this sheet is sourced from the two plans below; nothing here is invented.</div>
+</div>
+</div>
+<div style="height:2px;background:var(--color-text)"></div>
+<div style="display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-6);padding:11px 0;font:400 16px/1 var(--font-body);color:var(--color-neutral-800)">
+<span><em>Source</em> plans/broodline_client_architecture.md &middot; plans/broodline_technical_architecture.md</span>
+<span><em>Status</em> <strong style="color:var(--color-accent-2-700)">Proposed</strong> &mdash; not yet in the supersession map</span>
+<span><em>Verified</em> September 2026 &middot; Sheet 1 of 2</span>
+</div>
+<div style="height:1px;background:var(--color-neutral-400)"></div>
+</header>
+
+<section style="padding-top:46px">
+<div style="display:grid;grid-template-columns:1fr 620px;gap:var(--space-8);align-items:end;padding-bottom:26px">
+<div>
+<div style="font:600 17px/1 var(--font-heading);letter-spacing:.16em;text-transform:uppercase;color:var(--color-accent-700)">&sect;1 &middot; The layering</div>
+<h2 style="margin:8px 0 0;font:600 52px/1.02 var(--font-heading);letter-spacing:-.012em">Six assemblies, and the arrows point one way</h2>
+</div>
+<p style="margin:0;font:400 19px/1.45 var(--font-body);color:var(--color-neutral-800)">Unity assembly definitions make the direction a <em>compile error</em> rather than a convention &mdash; the same mechanism that keeps <code style="font:400 17px/1 var(--font-body)">UnityEngine</code> out of the engine. Read top to bottom: each layer may reference only what sits below it.</p>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 560px;gap:var(--space-8)">
+
+<div style="position:relative;padding-right:64px">
+
+<div style="display:grid;grid-template-columns:270px 1fr 250px;align-items:baseline;gap:var(--space-4);padding:22px 18px;background:var(--color-neutral-100);border-left:4px solid var(--color-neutral-500);box-shadow:var(--shadow-sm)">
+<div style="font:600 25px/1.1 var(--font-heading)">Broodline.Game</div>
+<div style="font:400 17px/1.35 var(--font-body);color:var(--color-neutral-800)">Composition root, scene wiring</div>
+<div style="font:400 16px/1.3 var(--font-body);color:var(--color-neutral-700)">references everything</div>
+</div>
+<div style="height:24px;position:relative"><div style="position:absolute;left:70px;top:0;width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:14px solid var(--color-accent-600)"></div></div>
+
+<div style="display:grid;grid-template-columns:270px 1fr 250px;align-items:baseline;gap:var(--space-4);padding:22px 18px;background:var(--color-accent-100);border-left:4px solid var(--color-accent);box-shadow:var(--shadow-sm)">
+<div style="font:600 25px/1.1 var(--font-heading)">Broodline.UI</div>
+<div style="font:400 17px/1.35 var(--font-body);color:var(--color-neutral-800)">59 screens, nine shared prefabs, five tabs</div>
+<div style="font:400 16px/1.3 var(--font-body);color:var(--color-accent-700)">&rarr; Model, Net</div>
+</div>
+<div style="height:24px;position:relative"><div style="position:absolute;left:70px;top:0;width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:14px solid var(--color-accent-600)"></div></div>
+
+<div style="display:grid;grid-template-columns:270px 1fr 250px;align-items:baseline;gap:var(--space-4);padding:22px 18px;background:var(--color-accent-100);border-left:4px solid var(--color-accent);box-shadow:var(--shadow-sm)">
+<div style="font:600 25px/1.1 var(--font-heading)">Broodline.Net</div>
+<div style="font:400 17px/1.35 var(--font-body);color:var(--color-neutral-800)">HTTP, auth, the outbox</div>
+<div style="font:400 16px/1.3 var(--font-body);color:var(--color-accent-700)">&rarr; Model, Generated.Api</div>
+</div>
+<div style="height:24px;position:relative"><div style="position:absolute;left:70px;top:0;width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:14px solid var(--color-accent-600)"></div></div>
+
+<div style="display:grid;grid-template-columns:270px 1fr 250px;align-items:baseline;gap:var(--space-4);padding:22px 18px;background:var(--color-accent-100);border-left:4px solid var(--color-accent);box-shadow:var(--shadow-sm)">
+<div style="font:600 25px/1.1 var(--font-heading)">Broodline.Model</div>
+<div style="font:400 17px/1.35 var(--font-body);color:var(--color-neutral-800)">Player + world state, cached from <code style="font:400 16px/1 var(--font-body)">/v1/sync</code></div>
+<div style="font:400 16px/1.3 var(--font-body);color:var(--color-accent-700)">&rarr; Generated.Api</div>
+</div>
+<div style="height:24px;position:relative"><div style="position:absolute;left:70px;top:0;width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:14px solid var(--color-accent-600)"></div></div>
+
+<div style="display:grid;grid-template-columns:270px 1fr 250px;align-items:baseline;gap:var(--space-4);padding:22px 18px;background:var(--color-neutral-100);border-left:4px solid var(--color-neutral-600);box-shadow:var(--shadow-sm)">
+<div style="font:600 25px/1.1 var(--font-heading)">Broodline.View</div>
+<div style="font:400 17px/1.35 var(--font-body);color:var(--color-neutral-800)">Renders <code style="font:400 16px/1 var(--font-body)">ref readonly SimState</code>; writes nothing</div>
+<div style="font:400 16px/1.3 var(--font-body);color:var(--color-neutral-700)">&rarr; Sim <em>(read&#8209;only)</em></div>
+</div>
+<div style="height:24px;position:relative"><div style="position:absolute;left:70px;top:0;width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:14px solid var(--color-accent-600)"></div></div>
+
+<div style="display:grid;grid-template-columns:270px 1fr 250px;align-items:baseline;gap:var(--space-4);padding:22px 18px;background:var(--color-neutral-200);border-left:4px solid var(--color-text);box-shadow:var(--shadow-sm)">
+<div style="font:600 25px/1.1 var(--font-heading)">Broodline.Sim</div>
+<div style="font:400 17px/1.35 var(--font-body);color:var(--color-neutral-800)">The engine &mdash; a UPM package, fixed-point, 30&nbsp;Hz</div>
+<div style="font:400 16px/1.3 var(--font-body);color:var(--color-neutral-700)">references nothing</div>
+</div>
+
+<div style="position:absolute;right:22px;top:120px;bottom:44px;width:0;border-left:3px dashed var(--color-accent-2)"></div>
+<div style="position:absolute;right:0;top:50%;transform:translateY(-50%);width:46px;height:46px;background:var(--color-bg);display:flex;align-items:center;justify-content:center">
+<div style="position:relative;width:30px;height:30px">
+<div style="position:absolute;top:14px;left:0;width:30px;height:3px;background:var(--color-accent-2);transform:rotate(45deg)"></div>
+<div style="position:absolute;top:14px;left:0;width:30px;height:3px;background:var(--color-accent-2);transform:rotate(-45deg)"></div>
+</div>
+</div>
+<div style="position:absolute;right:-4px;top:calc(50% + 34px);width:210px;font:600 15px/1.3 var(--font-heading);color:var(--color-accent-2-700);text-align:right">UI &rarr; Sim<br>is a compile error</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:34px">
+<div>
+<div style="height:3px;background:var(--color-text);margin-bottom:14px"></div>
+<div style="font:600 27px/1.2 var(--font-heading);margin-bottom:10px">Broodline.UI does not reference Broodline.Sim</div>
+<p style="margin:0;font:400 18px/1.45 var(--font-body);color:var(--color-neutral-800)">A screen that can reach into simulation state will eventually compute something from it, and that computation is a game rule living in the client. The only path from simulation to interface is <strong>View</strong>.</p>
+</div>
+<div>
+<div style="height:3px;background:var(--color-text);margin-bottom:14px"></div>
+<div style="font:600 27px/1.2 var(--font-heading);margin-bottom:10px">Broodline.View renders; it never decides</div>
+<p style="margin:0;font:400 18px/1.45 var(--font-body);color:var(--color-neutral-800)">Damage numbers, breach diagnoses and outcomes come from the engine's own output. If the view needs a number the engine does not expose, <em>the engine gains an accessor</em> &mdash; the view never derives it.</p>
+</div>
+<div style="background:var(--color-neutral-100);padding:22px 24px;box-shadow:var(--shadow-sm)">
+<div style="font:600 16px/1 var(--font-heading);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:12px">&sect;2 &middot; The sim-to-render boundary</div>
+<p style="margin:0 0 12px;font:400 18px/1.45 var(--font-body)">The engine runs at a fixed <strong>30&nbsp;Hz</strong>. Rendering does not. <strong>View</strong> owns an accumulator, steps the engine as many times as elapsed time allows, and interpolates between the last two snapshots.</p>
+<ul style="margin:0;padding-left:20px;font:400 17px/1.4 var(--font-body);color:var(--color-neutral-800)">
+<li style="margin-bottom:7px">Two snapshots are retained &mdash; interpolation needs both.</li>
+<li style="margin-bottom:7px">Input is captured at a <strong>tick boundary</strong>: a Rally tap records the tick index, never a timestamp.</li>
+<li>A dropped frame <strong>never</strong> drops a tick. Skipping ticks produces a run the server will not reproduce, and the player loses a wave they won.</li>
+</ul>
+</div>
+</div>
+</div>
+</section>
+
+<section style="padding-top:186px">
+<div style="display:grid;grid-template-columns:1fr 620px;gap:var(--space-8);align-items:end;padding-bottom:26px">
+<div>
+<div style="font:600 17px/1 var(--font-heading);letter-spacing:.16em;text-transform:uppercase;color:var(--color-accent-700)">Runtime topology</div>
+<h2 style="margin:8px 0 0;font:600 52px/1.02 var(--font-heading);letter-spacing:-.012em">One authoritative backend. No gameplay on the edge.</h2>
+</div>
+<p style="margin:0;font:400 19px/1.45 var(--font-body);color:var(--color-neutral-800)">Cloud Run, not Kubernetes: the workload is stateless request/response plus scheduled jobs. Vercel renders the web surfaces and holds no credential that can touch player data.</p>
+</div>
+
+<div style="display:grid;grid-template-columns:400px 1fr 380px;gap:var(--space-6);align-items:start">
+
+<div style="display:flex;flex-direction:column;gap:14px">
+<div style="font:600 16px/1 var(--font-heading);letter-spacing:.14em;text-transform:uppercase;color:var(--color-neutral-700)">Device</div>
+<div style="background:var(--color-accent-100);padding:18px 20px;border-left:4px solid var(--color-accent);box-shadow:var(--shadow-sm)">
+<div style="font:600 24px/1.15 var(--font-heading)">iOS &middot; iPadOS</div>
+<div style="font:400 17px/1.4 var(--font-body);color:var(--color-neutral-800);margin-top:6px">Unity 6 &middot; IL2CPP &middot; ARM64 &middot; Metal &middot; portrait-only universal binary</div>
+</div>
+<div style="background:var(--color-neutral-200);padding:16px 20px;border-left:4px solid var(--color-text);box-shadow:var(--shadow-sm)">
+<div style="font:600 21px/1.15 var(--font-heading)">Sim core &mdash; the same C# library</div>
+<div style="font:400 16px/1.4 var(--font-body);color:var(--color-neutral-800);margin-top:5px">A <code style="font:400 15px/1 var(--font-body)">netstandard2.1</code> DLL outside the Unity assembly graph. One core, compiled twice.</div>
+</div>
+<div style="font:400 16px/1.45 var(--font-body);color:var(--color-neutral-800);padding-left:4px">
+<div style="margin-bottom:6px"><strong>&darr; REST/JSON over HTTP/2</strong> &mdash; intent endpoints, every mutation keyed</div>
+<div style="margin-bottom:6px"><strong>&darr; SSE</strong> <code style="font:400 15px/1 var(--font-body)">GET /v1/stream</code> &mdash; chat, live state</div>
+<div><strong>&uarr; APNs</strong> &mdash; raid alerts; the 90-second countdown starts from the push</div>
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column;align-items:stretch">
+<div style="font:600 16px/1 var(--font-heading);letter-spacing:.14em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:14px">Google Cloud &mdash; everything authoritative</div>
+<div style="background:var(--color-neutral-200);padding:13px 18px;text-align:center;font:600 21px/1.2 var(--font-heading);box-shadow:var(--shadow-sm)">Cloud Load Balancing + Cloud Armor</div>
+<div style="height:18px;width:1px;background:var(--color-neutral-500);margin:0 auto"></div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+<div style="background:var(--color-accent-100);padding:14px 16px;border-top:4px solid var(--color-accent);box-shadow:var(--shadow-sm)">
+<div style="font:600 22px/1.1 var(--font-heading)">game</div>
+<div style="font:400 15px/1.35 var(--font-body);color:var(--color-neutral-800);margin-top:5px">player &middot; world &middot; raid &middot; social. Split <em>social</em> out first.</div>
+</div>
+<div style="background:var(--color-accent-100);padding:14px 16px;border-top:4px solid var(--color-accent);box-shadow:var(--shadow-sm)">
+<div style="font:600 22px/1.1 var(--font-heading)">commerce</div>
+<div style="font:400 15px/1.35 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Separate from day one, because money. One grant path, two front doors.</div>
+</div>
+<div style="background:var(--color-accent-100);padding:14px 16px;border-top:4px solid var(--color-accent);box-shadow:var(--shadow-sm)">
+<div style="font:600 22px/1.1 var(--font-heading)">stream</div>
+<div style="font:400 15px/1.35 var(--font-body);color:var(--color-neutral-800);margin-top:5px">SSE fan-out, long-lived connections, own concurrency.</div>
+</div>
+</div>
+<div style="height:18px;width:1px;background:var(--color-neutral-500);margin:0 auto"></div>
+<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px">
+<div style="background:var(--color-neutral-100);padding:14px 16px;border-top:4px solid var(--color-neutral-600);box-shadow:var(--shadow-sm)">
+<div style="font:600 22px/1.1 var(--font-heading)">sim <span style="font:400 15px/1 var(--font-body);color:var(--color-neutral-700)">&mdash; internal only</span></div>
+<div style="font:400 15px/1.35 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Validates every wave, auto-resolves raids, produces replays. <strong>Version-pinned: it is the one service that cannot roll forward.</strong></div>
+</div>
+<div style="background:var(--color-neutral-100);padding:14px 16px;border-top:4px solid var(--color-neutral-600);box-shadow:var(--shadow-sm)">
+<div style="font:600 22px/1.1 var(--font-heading)">notify</div>
+<div style="font:400 15px/1.35 var(--font-body);color:var(--color-neutral-800);margin-top:5px">Direct APNs, token auth. Raid alert delivered within 5&nbsp;s p95 &mdash; a gameplay requirement.</div>
+</div>
+</div>
+<div style="height:18px;width:1px;background:var(--color-neutral-500);margin:0 auto"></div>
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+<div style="background:var(--color-neutral-100);padding:13px 14px;box-shadow:var(--shadow-sm)">
+<div style="font:600 19px/1.15 var(--font-heading)">Cloud SQL<br>Postgres</div>
+<div style="font:400 15px/1.3 var(--font-body);color:var(--color-neutral-700);margin-top:5px">One instance per shard-group; one schema per shard. PgBouncer in front.</div>
+</div>
+<div style="background:var(--color-neutral-100);padding:13px 14px;box-shadow:var(--shadow-sm)">
+<div style="font:600 19px/1.15 var(--font-heading)">Memorystore<br>Redis</div>
+<div style="font:400 15px/1.3 var(--font-body);color:var(--color-neutral-700);margin-top:5px">Node extraction counters, rate limits, chat pub/sub. Arbiter of the race.</div>
+</div>
+<div style="background:var(--color-neutral-100);padding:13px 14px;box-shadow:var(--shadow-sm)">
+<div style="font:600 19px/1.15 var(--font-heading)">GCS</div>
+<div style="font:400 15px/1.3 var(--font-body);color:var(--color-neutral-700);margin-top:5px">Replays (&asymp;2&nbsp;KB each), config bundles, raw telemetry &rarr; BigQuery.</div>
+</div>
+<div style="background:var(--color-neutral-100);padding:13px 14px;box-shadow:var(--shadow-sm)">
+<div style="font:600 19px/1.15 var(--font-heading)">Pub/Sub</div>
+<div style="font:400 15px/1.3 var(--font-body);color:var(--color-neutral-700);margin-top:5px">Cloud Scheduler &rarr; world-tick jobs, one hour per shard, spread across the wheel.</div>
+</div>
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:14px">
+<div style="font:600 16px/1 var(--font-heading);letter-spacing:.14em;text-transform:uppercase;color:var(--color-neutral-700)">Vercel &mdash; web only</div>
+<div style="background:var(--color-neutral-100);padding:18px 20px;box-shadow:var(--shadow-sm)">
+<ul style="margin:0;padding-left:20px;font:400 17px/1.5 var(--font-body)">
+<li>Marketing site, press kit</li>
+<li>Web shop &mdash; Stripe checkout</li>
+<li>LiveOps console &mdash; events, offers, pools, strings</li>
+<li>Support &amp; account deletion</li>
+</ul>
+</div>
+<div style="border-left:4px solid var(--color-accent-2);padding:4px 0 4px 18px">
+<div style="font:600 20px/1.2 var(--font-heading);color:var(--color-accent-2-700);margin-bottom:6px">No gameplay traffic touches Vercel.</div>
+<div style="font:400 16px/1.45 var(--font-body);color:var(--color-neutral-800)">Not a proxy, not an edge cache of player state, not &ldquo;just this one endpoint.&rdquo; Stripe's webhook points at <strong>commerce</strong> on GCP, so purchases in flight still land when Vercel is down.</div>
+</div>
+<div style="font:400 16px/1.45 var(--font-body);color:var(--color-neutral-800)">The console publishes a <strong>versioned JSON bundle to GCS</strong> through a signed admin endpoint. Config is not an API: <code style="font:400 15px/1 var(--font-body)">/v1/sync</code> returns the required version, the client fetches it from CDN.</div>
+</div>
+</div>
+
+<div style="margin-top:30px;display:grid;grid-template-columns:340px 1fr;gap:var(--space-8);align-items:center;background:var(--color-neutral-200);padding:22px 26px">
+<div>
+<div style="font:600 16px/1 var(--font-heading);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:8px">The unit of scale</div>
+<div style="font:600 40px/1.02 var(--font-heading)">The shard is<br>the architecture</div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-6);font:400 17px/1.4 var(--font-body)">
+<div><strong style="font:600 28px/1 var(--font-heading);display:block;margin-bottom:6px">500&ndash;1,500</strong>DAU per shard, derived from node-depletion maths</div>
+<div><strong style="font:600 28px/1 var(--font-heading);display:block;margin-bottom:6px">30 regions</strong>per shard, independently rotating; a closed world, nothing crosses</div>
+<div><strong style="font:600 28px/1 var(--font-heading);display:block;margin-bottom:6px">1 schema</strong>per shard, <code style="font:400 16px/1 var(--font-body)">shard_id</code> leading every key &mdash; a merge is a re-keying, not a rewrite</div>
+<div><strong style="font:600 28px/1 var(--font-heading);display:block;margin-bottom:6px">Blast radius</strong>one shard. Canary by shard, watch an hour, roll the fleet</div>
+</div>
+</div>
+</section>
+
+<section style="padding-top:186px">
+<div style="display:grid;grid-template-columns:1fr 620px;gap:var(--space-8);align-items:end;padding-bottom:26px">
+<div>
+<div style="font:600 17px/1 var(--font-heading);letter-spacing:.16em;text-transform:uppercase;color:var(--color-accent-700)">&sect;8 &middot; Data flow</div>
+<h2 style="margin:8px 0 0;font:600 52px/1.02 var(--font-heading);letter-spacing:-.012em">A wave, end to end</h2>
+</div>
+<p style="margin:0;font:400 19px/1.45 var(--font-body);color:var(--color-neutral-800)">The client plays the wave, the server decides it happened. Rewards are granted optimistically and reconciled &mdash; so the interface must be able to show a reward being <em>withdrawn</em> without pretending it never appeared.</p>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 400px 1fr;font:400 17px/1.4 var(--font-body)">
+<div style="font:600 16px/1 var(--font-heading);letter-spacing:.14em;text-transform:uppercase;color:var(--color-neutral-700);text-align:right;padding:0 22px 12px 0">Device &mdash; Broodline.Sim + Net</div>
+<div style="font:600 16px/1 var(--font-heading);letter-spacing:.14em;text-transform:uppercase;color:var(--color-neutral-700);text-align:center;padding:0 0 12px">Network</div>
+<div style="font:600 16px/1 var(--font-heading);letter-spacing:.14em;text-transform:uppercase;color:var(--color-neutral-700);padding:0 0 12px 22px">Server &mdash; game + sim</div>
+
+<div style="text-align:right;padding:14px 22px 14px 0"><strong>1 &middot; The tap.</strong> A Rally records the <strong style="color:var(--color-accent-700)">tick index</strong>, never a timestamp. The input log the server re-simulates from must be exactly what the local run consumed.</div>
+<div style="border-left:2px dashed var(--color-neutral-500);border-right:2px dashed var(--color-neutral-500);padding:14px 20px;display:flex;align-items:center"><div style="width:100%;height:1px;background:var(--color-neutral-400)"></div></div>
+<div style="padding:14px 0 14px 22px;color:var(--color-neutral-700)"><em>Playable offline &mdash; the engine is local.</em></div>
+
+<div style="text-align:right;padding:14px 22px 14px 0"><strong>2 &middot; 90 seconds.</strong> Fixed 30&nbsp;Hz steps; a stall steps <em>more</em> times rather than skipping. View interpolates two snapshots for display.</div>
+<div style="border-left:2px dashed var(--color-neutral-500);border-right:2px dashed var(--color-neutral-500);padding:14px 20px;display:flex;align-items:center"><div style="width:100%;height:1px;background:var(--color-neutral-400)"></div></div>
+<div style="padding:14px 0 14px 22px;color:var(--color-neutral-700)"><em>&mdash;</em></div>
+
+<div style="text-align:right;padding:14px 22px 14px 0"><strong>3 &middot; The replay is the submission.</strong> <code style="font:400 16px/1 var(--font-body)">{ sim_version, seed, terrain_id, both rosters, ordered input log }</code> &asymp;&nbsp;2&nbsp;KB. Every replay is also a regression test.</div>
+<div style="border-left:2px dashed var(--color-neutral-500);border-right:2px dashed var(--color-neutral-500);padding:14px 20px;display:flex;align-items:center"><div style="width:100%;height:1px;background:var(--color-neutral-400)"></div></div>
+<div style="padding:14px 0 14px 22px;color:var(--color-neutral-700)"><em>&mdash;</em></div>
+
+<div style="text-align:right;padding:14px 22px 14px 0"><strong>4 &middot; The outbox.</strong> One durable entry, ordered per player, carrying an <strong style="color:var(--color-accent-700)">idempotency key generated when the action was taken</strong> &mdash; not when it is sent. Survives a kill, a crash, three days offline.</div>
+<div style="border-left:2px dashed var(--color-neutral-500);border-right:2px dashed var(--color-neutral-500);padding:14px 20px;display:flex;align-items:center"><div style="width:100%;height:1px;background:var(--color-neutral-400)"></div></div>
+<div style="padding:14px 0 14px 22px;color:var(--color-neutral-700)"><em>&mdash;</em></div>
+
+<div style="text-align:right;padding:14px 22px 14px 0;color:var(--color-neutral-700)"><em>Flushed on foreground and on connectivity, with exponential backoff.</em></div>
+<div style="border-left:2px dashed var(--color-neutral-500);border-right:2px dashed var(--color-neutral-500);padding:20px;display:flex;flex-direction:column;justify-content:center;gap:8px">
+<div style="font:600 16px/1.2 var(--font-heading);text-align:center;color:var(--color-accent-700)">5 &middot; POST /v1/wave/submit<br><span style="font:400 15px/1.2 var(--font-body);color:var(--color-neutral-700)">Idempotency-Key: &hellip;</span></div>
+<div style="position:relative;height:2px;background:var(--color-accent);margin:0 6px">
+<div style="position:absolute;right:-2px;top:-7px;width:0;height:0;border-top:8px solid transparent;border-bottom:8px solid transparent;border-left:14px solid var(--color-accent)"></div>
+</div>
+</div>
+<div style="padding:14px 0 14px 22px"><strong>6 &middot; Re-simulation.</strong> <code style="font:400 16px/1 var(--font-body)">sim</code> replays the log headless and compares the outcome hash. One wave &asymp;&nbsp;20&nbsp;ms of CPU, so <strong>validate every wave, always &mdash; do not sample.</strong> Mismatch: no reward, one telemetry event.</div>
+
+<div style="text-align:right;padding:14px 22px 14px 0;color:var(--color-neutral-700)"><em>If <code style="font:400 16px/1 var(--font-body)">sim</code> is down, the wave queues and rewards optimistically &mdash; bounded exposure, reconciliation pass.</em></div>
+<div style="border-left:2px dashed var(--color-neutral-500);border-right:2px dashed var(--color-neutral-500);padding:14px 20px;display:flex;align-items:center"><div style="width:100%;height:1px;background:var(--color-neutral-400)"></div></div>
+<div style="padding:14px 0 14px 22px"><strong>7 &middot; The ledger.</strong> Every currency mutation writes an append-only row in the <em>same transaction</em> as the balance update: <code style="font:400 16px/1 var(--font-body)">reason_code, ref_id, idempotency_key</code>. Sum the ledger, compare to balances, alert on drift.</div>
+
+<div style="text-align:right;padding:20px 22px 14px 0"><strong>8 &middot; Truth arrives.</strong> The cached snapshot is <em>replaced</em>, never merged. A failed validation shows as a reward withdrawn.</div>
+<div style="border-left:2px dashed var(--color-neutral-500);border-right:2px dashed var(--color-neutral-500);padding:20px;display:flex;flex-direction:column;justify-content:center;gap:8px">
+<div style="font:600 16px/1.2 var(--font-heading);text-align:center;color:var(--color-accent-2-700)">GET /v1/sync <span style="font:400 15px/1.2 var(--font-body);color:var(--color-neutral-700)">&mdash; one call per foreground</span></div>
+<div style="position:relative;height:2px;background:var(--color-accent-2);margin:0 6px">
+<div style="position:absolute;left:-2px;top:-7px;width:0;height:0;border-top:8px solid transparent;border-bottom:8px solid transparent;border-right:14px solid var(--color-accent-2)"></div>
+</div>
+</div>
+<div style="padding:20px 0 14px 22px;color:var(--color-neutral-700)"><em>Settled balance, charges and regen, timers, convoys, progress, mail count, active event, config bundle version &mdash; in one response.</em></div>
+</div>
+
+<div style="margin-top:24px;display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-6);padding-top:20px;border-top:1px solid var(--color-neutral-400)">
+<div><span style="font:600 18px/1.3 var(--font-heading)">Offline, playable.</span> <span style="font:400 17px/1.4 var(--font-body);color:var(--color-neutral-800)">Campaign waves, roster, Codex, lineage &mdash; anything that reads cached state.</span></div>
+<div><span style="font:600 18px/1.3 var(--font-heading);color:var(--color-accent-2-700)">Offline, unavailable.</span> <span style="font:400 17px/1.4 var(--font-body);color:var(--color-neutral-800)">Splice (the server rolls), harvest claim, raids, alliance actions, the store. Shown as unavailable rather than failing on submit.</span></div>
+<div><span style="font:600 18px/1.3 var(--font-heading)">Entries expire.</span> <span style="font:400 17px/1.4 var(--font-body);color:var(--color-neutral-800)">Past the server's 24-hour idempotency window an entry can no longer be safely replayed: dropped, with a mail explaining what did not happen.</span></div>
+</div>
+</section>
+
+<footer style="margin-top:auto;padding-top:40px">
+<div style="height:1px;background:var(--color-neutral-400);margin-bottom:14px"></div>
+<div style="display:flex;justify-content:space-between;gap:var(--space-8);font:400 16px/1.45 var(--font-body);color:var(--color-neutral-700)">
+<div><strong style="color:var(--color-text)">Sheet 1 of 2</strong> &mdash; the layering and the seam</div>
+<div>Continued overleaf: state and sync &middot; budgets and packaging &middot; the sixteen guardrails</div>
+</div>
+</footer>
+</section>
+
+<section class="page" data-screen-label="Sheet 2" style="box-sizing:border-box;width:100%;padding:74px 80px 62px;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body);display:flex;flex-direction:column;gap:0">
+
+<header style="display:flex;flex-direction:column;gap:0;padding-bottom:26px">
+<div style="height:9px;background:var(--color-text)"></div>
+<div style="display:flex;align-items:flex-end;justify-content:space-between;gap:var(--space-8);padding:20px 0 14px">
+<div style="display:flex;flex-direction:column;gap:6px">
+<div style="font:600 18px/1 var(--font-heading);letter-spacing:.28em;text-transform:uppercase;color:var(--color-accent-700)">Broodline &middot; Runtime Sheet No. 2</div>
+<h1 style="margin:0;font:600 76px/0.98 var(--font-heading);letter-spacing:-.022em;white-space:nowrap">State, budgets, guardrails</h1>
+</div>
+<div style="font:400 16px/1.45 var(--font-body);color:var(--color-neutral-700);text-align:right;padding-bottom:10px;max-width:420px">What the client is allowed to remember, what it is allowed to cost, and the sixteen rules that decide whether a change is a change or a different architecture.</div>
+</div>
+<div style="height:2px;background:var(--color-text)"></div>
+</header>
+
+<section style="padding-top:96px">
+<div style="display:grid;grid-template-columns:1fr 620px;gap:var(--space-8);align-items:end;padding-bottom:26px">
+<div>
+<div style="font:600 17px/1 var(--font-heading);letter-spacing:.16em;text-transform:uppercase;color:var(--color-accent-700)">&sect;7 &middot; State &amp; sync</div>
+<h2 style="margin:8px 0 0;font:600 52px/1.02 var(--font-heading);letter-spacing:-.012em">The client is a cache with an outbox</h2>
+</div>
+<p style="margin:0;font:400 19px/1.45 var(--font-body);color:var(--color-neutral-800)">It is never a source of truth. A cached balance is a <em>label</em>, not a number the client may do arithmetic on before spending.</p>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-8)">
+<div>
+<div style="font:600 16px/1 var(--font-heading);letter-spacing:.14em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:14px">What the client stores</div>
+<div style="display:grid;grid-template-columns:250px 1fr;gap:0 var(--space-4);font:400 17px/1.4 var(--font-body)">
+<div style="font-weight:600;padding:11px 0;border-top:1px solid var(--color-neutral-400)">Config bundle</div><div style="padding:11px 0;border-top:1px solid var(--color-neutral-400);color:var(--color-neutral-800)">Versioned and immutable, keyed by version &mdash; a new bundle is a new file, never a mutation</div>
+<div style="font-weight:600;padding:11px 0;border-top:1px solid var(--color-neutral-300)">Addressable content</div><div style="padding:11px 0;border-top:1px solid var(--color-neutral-300);color:var(--color-neutral-800)">Unity's cache, with a size ceiling and eviction</div>
+<div style="font-weight:600;padding:11px 0;border-top:1px solid var(--color-neutral-300)">Last <code style="font:400 16px/1 var(--font-body)">/v1/sync</code> snapshot</div><div style="padding:11px 0;border-top:1px solid var(--color-neutral-300);color:var(--color-neutral-800)">So a cold start renders instantly, then revalidates</div>
+<div style="font-weight:600;padding:11px 0;border-top:1px solid var(--color-neutral-300)">The outbox</div><div style="padding:11px 0;border-top:1px solid var(--color-neutral-300);color:var(--color-neutral-800)">Pending mutations, durable across a kill</div>
+<div style="font-weight:600;padding:11px 0;border-top:1px solid var(--color-neutral-300)">Preferences &amp; accessibility</div><div style="padding:11px 0;border-top:1px solid var(--color-neutral-300);color:var(--color-neutral-800)">Local only &mdash; they follow the device, not the account</div>
+<div style="font-weight:600;padding:11px 0;border-top:1px solid var(--color-neutral-300);border-bottom:1px solid var(--color-neutral-400)">Auth refresh token</div><div style="padding:11px 0;border-top:1px solid var(--color-neutral-300);border-bottom:1px solid var(--color-neutral-400);color:var(--color-neutral-800)">iOS Keychain, never in a file</div>
+</div>
+<div style="margin-top:26px;border-left:4px solid var(--color-accent-2);padding:4px 0 4px 18px">
+<div style="font:600 22px/1.2 var(--font-heading);color:var(--color-accent-2-700);margin-bottom:8px">Never treated as truth</div>
+<div style="font:400 17px/1.45 var(--font-body)">Balances &middot; splice outcomes &middot; cooldowns &middot; node yields &middot; immunity state &middot; matchmaking bands. Cached <em>for display</em> and overwritten by the next sync without a merge.</div>
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:26px">
+<div style="background:var(--color-accent-100);padding:22px 24px;box-shadow:var(--shadow-sm)">
+<div style="font:600 16px/1 var(--font-heading);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:14px">Cold start &mdash; no spinner on your own roster</div>
+<div style="display:grid;grid-template-columns:1fr 30px 1fr 30px 1fr;align-items:center;font:400 17px/1.35 var(--font-body)">
+<div><strong style="font:600 20px/1.2 var(--font-heading);display:block">Render cached</strong>The last snapshot, immediately</div>
+<div style="text-align:center;font-size:22px;color:var(--color-accent-700)">&rarr;</div>
+<div><strong style="font:600 20px/1.2 var(--font-heading);display:block">Call /v1/sync</strong>Config version checked first</div>
+<div style="text-align:center;font-size:22px;color:var(--color-accent-700)">&rarr;</div>
+<div><strong style="font:600 20px/1.2 var(--font-heading);display:block">Replace</strong>A stale trait table renders wrong pips</div>
+</div>
+</div>
+<div>
+<div style="font:600 16px/1 var(--font-heading);letter-spacing:.14em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:12px">&sect;9 &middot; Scenes and navigation</div>
+<ul style="margin:0;padding-left:20px;font:400 17px/1.5 var(--font-body)">
+<li style="margin-bottom:8px"><strong>One persistent root scene</strong>, everything else additive. The root holds the composition root, the network layer, the tab bar and the top bar with Splice Charges always visible.</li>
+<li style="margin-bottom:8px"><strong>Wave Defense loads additively</strong> and unloads on exit &mdash; the only 3D scene, and the only one with a per-frame budget worth defending.</li>
+<li style="margin-bottom:8px"><strong>Five tabs: Map &middot; Ark &middot; Splice &middot; Lab &middot; Allies.</strong> No Store tab. The bar is a <em>pure function</em> of campaign progress and Geneticist Tier &mdash; nothing stored, nothing to lose on reinstall; thresholds live in the config bundle.</li>
+<li style="margin-bottom:8px"><strong>Bottom sheets overlay, they don't push.</strong> The Codex opens from every trait pip in the app; a navigation destination would put it in every back stack.</li>
+<li><strong>One replay screen.</strong> Outcome and the three-boolean breach diagnosis are always primary; <em>Watch</em> is an action that appears only when the engine version matches. Scrubbing is a full re-run &mdash; roughly 20&nbsp;ms, so nobody notices.</li>
+</ul>
+</div>
+</div>
+</div>
+</section>
+
+<section style="padding-top:216px">
+<div style="display:grid;grid-template-columns:1fr 620px;gap:var(--space-8);align-items:end;padding-bottom:26px">
+<div>
+<div style="font:600 17px/1 var(--font-heading);letter-spacing:.16em;text-transform:uppercase;color:var(--color-accent-700)">&sect;3&ndash;6 &middot; Budgets</div>
+<h2 style="margin:8px 0 0;font:600 52px/1.02 var(--font-heading);letter-spacing:-.012em">The floor is set by the cheap devices</h2>
+</div>
+<p style="margin:0;font:400 19px/1.45 var(--font-body);color:var(--color-neutral-800)">Reference device: <strong>A13 with 3&nbsp;GB</strong> &mdash; iPhone&nbsp;11, iPhone&nbsp;SE (2020), iPad 9th gen. The consequential gap against the A14 band is memory, not GPU.</p>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-8)">
+
+<div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-3);margin-bottom:22px">
+<div><strong style="font:600 42px/1 var(--font-heading);display:block;letter-spacing:-.02em">60/30</strong><span style="font:400 16px/1.35 var(--font-body);color:var(--color-neutral-800)">fps target and fallback; worst frame carries a tick <em>and</em> a render in 16.6&nbsp;ms</span></div>
+<div><strong style="font:600 42px/1 var(--font-heading);display:block;letter-spacing:-.02em">600<span style="font:600 22px/1 var(--font-heading)">MB</span></strong><span style="font:400 16px/1.35 var(--font-body);color:var(--color-neutral-800)">peak. iOS terminates on memory pressure without a log worth reading</span></div>
+<div><strong style="font:600 42px/1 var(--font-heading);display:block;letter-spacing:-.02em">&lt;1<span style="font:600 22px/1 var(--font-heading)">ms</span></strong><span style="font:400 16px/1.35 var(--font-body);color:var(--color-neutral-800)">for the engine. <strong>Rendering owns essentially the whole budget</strong></span></div>
+</div>
+<sc-if value="{{ showDegradationLadder }}" hint-placeholder-val="{{ true }}">
+<div style="font:600 16px/1 var(--font-heading);letter-spacing:.14em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:12px">The degradation ladder &mdash; decided in advance</div>
+<div style="display:grid;grid-template-columns:130px 1fr;gap:0 var(--space-4);font:400 17px/1.4 var(--font-body)">
+<div style="font-weight:600;padding:10px 0;border-top:1px solid var(--color-neutral-400)">Under 40</div><div style="padding:10px 0;border-top:1px solid var(--color-neutral-400);color:var(--color-neutral-800)">Full fidelity &mdash; individual skinned meshes, full VFX</div>
+<div style="font-weight:600;padding:10px 0;border-top:1px solid var(--color-neutral-300)">40&ndash;70</div><div style="padding:10px 0;border-top:1px solid var(--color-neutral-300);color:var(--color-neutral-800)">Identical raider types collapse to instanced rendering; hit VFX pooled and capped</div>
+<div style="font-weight:600;padding:10px 0;border-top:1px solid var(--color-neutral-300)">Over 70</div><div style="padding:10px 0;border-top:1px solid var(--color-neutral-300);color:var(--color-neutral-800)">Animation rate halves for non-foreground entities; death VFX becomes one shared effect</div>
+<div style="font-weight:600;padding:10px 0;border-top:1px solid var(--color-neutral-300);border-bottom:1px solid var(--color-neutral-400)">Still short</div><div style="padding:10px 0;border-top:1px solid var(--color-neutral-300);border-bottom:1px solid var(--color-neutral-400);color:var(--color-neutral-800)"><strong>Drop to 30&nbsp;fps for the remainder of the wave.</strong> Last rung, because it is the most visible &mdash; and it latches, because a frame rate that hunts reads worse than either</div>
+</div>
+<p style="margin:14px 0 0;font:400 16px/1.45 var(--font-body);color:var(--color-neutral-800)">The ladder keys off the engine's <strong>deterministic entity count</strong>, so two players watching the same replay see the same fidelity. Degradation touches rendering only; it can never touch <code style="font:400 15px/1 var(--font-body)">SimState</code>.</p>
+</sc-if>
+</div>
+
+<div>
+<div style="font:600 16px/1 var(--font-heading);letter-spacing:.14em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:12px">&sect;6 &middot; Install size is a conversion metric</div>
+<div style="font:600 34px/1.05 var(--font-heading);margin-bottom:4px">Under 150&nbsp;MB</div>
+<div style="font:400 17px/1.4 var(--font-body);color:var(--color-neutral-800);margin-bottom:16px">Estimated at 117&ndash;132&nbsp;MB. It is measured in installs lost, not megabytes.</div>
+<div style="display:flex;height:54px;box-shadow:var(--shadow-sm)">
+<div style="flex:50 0 0;background:var(--color-accent-800);display:flex;align-items:center;justify-content:center;font:600 16px/1 var(--font-heading);color:var(--color-neutral-100)">50</div>
+<div style="flex:25 0 0;background:var(--color-accent-700);display:flex;align-items:center;justify-content:center;font:600 16px/1 var(--font-heading);color:var(--color-neutral-100)">25</div>
+<div style="flex:16 0 0;background:var(--color-accent-600);display:flex;align-items:center;justify-content:center;font:600 16px/1 var(--font-heading);color:var(--color-accent-900)">16</div>
+<div style="flex:15 0 0;background:var(--color-accent-500);display:flex;align-items:center;justify-content:center;font:600 16px/1 var(--font-heading);color:var(--color-accent-900)">15</div>
+<div style="flex:12 0 0;background:var(--color-accent-400);display:flex;align-items:center;justify-content:center;font:600 16px/1 var(--font-heading);color:var(--color-accent-900)">12</div>
+<div style="flex:8 0 0;background:var(--color-accent-300)"></div>
+<div style="flex:4 0 0;background:var(--color-accent-200)"></div>
+<div style="flex:2 0 0;background:var(--color-accent-100)"></div>
+<div style="flex:18 0 0;border:2px dashed var(--color-neutral-500);border-left:none;display:flex;align-items:center;justify-content:center;font:400 15px/1 var(--font-body);color:var(--color-neutral-700)">head&shy;room</div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px var(--space-4);margin-top:12px;font:400 16px/1.4 var(--font-body);color:var(--color-neutral-800)">
+<div><strong>50</strong> Unity runtime, URP + IL2CPP</div>
+<div><strong>25</strong> one region environment</div>
+<div><strong>16</strong> four rigged species</div>
+<div><strong>15</strong> UI atlases</div>
+<div><strong>12</strong> audio</div>
+<div><strong>8</strong> early raiders</div>
+<div><strong>4</strong> twelve trait attachments</div>
+<div><strong>2</strong> Latin fonts</div>
+</div>
+<p style="margin:14px 0 18px;font:400 16px/1.45 var(--font-body);color:var(--color-neutral-800)">The two dominant variables &mdash; the engine binary and the region environment &mdash; are not things that can be trimmed late.</p>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);font:400 16px/1.45 var(--font-body)">
+<div>
+<div style="font:600 18px/1.2 var(--font-heading);margin-bottom:8px">In the binary</div>
+The first hour &middot; <strong>Vetch, Ember, Hollow, Pale</strong> fully rigged &middot; waves 1&ndash;6 and their raiders &middot; one region &middot; shared UI, icon atlas, trait pips &middot; launch-locale strings
+</div>
+<div>
+<div style="font:600 18px/1.2 var(--font-heading);margin-bottom:8px">Streamed</div>
+Remaining regions and terrain families &middot; <strong>Skitter and Loam</strong> (day 2 and 3, prefetched from first launch) &middot; chapters 2&ndash;8 &middot; event and seasonal content &middot; cosmetics &middot; CJK fonts
+</div>
+</div>
+<p style="margin:14px 0 0;font:400 16px/1.45 var(--font-body);color:var(--color-neutral-800)"><strong>Content is fetched ahead of need, never at the moment of need</strong> &mdash; prefetch on the map, on wave select, on idle. A failed fetch <em>degrades and explains</em>; it never blocks on a spinner. The first hour never depends on the network.</p>
+</div>
+
+<div>
+<div style="background:var(--color-neutral-200);padding:24px;box-shadow:var(--shadow-sm)">
+<div style="font:600 16px/1 var(--font-heading);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-2-700);margin-bottom:12px">&sect;4 &middot; Phase 0 gate</div>
+<div style="font:600 32px/1.08 var(--font-heading);margin-bottom:12px">Wave 44, on a real A13, with real meshes</div>
+<p style="margin:0 0 14px;font:400 17px/1.45 var(--font-body)">Wave 44 and five of chapter 8's waves put close to <strong>a hundred entities</strong> on the board &mdash; sixty Skirmishers, three Broods becoming thirty-nine, five creatures. Measured at both 60 and 30&nbsp;fps and against the 600&nbsp;MB ceiling.</p>
+<p style="margin:0 0 14px;font:400 17px/1.45 var(--font-body);color:var(--color-neutral-800)">It runs in Phase 1 alongside the rig proof, and for the same reason: <strong>it can invalidate an assumption everything downstream is built on.</strong> If a hundred skinned meshes cannot hold 60&nbsp;fps the answer is a rendering-strategy change &mdash; impostors, baked vertex animation, fewer unique bodies &mdash; and that changes the art budget.</p>
+<p style="margin:0;font:400 17px/1.45 var(--font-body);color:var(--color-neutral-800)">Two things the engine must supply: <strong>identical entities instanced, not individually animated</strong>, and a <strong>per-tick entity count</strong>, so the render layer degrades <em>before</em> it drops frames.</p>
+</div>
+
+<div style="margin-top:26px">
+<div style="font:600 16px/1 var(--font-heading);letter-spacing:.14em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:12px">&sect;5 &middot; Creatures are assembled, not authored</div>
+<p style="margin:0 0 10px;font:400 17px/1.45 var(--font-body)">A species body, up to two trait attachments on named sockets, an Instinct marker. Six species &times; twelve traits &times; two slots is far too many combinations to author.</p>
+<ul style="margin:0;padding-left:20px;font:400 17px/1.45 var(--font-body);color:var(--color-neutral-800)">
+<li style="margin-bottom:6px">Assemblies are cached by <code style="font:400 16px/1 var(--font-body)">(species, traitA, traitB)</code> &mdash; the roster shows dozens of cards.</li>
+<li style="margin-bottom:6px">Attachments are individually addressable, so a new trait part ships as <em>content</em>, not an app update.</li>
+<li>The creature card is a 2D render of the <em>same</em> assembly. A second representation is how the roster and the battlefield end up disagreeing about what a player owns.</li>
+</ul>
+</div>
+
+<div style="margin-top:26px">
+<div style="font:600 16px/1 var(--font-heading);letter-spacing:.14em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:12px">&sect;10 &middot; Build configuration</div>
+<div style="display:grid;grid-template-columns:150px 1fr;gap:0 var(--space-3);font:400 16px/1.4 var(--font-body)">
+<div style="font-weight:600;padding:8px 0;border-top:1px solid var(--color-neutral-300)">Backend</div><div style="padding:8px 0;border-top:1px solid var(--color-neutral-300);color:var(--color-neutral-800)">IL2CPP, ARM64</div>
+<div style="font-weight:600;padding:8px 0;border-top:1px solid var(--color-neutral-300)">Graphics</div><div style="padding:8px 0;border-top:1px solid var(--color-neutral-300);color:var(--color-neutral-800)">Metal</div>
+<div style="font-weight:600;padding:8px 0;border-top:1px solid var(--color-neutral-300)">Orientation</div><div style="padding:8px 0;border-top:1px solid var(--color-neutral-300);color:var(--color-neutral-800)">Portrait only &mdash; but <em>non-continuously resizable</em>, not fixed-size. Do not widen the plist to all four orientations</div>
+<div style="font-weight:600;padding:8px 0;border-top:1px solid var(--color-neutral-300)">Stripping</div><div style="padding:8px 0;border-top:1px solid var(--color-neutral-300);color:var(--color-neutral-800)">Enabled, with an explicit <code style="font:400 15px/1 var(--font-body)">link.xml</code>. Preserve <code style="font:400 15px/1 var(--font-body)">Broodline.Api.Client</code> and <code style="font:400 15px/1 var(--font-body)">Broodline.Model</code> &mdash; generated clients deserialize into types nothing statically references</div>
+<div style="font-weight:600;padding:8px 0;border-top:1px solid var(--color-neutral-300);border-bottom:1px solid var(--color-neutral-400)">Layout</div><div style="padding:8px 0;border-top:1px solid var(--color-neutral-300);border-bottom:1px solid var(--color-neutral-400);color:var(--color-neutral-800)">Safe-area driven, no fixed pixel positions, a declared minimum window size, combat camera framed by a design-safe region. Cheap as a rule from screen one, expensive as a retrofit across fifty-nine</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<sc-if value="{{ showGuardrails }}" hint-placeholder-val="{{ true }}">
+<section style="padding-top:196px">
+<div style="height:3px;background:var(--color-text);margin-bottom:20px"></div>
+<div style="display:grid;grid-template-columns:1fr 620px;gap:var(--space-8);align-items:end;padding-bottom:22px">
+<div>
+<div style="font:600 17px/1 var(--font-heading);letter-spacing:.16em;text-transform:uppercase;color:var(--color-accent-700)">&sect;11</div>
+<h2 style="margin:8px 0 0;font:600 52px/1.02 var(--font-heading);letter-spacing:-.012em">Sixteen guardrails</h2>
+</div>
+<p style="margin:0;font:400 19px/1.45 var(--font-body);color:var(--color-neutral-800)">If a change breaks one of these, it is not a change &mdash; it is a different architecture. Pin this half of the sheet at eye level.</p>
+</div>
+<div style="column-count:4;column-gap:var(--space-8);font:400 17px/1.45 var(--font-body)">
+<div style="break-inside:avoid;margin-bottom:11px"><strong style="color:var(--color-accent-700)">01</strong> &nbsp;<code style="font:400 16px/1 var(--font-body)">Broodline.UI</code> never references <code style="font:400 16px/1 var(--font-body)">Broodline.Sim</code></div>
+<div style="break-inside:avoid;margin-bottom:11px"><strong style="color:var(--color-accent-700)">02</strong> &nbsp;<code style="font:400 16px/1 var(--font-body)">Broodline.View</code> renders simulation output and never derives it</div>
+<div style="break-inside:avoid;margin-bottom:11px"><strong style="color:var(--color-accent-700)">03</strong> &nbsp;A dropped frame never drops a simulation tick</div>
+<div style="break-inside:avoid;margin-bottom:11px"><strong style="color:var(--color-accent-700)">04</strong> &nbsp;Rendering degradation keys off the engine's deterministic entity count and never touches <code style="font:400 16px/1 var(--font-body)">SimState</code></div>
+<div style="break-inside:avoid;margin-bottom:11px"><strong style="color:var(--color-accent-700)">05</strong> &nbsp;Input is recorded at a tick index, never a timestamp</div>
+<div style="break-inside:avoid;margin-bottom:11px"><strong style="color:var(--color-accent-700)">06</strong> &nbsp;The client is a cache with an outbox and is never a source of truth</div>
+<div style="break-inside:avoid;margin-bottom:11px"><strong style="color:var(--color-accent-700)">07</strong> &nbsp;Server-authoritative values are cached for display only and are never operated on</div>
+<div style="break-inside:avoid;margin-bottom:11px"><strong style="color:var(--color-accent-700)">08</strong> &nbsp;Idempotency keys are generated when the action is taken, not when it is sent</div>
+<div style="break-inside:avoid;margin-bottom:11px"><strong style="color:var(--color-accent-700)">09</strong> &nbsp;The first hour ships in the binary and never depends on the network</div>
+<div style="break-inside:avoid;margin-bottom:11px"><strong style="color:var(--color-accent-700)">10</strong> &nbsp;A failed content fetch degrades and explains; it never blocks on a spinner</div>
+<div style="break-inside:avoid;margin-bottom:11px"><strong style="color:var(--color-accent-700)">11</strong> &nbsp;Creature assemblies are cached by <code style="font:400 16px/1 var(--font-body)">(species, traitA, traitB)</code></div>
+<div style="break-inside:avoid;margin-bottom:11px"><strong style="color:var(--color-accent-700)">12</strong> &nbsp;The probability table renders published odds and never computes them</div>
+<div style="break-inside:avoid;margin-bottom:11px"><strong style="color:var(--color-accent-700)">13</strong> &nbsp;Layout is safe-area driven with no fixed pixel positions, and declares a minimum window size</div>
+<div style="break-inside:avoid;margin-bottom:11px"><strong style="color:var(--color-accent-700)">14</strong> &nbsp;The frame-rate degradation rung latches for the wave and never oscillates</div>
+<div style="break-inside:avoid;margin-bottom:11px"><strong style="color:var(--color-accent-700)">15</strong> &nbsp;The first hour ships four species; nothing in it waits on a download</div>
+<div style="break-inside:avoid;margin-bottom:11px"><strong style="color:var(--color-accent-700)">16</strong> &nbsp;Tab reveal is derived from progression and stored nowhere</div>
+</div>
+</section>
+</sc-if>
+
+<sc-if value="{{ showOpenQuestions }}" hint-placeholder-val="{{ true }}">
+<section style="padding-top:120px">
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-8);padding-top:20px;border-top:1px solid var(--color-neutral-400)">
+<div>
+<div style="font:600 16px/1 var(--font-heading);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-2-700);margin-bottom:10px">Still open &mdash; 01</div>
+<div style="font:600 21px/1.2 var(--font-heading);margin-bottom:7px">Does Unity&nbsp;6 expose what iPadOS&nbsp;27 now needs?</div>
+<div style="font:400 17px/1.45 var(--font-body);color:var(--color-neutral-800)">The scene-based lifecycle and <code style="font:400 16px/1 var(--font-body)">UIWindowScene.sizeRestriction</code> are assumed available and unverified. Check it during the Phase 0 proof &mdash; that proof already puts a real build on a real device.</div>
+</div>
+<div>
+<div style="font:600 16px/1 var(--font-heading);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-2-700);margin-bottom:10px">Still open &mdash; 02</div>
+<div style="font:600 21px/1.2 var(--font-heading);margin-bottom:7px">Does 150&nbsp;MB survive real art?</div>
+<div style="font:400 17px/1.45 var(--font-body);color:var(--color-neutral-800)">The budget is an estimate against stylised mobile assets. The first honest measurement comes from the rig proof, which finishes two species &mdash; enough to extrapolate the other two.</div>
+</div>
+<div>
+<div style="font:600 16px/1 var(--font-heading);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-2-700);margin-bottom:10px">Still open &mdash; 03</div>
+<div style="font:600 21px/1.2 var(--font-heading);margin-bottom:7px">Re-verify the iPad rules before the layout work</div>
+<div style="font:400 17px/1.45 var(--font-body);color:var(--color-neutral-800)">&sect;10 was verified in September 2026 against beta-period behaviour, with acknowledged gaps between Apple's stated intent and shipping behaviour. Do not trust that paragraph twice.</div>
+</div>
+</div>
+</section>
+</sc-if>
+
+<footer style="margin-top:auto;padding-top:40px">
+<div style="height:1px;background:var(--color-neutral-400);margin-bottom:14px"></div>
+<div style="display:flex;justify-content:space-between;gap:var(--space-8);font:400 16px/1.45 var(--font-body);color:var(--color-neutral-700)">
+<div style="max-width:60%"><strong style="color:var(--color-text)">Owns</strong> client layering and assembly boundaries &middot; the sim-to-render contract &middot; frame and memory budgets &middot; the degradation ladder &middot; runtime creature assembly &middot; content packaging and install size &middot; local persistence &middot; the offline model and outbox &middot; scene and navigation structure &middot; build configuration.</div>
+<div style="max-width:36%;text-align:right"><strong style="color:var(--color-text)">Does not own</strong> the simulation, the socket standard, screen contents and copy, art direction, accessibility settings, or anything server-side.</div>
+</div>
+</footer>
+
+</section>
+</doc-page>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showGuardrails&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Sheet density&quot;},&quot;showOpenQuestions&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Sheet density&quot;},&quot;showDegradationLadder&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Sheet density&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      showGuardrails: this.props.showGuardrails ?? true,
+      showOpenQuestions: this.props.showOpenQuestions ?? true,
+      showDegradationLadder: this.props.showDegradationLadder ?? true,
+    };
+  }
+}
+
+</script>
+</body>
+</html>
