@@ -31,6 +31,21 @@
 # by a 600-second no-output watchdog while blocked on a silent multi-minute
 # cold build — streaming avoids that, and it is also simply the right design
 # for a CI log a human might be reading while it runs.
+#
+# Fix round 1, Finding 1: `grep -q "result=Succeeded"` only proves *a* build
+# succeeded, not which scripting backend it used — a silently-Mono build
+# would satisfy it too. Once the build log exists, this script also asserts
+# the backend/artifact evidence DeterminismHarness.cs itself now throws on
+# (see its pre-build readback check and ReportRuntimeArtifacts), so a future
+# softening of the harness's own guard alone is not enough to make this gate
+# pass on Mono.
+#
+# Fix round 1, Finding 2: a trap (EXIT/INT/TERM, installed below once
+# restore_known_churn is defined) guarantees the ProjectSettings.asset /
+# URP-asset restoration runs even if this script or Unity is killed
+# mid-build — Ctrl-C, a CI job hitting `timeout-minutes`, an OOM — not only
+# on the normal completion path. Verified this does not change the normal
+# PASS (exit 0) / FAIL (exit 1) behavior; see the fix-round-1 report.
 set -uo pipefail
 cd "$(dirname "$0")/../.."
 
@@ -105,6 +120,25 @@ restore_known_churn() {
   done
 }
 
+# Belt-and-suspenders for the explicit restore_known_churn call below (which
+# still runs first, right after the Unity step, to keep the dirty window as
+# short as possible on the normal path): this trap guarantees the same
+# restoration happens however the script actually leaves, including a kill
+# between the backend being set inside Unity and that explicit call ever
+# being reached. restore_known_churn itself never calls exit, so it cannot
+# clobber an exit code already decided elsewhere — verified: a bare
+# `trap restore_known_churn EXIT` does not change $? even when
+# restore_known_churn's own last command fails. INT/TERM get their own
+# handlers because bash only re-checks a pending trap once a foreground
+# child returns control to it — a signal delivered to just this script's own
+# PID while it is blocked on Unity would otherwise sit pending until Unity
+# exits on its own; delivered to the whole process group (how a terminal
+# Ctrl-C and a CI cancellation actually signal a job) it fires promptly,
+# which is what was verified here.
+trap restore_known_churn EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
 echo "--- CoreCLR ---"
 rm -f "$CORPUS_CORECLR"
 if ! BROODLINE_CORPUS_OUT="$CORPUS_CORECLR" \
@@ -134,6 +168,28 @@ if [ "$build_code" -ne 0 ] || ! grep -q "result=Succeeded" "$BUILD_LOG"; then
   echo "FAIL: IL2CPP player build failed (unity exit $build_code) — see $BUILD_LOG"
   exit 1
 fi
+
+# Fix round 1, Finding 1: result=Succeeded alone says nothing about which
+# scripting backend actually shipped — a silently-Mono build satisfies it
+# just as well. DeterminismHarness.cs now refuses to return a Mono player on
+# its own (it throws, which would already have failed the check above via a
+# non-zero unity exit), but that guard lives in Unity C# code a future edit
+# could soften without this script noticing. Assert the same evidence
+# independently, against the literal build log text, so softening the
+# harness alone is not enough to make this gate pass on Mono.
+if ! grep -q "building with backend=IL2CPP" "$BUILD_LOG"; then
+  echo "FAIL: build log never shows IL2CPP read back from PlayerSettings before the build — see $BUILD_LOG"
+  exit 1
+fi
+if ! grep -q "GameAssembly.dylib present=True" "$BUILD_LOG"; then
+  echo "FAIL: build log does not confirm GameAssembly.dylib shipped in the player bundle (IL2CPP evidence) — see $BUILD_LOG"
+  exit 1
+fi
+if grep -q "MonoBleedingEdge/ present=True" "$BUILD_LOG"; then
+  echo "FAIL: build log shows a MonoBleedingEdge/ tree in the player bundle — that is a Mono player, not IL2CPP — see $BUILD_LOG"
+  exit 1
+fi
+
 [ -d "$PLAYER_APP" ] || { echo "FAIL: build reported success but $PLAYER_APP is missing"; exit 1; }
 
 echo "--- Unity / IL2CPP: run the player ---"

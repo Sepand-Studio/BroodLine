@@ -19,7 +19,7 @@ note: >
 
 Bible §10.3 commits to attachment-point rigging and states the reason plainly: it is what lets six species carry two swappable trait parts and an Instinct cue without hand-authoring every combination. Twenty-four creature assets and twelve raider assets rest on it.
 
-**If the modular approach fails, the budget is not 36 assets.** It is six bodies × the combinations that actually need hand-authoring, which is a different project with a different cost and a different art direction. That is worth two weeks of proof before it is worth two months of production.
+**If the modular approach fails, the budget is not thirty-odd assets.** It is six bodies × the combinations that actually need hand-authoring, which is a different project with a different cost and a different art direction. That is worth two weeks of proof before it is worth two months of production.
 
 **The specific risk.** Twelve trait parts must each mount on any of six bodies — seventy-two fit combinations. The bodies are deliberately dissimilar; bible §10.2 requires all six distinguishable as flat black shapes at 40px, which means a low four-legged dome and a broad hanging wing arc are both in scope. A Cinder crest authored to sit on Ember's head crest has to also sit on Loam, which has no legs and a blunt snout.
 
@@ -177,7 +177,7 @@ For whoever is briefed.
 | Triangles per body | **7000** | Wave 44 puts 104 entities on screen at once; 10000 held 60 fps on the proxy, less the 30% margin |
 | Bones per rig | **Not a constraint** | 80 bones per rig held 60 fps at every triangle count; no ceiling was reached |
 | Materials per body | **2** | Each material is a draw call before batching |
-| Trait part | Within the body budget, not additional | A body carries two parts and an Instinct cue |
+| Trait part | Within the body budget, not additional | A body carries two parts, and a crown cue if §9.3 keeps them |
 
 **Bones are measured, and they are not what constrains you.** The Phase 0 harness now animates every bone every frame and sweeps rigs from 12 to 80 bones. Going from 12 bones to 80 — nearly seven times as many — costs **0.3 to 0.7 ms of CPU across all 104 on-screen creatures combined**, against a 16.667 ms frame, and about 5 MB of memory. Every bone count tested held 60 fps at every triangle count that passed, so no bone ceiling was found and none is quoted: inventing one from an unreached limit would be worse than saying it is not binding.
 
@@ -191,7 +191,7 @@ For whoever is briefed.
 
 **Deliverables:** two rigged creature bodies with three sockets each, twelve socket-agnostic trait part assets, one Instinct cue with a trigger state, one raider body with two kits, a growth curve on one rig, and forty-eight combination renders plus 40px silhouette sheets.
 
-**Total roster this proves out:** 36 assets — 6 creature bodies, 12 trait parts, 6 Instinct cues, 4 raider bodies, 8 variant kits.
+**Total roster this proves out:** 30 assets — 6 creature bodies, 12 trait parts, 4 raider bodies, 8 variant kits — **plus up to 6 Instinct cues, contingent** on §9.3. That contingency does not change anything asked for above: the proof delivers one cue either way, because it is what proves `sk_crown` works.
 
 **The three shape rules at bible §10.2 go to the illustrator verbatim, with no exceptions.** They are the load-bearing part of the brief and they are already written to be handed over.
 

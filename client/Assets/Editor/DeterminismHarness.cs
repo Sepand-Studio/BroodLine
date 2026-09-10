@@ -15,6 +15,16 @@ using UnityEngine;
 /// IL2CPP, the runtime that actually ships, went untested. So the gate builds
 /// a real player and runs that.
 ///
+/// Fix round 1, Finding 1: this harness refuses to hand back a Mono player.
+/// PlayerSettings.SetScriptingBackend has no return value, so two independent
+/// checks confirm it actually took effect: the requested backend is read back
+/// immediately (throws before the build even starts if it isn't IL2CPP), and
+/// the built bundle's own artifacts are inspected afterward (throws if
+/// GameAssembly.dylib is missing or a MonoBleedingEdge/ tree exists). Either
+/// throw fails the Unity process non-zero, which cross-runtime-diff.sh also
+/// checks for independently against the build log text, so softening one
+/// guard alone does not silently reopen this gap.
+///
 ///   Unity -batchmode -quit -projectPath client \
 ///         -executeMethod DeterminismHarness.BuildMacIl2CppPlayer \
 ///         -logFile - [-corpusPlayerOut <path/to/Name.app>]
@@ -84,10 +94,25 @@ public static class DeterminismHarness
 
             // Read them back rather than trusting the setters: this line is the
             // build log's own record of which runtime it is about to compile for.
-            Debug.Log(Tag + "building with backend=" +
-                PlayerSettings.GetScriptingBackend(NamedBuildTarget.Standalone) +
+            var readBackBackend = PlayerSettings.GetScriptingBackend(NamedBuildTarget.Standalone);
+            Debug.Log(Tag + "building with backend=" + readBackBackend +
                 " architecture=" + PlayerSettings.GetArchitecture(NamedBuildTarget.Standalone) +
                 " (OSArchitecture.ARM64=" + (int)OSArchitecture.ARM64 + ")");
+
+            // Fix round 1, Finding 1: SetScriptingBackend has no return value to
+            // check, so reading it straight back is the only way to know it took
+            // effect — and until now nothing did anything with the value once
+            // logged. If a future Unity upgrade changes what
+            // NamedBuildTarget.Standalone means to this setter and it silently
+            // no-ops, the build below would still succeed, just as a Mono player,
+            // and every step downstream — both hash files, the diff, "PASS: 500
+            // scenarios agree" — would go green having executed zero IL2CPP
+            // instructions. Refuse right here, before spending a build (cold:
+            // ~10 minutes) on a player nobody wants.
+            if (readBackBackend != ScriptingImplementation.IL2CPP)
+                throw new Exception(Tag + "refusing to build: requested IL2CPP but " +
+                    "PlayerSettings.GetScriptingBackend(Standalone) reads back " + readBackBackend +
+                    " -- SetScriptingBackend did not take effect");
 
             // Exactly one scene, and not EditorBuildSettings' list: the gate
             // must not start depending on whatever someone last ticked in the
@@ -136,16 +161,38 @@ public static class DeterminismHarness
         }
     }
 
-    /// Logs which runtime actually landed in the bundle. IL2CPP compiles the
-    /// managed code to native and ships GameAssembly.dylib; a Mono player ships
-    /// a MonoBleedingEdge/ tree and no GameAssembly. Naming both means the log
-    /// distinguishes them rather than just asserting one.
+    /// Logs which runtime actually landed in the bundle, and refuses to hand
+    /// back a Mono player. IL2CPP compiles the managed code to native and ships
+    /// GameAssembly.dylib; a Mono player ships a MonoBleedingEdge/ tree and no
+    /// GameAssembly. This is the harness's second, independent check against
+    /// PlayerSettings.SetScriptingBackend silently no-oping (see the readback
+    /// check in BuildMacIl2CppPlayer above) — this one inspects what the build
+    /// pipeline actually emitted, rather than what PlayerSettings claims was
+    /// requested, so a mismatch between the two is still caught. A harness that
+    /// returns a Mono player is the bug: it throws rather than merely logging.
     static void ReportRuntimeArtifacts(string appPath)
     {
         var gameAssembly = Path.Combine(appPath, "Contents/Frameworks/GameAssembly.dylib");
-        var monoDir = Path.Combine(appPath, "Contents/Frameworks/MonoBleedingEdge");
-        Debug.Log(Tag + "GameAssembly.dylib present=" + File.Exists(gameAssembly) +
-                  "  MonoBleedingEdge/ present=" + Directory.Exists(monoDir));
+        // Fix round 1: verified against a real Mono build (Task 7 fix-round-1
+        // Test B) that Unity 6000.6 places this tree directly under Contents/,
+        // not Contents/Frameworks/ — the original path here never matched
+        // anything on a real Mono player, so this OR's second arm was always
+        // False regardless of the actual backend. GameAssembly.dylib's path
+        // (above) was independently confirmed correct against both a real
+        // IL2CPP build (Step 3) and this same real Mono build, so it alone
+        // already made the refusal correct either way — this corrects the
+        // second, previously-dead signal rather than papering over it.
+        var monoDir = Path.Combine(appPath, "Contents/MonoBleedingEdge");
+        bool hasGameAssembly = File.Exists(gameAssembly);
+        bool hasMonoTree = Directory.Exists(monoDir);
+        Debug.Log(Tag + "GameAssembly.dylib present=" + hasGameAssembly +
+                  "  MonoBleedingEdge/ present=" + hasMonoTree);
+
+        if (!hasGameAssembly || hasMonoTree)
+            throw new Exception(Tag + "refusing to return a Mono player: expected " +
+                "GameAssembly.dylib present=True and MonoBleedingEdge/ present=False, got " +
+                "GameAssembly.dylib present=" + hasGameAssembly +
+                " MonoBleedingEdge/ present=" + hasMonoTree);
     }
 
     /// Returns the value following <flag> on Unity's command line, or null.

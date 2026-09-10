@@ -29,6 +29,17 @@ on:
     paths:
       - 'engine/**'
       - 'tests/engine/**'
+      # Fix round 1, Finding 3: the original two paths cover the simulation
+      # code the corpus runs, but not the gate's own machinery — a change
+      # here can silently gut the gate (softening the backend guard below is
+      # exactly Finding 1's failure mode) and still land with a green board
+      # if nothing watches these paths too.
+      - 'client/Assets/Editor/DeterminismHarness.cs'
+      - 'client/Assets/Determinism/**'
+      - 'implementation/scripts/cross-runtime-diff.sh'
+      - '.github/workflows/determinism.yml'
+      - 'client/ProjectSettings/ProjectSettings.asset'
+      - 'Broodline.sln'
   schedule:
     # Nightly at 09:00 UTC.
     - cron: '0 9 * * *'

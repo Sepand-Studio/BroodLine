@@ -1275,6 +1275,26 @@ is used only for the one thing it's actually fit for: driving a build.
   build succeeds, and reusing `SampleScene.unity` was rejected to avoid
   coupling the determinism gate to unrelated URP rendering assets.
 
+**Folded back (fix round 1):** `DeterminismHarness.BuildMacIl2CppPlayer` now
+refuses to hand back a Mono player rather than only logging which backend
+shipped. Two independent checks guard this: the requested backend is read
+back from `PlayerSettings` immediately after being set (throws before the
+build starts if it isn't IL2CPP — catches `SetScriptingBackend` silently
+no-oping, e.g. a future Unity upgrade changing what
+`NamedBuildTarget.Standalone` means to that setter), and `ReportRuntimeArtifacts`
+inspects the built bundle afterward (throws if `GameAssembly.dylib` is
+missing or a `MonoBleedingEdge/` tree exists — catches the build pipeline
+itself disagreeing with what `PlayerSettings` claimed). Verified against a
+real Mono build (Task 7 fix-round-1 report), which also surfaced a real bug
+in the second check: Unity 6000.6 ships `MonoBleedingEdge/` directly under
+`Contents/`, not `Contents/Frameworks/` as originally checked, so that arm
+of the check was always `False` regardless of the actual backend. Corrected
+to `Contents/MonoBleedingEdge`. `GameAssembly.dylib`'s path was independently
+confirmed correct against both a real IL2CPP build (Step 3 above) and this
+same real Mono build, so the refusal was already correct either way on that
+signal alone — this fixes the previously-dead second signal rather than
+papering over it.
+
 Both files compile against the same `Broodline.Sim` assembly CoreCLR also
 runs (`Broodline.Sim.asmdef` is `autoReferenced`, so no new asmdef was
 needed) — this is genuinely the same IL2CPP-compiled `Corpus.RunScenario`,
@@ -1482,6 +1502,50 @@ found while building the real player rather than assuming one:
    workflow's `timeout-minutes` (Step 7) and what a first-time local runner
    should expect before assuming it has hung.
 
+**Folded back (fix round 1):** two gaps closed, because `grep -q
+"result=Succeeded"` and the normal completion path alone were not enough:
+
+1. **Backend/artifact assertions**, added right after the existing
+   `result=Succeeded` check: `grep -q "building with backend=IL2CPP"`,
+   `grep -q "GameAssembly.dylib present=True"`, and a negative check that
+   `"MonoBleedingEdge/ present=True"` never appears. `result=Succeeded` alone
+   proves *a* build succeeded, not which scripting backend it used — a
+   silently-Mono build satisfies it too. `DeterminismHarness.cs` now refuses
+   to return a Mono player on its own (Step 3 above), but that guard lives in
+   Unity C# code a future edit could soften without this script noticing;
+   these three assertions read the same evidence independently from the
+   literal build log text, so softening the harness alone is not enough to
+   make this gate pass on Mono. Proved for the right reason, not just wired:
+   a real forced-Mono run was watched failing via the harness's own
+   pre-build guard (message naming the backend, Unity exit 1); a second real
+   forced-Mono run, with the harness's guards deliberately reverted to their
+   pre-fix log-only behavior, was watched failing via these script-side
+   assertions instead (the `backend=IL2CPP` check specifically); and a third
+   real forced-Mono run, with only the pre-build guard neutralized, was
+   watched failing via the harness's post-build artifact throw, with the
+   corrected `MonoBleedingEdge` path now correctly reading `present=True`.
+   See the fix-round-1 report for all three transcripts, and the final
+   confirmation that a genuine IL2CPP pass still logs text these same
+   assertions accept (`backend=IL2CPP`, `GameAssembly.dylib present=True`).
+2. **A trap** (`EXIT`, `INT`, `TERM`), installed once `restore_known_churn`
+   is defined: `trap restore_known_churn EXIT; trap 'exit 130' INT; trap
+   'exit 143' TERM`. Without it, a kill between the backend being set inside
+   Unity and the script's own explicit `restore_known_churn` call ever being
+   reached — Ctrl-C, a CI job hitting `timeout-minutes`, an OOM — strands
+   `client/ProjectSettings/ProjectSettings.asset` mid-build. The explicit
+   call after the Unity step still runs first on the normal path, keeping
+   the dirty window as short as possible; the trap is the safety net for
+   every other way the script can leave. Verified in isolation (real
+   transcripts in the fix-round-1 report): a bare `trap restore_known_churn
+   EXIT` does not clobber an already-decided exit code even when
+   `restore_known_churn`'s own last command fails, and `INT`/`TERM` signalled
+   at the whole process group — how a terminal Ctrl-C and a CI cancellation
+   actually deliver a signal to a running pipeline — interrupt promptly and
+   restore before exiting 130/143 respectively. Also verified directly
+   against this real script with the real trap installed: the normal PASS
+   path still exits 0, and a real FAIL path (the forced-Mono runs above)
+   still exits 1.
+
 - [ ] **Step 5: Run it and see it pass**
 
 ```bash
@@ -1518,6 +1582,17 @@ path. Whether a `[self-hosted, macOS]` runner is actually registered for
 this repository cannot be verified from outside GitHub's settings — this
 workflow may ship correct but un-runnable until one is registered, and that
 should be stated plainly rather than implied otherwise.
+
+**Folded back (fix round 1):** the push trigger's paths were extended beyond
+`engine/**`/`tests/engine/**` to also watch the gate's own machinery:
+`client/Assets/Editor/DeterminismHarness.cs` (which selects the backend —
+exactly the failure mode Step 3's fix-round-1 note above addresses),
+`client/Assets/Determinism/**`, `implementation/scripts/cross-runtime-diff.sh`
+itself, this workflow file, `client/ProjectSettings/ProjectSettings.asset`
+(whose `productName` the script's `PLAYER_BIN` path hardcodes as
+`"Broodline Bench"`), and `Broodline.sln`. A change to any of these could
+silently gut the gate and still land with a green board if nothing watched
+for it.
 
 - [ ] **Step 8: Commit**
 
