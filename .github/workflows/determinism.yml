@@ -1,0 +1,49 @@
+name: Determinism gate
+
+# Proves the engine produces byte-identical results on both runtimes it
+# actually ships on: CoreCLR (server/tools) and Unity's IL2CPP (client).
+# See implementation/scripts/cross-runtime-diff.sh for how, and
+# implementation/2026-09-09-phase1-engine-foundations.md Task 7 for why.
+#
+# Requires a SELF-HOSTED macOS runner, deliberately:
+#   - GitHub-hosted macOS runners bill at a 10x minute multiplier versus
+#     Linux, and this job builds a full IL2CPP player.
+#   - Hosted runners carry no Unity installation and no Unity licence;
+#     activating one on an ephemeral runner is itself a known source of
+#     flaky builds.
+#   See specs/plans/broodline_solo_execution.md Section 7.3.
+#
+# A self-hosted "macOS" runner also needs, on the machine itself: the .NET
+# SDK, Unity 6000.6.0f1 with the macOS Build Support (IL2CPP) module, and an
+# activated Unity licence. implementation/scripts/verify-prereqs.sh checks
+# all of this and is the fast, readable way to confirm a runner is ready.
+#
+# Timeout: a COLD build (no warm client/Library cache — a brand-new runner,
+# or the first run ever) takes roughly 10 minutes for the IL2CPP player
+# alone, most of it one-time URP/Sentis shader-variant compilation. An
+# incremental build is 19-36 seconds. 45 minutes leaves headroom for a fully
+# cold runner plus normal checkout/restore/test overhead without masking a
+# genuine hang.
+on:
+  push:
+    paths:
+      - 'engine/**'
+      - 'tests/engine/**'
+  schedule:
+    # Nightly at 09:00 UTC.
+    - cron: '0 9 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  cross-runtime-determinism:
+    name: Cross-runtime determinism (CoreCLR vs IL2CPP)
+    runs-on: [self-hosted, macOS]
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: dotnet test
+        run: dotnet test Broodline.sln
+
+      - name: Cross-runtime determinism diff
+        run: ./implementation/scripts/cross-runtime-diff.sh

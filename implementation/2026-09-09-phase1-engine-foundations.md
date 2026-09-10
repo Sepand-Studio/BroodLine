@@ -1170,6 +1170,8 @@ The reason the whole plan exists: proving CoreCLR and IL2CPP agree.
 **Files:**
 - Create: `engine/Runtime/Corpus.cs`
 - Create: `client/Assets/Editor/DeterminismHarness.cs`
+- Create: `client/Assets/Determinism/CorpusPlayerHarness.cs`
+- Create: `client/Assets/Determinism/CorpusHarness.unity`
 - Create: `implementation/scripts/cross-runtime-diff.sh`
 - Create: `.github/workflows/determinism.yml`
 
@@ -1227,43 +1229,258 @@ Add to `tests/engine/` a test that writes every scenario hash to a file when an 
         }
 ```
 
-- [ ] **Step 3: Emit the IL2CPP side from Unity**
+- [ ] **Step 3: Build a real IL2CPP player, and emit the corpus from inside it**
 
-`client/Assets/Editor/DeterminismHarness.cs` — a `[MenuItem("Broodline/Emit Corpus Hashes")]` plus a static method callable via `-executeMethod`, writing the identical 500 lines to a path from the command line. It calls the same `Corpus.RunScenario`, because Unity compiles the same source.
+**Corrected during implementation — `-executeMethod` alone was rejected.**
+`-executeMethod` runs inside the Unity Editor, and the Editor executes
+managed code under **Mono**, never IL2CPP. A harness that computed hashes
+there would compare CoreCLR against Editor-Mono and print "500 scenarios
+agree" having never executed a single IL2CPP-compiled instruction — the
+exact blind spot this task exists to close, silently contradicting the
+Architecture section's promise of bit-identical CoreCLR/IL2CPP results. So
+the work is split across two files with two different jobs, and `-executeMethod`
+is used only for the one thing it's actually fit for: driving a build.
+
+- `client/Assets/Editor/DeterminismHarness.cs` —
+  `DeterminismHarness.BuildMacIl2CppPlayer`, callable via `-executeMethod`.
+  It never computes a hash. It builds a macOS ARM64, non-development,
+  IL2CPP standalone player: reads the current scripting backend and
+  architecture, sets `ScriptingImplementation.IL2CPP` and
+  `OSArchitecture.ARM64` via `PlayerSettings.SetScriptingBackend`/
+  `SetArchitecture(NamedBuildTarget.Standalone, ...)`, logs what it read back
+  (not just what it set), builds via `BuildPipeline.BuildPlayer` with
+  `BuildOptions.None` (non-development) and `extraScriptingDefines = {
+  "BROODLINE_CORPUS_PLAYER" }` scoped to this build only, then restores the
+  previous backend/architecture in a `finally` so a build that throws still
+  leaves `ProjectSettings.asset`'s tracked values as it found them. It also
+  logs which runtime artifacts landed in the bundle (`GameAssembly.dylib`
+  present, no `MonoBleedingEdge/`) as evidence of which backend actually
+  shipped.
+- `client/Assets/Determinism/CorpusPlayerHarness.cs` — ships *inside* the
+  player (deliberately not under `Editor/`, which player builds strip). A
+  `[RuntimeInitializeOnLoadMethod(BeforeSplashScreen)]` reads `-corpusOut
+  <path>` from the player's own command line, computes the identical 500
+  hashes via `Corpus.RunScenario`, writes them, and quits with a status code
+  (0 = emitted, 1 = emit failed, 2 = called without the flag — distinct
+  codes so a caller can tell "ran and failed" from "called wrong"). Gated on
+  the build-only `BROODLINE_CORPUS_PLAYER` define so the same
+  `RuntimeInitializeOnLoadMethod` — which fires in *every* player built from
+  this project — does not quit players it was never meant to touch.
+- `client/Assets/Determinism/CorpusHarness.unity` — one deliberately empty
+  scene (no camera, no light, no renderers). Tried first with zero scenes;
+  Unity 6000.6 rejects that in batchmode (`BuildPlayerOptions.scenes = []`
+  falls back to the currently-open, and therefore untitled, scene, and the
+  build dies with "Cannot build untitled scene."). The corpus still runs at
+  `BeforeSplashScreen`, before this scene loads — it exists only so the
+  build succeeds, and reusing `SampleScene.unity` was rejected to avoid
+  coupling the determinism gate to unrelated URP rendering assets.
+
+Both files compile against the same `Broodline.Sim` assembly CoreCLR also
+runs (`Broodline.Sim.asmdef` is `autoReferenced`, so no new asmdef was
+needed) — this is genuinely the same IL2CPP-compiled `Corpus.RunScenario`,
+not a reimplementation.
 
 - [ ] **Step 4: Write the diff script**
+
+**Corrected during implementation.** The version below replaces an earlier
+draft that drove the Editor with `-executeMethod DeterminismHarness.EmitCorpus`
+directly — invalid once Step 3 changed shape, since there is no such method
+and emitting from the Editor is exactly what Step 3 rejected. This is the
+script that was actually written, run, and watched fail on cue (Step 6):
 
 `implementation/scripts/cross-runtime-diff.sh`:
 
 ```bash
 #!/usr/bin/env bash
-# Runs the corpus on CoreCLR and on Unity, and diffs the hashes.
+# Runs the 500-scenario corpus on CoreCLR and on a real IL2CPP player, and
+# diffs the hashes. This is Phase 1's whole reason for existing: proving the
+# engine compiles identically on both runtimes it actually ships on.
+#
+# IMPORTANT — this builds and runs a player, it does not use -executeMethod
+# to compute hashes. -executeMethod runs inside the Unity Editor, and the
+# Editor executes managed code under Mono, not IL2CPP. A gate built that way
+# would compare CoreCLR against Editor-Mono and print "scenarios agree"
+# having never executed a single IL2CPP-compiled instruction — see Task 7
+# Step 3's report. So this script:
+#   1. emits the CoreCLR side via `dotnet test` (tests/engine/CorpusTests.cs),
+#   2. drives Unity via -executeMethod only to *build* a macOS ARM64,
+#      non-development, IL2CPP standalone player (client/Assets/Editor/
+#      DeterminismHarness.cs),
+#   3. runs that built player as its own process, which emits its own side
+#      (client/Assets/Determinism/CorpusPlayerHarness.cs),
+#   4. diffs the two files it wrote.
+#
+# Timing: with a warm client/Library (Unity's own build cache, gitignored),
+# the IL2CPP build is incremental and takes roughly 19-36 seconds. On a
+# machine that has never built this player before — a fresh CI runner, or
+# the first run on a new dev machine — the build is COLD: expect roughly
+# 10 minutes, most of it one-time URP/Sentis shader-variant compilation that
+# happens before IL2CPP codegen even starts. This is normal; it is not hung.
+# Do not judge the timeout on the fast path alone.
+#
+# Streaming, not silent buffering: the Unity build is piped live to stdout
+# (via `-logFile -`) rather than written to a log file that we only read
+# after Unity exits. Several runs of this gate have previously been killed
+# by a 600-second no-output watchdog while blocked on a silent multi-minute
+# cold build — streaming avoids that, and it is also simply the right design
+# for a CI log a human might be reading while it runs.
 set -uo pipefail
 cd "$(dirname "$0")/../.."
+
 UNITY="/Applications/Unity/Hub/Editor/6000.6.0f1/Unity.app/Contents/MacOS/Unity"
-OUT="implementation/results"
+PROJECT="$(pwd)/client"
+OUT="$(pwd)/implementation/results"
+PLAYER_APP="$OUT/il2cpp-player/BroodlineCorpus.app"
+PLAYER_BIN="$PLAYER_APP/Contents/MacOS/Broodline Bench"
+
+CORPUS_CORECLR="$OUT/corpus-coreclr.txt"
+CORPUS_IL2CPP="$OUT/corpus-il2cpp.txt"
+CORPUS_DIFF="$OUT/corpus-diff.txt"
+DOTNET_LOG="$OUT/corpus-dotnet-test.log"
+BUILD_LOG="$OUT/il2cpp-build.log"
+PLAYER_LOG="$OUT/il2cpp-player-run.log"
+
 mkdir -p "$OUT"
 
-echo "--- CoreCLR ---"
-BROODLINE_CORPUS_OUT="$(pwd)/$OUT/corpus-coreclr.txt" \
-  dotnet test Broodline.sln --filter EmitCorpusHashes >/dev/null || { echo "FAIL: dotnet"; exit 1; }
+# Every Unity batchmode invocation that builds this player reproducibly
+# re-serialises these three files as a side effect of switching the active
+# build target to StandaloneOSX and back — two URP assets pick up a
+# shader-prefiltering field, and ProjectSettings.asset gains explicit
+# (but equivalent-in-meaning) scriptingBackend/platformArchitecture keys.
+# See Task 7 Step 3's report for the exact diffs. None of it is a real
+# content change, but left in place it means "did this leave the tree
+# dirty?" fails forever downstream (e.g. in CI). We restore exactly these
+# three paths and NEVER `git checkout -- client/` or any other directory-wide
+# revert: this branch takes concurrent commits from a human elsewhere under
+# client/ (Benchmark work, at time of writing), and a blanket restore could
+# silently discard their uncommitted work.
+RESTORE_PATHS=(
+  "client/ProjectSettings/ProjectSettings.asset"
+  "client/Assets/Settings/PC_RPAsset.asset"
+  "client/Assets/Settings/UniversalRenderPipelineGlobalSettings.asset"
+)
 
-echo "--- Unity / IL2CPP ---"
-"$UNITY" -batchmode -quit -projectPath "$(pwd)/client" \
-  -executeMethod DeterminismHarness.EmitCorpus \
-  -corpusOut "$(pwd)/$OUT/corpus-unity.txt" \
-  -logFile "$(pwd)/$OUT/corpus-unity.log" || { echo "FAIL: unity (editor open?)"; exit 1; }
+# NOT restored, deliberately: the harness leaves Unity's active build target
+# set to StandaloneOSX (EditorUserBuildSettings, which lives under
+# client/Library/ — gitignored, not a git-cleanliness problem). Switching it
+# back would just make the *next* run (or the next iOS build) pay a reimport
+# cost with nothing gained, since nothing tracked by git reflects this value.
+
+echo "--- preflight ---"
+[ -x "$UNITY" ] || { echo "FAIL: Unity not found at $UNITY"; exit 127; }
+[ -d "$PROJECT" ] || { echo "FAIL: no client/ project at $PROJECT"; exit 1; }
+if pgrep -x Unity >/dev/null 2>&1; then
+  echo "FAIL: a Unity editor is already running — close it first (a second instance cannot open the project)"
+  exit 1
+fi
+
+# Snapshot which restore paths are ALREADY dirty before we touch anything.
+# If one is, that is a human's in-progress edit, not our churn, and we have
+# no way to tell which part of a later diff would be ours to discard — so we
+# leave that specific file alone rather than guess (see git status/staging
+# discipline: never touch a file you didn't dirty).
+ALREADY_DIRTY=()
+for p in "${RESTORE_PATHS[@]}"; do
+  git diff --quiet HEAD -- "$p" 2>/dev/null || ALREADY_DIRTY+=("$p")
+done
+
+restore_known_churn() {
+  for p in "${RESTORE_PATHS[@]}"; do
+    dirty_before=0
+    for d in "${ALREADY_DIRTY[@]:-}"; do
+      [ "$d" = "$p" ] && dirty_before=1
+    done
+    if [ "$dirty_before" = 1 ]; then
+      echo "NOTE: $p was already modified before this run — leaving it as-is, not restoring."
+    else
+      git checkout -- "$p" 2>/dev/null || true
+    fi
+  done
+}
+
+echo "--- CoreCLR ---"
+rm -f "$CORPUS_CORECLR"
+if ! BROODLINE_CORPUS_OUT="$CORPUS_CORECLR" \
+    dotnet test Broodline.sln --filter EmitCorpusHashes >"$DOTNET_LOG" 2>&1; then
+  echo "FAIL: dotnet test could not emit the CoreCLR corpus — see $DOTNET_LOG"
+  tail -40 "$DOTNET_LOG"
+  exit 1
+fi
+[ -s "$CORPUS_CORECLR" ] || { echo "FAIL: CoreCLR emitted no corpus file at $CORPUS_CORECLR"; exit 1; }
+
+echo "--- Unity / IL2CPP: build the player (cold: ~10 min; incremental: ~19-36s) ---"
+rm -f "$BUILD_LOG"
+"$UNITY" -batchmode -quit -projectPath "$PROJECT" \
+  -executeMethod DeterminismHarness.BuildMacIl2CppPlayer \
+  -corpusPlayerOut "$PLAYER_APP" \
+  -logFile - 2>&1 | tee "$BUILD_LOG"
+build_code=${PIPESTATUS[0]}
+
+# Restore the known churn right away, regardless of whether the build
+# succeeded — the build-target switch that dirties these files happens near
+# the start of DeterminismHarness.BuildMacIl2CppPlayer, before the actual
+# BuildPipeline.BuildPlayer call, so a build that fails downstream still
+# leaves the same files dirty.
+restore_known_churn
+
+if [ "$build_code" -ne 0 ] || ! grep -q "result=Succeeded" "$BUILD_LOG"; then
+  echo "FAIL: IL2CPP player build failed (unity exit $build_code) — see $BUILD_LOG"
+  exit 1
+fi
+[ -d "$PLAYER_APP" ] || { echo "FAIL: build reported success but $PLAYER_APP is missing"; exit 1; }
+
+echo "--- Unity / IL2CPP: run the player ---"
+rm -f "$CORPUS_IL2CPP" "$PLAYER_LOG"
+"$PLAYER_BIN" -batchmode -nographics -logfile - -corpusOut "$CORPUS_IL2CPP" 2>&1 | tee "$PLAYER_LOG"
+player_code=${PIPESTATUS[0]}
+if [ "$player_code" -ne 0 ]; then
+  echo "FAIL: IL2CPP player exited $player_code (0=wrote corpus, 1=emit failed, 2=called without -corpusOut) — see $PLAYER_LOG"
+  exit 1
+fi
+[ -s "$CORPUS_IL2CPP" ] || { echo "FAIL: IL2CPP player emitted no corpus file at $CORPUS_IL2CPP"; exit 1; }
 
 echo "--- diff ---"
-if diff -u "$OUT/corpus-coreclr.txt" "$OUT/corpus-unity.txt" > "$OUT/corpus-diff.txt"; then
-  echo "PASS: $(wc -l < "$OUT/corpus-coreclr.txt" | tr -d ' ') scenarios agree"
+if diff -u "$CORPUS_CORECLR" "$CORPUS_IL2CPP" >"$CORPUS_DIFF"; then
+  echo "PASS: $(wc -l < "$CORPUS_CORECLR" | tr -d ' ') scenarios agree"
   exit 0
 else
   echo "FAIL: runtimes disagree. First differences:"
-  head -20 "$OUT/corpus-diff.txt"
+  head -20 "$CORPUS_DIFF"
   exit 1
 fi
 ```
+
+**Three things a naive port of the old draft would have gotten wrong,**
+found while building the real player rather than assuming one:
+
+1. **Every Unity batch invocation dirties the tree beyond `ProjectSettings.asset`.**
+   Switching the active build target to `StandaloneOSX` reproducibly
+   re-serialises two URP assets under `client/Assets/Settings/`
+   (`PC_RPAsset.asset`, `UniversalRenderPipelineGlobalSettings.asset` — a
+   shader-prefiltering field appears) on top of the already-known
+   `ProjectSettings.asset` churn (Step 3's report). Left unhandled, a CI
+   runner's tree is dirty forever after the first run, and any downstream
+   "is the tree clean" check fails permanently. The script restores exactly
+   these three paths by name — never a blanket `git checkout -- client/` —
+   because this branch takes concurrent commits from a human elsewhere under
+   `client/`, and a directory-wide revert could silently discard their
+   uncommitted work. It also snapshots whether any of the three was already
+   dirty *before* the run and skips restoring that one file rather than
+   guessing which part of its diff is the script's own churn.
+2. **The harness leaves the active build target on `StandaloneOSX`.**
+   That setting lives in `EditorUserBuildSettings`, persisted under
+   `client/Library/` — gitignored — so it is not a tree-cleanliness problem.
+   Deliberately not restored: switching it back would only make the next
+   run (or the next iOS build) pay a reimport cost, for a value nothing
+   tracked by git reflects either way.
+3. **Cold vs. incremental build time differs by roughly 20x.** With a warm
+   `client/Library` (this machine, mid-development) the IL2CPP build is
+   19-36 seconds. On a machine that has never built this exact player
+   before — a fresh CI runner, or a new contributor's first run — expect
+   roughly **10 minutes**, most of it one-time URP/Sentis shader-variant
+   compilation ahead of IL2CPP codegen itself. This sizes both the
+   workflow's `timeout-minutes` (Step 7) and what a first-time local runner
+   should expect before assuming it has hung.
 
 - [ ] **Step 5: Run it and see it pass**
 
@@ -1272,21 +1489,35 @@ chmod +x implementation/scripts/cross-runtime-diff.sh
 ./implementation/scripts/cross-runtime-diff.sh
 ```
 
-Expected: `PASS: 500 scenarios agree`, exit 0. Close the Unity editor first.
+Expected: `PASS: 500 scenarios agree`, exit 0. Close the Unity editor first — the
+script now checks this itself (`pgrep -x Unity`) and fails fast with a clear
+message rather than letting a second Unity instance fail to open the project.
 
 **This step is the entire point of Phase 1.** If it fails, do not proceed — read the first differing scenario index and reproduce it in isolation.
 
 - [ ] **Step 6: Prove the diff catches disagreement**
 
-Temporarily make `DeterminismHarness` emit a wrong value for scenario 250 — add 1 to it. Re-run.
+**Corrected during implementation:** the player-side emitter lives in
+`CorpusPlayerHarness.cs`, not `DeterminismHarness.cs` (Step 3) — that is the
+file to perturb. Temporarily make it emit a wrong value for scenario 250 —
+add 1 to the hash for `i == 250` inside its emit loop. Rebuild and re-run.
 
-Expected: **FAIL**, with the diff naming line 251. Revert and confirm `PASS` again.
+Expected: **FAIL**, with the diff naming line 251 (the corpus file has one
+`index,hash` line per scenario starting at index 0, so scenario 250 is line
+251). Revert and confirm `PASS` again.
 
 - [ ] **Step 7: Add the workflow**
 
 `.github/workflows/determinism.yml`, running on `[self-hosted, macOS]` nightly and on pushes touching `engine/**` or `tests/engine/**`, executing `dotnet test` and then `cross-runtime-diff.sh`.
 
 Note in the file that it requires a self-hosted runner: GitHub-hosted macOS bills at a 10× multiplier and has no Unity licence, per `broodline_solo_execution.md` §7.3.
+
+**Folded back:** `timeout-minutes: 45`, sized for a cold build (Step 4's
+gotcha 3) plus checkout and `dotnet test` overhead, not the warm-cache fast
+path. Whether a `[self-hosted, macOS]` runner is actually registered for
+this repository cannot be verified from outside GitHub's settings — this
+workflow may ship correct but un-runnable until one is registered, and that
+should be stated plainly rather than implied otherwise.
 
 - [ ] **Step 8: Commit**
 
