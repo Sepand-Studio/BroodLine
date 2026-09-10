@@ -773,6 +773,44 @@ namespace Broodline.Sim.Tests
         }
 
         [Fact]
+        public void NextInt_NonPositiveBound_ReturnsZeroWithoutConsumingADraw()
+        {
+            // exclusiveMax <= 0: the range is empty, so NextInt must return 0
+            // *and* must not advance the stream. Proven here by observing the
+            // stream position, not just the return value: if a draw had been
+            // consumed, r's next NextULong() would diverge from a fresh Rng's
+            // first draw.
+            var r = new Rng(42);
+            Assert.Equal(0, r.NextInt(0));
+            Assert.Equal(0, r.NextInt(-100));
+
+            var fresh = new Rng(42);
+            Assert.Equal(fresh.NextULong(), r.NextULong());
+        }
+
+        [Fact]
+        public void NextInt_One_ReturnsZeroAndConsumesExactlyOneDraw()
+        {
+            // exclusiveMax == 1 is the one-element case, not the degenerate
+            // one: it must return 0 (the only value in range) but -- unlike
+            // exclusiveMax <= 0 -- it DOES consume exactly one draw. Task 7's
+            // Corpus.RunScenario calls NextInt(entityCount) with counts
+            // starting at 1, so every corpus stream's alignment depends on
+            // this consuming exactly one draw, never zero.
+            //
+            // Proven by comparing against a fresh Rng with one draw skipped:
+            // if NextInt(1) consumed zero draws, r's next draw would match
+            // fresh's *first* draw instead; if it consumed two, it would match
+            // fresh's *third*.
+            var r = new Rng(42);
+            Assert.Equal(0, r.NextInt(1));
+
+            var fresh = new Rng(42);
+            fresh.NextULong(); // skip the one draw NextInt(1) must have consumed
+            Assert.Equal(fresh.NextULong(), r.NextULong());
+        }
+
+        [Fact]
         public void KnownSeed_ProducesKnownFirstDraw()
         {
             // Pins the algorithm, not just "seed 1 is reproducible" -- the literal
@@ -793,6 +831,8 @@ namespace Broodline.Sim.Tests
 ```
 
 **Correction folded in:** the brief's original version of this test asserted only `first != 0` and that two `Rng(1)` instances agree with each other — that passes for any PRNG and any seed-splitting scheme, so despite its own comment's claim it pinned nothing. The version above asserts the literal first draw instead. The constant was taken from an actual run, never computed by hand — Step 5 below is the run that proves it actually pins the algorithm.
+
+**Fix round 1 correction folded in:** the version above adds `NextInt_NonPositiveBound_ReturnsZeroWithoutConsumingADraw` and `NextInt_One_ReturnsZeroAndConsumesExactlyOneDraw`. Neither existed before this fix round; only bound 7 was ever exercised, so nothing guarded `NextInt`'s two documented boundary behaviours. The second test is load-bearing: `NextInt`'s doc comment and Task 7's `Corpus.RunScenario` both depend on `NextInt(entityCount)` consuming exactly one draw when `entityCount == 1`, and `if (exclusiveMax <= 1) return 0;` is a natural-looking micro-optimisation that would pass every other test in this file while silently desynchronising every corpus stream one task downstream. Both tests observe stream *position* (by comparing against a fresh `Rng`'s subsequent draws), not just the return value, so a change to draw consumption is caught even though it produces no visible difference in the return value itself. Step 5 below extends the deliberate-break proof to cover both.
 
 `tests/engine/HashTests.cs`:
 
@@ -824,9 +864,32 @@ namespace Broodline.Sim.Tests
         {
             Assert.Equal(14695981039346656037UL, Hash.Create().Value);
         }
+
+        [Fact]
+        public void Add_PinsKnownFnv1aValues()
+        {
+            // Pins the algorithm Add() actually performs -- byte order, fold
+            // order, and the prime constant -- not just the initial state
+            // (EmptyHash_IsTheFnvOffsetBasis only covers that, before any byte
+            // is folded). These literals are folds of Add(1), and of Add(1)
+            // then Add(2), taken verbatim from a real run of this code, never
+            // computed by hand. If either changes, the fold algorithm changed
+            // and every previously-recorded hash comparison across runs is
+            // invalid.
+            var a = Hash.Create();
+            a.Add(1);
+            Assert.Equal(12161961113530546194UL, a.Value);
+
+            var b = Hash.Create();
+            b.Add(1);
+            b.Add(2);
+            Assert.Equal(17633220212635757292UL, b.Value);
+        }
     }
 }
 ```
+
+**Fix round 1 correction folded in:** `Add_PinsKnownFnv1aValues` did not exist before this fix round. The doc comment on `Hash.Add` claims byte order is part of a "pinned" contract, but before this test, nothing pinned it: all three tests above pass unchanged under an LSB-first fold instead of the actual MSB-first one, and `EmptyHash_IsTheFnvOffsetBasis` only pins the *initial* state, before `Add` ever runs. The two literals above were obtained by running this code (via a deliberately-wrong placeholder assertion, then reading the real value off xUnit's failure diff, the same technique Step 5 below uses) — never computed by hand — and independently cross-checked against a from-scratch FNV-1a re-derivation, which agreed on both values. Step 5 below extends the deliberate-break proof to this pin too.
 
 - [ ] **Step 2: Run and watch them fail**
 
@@ -852,6 +915,8 @@ dotnet test Broodline.sln
 
 Expected: **30 passed** (23 existing + 4 in `RngTests` + 3 in `HashTests`). The brief's original "13 passed" was computed before earlier tasks' review rounds added tests to the suite; take the real count from this run, never by hand.
 
+**Fix round 1 raised this to 33 passed** — the same 23 pre-existing tests, plus 6 in `RngTests` (the original 4 plus `NextInt_NonPositiveBound_ReturnsZeroWithoutConsumingADraw` and `NextInt_One_ReturnsZeroAndConsumesExactlyOneDraw`), plus 4 in `HashTests` (the original 3 plus `Add_PinsKnownFnv1aValues`). Confirmed by an actual `dotnet test Broodline.sln` run, not computed by hand.
+
 - [ ] **Step 5: Prove the pin actually catches a change**
 
 Every other determinism check in this plan carries a deliberate-break step — Task 2 Step 4, Task 3 Step 4, Task 6 Step 5, Task 7 Step 6 — and this is the one that was missing it. A pin nobody has watched fail is not proven to pin anything.
@@ -873,15 +938,41 @@ Expected: **FAIL** — `KnownSeed_ProducesKnownFirstDraw` fails with `Assert.Equ
 
 **Do not skip this step.** It is the only moment it is cheap to find out the pin is watching the seed-splitting scheme rather than passing by coincidence.
 
+**Fix round 1 extended this step to the two pins it added** — the same principle applies: a pin nobody has watched fail is not proven to pin anything.
+
+*Hash byte order:* temporarily changed `Add`'s fold loop from MSB-first (`for (int shift = 56; shift >= 0; shift -= 8)`) to LSB-first (`for (int shift = 0; shift <= 56; shift += 8)`), then ran `dotnet test Broodline.sln --filter "FullyQualifiedName~HashTests"`:
+
+```
+Broodline.Sim.Tests.HashTests.Add_PinsKnownFnv1aValues [FAIL]
+  Assert.Equal() Failure: Values differ
+  Expected: 12161961113530546194
+  Actual:   9929646806074584996
+Failed!  - Failed: 1, Passed: 3, Skipped: 0, Total: 4
+```
+
+Only the new pin fails — `SameInputs_SameHash`, `OrderMatters`, and `EmptyHash_IsTheFnvOffsetBasis` all still pass under the wrong byte order, exactly the gap this test closes. Restored the loop bounds and reconfirmed green.
+
+*`NextInt(1)` draw consumption:* temporarily inserted `if (exclusiveMax <= 1) return 0;` at the top of `NextInt`, then ran `dotnet test Broodline.sln --filter "FullyQualifiedName~RngTests"`:
+
+```
+Broodline.Sim.Tests.RngTests.NextInt_One_ReturnsZeroAndConsumesExactlyOneDraw [FAIL]
+  Assert.Equal() Failure: Values differ
+  Expected: 13639555000553200875
+  Actual:   12618900322348487378
+Failed!  - Failed: 1, Passed: 5, Skipped: 0, Total: 6
+```
+
+Only the new consumption test fails — `NextInt_StaysInRange` and the other four `RngTests` all still pass under the short-circuit, since none of them observe stream position the way this one does. Restored the line and reconfirmed green.
+
 - [ ] **Step 6: Restore and confirm green**
 
-Put the constructor back the way Step 3 left it, then:
+Put the constructor back the way Step 3 left it (fix round 1 additionally restored `Hash.Add`'s loop bounds and removed the `NextInt` short-circuit — both diffed clean against the prior commit before proceeding), then:
 
 ```bash
 dotnet test Broodline.sln
 ```
 
-Expected: **30 passed**.
+Expected: **30 passed** at the original implementation; **33 passed** after fix round 1 (see the corrected count above).
 
 - [ ] **Step 7: Commit**
 

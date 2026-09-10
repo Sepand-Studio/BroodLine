@@ -36,6 +36,44 @@ namespace Broodline.Sim.Tests
         }
 
         [Fact]
+        public void NextInt_NonPositiveBound_ReturnsZeroWithoutConsumingADraw()
+        {
+            // exclusiveMax <= 0: the range is empty, so NextInt must return 0
+            // *and* must not advance the stream. Proven here by observing the
+            // stream position, not just the return value: if a draw had been
+            // consumed, r's next NextULong() would diverge from a fresh Rng's
+            // first draw.
+            var r = new Rng(42);
+            Assert.Equal(0, r.NextInt(0));
+            Assert.Equal(0, r.NextInt(-100));
+
+            var fresh = new Rng(42);
+            Assert.Equal(fresh.NextULong(), r.NextULong());
+        }
+
+        [Fact]
+        public void NextInt_One_ReturnsZeroAndConsumesExactlyOneDraw()
+        {
+            // exclusiveMax == 1 is the one-element case, not the degenerate
+            // one: it must return 0 (the only value in range) but -- unlike
+            // exclusiveMax <= 0 -- it DOES consume exactly one draw. Task 7's
+            // Corpus.RunScenario calls NextInt(entityCount) with counts
+            // starting at 1, so every corpus stream's alignment depends on
+            // this consuming exactly one draw, never zero.
+            //
+            // Proven by comparing against a fresh Rng with one draw skipped:
+            // if NextInt(1) consumed zero draws, r's next draw would match
+            // fresh's *first* draw instead; if it consumed two, it would match
+            // fresh's *third*.
+            var r = new Rng(42);
+            Assert.Equal(0, r.NextInt(1));
+
+            var fresh = new Rng(42);
+            fresh.NextULong(); // skip the one draw NextInt(1) must have consumed
+            Assert.Equal(fresh.NextULong(), r.NextULong());
+        }
+
+        [Fact]
         public void KnownSeed_ProducesKnownFirstDraw()
         {
             // Pins the algorithm, not just "seed 1 is reproducible" -- the literal
