@@ -1063,6 +1063,21 @@ Nearly seven times the bones costs **0.3–0.7 ms of main thread across all 104 
 
 **What this still does not measure:** `BoneAnimator` writes local rotations directly. A real `Animator` also evaluates a graph, samples curves and blends clips, none of which happen here. **This is the floor of a rig's per-frame cost, not its total.** A rig that is expensive to *evaluate* rather than expensive to *skin* is still unmeasured.
 
+### The memory figure is pessimistic, and the binding constraint is not memory
+
+`SyntheticCreature.Build` calls `new Mesh()` per entity, so the sweep holds **104 unique meshes**. Wave 44 does not. `broodline_raider_roster.md` §3 shares one Runner mesh across all sixty Skirmishers, and one Segment mesh across the Brood, its three Broodlings and their nine Mites at 0.55× and 0.3× scale — thirty-nine entities, one asset. With five creatures on top, the real wave draws its 104 entities from roughly **seven** unique meshes.
+
+Taking the mesh-memory slope from this run's own rows at 12 bones and 1 material — 176.8 MB at 400 triangles to 389.2 MB at 10000 — about 212 MB of the peak is mesh data and about 168 MB is everything else. At seven unique meshes that term falls to roughly 14 MB:
+
+| | Peak at 10000 triangles |
+|---|---|
+| 104 unique meshes (what the sweep measures) | ~390 MB |
+| ~7 unique meshes (what wave 44 actually draws) | **~183 MB** |
+
+So the 600 MB ceiling is not close, and a reader seeing "394 of 600" should not conclude that two thirds of the memory budget is spent. **GPU cost is unaffected** — 104 × 10000 triangles are rasterised whether or not the meshes are shared — which is why the triangle ceiling is where the constraint actually sits and why sharing does not buy a larger triangle budget.
+
+This also means the sweep is a *conservative* memory test rather than a representative one. Left as is deliberately: a proof that overstates memory and gets the binding constraint right is the safe direction to be wrong in.
+
 ### The triangle figure held across the change
 
 Run 2 measured a static rig and put the ceiling between 10000 and 16000 triangles. Run 4 animates every bone up to 80 and puts it in exactly the same place. The triangle budget is therefore robust to the defect that invalidated the bone figure — which is why 7000 did not move.
