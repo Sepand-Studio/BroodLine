@@ -124,8 +124,16 @@ namespace Broodline.Sim.Tests
                 "T:System.Collections.Concurrent.ConcurrentDictionary`2;",
             };
 
-            var text = File.ReadAllText(path);
-            var missing = required.Where(r => !text.Contains(r, StringComparison.Ordinal)).ToList();
+            // Matched at line start, not as a substring: prefixing an entry
+            // with '#' still leaves it a substring of the line (e.g. of
+            // "#T:System.Random;implementation-defined…"), and
+            // BannedApiAnalyzers 3.3.4 emits no diagnostic for an unparseable
+            // entry, so a substring match would keep passing while the ban
+            // was silently dropped.
+            var lines = File.ReadAllLines(path);
+            var missing = required
+                .Where(r => !lines.Any(line => line.StartsWith(r, StringComparison.Ordinal)))
+                .ToList();
 
             Assert.True(missing.Count == 0,
                 "engine/BannedSymbols.txt no longer bans:\n  " + string.Join("\n  ", missing));
@@ -186,32 +194,40 @@ namespace Broodline.Sim.Tests
         // Conditional compilation (the seam between the two compilers)
         // ------------------------------------------------------------------
 
-        /// The csproj glob and the asmdef cover the same *files*, but a
-        /// <c>#if UNITY_*</c> region means they do not cover the same *code*:
-        /// Unity compiles it and the .NET build excludes it. Everything this
-        /// project enforces statically — the banned-API analyzer, the IL float
-        /// scan, <c>dotnet build</c> itself — runs only over the .NET
-        /// compilation, so anything inside such a region is invisible to all of
-        /// them while still shipping in the player. The cross-runtime gate would
-        /// eventually catch a resulting divergence, but only for code the corpus
-        /// happens to execute, and only after the fact.
+        /// The csproj glob and the asmdef cover the same *files*, but any
+        /// <c>#if</c>/<c>#elif</c>/<c>#define</c>/<c>#undef</c> directive means
+        /// they do not cover the same *code*: whichever branch Unity's Mono
+        /// compiler takes and whichever branch <c>dotnet build</c> takes can
+        /// differ for any symbol, not only a <c>UNITY_*</c> one —
+        /// <c>ENABLE_IL2CPP</c>, <c>ENABLE_MONO</c>, <c>NETSTANDARD2_1</c>, even
+        /// <c>DEBUG</c> are defined by one toolchain and not the other, so a
+        /// symbol-list ban can never enumerate every symbol that creates this
+        /// seam. Everything this project enforces statically — the banned-API
+        /// analyzer, the IL float scan, <c>dotnet build</c> itself — runs only
+        /// over the .NET compilation, so anything inside such a region is
+        /// invisible to all of them while still shipping in the player. The
+        /// cross-runtime gate would eventually catch a resulting divergence, but
+        /// only for code the corpus happens to execute, and only after the fact.
         ///
         /// <para>
-        /// Banning the construct outright makes "both compilers see the same
-        /// thing" an enforced premise rather than an assumption. Vendored sources
-        /// are exempt: FixPointCS carries its own <c>#if</c> ladders (JAVA, CPP)
-        /// and is byte-identical to upstream by design — see
+        /// Banning the four directives outright, with no symbol pattern left to
+        /// evade, makes "both compilers see the same thing" an enforced premise
+        /// rather than an assumption. Vendored sources are exempt: FixPointCS
+        /// carries its own <c>#if</c> ladders (JAVA, CPP, NET5_0_OR_GREATER) and
+        /// is byte-identical to upstream by design — see
         /// engine/Runtime/ThirdParty/FixPointCS/PROVENANCE.md.
         /// </para>
         [Fact]
-        public void SimulationCore_HasNoUnityConditionalCompilation()
+        public void SimulationCore_HasNoConditionalCompilation()
         {
             var runtime = RepoPath("engine", "Runtime");
             Assert.True(Directory.Exists(runtime), $"missing {runtime}");
 
+            // No symbol pattern: #if/#elif/#define/#undef are banned outright,
+            // so there is no not-yet-invented symbol left that could evade this.
             // #else and #endif name no symbol, so they cannot introduce one.
             var directive = new Regex(
-                @"^\s*#\s*(if|elif|define|undef)\b.*\bUNITY_\w*",
+                @"^\s*#\s*(if|elif|define|undef)\b",
                 RegexOptions.Multiline | RegexOptions.CultureInvariant);
 
             var thirdParty = Path.Combine(runtime, "ThirdParty") + Path.DirectorySeparatorChar;
@@ -236,9 +252,9 @@ namespace Broodline.Sim.Tests
                 $"scanned no non-vendored .cs files under {runtime}");
 
             Assert.True(offenders.Count == 0,
-                "engine/Runtime contains Unity-conditional code, which the .NET " +
-                "build, the banned-API analyzer and the IL float scan are all " +
-                "blind to:\n  " + string.Join("\n  ", offenders));
+                "engine/Runtime contains conditional compilation, which the " +
+                ".NET build, the banned-API analyzer and the IL float scan are " +
+                "all blind to:\n  " + string.Join("\n  ", offenders));
         }
     }
 }

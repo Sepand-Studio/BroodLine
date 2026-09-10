@@ -46,6 +46,14 @@ namespace Broodline.Sim.Tests
             // runs agree" evidence that the hash is tracking the run.
             Assert.Equal(2, a.Count);
             Assert.NotEqual(a[0], a[1]);
+
+            // Distinctness alone doesn't pin the VALUE: RunToTick appending
+            // (ulong)tick every checkpointEvery ticks would also produce two
+            // distinct checkpoints. The tick-127 checkpoint is folded in and
+            // appended last, and nothing after that mutates the hash before
+            // RunToTick returns hash.Value, so the final checkpoint must equal
+            // this same run's own result.
+            Assert.Equal(ToySim.Run(3, 5, inputs, 128), a[1]);
         }
 
         [Fact]

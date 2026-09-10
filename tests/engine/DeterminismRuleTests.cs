@@ -114,6 +114,14 @@ namespace Broodline.Sim.Tests
                 foreach (var arg in gim.GenericArguments)
                     if (IsFloat(arg)) return true;
 
+            // Return type, parameters and generic arguments all miss a call
+            // whose only float is its DECLARING type, e.g.
+            // `new List<float>(4).Capacity`: neither `.ctor(int32)` nor
+            // `get_Capacity()` has a float anywhere in its own signature.
+            // CallSite (calli) is not a MethodReference and has no declaring
+            // type, so it correctly falls through untouched.
+            if (sig is MethodReference mr && IsFloat(mr.DeclaringType)) return true;
+
             return false;
         }
 
