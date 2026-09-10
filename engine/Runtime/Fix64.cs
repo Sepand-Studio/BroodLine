@@ -41,10 +41,15 @@ namespace Broodline.Sim
     /// discard. Multiplication (<c>Mul</c>) truncates toward negative
     /// infinity — it floors — for both signs alike. Division
     /// (<c>DivPrecise</c>) truncates toward zero: it divides the operands'
-    /// magnitudes and reapplies the sign afterward. So
-    /// <c>(-a) / b == -(a / b)</c> always holds, but
-    /// <c>(-a) * b == -(a * b)</c> does not whenever the exact product has a
-    /// fractional remainder below the format's 2⁻³² resolution.
+    /// magnitudes and reapplies the sign afterward. So, outside the
+    /// saturating case described in the first bullet above,
+    /// <c>(-a) / b == -(a / b)</c> holds — negating the dividend only
+    /// flips the sign reapplied at the end, not the magnitude division.
+    /// When the division saturates, <c>a / b</c> and <c>(-a) / b</c> both
+    /// collapse to the same positive <see cref="long.MaxValue"/>, so the
+    /// identity fails there instead. Separately,
+    /// <c>(-a) * b == -(a * b)</c> does not hold whenever the exact product
+    /// has a fractional remainder below the format's 2⁻³² resolution.
     /// </description></item>
     /// </list>
     /// <para>
