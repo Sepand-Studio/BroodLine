@@ -1292,6 +1292,12 @@ namespace Broodline.Sim.Tests.Combat
             s.Tick = 90;
             Phases.Spawn(s);
 
+            // Chill is assigned "within range" (combat_engine 5.1), so walk the
+            // raider into the carrier's reach first. A Pale in pocket 0 sits at
+            // tile 6 with range 5, covering tiles 2-10; a raider still at the
+            // spawn line is correctly NOT chillable.
+            s.RaiderProgress[0] = Fix64.FromInt(6);
+
             var scratch = new int[1];
             Phases.State(s, scratch);
             Assert.True(s.RaiderChilled[0]);
