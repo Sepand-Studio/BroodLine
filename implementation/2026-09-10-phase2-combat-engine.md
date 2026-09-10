@@ -988,9 +988,9 @@ namespace Broodline.Sim.Tests.Combat
             // common rather than rare.
             s.RaiderProgress[0] = s.RaiderProgress[1] = Fix64.FromInt(10);
 
-            Assert.True(Capacity.Compare(s, 0, 1, pocket: 0) < 0);
-            Assert.True(Capacity.Compare(s, 1, 0, pocket: 0) > 0);
-            Assert.Equal(0, Capacity.Compare(s, 0, 0, pocket: 0));
+            Assert.True(Capacity.Compare(s, 0, 1) < 0);
+            Assert.True(Capacity.Compare(s, 1, 0) > 0);
+            Assert.Equal(0, Capacity.Compare(s, 0, 0));
         }
 
         [Fact]
@@ -1017,6 +1017,33 @@ namespace Broodline.Sim.Tests.Combat
             Assert.False(s.RaiderChilled[0]);
             Assert.False(s.RaiderChilled[1]);
             Assert.True(s.RaiderChilled[2]);
+        }
+
+        [Fact]
+        public void AssignChill_LeavesRaidersNoCarrierCanReachUnchilled()
+        {
+            // combat_engine 5.1 assigns "within range". A Pale in pocket 0
+            // (tile 6, range 5) reaches tiles 2-10 and nothing beyond, so a
+            // raider at tile 22 must stay at full speed however much spare
+            // capacity exists. Without the gate an unopposed Courser crosses
+            // in 48s against the 30s combat_numbers 240 describes.
+            var wave = new WaveDef(1, 9, 1, new[]
+            {
+                new SpawnEntry { Tick = 0, Type = RaiderType.Courser },
+                new SpawnEntry { Tick = 0, Type = RaiderType.Courser }
+            });
+            var s = new SimState(wave, Lane.Defile(), WithChill(tier: 3, copies: 1));
+            s.RaiderCount = 2;
+            s.RaiderAlive[0] = s.RaiderAlive[1] = true;
+
+            s.RaiderProgress[0] = Fix64.FromInt(6);    // beside the carrier
+            s.RaiderProgress[1] = Fix64.FromInt(22);   // far past it
+
+            Capacity.AssignChill(s, new int[2]);
+
+            // Chill III is capacity 4 - ample - so only range explains this.
+            Assert.True(s.RaiderChilled[0]);
+            Assert.False(s.RaiderChilled[1]);
         }
     }
 }
@@ -1057,6 +1084,40 @@ namespace Broodline.Sim.Combat
             return total;
         }
 
+        /// Squared distance from this raider to the NEAREST live Chill carrier
+        /// that currently has it IN RANGE, or -1 when no carrier can reach it.
+        ///
+        /// combat_engine 5.1 assigns Chill "nearest-first within range,
+        /// re-evaluated each tick", and the range gate is not decoration.
+        /// Without it a carrier slows raiders it could never reach and an
+        /// unopposed Courser crosses in 48s, against the 30s combat_numbers 240
+        /// describes. Gated, it crosses in about 27s - which is what makes
+        /// 134's "0.5 t/s" and 240's "halves its speed to 30 seconds" the same
+        /// claim rather than a contradiction.
+        ///
+        /// Measured per raider rather than from one fixed anchor pocket:
+        /// capacity sums across carriers standing in different pockets, so
+        /// "nearest" has to mean nearest to THAT raider.
+        public static int NearestCarrierDistSq(SimState s, int raider)
+        {
+            int best = -1;
+            int tile = s.RaiderTile(raider);
+
+            for (int c = 0; c < s.CreatureCount; c++)
+            {
+                if (!s.CreatureAlive(c)) continue;
+                if (!s.CreatureCarries(c, Trait.Chill, out int tier) || tier <= 0) continue;
+
+                int pocket = s.CreaturePocket[c];
+                if (!s.Lane.InRange(pocket, tile, Stats.CreatureRange(s.CreatureSpecies[c])))
+                    continue;
+
+                int d = s.Lane.DistSq(pocket, tile);
+                if (best < 0 || d < best) best = d;
+            }
+            return best;
+        }
+
         /// The (distance, spawnIndex) total order of combat_engine 5.1.
         ///
         /// Nearest-first alone is not deterministic: 2.2 makes distance an
@@ -1064,22 +1125,19 @@ namespace Broodline.Sim.Combat
         /// order them differently on two runtimes. Tie-breaking on spawn index
         /// makes this a total order, so any correct sort produces identical
         /// output everywhere.
-        public static int Compare(SimState s, int raiderA, int raiderB, int pocket)
+        public static int Compare(SimState s, int raiderA, int raiderB)
         {
-            int da = s.Lane.DistSq(pocket, s.RaiderTile(raiderA));
-            int db = s.Lane.DistSq(pocket, s.RaiderTile(raiderB));
+            int da = NearestCarrierDistSq(s, raiderA);
+            int db = NearestCarrierDistSq(s, raiderB);
             if (da != db) return da < db ? -1 : 1;
             if (raiderA != raiderB) return raiderA < raiderB ? -1 : 1;
             return 0;
         }
 
-        /// Chill is one of combat_engine 5.1's three exceptions: its carrier
-        /// may not be attacking the raider it slows, so assignment is
-        /// nearest-first within range, re-evaluated every tick.
-        ///
-        /// "Nearest" is measured from the carrier pocket that is nearest to
-        /// each candidate, since capacity sums across carriers standing in
-        /// different pockets.
+        /// Chill - one of combat_engine 5.1's three exceptions to
+        /// follow-the-carrier's-target, because a Chill carrier may not be
+        /// attacking the raider it slows. Assignment is nearest-first within
+        /// range, re-evaluated every tick.
         public static void AssignChill(SimState s, int[] scratch)
         {
             for (int r = 0; r < s.RaiderCount; r++) s.RaiderChilled[r] = false;
@@ -1087,12 +1145,14 @@ namespace Broodline.Sim.Combat
             int capacity = TotalChillCapacity(s);
             if (capacity <= 0) return;
 
-            int anchor = NearestChillPocket(s);
-            if (anchor < 0) return;
-
+            // Only raiders some live carrier can actually reach are candidates.
             int n = 0;
             for (int r = 0; r < s.RaiderCount; r++)
-                if (s.RaiderAlive[r]) scratch[n++] = r;
+            {
+                if (!s.RaiderAlive[r]) continue;
+                if (NearestCarrierDistSq(s, r) < 0) continue;
+                scratch[n++] = r;
+            }
 
             // Insertion sort: stable by construction over a total order, and
             // allocation-free. n is bounded by the wave's spawn count.
@@ -1100,7 +1160,7 @@ namespace Broodline.Sim.Combat
             {
                 int v = scratch[i];
                 int j = i - 1;
-                while (j >= 0 && Compare(s, scratch[j], v, anchor) > 0)
+                while (j >= 0 && Compare(s, scratch[j], v) > 0)
                 {
                     scratch[j + 1] = scratch[j];
                     j--;
@@ -1110,19 +1170,6 @@ namespace Broodline.Sim.Combat
 
             int slowed = n < capacity ? n : capacity;
             for (int i = 0; i < slowed; i++) s.RaiderChilled[scratch[i]] = true;
-        }
-
-        /// The lowest-indexed pocket holding a live Chill carrier. Lowest index
-        /// rather than "best" so the anchor is itself deterministic.
-        private static int NearestChillPocket(SimState s)
-        {
-            for (int c = 0; c < s.CreatureCount; c++)
-            {
-                if (!s.CreatureAlive(c)) continue;
-                if (s.CreatureCarries(c, Trait.Chill, out _))
-                    return s.CreaturePocket[c];
-            }
-            return -1;
         }
     }
 }
