@@ -834,7 +834,7 @@ namespace Broodline.Benchmark
 }
 ```
 
-`Time.unscaledDeltaTime` with vSync off and `targetFrameRate` at 60 measures the real frame interval. Leave vSync on and every row reads 16.6 ms regardless of load, which is the classic way to get a meaningless benchmark.
+~~`Time.unscaledDeltaTime` with vSync off and `targetFrameRate` at 60 measures the real frame interval.~~ **Superseded — this was wrong, and it cost two device runs.** `targetFrameRate` makes Unity sleep to hit the target whether or not vSync is off, so `unscaledDeltaTime` reports the cap and reads ~16.7 ms at every load. `cpuFrameTime` repeats the error because it includes the main thread's block on present. The frame's real cost is `max(cpuMainThreadFrameTime, gpuFrameTime)` — and `cpuMainThreadFrameTime` is already exclusive of `cpuMainThreadPresentWaitTime`, so the two must not be subtracted from one another. See the Phase 0 result below for the runs that established this.
 
 `Profiler.GetTotalAllocatedMemoryLong()` already includes the managed heap, so do **not** add `GC.GetTotalMemory` to it — that double-counts and will make every row fail the 600 MB check for no reason.
 
@@ -1070,6 +1070,6 @@ Recorded so the same ground is not re-covered:
 
 Per `client_architecture` §4, a failure changes the renderer rather than the schedule:
 
-- **Fails 60 fps, holds 30** — take the locked-30 option from `client_architecture` §3 and re-run the sweep against the 33.3 ms threshold for a larger budget.
+- **Fails 60 fps, holds 30** — take the locked-30 option from `client_architecture` §3 and re-run the sweep against the 33.333 ms threshold for a larger budget.
 - **Fails both** — the naive path is dead and crowd rendering is required before art begins: GPU instancing for identical raiders, or baked vertex-animation textures instead of skinned meshes. Re-run with those before briefing the commission.
 - **Fails on memory only** — the triangle budget is fine and texture resolution is the problem, which is a `client_architecture` §6 packaging question rather than a rig question.

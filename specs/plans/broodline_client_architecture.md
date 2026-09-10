@@ -75,7 +75,7 @@ Three consequences that are easy to get wrong:
 
 The floor is set by the cheap devices, not the old flagships. The SE line and the base iPad are exactly the price-sensitive hardware a free-to-play audience runs, and excluding them is a revenue decision rather than a technical one. The consequential difference between the A13 and A14 bands is **memory, not GPU** — the SE (2020) and iPad 9 carry 3 GB where every A14 device carries 4.
 
-**Frame rate: 60 target, 30 fallback.** At 30 Hz simulation and 60 Hz rendering, one simulation step lands every other frame, so the worst frame carries a full tick plus a full render inside **16.6 ms**. A locked 30 fps is the last rung of the degradation ladder (§4) and a battery option in settings, which doubles the budget to 33.3 ms when it engages.
+**Frame rate: 60 target, 30 fallback.** At 30 Hz simulation and 60 Hz rendering, one simulation step lands every other frame, so the worst frame carries a full tick plus a full render inside **16.667 ms** — that is 1000/60, and the rounding matters: a hardcoded 16.6 makes a flawless 60 fps read as a failure, which is precisely what the first device run of the Phase 0 proof reported. A locked 30 fps is the last rung of the degradation ladder (§4) and a battery option in settings, which doubles the budget to 33.333 ms when it engages.
 
 **Interpolation stays regardless** — §2. Rendering 1:1 with ticks at a locked 30 fps would delete it, but a 60 fps target with a 30 fps fallback needs it, and capping 60 down is always possible where adding it back is not.
 
