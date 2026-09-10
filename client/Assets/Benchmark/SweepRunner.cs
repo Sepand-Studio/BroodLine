@@ -11,8 +11,8 @@ namespace Broodline.Benchmark
     {
         // The scene serializes these, so the two must be kept in step; a changed
         // default alone does nothing to a scene that already stores its own.
-        [SerializeField] int[] triangleSteps = { 400, 800, 1500, 3000, 6000, 10000, 16000 };
-        [SerializeField] int[] boneSteps = { 12, 24, 48 };
+        [SerializeField] int[] triangleSteps = { 400, 1500, 6000, 10000, 16000 };
+        [SerializeField] int[] boneSteps = { 12, 24, 48, 80 };
         [SerializeField] int[] materialSteps = { 1, 2 };
         [SerializeField] int warmupFrames = 60;
         [SerializeField] int measureFrames = 300;

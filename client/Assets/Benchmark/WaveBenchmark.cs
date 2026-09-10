@@ -17,6 +17,7 @@ namespace Broodline.Benchmark
             {
                 var go = SyntheticCreature.Build(spec);
                 go.name = "entity_" + i;
+                go.GetComponent<BoneAnimator>().SetPhase(i * 0.061f);
                 go.transform.position = new Vector3(
                     (i % perRow) * 1.2f - perRow * 0.6f,
                     0f,

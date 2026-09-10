@@ -13,6 +13,11 @@ namespace Broodline.Benchmark
     /// Geometry is deliberately meaningless — only its cost matters.
     public static class SyntheticCreature
     {
+        /// Covers the arc BoneAnimator sweeps a rig through; see the note where
+        /// localBounds is assigned.
+        public const float BoundsAnimationMargin = 3f;
+
+
         public static GameObject Build(SyntheticCreatureSpec spec)
         {
             var root = new GameObject("SyntheticCreature");
@@ -77,7 +82,21 @@ namespace Broodline.Benchmark
             smr.bones = bones;
             smr.rootBone = bones[0];
             smr.sharedMaterials = mats;
-            smr.localBounds = mesh.bounds;
+
+            // Bounds are taken from the REST pose, and the rig moves. A renderer
+            // whose animated vertices leave its localBounds is culled even while
+            // it sits in the middle of the frustum, which would quietly drop
+            // entities from a benchmark whose entire subject is how many of them
+            // can be drawn. Rotating the root swings the whole chain, so the
+            // margin has to be generous rather than tight; over-large bounds only
+            // cost culling accuracy, which this scene does not measure.
+            var animatedBounds = mesh.bounds;
+            animatedBounds.extents = animatedBounds.extents * BoundsAnimationMargin;
+            smr.localBounds = animatedBounds;
+
+            var animator = root.AddComponent<BoneAnimator>();
+            animator.Bind(bones);
+
             return root;
         }
     }
