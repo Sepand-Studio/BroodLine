@@ -28,8 +28,8 @@ note: >
 |---|---|---|
 | **Decisions** | 0 | All taken — §2 |
 | **Procurement and commissioning** | 8 | Something external is bought or briefed |
-| **Bench tests** | 11 | A build exists, no players needed |
-| **Playtest** | 63 | Players play |
+| **Bench tests** | 12 | A build exists, no players needed |
+| **Playtest** | 64 | Players play |
 | **Soft launch** | 35 | Real population, real spend |
 
 **The writing is done and so is the deciding.** What remains is buying, building and watching.
@@ -72,7 +72,7 @@ External lead times. **The first two should already be in motion.**
 
 ---
 
-## 4. Bench tests — 11
+## 4. Bench tests — 12
 
 Answerable with a build and no players. **All of these belong in Phase 1.**
 
@@ -81,6 +81,7 @@ Answerable with a build and no players. **All of these belong in Phase 1.**
 | 1 | **Wave 44 at ~100 entities** on bottom-quartile devices | `telemetry` §8, four wave docs | Five authored waves cannot ship |
 | 2 | **All eight locks pass the rule test** — breach rate near 100% without the answer | `telemetry` §4 | A lock has a hole. Free — the engine computes it |
 | 3 | Socket-agnostic parts read in both positions across two bodies | `rig_proof` §4 | The 24-asset budget |
+| 3a | **A socket on a deforming parent** — what the transform does when the surface under it articulates. A dummy, not a third body | `rig_proof` §4 item 10 | The socket standard on Loam, Skitter and Hollow |
 | 4 | Growth as a proportion curve, not separate assets | `rig_proof` §6 | The 3D decision |
 | 5 | Silhouettes distinct at 40px with parts attached | `rig_proof` §4 | The art direction |
 | 6 | Hauler carries plate and shield simultaneously | `rig_proof` §3.2 | The Sunder becomes one combined kit |
@@ -92,9 +93,9 @@ Answerable with a build and no players. **All of these belong in Phase 1.**
 
 ---
 
-## 5. Playtest — 63
+## 5. Playtest — 64
 
-The largest group, and the one the whole project has been building toward. **Seven of these are the structural questions at `broodline_telemetry.md`; the other fifty-six are tuning.** The seven are what soft launch must not arrive without answers to.
+The largest group, and the one the whole project has been building toward. **Seven of these are the structural questions at `broodline_telemetry.md`, one more is structural and arrived later, and the other fifty-six are tuning.** The structural ones are what soft launch must not arrive without answers to.
 
 ### The seven that can invalidate a system
 
@@ -107,6 +108,12 @@ The largest group, and the one the whole project has been building toward. **Sev
 | 5 | **Can Reach II and Burrow II be fused by wave 42?** The sample-economy test | `waves_37_44` §7.2 |
 | 6 | **Regrow's regeneration cut** — too strong, and does wave 54 test it? | `combat_numbers` §11.1, `waves_53_60` §9.2 |
 | 7 | **Wave 27's four-species requirement** — challenge or wall? | `waves_21_28` §7.2 |
+
+### One more that is structural, and not a telemetry question
+
+| # | Question | Where |
+|---|---|---|
+| 8 | **Are Bloodscent, Vanguard and Overwatch identifiable in a busy wave?** Bible §1.4 gives those three no trigger, so targeting behaviour is their entire in-combat signal. Decides whether production needs six Instinct cues, one shared cue, or none — and bible §10.3's asset count is marked contingent on it | `rig_proof` §9.3, bible §10.3 |
 
 ### The tuning questions, by area
 

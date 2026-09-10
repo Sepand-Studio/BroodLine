@@ -43,7 +43,13 @@ The build order names **Vetch** — it carries the tutorial parents, it is Found
 | **Vetch** | Low dome, four stubby legs, no neck |
 | **Pale** | Broad wing arc, small hanging body |
 
-A trait part that works on both works on the four in between. A part that works on Vetch alone proves nothing about Loam, which has no legs, or Hollow, which is mostly neck.
+A trait part that works on both works on the four in between.
+
+**Pale is chosen for the problem it shares with two other species, not for being the most different.** Its body is small and its mass is in its wings, so both combat sockets sit on a minor volume while the silhouette is carried by an appendage. **Hollow (tiny body, stilt legs) and Skitter (small body, six long legs) have the same problem** — half the roster. Proving the sockets on Pale retires it for all three.
+
+**Loam is the tempting alternative and it is the wrong test.** The argument for it is that it is segmented, legless and neckless. But no socket attaches to a leg: §3 puts them on the spine or upper mass, the side of the body, and the head or leading edge. Leglessness is a silhouette difference, not an attachment difference, and Loam's long back is among the easiest dorsal surfaces in the roster.
+
+**What Loam does hold that Pale does not** is a deforming parent. A socket is a transform parented to a bone, so on a segmented body a part rides one segment and moves with it. Neither Vetch nor Pale is segmented, so the proof does not exercise it — which is why §4 item 10 exists.
 
 **The cost of the second body is small against what it retires.** One extra body and one extra rig, in exchange for retiring the seventy-two-combination risk rather than deferring it to the fifth species — where it would surface after four bodies were already built to a standard that does not hold.
 
@@ -65,6 +71,8 @@ Three sockets per creature body.
 
 **The two combat sockets must be spatially separate enough that any two parts can coexist without collision.** Bible §10.4 makes both combat traits visible on the body and calls that the single most important functional requirement in the art direction; two parts that overlap defeat it.
 
+**Author the two combat sockets to present comparable surfaces.** Similar local curvature and similar scale at `sk_dorsal` and `sk_flank`, on every body. A part authored once reads in both sockets when both sockets hand it a surface of the same character; it fails when one is a tight convex ridge and the other a broad flat plane. This costs nothing at authoring time and it is the single cheapest thing that can be done to make §4 item 2 pass.
+
 ### 3.1 Sockets are assigned by slot, not by trait
 
 **Every trait part must work in either combat socket.** The part authored for Cinder mounts at `sk_dorsal` on one creature and `sk_flank` on another, and reads correctly in both.
@@ -74,6 +82,8 @@ Three sockets per creature body.
 Hybrids are not. Bible §2.2: Combat 1 locks from any of the parents' four combat traits, and Combat 2 rolls from the remaining three. Splice a Vetch with an Ember, lock Carapace, roll Cinder, and the child carries **two traits that both want the spine.** Nothing in the genetics prevents it and nothing should — constraining which traits can coexist to suit a socket layout would be the art pipeline dictating the breeding system.
 
 **So: slot index determines socket.** Combat 1 goes to `sk_dorsal`, Combat 2 to `sk_flank`, whatever the traits are.
+
+**Every pair of the twelve traits can co-occur, so no socket layout can separate them.** Combat 1 locks from any of the parents' four traits and Combat 2 rolls from the remaining three, so a child carries any two of its parents' four. Closing that over generations from base stock reaches **all sixty-six possible pairs** — the co-occurrence graph is complete. Grouping traits so that no two in a group co-occur is a colouring of that graph, and colouring a complete graph on twelve nodes takes twelve colours: **one socket per trait**. There is no three-socket or four-socket arrangement that makes a fixed trait-to-socket assignment safe. Slot index is not the preferred answer, it is the only one.
 
 **This raises what the proof has to demonstrate.** Twelve parts across two bodies in two sockets is **forty-eight combinations**, not twenty-four. That is the cost of finding it now rather than after the parts are authored.
 
@@ -91,7 +101,7 @@ Four raider bodies, one socket each.
 
 ## 4. What the proof must demonstrate
 
-Nine items. All nine pass, or the approach is wrong.
+Ten items. All ten pass, or the approach is wrong.
 
 | # | Demonstration |
 |---|---|
@@ -104,6 +114,7 @@ Nine items. All nine pass, or the approach is wrong.
 | **7** | Both bodies as flat black shapes at 40px, distinguishable, with and without parts attached |
 | **8** | **Damage as posture** — stance, breathing and desaturation, no blood, no visible trauma. Bible §10.7 |
 | **9** | The Hauler body carrying plate and shield simultaneously, per §3.2 |
+| **10** | **A socket on a deforming parent.** A part mounted to a segmented, articulating section — a dummy is sufficient, not a third body — showing what the socket transform does when the surface under it moves. §2 explains why Vetch and Pale cannot answer this, and Loam, Skitter and Hollow all need the answer |
 
 ---
 
@@ -121,6 +132,8 @@ Pass or fail, judged before anyone is invested in the result.
 
 **Item 6's standard is recognition.** Bible §10.2 rule 3: "players must keep recognising their own animal." Runt and apex side by side should read as the same creature at two sizes, not as two creatures.
 
+**Item 10's standard is a stated rule, not a beautiful result.** The deliverable is the socket standard saying what happens — the part rides one segment, or it deforms with the section, or segmented bodies carry the socket at a fixed anchor. Any of those can be right; leaving it unstated is what cannot.
+
 **Nothing here is judged on appeal.** Bible §10.7's anti-bio-horror checklist and the appeal-over-horror register are creative constraints and they will be assessed separately. This proof is about whether the pipeline works.
 
 ---
@@ -129,7 +142,7 @@ Pass or fail, judged before anyone is invested in the result.
 
 **Fail item 2 across bodies** — parts do not travel between dissimilar silhouettes. Two options: reduce the dissimilarity of the six, which costs bible §10.2 rule 1 and the 40px read; or author per-body variants, multiplying the trait-part budget by up to six. **Neither is cheap and the decision is a design decision, not an art one** — it goes back to the bible rather than being absorbed by the art team.
 
-**Fail item 2 across sockets only** — parts read on the spine but not the flank. Cheaper: two variants per trait rather than six, so twenty-four parts instead of twelve. Still a budget change, and it should be costed before it is accepted.
+**Fail item 2 across sockets only** — parts read on the spine but not the flank. Cheaper: two variants per trait rather than six, so twenty-four parts instead of twelve. Still a budget change, and it should be costed before it is accepted. **This is the fallback**; a third combat socket is not one, for the reason §3.1 gives.
 
 **Fail item 6** — growth needs separate assets rather than a proportion curve. That is four assets per species instead of one, and it was the original justification for 3D. If growth cannot be a curve, **re-open the 2D question**, because the reasoning at bible §10.3 no longer holds.
 
@@ -186,9 +199,13 @@ For whoever is briefed.
 
 ## 9. Open questions
 
-1. **Socket-agnostic parts are more demanding to author than fixed ones.** A shape that reads along a spine and along a flank has less room to be specific to either. If the artist finds that forty-eight combinations cannot all read as intentional, the fallback is a **third combat socket** with traits grouped so that no two in a group can co-occur — which is possible but requires working out the co-occurrence graph from bible §2.2, and it is not obviously solvable.
-2. **Is Pale the right second body?** It is the most dissimilar to Vetch. Loam — segmented, legless, no neck — is arguably the harder attachment problem, and proving Vetch and Loam might retire more risk than Vetch and Pale. It is worth ten minutes of an artist's opinion before committing.
-3. **Six Instinct cues at `sk_crown` may crowd the head.** Bible §10.4 already moves Instinct to a card badge for static display because two trait parts plus a third element muddies the silhouette. If the crown cue is visible in combat only, it may not need to be a mesh at all — which would cut six assets.
+1. ~~**Socket-agnostic parts are more demanding to author than fixed ones.**~~ **The difficulty is real; the fallback proposed here was not.** A shape that reads along a spine and along a flank still has less room to be specific to either, and that is what §4 item 2 exists to test. But the third combat socket named here **cannot work at any socket count**: all sixty-six trait pairs are reachable by splicing, so grouping traits to keep them apart would need one socket per trait. §3.1 carries the derivation. **The fallback is §6's** — two variants per trait, twenty-four parts instead of twelve — which is costed and does not depend on separating traits that cannot be separated.
+2. ~~**Is Pale the right second body?**~~ **Resolved — Pale, and for a different reason than originally given.** The case was silhouette dissimilarity. The stronger case is that Pale's small body with mass in an appendage is the same attachment problem Hollow and Skitter have, so proving it retires half the roster, while Loam's segmentation is a singleton. Loam's leglessness is not an attachment problem at all — no socket attaches to a leg. §2 carries the reasoning. The one risk Loam held that Pale does not is a deforming parent, which is now **§4 item 10** and costs a dummy rather than a body. An artist's opinion is still worth ten minutes, but the question no longer blocks the commission.
+3. **How many Instinct cues does production need — six, one, or none?** Bible §10.3 budgets six and calls a creature "one body plus two trait parts plus one Instinct cue"; §10.4 gives Instinct a card badge when static, *because* "a third would muddy the silhouette", and behaviour plus a trigger state in combat. Neither of §10.4's channels is body geometry, so the two sections disagree and §10.3's six are marked contingent there pending this.
+
+   **This does not block the commission.** The proof asks for **one** cue (§4 item 5) under every possible answer, and one cue is also what validates `sk_crown` — a socket that has never carried geometry is not standardised, and discovering its scale or orientation is wrong during a later retrofit is precisely the expense bible §10.3 warns about. Author the socket on every body regardless; a named transform costs nothing and keeps the option real.
+
+   **What decides it is playtest, not analysis.** The specific question is whether **Bloodscent, Vanguard and Overwatch** are identifiable in a busy wave. Those three have no trigger in bible §1.4 — no animation change, no colour shift — so a trigger state can only ever express the other half of the roster, and targeting behaviour is their only signal. If a wave proves that insufficient, the cheapest answer is a 2D combat icon reusing the card badge, as *Beyond All Reason* does across four hundred unit types, rather than six meshes on a silhouette §10.4 already calls full.
 4. ~~**The proof has no stated duration.**~~ **Resolved — three weeks**, per `broodline_whats_left.md` §2, which already records "the rig proof runs three weeks" as a taken decision. A gate with no deadline is not a gate.
 
 ---
