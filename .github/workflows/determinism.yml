@@ -24,6 +24,26 @@ name: Determinism gate
 # incremental build is 19-36 seconds. 45 minutes leaves headroom for a fully
 # cold runner plus normal checkout/restore/test overhead without masking a
 # genuine hang.
+#
+# Fix round 2, Finding 7: this gate exists to stop a determinism regression
+# from landing, and until now it had no `pull_request` trigger — so it never
+# reported on the one event where a human decides whether to merge. It ran
+# on push (i.e. after the fact, and on the branch rather than on the merge
+# result) and nightly. `pull_request` runs it against the merge commit,
+# which is the thing actually being integrated.
+#
+# The two triggers carry the SAME path filter, deliberately: this job builds
+# a full IL2CPP player, and running it on documentation-only PRs would cost
+# ~10 minutes of self-hosted runner time to prove nothing. The list is spelled
+# out twice rather than shared via a YAML anchor — anchors are not a
+# documented GitHub Actions feature, and a silently-unparsed filter here
+# would either run this job on every PR or on none, both bad. Keep the two
+# lists in step by hand; the file is short enough that a diff shows it.
+#
+# One consequence to know about if this is ever made a REQUIRED check in
+# branch protection: a required check with a path filter stays permanently
+# "expected" on PRs that do not touch these paths. Either leave it advisory,
+# or pair it with a path-filtered no-op job of the same name.
 on:
   push:
     paths:
@@ -40,6 +60,29 @@ on:
       - '.github/workflows/determinism.yml'
       - 'client/ProjectSettings/ProjectSettings.asset'
       - 'Broodline.sln'
+      # Fix round 2, Finding 7: two more load-bearing paths that were
+      # unwatched. manifest.json's `file:../../engine` line is the wire that
+      # makes Unity compile the very same Broodline.Sim source CoreCLR runs —
+      # repoint or drop it and IL2CPP is silently compiling something else,
+      # or nothing, while the gate still reports on two files it believes are
+      # one. ProjectVersion.txt matters because cross-runtime-diff.sh
+      # hardcodes the editor path (6000.6.0f1): an editor upgrade lands here
+      # and the script then fails preflight at exit 127, which is worth
+      # learning from CI rather than from the next person to run it locally.
+      - 'client/Packages/manifest.json'
+      - 'client/ProjectSettings/ProjectVersion.txt'
+  pull_request:
+    paths:
+      - 'engine/**'
+      - 'tests/engine/**'
+      - 'client/Assets/Editor/DeterminismHarness.cs'
+      - 'client/Assets/Determinism/**'
+      - 'implementation/scripts/cross-runtime-diff.sh'
+      - '.github/workflows/determinism.yml'
+      - 'client/ProjectSettings/ProjectSettings.asset'
+      - 'Broodline.sln'
+      - 'client/Packages/manifest.json'
+      - 'client/ProjectSettings/ProjectVersion.txt'
   schedule:
     # Nightly at 09:00 UTC.
     - cron: '0 9 * * *'

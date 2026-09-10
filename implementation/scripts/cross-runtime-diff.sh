@@ -101,19 +101,51 @@ fi
 # no way to tell which part of a later diff would be ours to discard — so we
 # leave that specific file alone rather than guess (see git status/staging
 # discipline: never touch a file you didn't dirty).
+#
+# Fix round 2, Finding 6: this snapshot is re-taken immediately before Unity
+# is launched, not only here. Taken once at the top it is stale by the time
+# the trap fires: `dotnet test` runs between the two points and the IL2CPP
+# build takes minutes, so a file the human dirties in that window looks (to
+# a stale snapshot) exactly like our own churn and gets silently reverted.
+# client/ProjectSettings/ProjectSettings.asset is squarely in their
+# territory, and this branch has already had two commit collisions.
 ALREADY_DIRTY=()
-for p in "${RESTORE_PATHS[@]}"; do
-  git diff --quiet HEAD -- "$p" 2>/dev/null || ALREADY_DIRTY+=("$p")
-done
+snapshot_already_dirty() {
+  ALREADY_DIRTY=()
+  for p in "${RESTORE_PATHS[@]}"; do
+    git diff --quiet HEAD -- "$p" 2>/dev/null || ALREADY_DIRTY+=("$p")
+  done
+}
+snapshot_already_dirty
+
+# Set to 1 immediately before Unity is invoked. Until then this run has
+# touched none of RESTORE_PATHS, so it can account for no dirtiness at all
+# and must restore nothing. This is not hypothetical: the EXIT trap fires on
+# every path out of this script, including the preflight failures and the
+# `dotnet test` failure above the Unity step — all of which used to run
+# `git checkout --` over three of the human's files having never started a
+# build.
+UNITY_RAN=0
 
 restore_known_churn() {
+  if [ "$UNITY_RAN" != 1 ]; then
+    echo "NOTE: Unity never ran in this invocation — restoring nothing (this run dirtied nothing)."
+    return
+  fi
   for p in "${RESTORE_PATHS[@]}"; do
+    # Re-run the dirtiness test now rather than trusting the snapshot alone:
+    # a path that is clean at this point needs no restoring, and reverting it
+    # would be a no-op at best.
+    if git diff --quiet HEAD -- "$p" 2>/dev/null; then
+      continue
+    fi
+
     dirty_before=0
     for d in "${ALREADY_DIRTY[@]:-}"; do
       [ "$d" = "$p" ] && dirty_before=1
     done
     if [ "$dirty_before" = 1 ]; then
-      echo "NOTE: $p was already modified before this run — leaving it as-is, not restoring."
+      echo "NOTE: $p was already modified before the build started — leaving it as-is, not restoring."
     else
       git checkout -- "$p" 2>/dev/null || true
     fi
@@ -151,6 +183,11 @@ fi
 
 echo "--- Unity / IL2CPP: build the player (cold: ~10 min; incremental: ~19-36s) ---"
 rm -f "$BUILD_LOG"
+# Re-snapshot immediately before the build: everything above this line ran
+# without touching RESTORE_PATHS, and `dotnet test` alone can take long
+# enough for the human to start an edit. See snapshot_already_dirty.
+snapshot_already_dirty
+UNITY_RAN=1
 "$UNITY" -batchmode -quit -projectPath "$PROJECT" \
   -executeMethod DeterminismHarness.BuildMacIl2CppPlayer \
   -corpusPlayerOut "$PLAYER_APP" \
@@ -203,8 +240,24 @@ fi
 [ -s "$CORPUS_IL2CPP" ] || { echo "FAIL: IL2CPP player emitted no corpus file at $CORPUS_IL2CPP"; exit 1; }
 
 echo "--- diff ---"
+# Fix round 2, Finding 3: assert the corpus SIZE, do not merely report it.
+# This line used to print `wc -l` inside the PASS message, so cutting the
+# scenario count on both sides produced a cheerful "PASS: 5 scenarios agree"
+# and exit 0 while the Definition of Done names 500 — the gate agreeing
+# loudly about almost nothing. The same number is asserted from the other
+# direction by EnforcementTests.Corpus_StillSweepsTheFullScenarioCount, which
+# pins Broodline.Sim.Corpus.ScenarioCount (the bound both emitters loop to).
+EXPECTED_SCENARIOS=500
+lines_coreclr=$(wc -l < "$CORPUS_CORECLR" | tr -d ' ')
+lines_il2cpp=$(wc -l < "$CORPUS_IL2CPP" | tr -d ' ')
+if [ "$lines_coreclr" -ne "$EXPECTED_SCENARIOS" ] || [ "$lines_il2cpp" -ne "$EXPECTED_SCENARIOS" ]; then
+  echo "FAIL: expected $EXPECTED_SCENARIOS scenarios on each side, got CoreCLR=$lines_coreclr IL2CPP=$lines_il2cpp"
+  echo "      (a gate that compares fewer scenarios than the Definition of Done names is not the gate.)"
+  exit 1
+fi
+
 if diff -u "$CORPUS_CORECLR" "$CORPUS_IL2CPP" >"$CORPUS_DIFF"; then
-  echo "PASS: $(wc -l < "$CORPUS_CORECLR" | tr -d ' ') scenarios agree"
+  echo "PASS: $lines_coreclr scenarios agree"
   exit 0
 else
   echo "FAIL: runtimes disagree. First differences:"

@@ -22,9 +22,11 @@ using UnityEngine;
 ///     -batchmode -nographics -logfile - -corpusOut /path/to/corpus-il2cpp.txt
 public static class CorpusPlayerHarness
 {
-    /// Must match the loop bound in the CoreCLR emitter
-    /// (tests/engine/CorpusTests.cs, EmitCorpusHashes).
-    const int ScenarioCount = 500;
+    // The loop bound lives in the shared engine source (Broodline.Sim.Corpus)
+    // rather than being re-declared here. It used to be a local `const int
+    // ScenarioCount = 500` carrying a "must match the CoreCLR emitter" comment —
+    // a correspondence nothing checked. Both emitters now read the same constant,
+    // which the .NET suite asserts is 500 and the diff script asserts it counted.
 
     const string OutFlag = "-corpusOut";
     const string Tag = "[CorpusPlayerHarness] ";
@@ -74,7 +76,7 @@ public static class CorpusPlayerHarness
             // the last. The two files are diffed directly, so a formatting
             // difference here would read as a determinism failure that isn't one.
             var sb = new StringBuilder();
-            for (int i = 0; i < ScenarioCount; i++)
+            for (int i = 0; i < Corpus.ScenarioCount; i++)
                 sb.AppendLine(i + "," + Corpus.RunScenario(i));
 
             var dir = Path.GetDirectoryName(path);
@@ -85,7 +87,7 @@ public static class CorpusPlayerHarness
             // stated explicitly so the diff can never trip over a leading BOM.
             File.WriteAllText(path, sb.ToString(), new UTF8Encoding(false));
 
-            Debug.Log(Tag + "wrote " + ScenarioCount + " hashes to " + path);
+            Debug.Log(Tag + "wrote " + Corpus.ScenarioCount + " hashes to " + path);
             exitCode = 0;
         }
         catch (Exception e)

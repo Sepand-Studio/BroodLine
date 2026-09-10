@@ -37,6 +37,15 @@ namespace Broodline.Sim.Tests
             ToySim.RunToTick(3, 5, inputs, 128, 64, b);
             Assert.Equal(a, b);
             Assert.NotEmpty(a);
+
+            // Stability alone is a weak claim: RunToTick appending a constant
+            // every checkpointEvery ticks would satisfy every assertion above.
+            // 128 ticks at one checkpoint per 64 gives exactly two, taken 64
+            // ticks apart in a simulation that mutates every entity every tick,
+            // so they are known to be distinct — which is what makes "these two
+            // runs agree" evidence that the hash is tracking the run.
+            Assert.Equal(2, a.Count);
+            Assert.NotEqual(a[0], a[1]);
         }
 
         [Fact]

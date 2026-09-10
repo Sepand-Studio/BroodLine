@@ -1,8 +1,19 @@
 namespace Broodline.Sim
 {
-    /// Deterministic PRNG for the simulation core: xorshift128+ (Vigna &amp;
-    /// Blackman, 2014 — shift triple 23/17/26, the parameterisation also used by
-    /// V8 and JavaScriptCore's XorShift128+).
+    /// Deterministic PRNG for the simulation core: xorshift128+ (Vigna, 2014,
+    /// "Further scramblings of Marsaglia's xorshift generators",
+    /// arXiv:1404.0390 — shift triple 23/17/26, the parameterisation also used
+    /// by V8 and JavaScriptCore's XorShift128+).
+    ///
+    /// <para>
+    /// The attribution is Vigna's alone. This comment previously read "Vigna
+    /// &amp; Blackman, 2014"; Blackman is Vigna's co-author on the later
+    /// xoshiro/xoroshiro family ("Scrambled Linear Pseudorandom Number
+    /// Generators"), which is a different construction and is not what this is.
+    /// The distinction is worth keeping straight in a type whose algorithm is a
+    /// pinned part of the replay format — the reference is how a future reader
+    /// checks the shift triple below against the source it came from.
+    /// </para>
     ///
     /// <para>
     /// One stream per simulation, seeded once by the server and threaded through

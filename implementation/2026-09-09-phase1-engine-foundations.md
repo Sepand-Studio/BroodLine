@@ -24,6 +24,7 @@ From `specs/plans/broodline_solo_execution.md` and `specs/broodline_combat_engin
 - **The core has no dependencies** — no Unity, no Newtonsoft, nothing beyond primitives and arrays.
 - **Engine is shared source, not a compiled DLL** — `broodline_solo_execution.md` §9.2.
 - `.meta` files are committed, **including a directory's own meta, which lives one level up**.
+- **No `#if UNITY_*` regions in `engine/Runtime/`** (vendored `ThirdParty/` excepted). The csproj glob and the asmdef cover the same *files*, but a Unity-conditional region means they do not cover the same *code*: Unity compiles it and the .NET build excludes it, so the banned-API analyzer, the IL float scan and `dotnet build` itself are all blind to something that still ships in the player. Added in fix round 2 and enforced by `EnforcementTests.SimulationCore_HasNoUnityConditionalCompilation`, which makes "both compilers see the same thing" a checked premise rather than an assumption.
 
 **This plan writes no gameplay.** No raiders, no traits, no counters, no tick phases. The toy simulation exists only to prove the harness catches drift.
 
@@ -38,13 +39,13 @@ From `specs/plans/broodline_solo_execution.md` and `specs/broodline_combat_engin
 - Consumes: nothing.
 - Produces: `verify-prereqs.sh` additionally asserting a .NET SDK.
 
-- [ ] **Step 1: Install the .NET SDK**
+- [x] **Step 1: Install the .NET SDK**
 
 ```bash
 brew install --cask dotnet-sdk
 ```
 
-- [ ] **Step 2: Confirm it resolves**
+- [x] **Step 2: Confirm it resolves**
 
 ```bash
 dotnet --list-sdks
@@ -52,7 +53,7 @@ dotnet --list-sdks
 
 Expected: at least one SDK line. If `dotnet` is not on PATH afterwards, open a new shell — the cask installs to `/usr/local/share/dotnet` and adds a symlink that an existing shell will not see.
 
-- [ ] **Step 3: Add the check to the prerequisites script**
+- [x] **Step 3: Add the check to the prerequisites script**
 
 Insert before the Unity block in `implementation/scripts/verify-prereqs.sh`:
 
@@ -64,7 +65,7 @@ else
 fi
 ```
 
-- [ ] **Step 4: Run it**
+- [x] **Step 4: Run it**
 
 ```bash
 ./implementation/scripts/verify-prereqs.sh; echo "exit=$?"
@@ -72,7 +73,7 @@ fi
 
 Expected: four `ok` lines and `exit=0`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add implementation/scripts/verify-prereqs.sh
@@ -98,7 +99,7 @@ The point of this task is one source tree that .NET and Unity each compile their
 - Consumes: nothing.
 - Produces: namespace `Broodline.Sim`, containing `public static class SimVersion { public const string Value = "0.1.0"; }` — a trivial type whose only job is proving both toolchains see the same source.
 
-- [ ] **Step 1: Create the UPM manifest**
+- [x] **Step 1: Create the UPM manifest**
 
 `engine/package.json`:
 
@@ -112,7 +113,7 @@ The point of this task is one source tree that .NET and Unity each compile their
 }
 ```
 
-- [ ] **Step 2: Create the assembly definition**
+- [x] **Step 2: Create the assembly definition**
 
 `engine/Runtime/Broodline.Sim.asmdef`:
 
@@ -132,7 +133,9 @@ The point of this task is one source tree that .NET and Unity each compile their
 
 **`noEngineReferences: true` is the load-bearing field.** It is what makes `UnityEngine` unreachable from this assembly — the guarantee `broodline_solo_execution.md` §7.1 relies on. An empty `references` array alone does not achieve it.
 
-- [ ] **Step 3: Create the .NET project**
+**Folded back (fix round 2, Finding 3):** nothing checked either field. `dotnet build` never reads an asmdef, so flipping `noEngineReferences` to `false` or adding an entry to `references` left the build green, every test passing and the cross-runtime gate printing `PASS` — while Unity happily linked `UnityEngine` into the simulation assembly and made `UnityEngine.Random`, `Time.deltaTime` and `Mathf` reachable from the tick loop. `tests/engine/EnforcementTests.EngineAsmdef_StillHasNoUnityReferencesAtAll` now parses this file and asserts both: `references` present and empty, `noEngineReferences` present and `true`. It asserts the keys are *present*, not merely not-false — an absent `noEngineReferences` defaults to `false` in Unity, which is the opposite of the promise.
+
+- [x] **Step 3: Create the .NET project**
 
 `engine/Broodline.Sim.csproj`:
 
@@ -156,7 +159,7 @@ The point of this task is one source tree that .NET and Unity each compile their
 
 `netstandard2.1` is what Unity 6 consumes. `LangVersion 9.0` is the ceiling Unity's compiler supports for this target — a higher value compiles under .NET and fails inside Unity, which is exactly the split-brain this task exists to prevent.
 
-- [ ] **Step 4: Add the proof type**
+- [x] **Step 4: Add the proof type**
 
 `engine/Runtime/SimVersion.cs`:
 
@@ -171,7 +174,7 @@ namespace Broodline.Sim
 }
 ```
 
-- [ ] **Step 4b: Keep .NET's build output invisible to Unity**
+- [x] **Step 4b: Keep .NET's build output invisible to Unity**
 
 `engine/Directory.Build.props`:
 
@@ -190,7 +193,7 @@ It must live in `Directory.Build.props` rather than the csproj's own `PropertyGr
 
 Add `engine/bin~/` and `engine/obj~/` to `.gitignore`.
 
-- [ ] **Step 5: Create the solution**
+- [x] **Step 5: Create the solution**
 
 The .NET 10 SDK defaults `dotnet new sln` to the newer `.slnx` format; `--format sln` produces the classic `Broodline.sln` this plan refers to throughout.
 
@@ -203,7 +206,7 @@ dotnet build Broodline.sln
 
 Expected: `Build succeeded`, zero warnings, zero errors.
 
-- [ ] **Step 6: Point Unity at the same source**
+- [x] **Step 6: Point Unity at the same source**
 
 Add to the `dependencies` object in `client/Packages/manifest.json`:
 
@@ -213,7 +216,7 @@ Add to the `dependencies` object in `client/Packages/manifest.json`:
 
 The path resolves relative to `client/Packages/`, so `../../engine` is the repository root's `engine/`.
 
-- [ ] **Step 7: Prove Unity compiles it too**
+- [x] **Step 7: Prove Unity compiles it too**
 
 Close the Unity editor, then:
 
@@ -225,7 +228,7 @@ Expected: **`total=7 passed=7 failed=0`**, exit 0 — Phase 0's suite, unchanged
 
 If Unity reports the package cannot be found, the relative path is wrong. If it reports `noEngineReferences` as unknown, the asmdef schema differs in this Unity version — read the error and fix the field rather than deleting it.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add engine/ Broodline.sln client/Packages/manifest.json
@@ -255,7 +258,7 @@ The rule that matters most, enforced by reading the compiled assembly rather tha
 - Consumes: `Broodline.Sim` from Task 1.
 - Produces: a test asserting no `float32`/`float64` appears in any field, signature, local or instruction of `Broodline.Sim`, **excluding types under the `FixPointCS` namespace** — see Task 4 for why that exclusion is required and why it is narrow.
 
-- [ ] **Step 1: Create the test project**
+- [x] **Step 1: Create the test project**
 
 `tests/engine/Broodline.Sim.Tests.csproj`:
 
@@ -280,7 +283,7 @@ The rule that matters most, enforced by reading the compiled assembly rather tha
 
 If a listed package version no longer resolves, take the newest stable of that package and record what you used in your report. Do not downgrade the target framework to make an old version fit.
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 `tests/engine/DeterminismRuleTests.cs`:
 
@@ -378,7 +381,7 @@ namespace Broodline.Sim.Tests
 }
 ```
 
-- [ ] **Step 3: Add the project and run — the test must PASS**
+- [x] **Step 3: Add the project and run — the test must PASS**
 
 ```bash
 cd "$(git rev-parse --show-toplevel)"
@@ -390,7 +393,7 @@ Expected: **1 passed**. `SimVersion` holds only a string constant, so there is n
 
 A passing test proves nothing on its own here — Step 4 is what proves the scan works.
 
-- [ ] **Step 4: Prove the scan actually catches a violation**
+- [x] **Step 4: Prove the scan actually catches a violation**
 
 Temporarily add to `engine/Runtime/SimVersion.cs`:
 
@@ -416,7 +419,7 @@ Run **three** tripwires, not one — the first version of this scan passed all o
 | `public static int T2(long a, long b) => (int)((float)a / (float)b);` | `conv.r4` |
 | `public class FixPointCSHelper { public static float S() => 2.5f; }` | `FixPointCSHelper` — proving the vendored exclusion is namespace-bounded, not a prefix match |
 
-- [ ] **Step 5: Remove the tripwire and confirm green**
+- [x] **Step 5: Remove the tripwire and confirm green**
 
 Delete the `Tripwire` property, then:
 
@@ -426,7 +429,33 @@ dotnet test Broodline.sln
 
 Expected: **1 passed**.
 
-- [ ] **Step 6: Commit**
+**Folded back (fix round 2, Critical 1): the scan also inspects instruction OPERANDS, not only opcodes.**
+
+As first written the body scan looked at `i.OpCode` and never at `i.Operand`, so float arriving through a call slipped straight past it:
+
+```csharp
+public int T() => (int)FixPointCS.Fixed64.ToDouble(Raw);
+```
+
+compiles to `call float64 …::ToDouble(int64)` followed by `conv.i4`. None of `Ldc_R4`, `Ldc_R8`, `Conv_R4`, `Conv_R8` or `Conv_R_Un` appears anywhere. This was verified, not reasoned about: that exact method was added to `SimVersion` and the original scan **passed**. `FixPointCS` ships `ToDouble`/`FromDouble`/`ToFloat`/`FromFloat`, and `System.BitConverter` is not on the banned list, so this is a reachable route rather than a hypothetical one — and it is precisely the route someone reaches for to work around `Mul`'s documented silent overflow, at which point `Fix64.cs`'s header promise ("no float or double may appear anywhere in this file — not in a signature, not in a body, not in a cast") would be false with nothing to catch it.
+
+The scan now flags three operand kinds inside non-vendored types:
+
+| Operand | Flagged when |
+|---|---|
+| `IMethodSignature` (covers `MethodReference`, `GenericInstanceMethod`, and `calli`'s `CallSite`) | the return type, any parameter type, or any generic argument is float |
+| `FieldReference` | the field type is float |
+| `TypeReference` (`newarr`, `box`, `ldtoken`, `castclass`) | the type is float |
+
+The `IsVendored` guard already skips vendored types wholesale, so FixPointCS's own internal calls to its own float helpers stay exempt while a call **into** them from our code does not — the exclusion stays namespace-bounded exactly as Step 4's third tripwire requires.
+
+Add a fourth tripwire to Step 4's table and watch it fail before removing it:
+
+| Tripwire | Must fail naming |
+|---|---|
+| `public static int T4(long raw) => (int)FixPointCS.Fixed64.ToDouble(raw);` | `float via call Broodline.Sim.SimVersion.T4 -> System.Double FixPointCS.Fixed64::ToDouble(System.Int64)` |
+
+- [x] **Step 6: Commit**
 
 ```bash
 git add tests/engine/ Broodline.sln
@@ -455,7 +484,7 @@ The IL scan catches floating point after compilation. This catches the rest befo
 - Consumes: `Broodline.Sim` from Task 1.
 - Produces: a build that fails on any banned API, with the reason in the error message.
 
-- [ ] **Step 1: Write the banned list**
+- [x] **Step 1: Write the banned list**
 
 `engine/BannedSymbols.txt`:
 
@@ -477,13 +506,21 @@ T:System.Threading.Tasks.ValueTask;as above.
 T:System.Threading.Tasks.ValueTask`1;as above.
 T:System.Threading.Tasks.Parallel;no parallelism inside a tick. Parallel.For/ForEach over a per-entity loop is the likeliest way it comes back.
 T:System.Threading.Thread;no parallelism inside a tick.
+T:System.Diagnostics.Stopwatch;ambient wall-clock by another name. Time in the core is tickIndex; a Stopwatch reading cannot be replayed.
+T:System.Runtime.CompilerServices.RuntimeHelpers;GetHashCode here is the reference-identity hash — per-process and allocation-order dependent, the same hazard String.GetHashCode is banned for.
+T:System.Collections.Hashtable;hash iteration order differs across runtimes, as Dictionary`2 does, and this one predates generics so it is easy to reach for by accident.
+T:System.Collections.Concurrent.ConcurrentDictionary`2;hash iteration order, plus concurrency the tick loop must not have. Arity 1 does not exist; the arity-2 DocID is the one that binds.
 ```
 
 Each entry is `symbol;reason`, and the reason appears in the build error — which is the difference between a developer understanding the rule and working around it.
 
 `BannedApiAnalyzers` matches on the exact DocID, and generic arity is part of it: an arity-0 entry for `Task` does not bind `Task<TResult>`, and the same applies to `ValueTask`/`ValueTask<TResult>`. Both arities are listed for each type for that reason, matching the existing arity-explicit notation used for `` Dictionary`2 `` and `` HashSet`1 `` above. `Parallel` is listed separately since it is not a `Task`/`ValueTask` arity variant — it is the static parallel-loop helper, and a per-entity `Parallel.For` is the most likely way parallelism gets reintroduced inside a tick.
 
-- [ ] **Step 2: Wire the analyzer**
+**Folded back (fix round 2, Finding 5):** the last four entries close two half-bans. Ambient time was banned as `DateTime`/`DateTimeOffset` but not as `Stopwatch`, which is the same wall-clock under a different name. Identity hashing was banned as `String.GetHashCode` — randomised per process on CoreCLR, not on Mono — but `RuntimeHelpers.GetHashCode` is the reference-identity hash and carries the identical per-process hazard. `Hashtable` and `ConcurrentDictionary`2` were the two remaining order-dependent collections outside the `Dictionary`2`/`HashSet`1` pair. All four were verified to fire with their reasons by compiling each against the analyzer.
+
+**Folded back (fix round 2, Finding 3): this list is now itself enforced.** Deleting the `AdditionalFiles` line, the analyzer `PackageReference`, or `RS0030` from `WarningsAsErrors` used to leave the build green, every test passing and the gate printing `PASS` — the banned list simply stopped being read. `tests/engine/EnforcementTests.EngineCsproj_StillWiresTheBannedApiAnalyzer` parses the csproj as XML (not as text — a commented-out line still contains the text) and asserts all three, and `BannedSymbols_StillListsTheSymbolsTheCoreCannotUse` asserts a representative slice of the entries above, each matched with its trailing `;` so an arity-0 entry cannot satisfy an assertion about an arity-1 type.
+
+- [x] **Step 2: Wire the analyzer**
 
 Add to `engine/Broodline.Sim.csproj`:
 
@@ -506,7 +543,7 @@ Add to `engine/Broodline.Sim.csproj`:
 
 `PrivateAssets: all` keeps the analyzer out of anything that references this package — it governs the core, not its consumers.
 
-- [ ] **Step 3: Confirm the build is still clean**
+- [x] **Step 3: Confirm the build is still clean**
 
 ```bash
 dotnet build Broodline.sln
@@ -514,7 +551,7 @@ dotnet build Broodline.sln
 
 Expected: `Build succeeded`, zero warnings.
 
-- [ ] **Step 4: Prove the ban actually fires**
+- [x] **Step 4: Prove the ban actually fires**
 
 Temporarily add to `engine/Runtime/SimVersion.cs`:
 
@@ -532,7 +569,7 @@ Expected: **build FAILS** with `RS0030` naming `System.Random` and the reason te
 
 As in Task 2, do not skip this. An analyzer that is configured but not wired produces a clean build for the wrong reason.
 
-- [ ] **Step 5: Remove the tripwire, confirm green, commit**
+- [x] **Step 5: Remove the tripwire, confirm green, commit**
 
 ```bash
 dotnet build Broodline.sln && dotnet test Broodline.sln
@@ -567,7 +604,7 @@ that reason, then removing it."
   - `public int ToIntFloor()`
   - `IEquatable<Fix64>`, `IComparable<Fix64>`
 
-- [ ] **Step 1: Vendor FixPointCS**
+- [x] **Step 1: Vendor FixPointCS**
 
 Obtain the FixPointCS sources (MIT) and place the fixed-point implementation files plus the licence under `engine/Runtime/ThirdParty/FixPointCS/`. **Preserve the licence header in every file and keep `LICENSE` alongside them.** Record in your report which files and which revision you took.
 
@@ -587,7 +624,7 @@ Add only the warning codes the build actually reports, and record them in your r
 
 At the vendored revision pinned for this task (`a852f05b428a942f8dc274ee516a893ae224e0d4`), the build did not in fact fail: `dotnet build engine/Broodline.Sim.csproj -t:Rebuild -v normal` shows both vendored files compiling under `/warnaserror+` (BannedApiAnalyzers loaded, `/warnaserror+:NU1605,RS0030`) with 0 warnings and 0 errors, so no suppression block was added. The guidance above still stands for whichever future revision of the vendored sources first introduces one.
 
-- [ ] **Step 2: Confirm the exclusion in Task 2's scan is doing real work**
+- [x] **Step 2: Confirm the exclusion in Task 2's scan is doing real work**
 
 ```bash
 dotnet test Broodline.sln --filter SimulationCore_ContainsNoFloatingPoint
@@ -595,7 +632,7 @@ dotnet test Broodline.sln --filter SimulationCore_ContainsNoFloatingPoint
 
 Expected: **1 passed**. If it fails naming a `FixPointCS.*` type, the namespace of the vendored code differs from the `VendoredNamespace` constant — update the constant to the real namespace. **Do not widen it to a prefix that would also cover `Broodline.Sim`.**
 
-- [ ] **Step 3: Write the failing tests**
+- [x] **Step 3: Write the failing tests**
 
 `tests/engine/Fix64Tests.cs`:
 
@@ -674,7 +711,7 @@ Round 3 also closed two gaps the contract had never covered:
 
 Five more `Pinned_` tests were added for these facts, each verified against the vendored source and against a measured run before being written down: `Pinned_Negation_IsIdentityAtLongMinValue`; `Pinned_DivisionSignIdentity_FailsAtLongMinValue_WithoutSaturating` (with a contrast at `long.MinValue + 1`, where the same divisor and the same non-saturating path make the identity hold); `Pinned_MultiplicationSignIdentity_FailsAtLongMinValue_WithNoRemainderDiscarded` (the product is exactly −1.5, so no remainder is discarded, and the identity fails anyway); `Pinned_Multiply_OverflowsSilentlyWithoutSaturating`; and `Pinned_Divide_QuotientAboveLongMaxValueWrapsInsteadOfSaturating`, which pins the guard's threshold to the raw unit — divisor raw 2³¹−1 saturates, divisor raw 2³¹ wraps to `-2`.
 
-- [ ] **Step 4: Run and watch them fail**
+- [x] **Step 4: Run and watch them fail**
 
 ```bash
 dotnet test Broodline.sln
@@ -682,13 +719,13 @@ dotnet test Broodline.sln
 
 Expected: compile error — `Fix64` does not exist yet.
 
-- [ ] **Step 5: Write the wrapper**
+- [x] **Step 5: Write the wrapper**
 
 `engine/Runtime/Fix64.cs` — a `readonly struct` over a single `long` raw value, delegating arithmetic to the vendored implementation.
 
 **Wrap rather than expose FixPointCS directly.** The engine depends on `Broodline.Sim.Fix64`, so replacing the implementation later touches one file instead of every call site. The wrapper is also where the no-float boundary sits: it must expose no `float` or `double` in any signature, or Task 2's scan fails.
 
-- [ ] **Step 6: Run until green**
+- [x] **Step 6: Run until green**
 
 ```bash
 dotnet test Broodline.sln
@@ -700,7 +737,11 @@ Expected at this task's original implementation: **7 passed** — the two pre-ex
 
 **Fix round 3 raised this to 23 passed** — the same two determinism tests plus twenty-one in `Fix64Tests.cs` (round 1's sixteen plus the five described in Step 3 above). Round 2 changed only the header comment, so it left the count at 18. Taken from an actual `dotnet test Broodline.sln` run, not computed by hand.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Record the vendored provenance** *(added in fix round 2)*
+
+**Folded back (fix round 2, Finding 8):** the vendored tree carried the licence and per-file headers but recorded nothing about where the code came from, so "is this current?", "has anyone edited it?" and "what would upgrading involve?" had no answer short of guesswork. `engine/Runtime/ThirdParty/FixPointCS/PROVENANCE.md` now names the upstream repository (`https://github.com/XMunkki/FixPointCS`), the pinned revision `a852f05b428a942f8dc274ee516a893ae224e0d4`, the three files taken (`Fixed64.cs`, `FixedUtil.cs`, `LICENSE.txt` — not the test suite, generators, `Fixed32.cs` or `F64.cs`), their SHA-256 checksums, and a copy-pasteable re-verification command. Byte-identity to upstream was verified rather than asserted: all three files were fetched at the pinned revision and compared with `cmp`, and all three match exactly. **The vendored sources themselves must not be edited** — that byte-identity is what makes an upgrade a clean replace-and-re-diff instead of an archaeology exercise, and it is why the wrapper documents the edge-case contract rather than patching it upstream-side.
+
+- [x] **Step 8: Commit**
 
 ```bash
 git add engine/ tests/engine/
@@ -730,7 +771,9 @@ green."
   - `struct Hash` with `static Hash Create()`, `void Add(long value)`, `ulong Value { get; }` — FNV-1a over 64-bit inputs.
     **`Create()` rather than `new Hash()`**: a default-initialised struct has an all-zero state, which is not FNV's offset basis. Making the constructor explicit avoids a `Value` getter that has to special-case zero — and a real hash *can* legitimately compute to zero, so that special case would be a latent bug.
 
-- [ ] **Step 1: Write the failing tests**
+**Folded back (fix round 2, deferred ledger):** `Rng`'s doc comment attributed xorshift128+ to "Vigna & Blackman, 2014". The 2014 xorshift+ paper (*Further scramblings of Marsaglia's xorshift generators*, arXiv:1404.0390) is **Vigna's alone**; Blackman is his co-author on the later xoshiro/xoroshiro family, which is a different construction and not what this implements. Corrected in place. The citation is load-bearing rather than decorative: the algorithm is a pinned part of the replay format, and the reference is how a future reader checks the shift triple against its source.
+
+- [x] **Step 1: Write the failing tests**
 
 `tests/engine/RngTests.cs`:
 
@@ -891,7 +934,7 @@ namespace Broodline.Sim.Tests
 
 **Fix round 1 correction folded in:** `Add_PinsKnownFnv1aValues` did not exist before this fix round. The doc comment on `Hash.Add` claims byte order is part of a "pinned" contract, but before this test, nothing pinned it: all three tests above pass unchanged under an LSB-first fold instead of the actual MSB-first one, and `EmptyHash_IsTheFnvOffsetBasis` only pins the *initial* state, before `Add` ever runs. The two literals above were obtained by running this code (via a deliberately-wrong placeholder assertion, then reading the real value off xUnit's failure diff, the same technique Step 5 below uses) — never computed by hand — and independently cross-checked against a from-scratch FNV-1a re-derivation, which agreed on both values. Step 5 below extends the deliberate-break proof to this pin too.
 
-- [ ] **Step 2: Run and watch them fail**
+- [x] **Step 2: Run and watch them fail**
 
 ```bash
 dotnet test Broodline.sln
@@ -899,7 +942,7 @@ dotnet test Broodline.sln
 
 Expected: compile error — `Rng` and `Hash` do not exist.
 
-- [ ] **Step 3: Implement both**
+- [x] **Step 3: Implement both**
 
 `Rng` is **xorshift128+**, seeded by splitting the 64-bit seed into two non-zero state words — a zero state is the algorithm's degenerate case and produces zeros forever. `NextInt` must avoid modulo bias.
 
@@ -907,7 +950,7 @@ Expected: compile error — `Rng` and `Hash` do not exist.
 
 Neither may allocate, use `System.Math`, or read wall-clock time. The banned-API analyzer will tell you if you try.
 
-- [ ] **Step 4: Run until green**
+- [x] **Step 4: Run until green**
 
 ```bash
 dotnet test Broodline.sln
@@ -917,7 +960,7 @@ Expected: **30 passed** (23 existing + 4 in `RngTests` + 3 in `HashTests`). The 
 
 **Fix round 1 raised this to 33 passed** — the same 23 pre-existing tests, plus 6 in `RngTests` (the original 4 plus `NextInt_NonPositiveBound_ReturnsZeroWithoutConsumingADraw` and `NextInt_One_ReturnsZeroAndConsumesExactlyOneDraw`), plus 4 in `HashTests` (the original 3 plus `Add_PinsKnownFnv1aValues`). Confirmed by an actual `dotnet test Broodline.sln` run, not computed by hand.
 
-- [ ] **Step 5: Prove the pin actually catches a change**
+- [x] **Step 5: Prove the pin actually catches a change**
 
 Every other determinism check in this plan carries a deliberate-break step — Task 2 Step 4, Task 3 Step 4, Task 6 Step 5, Task 7 Step 6 — and this is the one that was missing it. A pin nobody has watched fail is not proven to pin anything.
 
@@ -964,7 +1007,7 @@ Failed!  - Failed: 1, Passed: 5, Skipped: 0, Total: 6
 
 Only the new consumption test fails — `NextInt_StaysInRange` and the other four `RngTests` all still pass under the short-circuit, since none of them observe stream position the way this one does. Restored the line and reconfirmed green.
 
-- [ ] **Step 6: Restore and confirm green**
+- [x] **Step 6: Restore and confirm green**
 
 Put the constructor back the way Step 3 left it (fix round 1 additionally restored `Hash.Add`'s loop bounds and removed the `NextInt` short-circuit — both diffed clean against the prior commit before proceeding), then:
 
@@ -974,7 +1017,7 @@ dotnet test Broodline.sln
 
 Expected: **30 passed** at the original implementation; **33 passed** after fix round 1 (see the corrected count above).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add engine/ tests/engine/
@@ -1005,7 +1048,7 @@ The smallest simulation that can drift, so the harness can be proven to catch dr
   - `static class ToySim` with `static ulong Run(ulong seed, int entityCount, ToyInput[] inputs, int ticks)` returning the hash of the whole run's folded history — every entity's state, every tick — and `static ulong RunToTick(ulong seed, int entityCount, ToyInput[] inputs, int ticks, int checkpointEvery, System.Collections.Generic.List<ulong> checkpoints)`.
     **A whole-run hash, not just a terminal-state one**: it subsumes a terminal-state hash (identical runs still match) and additionally catches divergence that later reconverges. It also makes `RunToTick`'s checkpoints monotone — once two runs differ they differ forever — so a binary search over checkpoints locates the *first* divergent tick; per-tick-fresh snapshots can diverge and reconverge, which makes them invalid to bisect.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `tests/engine/ToySimTests.cs`:
 
@@ -1049,6 +1092,16 @@ namespace Broodline.Sim.Tests
             ToySim.RunToTick(3, 5, inputs, 128, 64, b);
             Assert.Equal(a, b);
             Assert.NotEmpty(a);
+
+            // Folded back (fix round 2, deferred ledger): stability alone is a
+            // weak claim — RunToTick appending a CONSTANT every checkpointEvery
+            // ticks satisfies every assertion above. 128 ticks at one checkpoint
+            // per 64 gives exactly two, taken 64 ticks apart in a simulation
+            // that mutates every entity every tick, so they are known distinct.
+            // That is what makes "the two runs agree" evidence the checkpoints
+            // track the run rather than evidence they are inert.
+            Assert.Equal(2, a.Count);
+            Assert.NotEqual(a[0], a[1]);
         }
 
         [Fact]
@@ -1105,7 +1158,7 @@ namespace Broodline.Sim.Tests
 }
 ```
 
-- [ ] **Step 2: Run and watch them fail**
+- [x] **Step 2: Run and watch them fail**
 
 ```bash
 dotnet test Broodline.sln
@@ -1113,7 +1166,7 @@ dotnet test Broodline.sln
 
 Expected: compile error — `ToySim` and `ToyInput` do not exist.
 
-- [ ] **Step 3: Implement the toy simulation**
+- [x] **Step 3: Implement the toy simulation**
 
 Requirements, all of which exist to exercise a rule from the Global Constraints:
 
@@ -1126,7 +1179,7 @@ Requirements, all of which exist to exercise a rule from the Global Constraints:
 
 Keep it under about 80 lines. It is a test fixture, not a game.
 
-- [ ] **Step 4: Pin the golden hash**
+- [x] **Step 4: Pin the golden hash**
 
 Run the suite. `GoldenHash_IsPinned` fails and reports the actual value. Replace `GoldenValue` with it, and add above the constant:
 
@@ -1137,7 +1190,7 @@ Run the suite. `GoldenHash_IsPinned` fails and reports the actual value. Replace
 
 Re-run: **39 passed** (33 baseline + 5 in `ToySimTests` + 1 in `FuzzTests`). The brief's original "19 passed" was computed before earlier tasks' review rounds added tests to the suite; take the real count from this run, never by hand.
 
-- [ ] **Step 5: Prove the golden test actually catches drift**
+- [x] **Step 5: Prove the golden test actually catches drift**
 
 Temporarily change a constant inside `ToySim` — a movement step, say. Run the suite.
 
@@ -1145,7 +1198,7 @@ Expected: `GoldenHash_IsPinned` **FAILS** with a different value; `RandomScenari
 
 That is the distinction the two layers exist to draw: the golden test catches *change*, the fuzz test catches *nondeterminism*. Revert the constant and confirm green.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add engine/ tests/engine/
@@ -1179,7 +1232,7 @@ The reason the whole plan exists: proving CoreCLR and IL2CPP agree.
 - Consumes: `ToySim.Run` from Task 6.
 - Produces: a script exiting non-zero when the two runtimes disagree, and a workflow running it on a self-hosted macOS runner.
 
-- [ ] **Step 1: Write the corpus runner as shared code**
+- [x] **Step 1: Write the corpus runner as shared code**
 
 `engine/Runtime/Corpus.cs` — a deterministic set of scenarios generated from a seed, so both runtimes run identical work without shipping a data file:
 
@@ -1211,7 +1264,23 @@ namespace Broodline.Sim
 
 Add a test asserting `RunScenario(0)` is stable across two calls, then commit this before continuing.
 
-- [ ] **Step 2: Emit the CoreCLR side**
+**Folded back (fix round 2, Critical 2): the corpus also folds a fixed arithmetic sweep, because the toy simulation alone exercised almost nothing.**
+
+`ToySim` reaches only `FromInt`, `+`, `-` and `Fix64.Zero`, and the vendored `Fixed64.Add`/`Sub` are literally `a + b` and `a - b`. So the gate as first written proved that **64-bit integer addition agrees across two runtimes** — arithmetic that could not plausibly have gone the other way — while every path carrying real cross-runtime risk never executed on IL2CPP at all:
+
+- `DivPrecise` does variable-shift division including `u0 >> (64 - s)`, where `s = Nlz(|divisor|)` is `0` exactly when the divisor's magnitude sets the top bit. That is a shift of exactly 64, which **ECMA-335 leaves unspecified and C++ makes undefined** — and IL2CPP compiles to C++. The expression is masked to zero afterwards, but the shift still executes; if the two runtimes are ever going to disagree about `Fix64`, this is the likeliest single line.
+- `SqrtPrecise` is a shift loop over `ulong`.
+- `Mul` is unchecked wrapping `long` arithmetic with no overflow guard.
+
+`RunScenario` therefore now returns a `Hash` folding the `ToySim` run hash **and** `FoldArithmeticSweep`, which applies `Mul`, `/`, `Sqrt` and `ToIntFloor` over `SweepRaws` — `Fix64Tests.SampleRaws` (`long.MinValue`, `long.MinValue + 1`, `±(1L<<40)`, `±(1L<<32)`, `±1`, `0`, `long.MaxValue - 1`, `long.MaxValue`) plus the pinned edges `0xFFFFFFFF`, `(1L<<31)-1` and `1L<<31` — every value and every ordered pair, in a fixed index order. Every one of those operations is total at those inputs (division by zero saturates, `Sqrt` of a negative returns zero, `Mul` wraps), which is exactly the documented `Fix64` contract; hashing the results is the point, since the gate's job is to prove the two runtimes agree about the edge behaviour, not that the edge behaviour is pleasant.
+
+The sweep is deliberately identical for every scenario and folded **after** the simulation hash, so a single disagreement anywhere in it surfaces on all 500 lines of the diff rather than on one.
+
+**`ToySim` was not changed** — `ToySimTests`'s golden hash stays valid. The corpus hashes did change, which is the evidence the sweep is actually folded in: scenario 0 moved from `8366189152614810321` to `15207835584096458000`, scenario 1 from `2288419299136412583` to `8418873356320103032`, and so on for all 500. The re-run gate then reported `PASS: 500 scenarios agree` at exit 0 with a byte-empty diff — a materially stronger claim than the same sentence made before.
+
+`Corpus.ScenarioCount` was added in the same change as the single source of truth for the loop bound. Both emitters previously carried their own literal `500` held together by a "must match the CoreCLR emitter" comment that nothing checked; both now read this constant, `EnforcementTests.Corpus_StillSweepsTheFullScenarioCount` asserts it is 500, and the diff script asserts the line count it actually diffed equals 500.
+
+- [x] **Step 2: Emit the CoreCLR side**
 
 Add to `tests/engine/` a test that writes every scenario hash to a file when an environment variable is set, so the same suite serves both purposes:
 
@@ -1229,7 +1298,7 @@ Add to `tests/engine/` a test that writes every scenario hash to a file when an 
         }
 ```
 
-- [ ] **Step 3: Build a real IL2CPP player, and emit the corpus from inside it**
+- [x] **Step 3: Build a real IL2CPP player, and emit the corpus from inside it**
 
 **Corrected during implementation — `-executeMethod` alone was rejected.**
 `-executeMethod` runs inside the Unity Editor, and the Editor executes
@@ -1300,7 +1369,7 @@ runs (`Broodline.Sim.asmdef` is `autoReferenced`, so no new asmdef was
 needed) — this is genuinely the same IL2CPP-compiled `Corpus.RunScenario`,
 not a reimplementation.
 
-- [ ] **Step 4: Write the diff script**
+- [x] **Step 4: Write the diff script**
 
 **Corrected during implementation.** The version below replaces an earlier
 draft that drove the Editor with `-executeMethod DeterminismHarness.EmitCorpus`
@@ -1546,7 +1615,7 @@ found while building the real player rather than assuming one:
    path still exits 0, and a real FAIL path (the forced-Mono runs above)
    still exits 1.
 
-- [ ] **Step 5: Run it and see it pass**
+- [x] **Step 5: Run it and see it pass**
 
 ```bash
 chmod +x implementation/scripts/cross-runtime-diff.sh
@@ -1559,7 +1628,11 @@ message rather than letting a second Unity instance fail to open the project.
 
 **This step is the entire point of Phase 1.** If it fails, do not proceed — read the first differing scenario index and reproduce it in isolation.
 
-- [ ] **Step 6: Prove the diff catches disagreement**
+**Folded back (fix round 2, Finding 3): the script asserts the scenario count rather than printing it.** The PASS line used to read `PASS: $(wc -l < "$CORPUS_CORECLR") scenarios agree` — so reducing the corpus on both sides produced a cheerful `PASS: 5 scenarios agree` and exit 0, a gate agreeing loudly about almost nothing while the Definition of Done named 500. Both sides' line counts are now compared against `EXPECTED_SCENARIOS=500` *before* the diff, and a mismatch fails at exit 1.
+
+**Folded back (fix round 2, Finding 6): the restore can no longer discard the human's uncommitted work.** `ALREADY_DIRTY` was snapshotted once at the top of the script, but the EXIT trap runs `git checkout -- "$p"` on every path out — so a file the human dirtied *after* that snapshot was silently reverted, and `client/ProjectSettings/ProjectSettings.asset` is squarely in their territory on a branch that has already had two commit collisions. Two changes: the snapshot is re-taken immediately before Unity is launched (closing the multi-minute `dotnet test` window), and `restore_known_churn` now re-runs the `git diff --quiet HEAD -- "$p"` dirtiness test itself and skips any path this run cannot account for. A `UNITY_RAN` flag makes the strongest case explicit — until Unity is actually invoked this script has touched none of `RESTORE_PATHS`, so a preflight failure or a failing `dotnet test` used to run `git checkout --` over three of the human's files having never started a build, and now restores nothing.
+
+- [x] **Step 6: Prove the diff catches disagreement**
 
 **Corrected during implementation:** the player-side emitter lives in
 `CorpusPlayerHarness.cs`, not `DeterminismHarness.cs` (Step 3) — that is the
@@ -1570,7 +1643,7 @@ Expected: **FAIL**, with the diff naming line 251 (the corpus file has one
 `index,hash` line per scenario starting at index 0, so scenario 250 is line
 251). Revert and confirm `PASS` again.
 
-- [ ] **Step 7: Add the workflow**
+- [x] **Step 7: Add the workflow**
 
 `.github/workflows/determinism.yml`, running on `[self-hosted, macOS]` nightly and on pushes touching `engine/**` or `tests/engine/**`, executing `dotnet test` and then `cross-runtime-diff.sh`.
 
@@ -1594,7 +1667,11 @@ itself, this workflow file, `client/ProjectSettings/ProjectSettings.asset`
 silently gut the gate and still land with a green board if nothing watched
 for it.
 
-- [ ] **Step 8: Commit**
+**Folded back (fix round 2, Finding 7): a `pull_request` trigger, and two more paths.** The workflow had `push`, `schedule` and `workflow_dispatch` but no `pull_request` — a gate whose whole purpose is to block a bad merge never reported on the merge, only on the branch after the fact. `pull_request` now runs it against the merge commit, carrying the same path filter (spelled out twice rather than shared via a YAML anchor: anchors are not a documented GitHub Actions feature, and a silently-unparsed filter would run this 10-minute job on every PR or on none). One consequence worth knowing if this is ever made a **required** check: a required check with a path filter stays permanently "expected" on PRs that do not touch these paths — leave it advisory, or pair it with a path-filtered no-op job of the same name.
+
+Two paths were added to both filters. `client/Packages/manifest.json` carries the `file:../../engine` line that is the actual wire making Unity compile the very same `Broodline.Sim` source CoreCLR runs — repoint or drop it and IL2CPP is silently compiling something else, or nothing, while the gate still reports on two files it believes are one. `client/ProjectSettings/ProjectVersion.txt` matters because `cross-runtime-diff.sh` hardcodes the editor path (`6000.6.0f1`): an editor upgrade lands there and the script then fails preflight at exit 127, which is worth learning from CI rather than from the next person to run it locally.
+
+- [x] **Step 8: Commit**
 
 ```bash
 git add engine/ tests/engine/ client/Assets/Editor/DeterminismHarness.cs implementation/scripts/cross-runtime-diff.sh .github/
@@ -1621,3 +1698,15 @@ perturbing one scenario and watching the diff name it."
 ## Definition of done
 
 `./implementation/scripts/cross-runtime-diff.sh` prints `PASS: 500 scenarios agree` and exits 0, with `dotnet test Broodline.sln` green and the Unity suite unbroken.
+
+**Folded back (fix round 2):** what that sentence now covers is materially wider than it was, because the final whole-branch review found the mechanisms sound individually but leaving a seam — *the static mechanisms are type-and-symbol shaped, the gate is execution shaped, and neither covered what the other missed.*
+
+- The **500 scenarios** now exercise `Mul`, `/`, `Sqrt` and `ToIntFloor` across the wrap and saturation boundaries on both runtimes, not just `Fix64` add/sub (Task 7 Step 1).
+- The **IL float scan** reads instruction operands, so float arriving through a call or a field no longer passes (Task 2 Step 5).
+- The **`500` is asserted** from both directions — by the script against the lines it actually diffed, and by `EnforcementTests` against the constant both emitters loop to.
+- The **enforcement is itself enforced**: `tests/engine/EnforcementTests.cs` fails if the analyzer reference, the `AdditionalFiles` include, `RS0030`-as-error, the asmdef's empty `references` or its `noEngineReferences: true` is removed — each of which previously left the whole board green.
+- **`#if UNITY_*` in `engine/Runtime/` is banned and checked**, so "both compilers see the same code" is a premise rather than an assumption (Global Constraints).
+- The gate **runs on pull requests**, and watches `manifest.json` and `ProjectVersion.txt`.
+- The gate **cannot revert the human's uncommitted work** on any exit path.
+
+The suite stands at **46 passed** after this round (41 before it, plus five in the new `tests/engine/EnforcementTests.cs`); taken from an actual `dotnet test Broodline.sln` run, not computed by hand.

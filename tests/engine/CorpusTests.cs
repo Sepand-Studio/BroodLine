@@ -13,7 +13,9 @@ namespace Broodline.Sim.Tests
         // Serves two purposes with one suite: in an ordinary run BROODLINE_CORPUS_OUT
         // is unset, so this returns immediately and asserts nothing (a deliberate,
         // trivial pass — see Task 7 Step 2). Set that variable to a path and this
-        // test emits the 500-scenario corpus for the cross-runtime diff instead.
+        // test emits the corpus for the cross-runtime diff instead. The bound is
+        // Corpus.ScenarioCount, shared with the IL2CPP player's emitter, so the two
+        // sides cannot drift apart the way two hand-kept literals could.
         [Fact]
         public void EmitCorpusHashes()
         {
@@ -21,7 +23,7 @@ namespace Broodline.Sim.Tests
             if (string.IsNullOrEmpty(path)) return;   // ordinary runs skip this
 
             var sb = new System.Text.StringBuilder();
-            for (int i = 0; i < 500; i++)
+            for (int i = 0; i < Corpus.ScenarioCount; i++)
                 sb.AppendLine(i + "," + Corpus.RunScenario(i));
             System.IO.File.WriteAllText(path, sb.ToString());
         }

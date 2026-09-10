@@ -15,3 +15,7 @@ T:System.Threading.Tasks.ValueTask;as above.
 T:System.Threading.Tasks.ValueTask`1;as above.
 T:System.Threading.Tasks.Parallel;no parallelism inside a tick. Parallel.For/ForEach over a per-entity loop is the likeliest way it comes back.
 T:System.Threading.Thread;no parallelism inside a tick.
+T:System.Diagnostics.Stopwatch;ambient wall-clock by another name. Time in the core is tickIndex; a Stopwatch reading cannot be replayed.
+T:System.Runtime.CompilerServices.RuntimeHelpers;GetHashCode here is the reference-identity hash — per-process and allocation-order dependent, the same hazard String.GetHashCode is banned for.
+T:System.Collections.Hashtable;hash iteration order differs across runtimes, as Dictionary`2 does, and this one predates generics so it is easy to reach for by accident.
+T:System.Collections.Concurrent.ConcurrentDictionary`2;hash iteration order, plus concurrency the tick loop must not have. Arity 1 does not exist; the arity-2 DocID is the one that binds.

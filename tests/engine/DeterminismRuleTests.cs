@@ -51,15 +51,70 @@ namespace Broodline.Sim.Tests
                             offenders.Add($"local {type.FullName}.{m.Name} : {v.VariableType.Name}");
 
                     foreach (var i in m.Body.Instructions)
+                    {
                         if (i.OpCode == OpCodes.Ldc_R4 || i.OpCode == OpCodes.Ldc_R8 ||
                             i.OpCode == OpCodes.Conv_R4 || i.OpCode == OpCodes.Conv_R8 ||
                             i.OpCode == OpCodes.Conv_R_Un)
                             offenders.Add($"float op {type.FullName}.{m.Name} : {i.OpCode}");
+
+                        // Opcodes alone are blind to float that arrives through an
+                        // OPERAND. `(int)FixPointCS.Fixed64.ToDouble(raw)` compiles to
+                        // `call float64 …::ToDouble(int64)` followed by `conv.i4` — not
+                        // one of the opcodes above appears, yet a double crossed the
+                        // boundary into non-vendored code and was rounded by the
+                        // platform. FixPointCS ships ToDouble/FromDouble/ToFloat/
+                        // FromFloat and System.BitConverter is not banned, so this is
+                        // the reachable route, not a hypothetical one — and it is
+                        // exactly the route someone reaches for to work around Mul's
+                        // documented silent overflow. Fix64's header comment promises
+                        // "not in a signature, not in a body, not in a cast"; without
+                        // this the scan could not back that promise.
+                        //
+                        // Vendored types never reach here — the IsVendored guard above
+                        // skips them wholesale — so FixPointCS's own internal calls to
+                        // its own float helpers stay exempt, while a call INTO them
+                        // from our code does not.
+                        switch (i.Operand)
+                        {
+                            // MethodReference and CallSite (calli) both implement
+                            // IMethodSignature; GenericInstanceMethod is a
+                            // MethodReference, and its type arguments are checked too.
+                            case IMethodSignature sig when IsFloatSignature(sig):
+                                offenders.Add($"float via call {type.FullName}.{m.Name} -> {i.Operand}");
+                                break;
+                            case FieldReference fr when IsFloat(fr.FieldType):
+                                offenders.Add($"float via field {type.FullName}.{m.Name} -> {fr.FullName}");
+                                break;
+                            // newarr/box/ldtoken/castclass carry a bare TypeReference;
+                            // a float one there is floating point by construction.
+                            case TypeReference tr when IsFloat(tr):
+                                offenders.Add($"float via type operand {type.FullName}.{m.Name} -> {tr.FullName}");
+                                break;
+                        }
+                    }
                 }
             }
 
             Assert.True(offenders.Count == 0,
                 "floating point in the simulation core:\n  " + string.Join("\n  ", offenders));
+        }
+
+        // A called method is a float boundary if float appears anywhere in its
+        // signature — the return type is the case the opcode scan misses entirely,
+        // since the caller may consume the value with a plain conv.i4.
+        static bool IsFloatSignature(IMethodSignature sig)
+        {
+            if (IsFloat(sig.ReturnType)) return true;
+
+            if (sig.HasParameters)
+                foreach (var p in sig.Parameters)
+                    if (IsFloat(p.ParameterType)) return true;
+
+            if (sig is GenericInstanceMethod gim)
+                foreach (var arg in gim.GenericArguments)
+                    if (IsFloat(arg)) return true;
+
+            return false;
         }
 
         static bool IsFloat(TypeReference t)
