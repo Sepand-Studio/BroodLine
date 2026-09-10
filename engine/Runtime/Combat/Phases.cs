@@ -191,5 +191,55 @@ namespace Broodline.Sim.Combat
                 if (s.CreatureAlive(c) && s.CreaturePocket[c] == pocket) return true;
             return false;
         }
+
+        /// Phase 7 - Breach. Any raider at the Ark: deduct integrity, record
+        /// the diagnosis, remove it. Returns true if anything breached.
+        public static bool Breach(SimState s, Breach[] log, ref int logCount)
+        {
+            bool any = false;
+            Fix64 ark = Fix64.FromInt(Stats.LaneTiles);
+
+            for (int r = 0; r < s.RaiderCount; r++)
+            {
+                if (!s.RaiderAlive[r]) continue;
+                if (s.RaiderProgress[r] < ark) continue;
+
+                s.Integrity -= Stats.RaiderIntegrityCost(s.RaiderType[r]);
+                s.RaiderAlive[r] = false;
+
+                if (logCount < log.Length)
+                {
+                    log[logCount] = new Breach
+                    {
+                        Tick = s.Tick,
+                        Raider = r,
+                        Type = s.RaiderType[r],
+                        Lane = 0
+                    };
+                    logCount++;
+                }
+                any = true;
+            }
+            return any;
+        }
+
+        /// Phase 8 - Resolve.
+        ///
+        /// combat_engine section 8: the wave is lost the tick integrity reaches
+        /// zero or below, and the simulation STOPS there - raiders still on the
+        /// board are not resolved and are not counted. Loss is therefore
+        /// checked before win.
+        public static Result Resolve(SimState s)
+        {
+            if (s.Integrity <= 0) return Result.Loss;
+
+            for (int r = 0; r < s.RaiderCount; r++)
+                if (s.RaiderAlive[r]) return Result.Running;
+
+            // Pending spawns count as remaining.
+            if (s.RaiderCount < s.Wave.Spawns.Length) return Result.Running;
+
+            return Result.Win;
+        }
     }
 }
