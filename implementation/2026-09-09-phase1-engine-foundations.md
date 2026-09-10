@@ -1168,6 +1168,7 @@ golden fail while fuzz stayed green."
 The reason the whole plan exists: proving CoreCLR and IL2CPP agree.
 
 **Files:**
+- Create: `engine/Runtime/Corpus.cs`
 - Create: `client/Assets/Editor/DeterminismHarness.cs`
 - Create: `implementation/scripts/cross-runtime-diff.sh`
 - Create: `.github/workflows/determinism.yml`
