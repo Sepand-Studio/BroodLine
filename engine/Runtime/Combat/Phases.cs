@@ -204,20 +204,30 @@ namespace Broodline.Sim.Combat
                 if (!s.RaiderAlive[r]) continue;
                 if (s.RaiderProgress[r] < ark) continue;
 
-                s.Integrity -= Stats.RaiderIntegrityCost(s.RaiderType[r]);
-                s.RaiderAlive[r] = false;
-
                 if (logCount < log.Length)
                 {
+                    var verdict = Diagnosis.Evaluate(
+                        s,
+                        s.RaiderType[r],
+                        Diagnosis.SimultaneousCount(s, s.RaiderType[r]),
+                        s.RaiderTile(r));
+
                     log[logCount] = new Breach
                     {
                         Tick = s.Tick,
                         Raider = r,
                         Type = s.RaiderType[r],
-                        Lane = 0
+                        Lane = 0,
+                        Access = verdict.Access,
+                        Coverage = verdict.Coverage,
+                        Placement = verdict.Placement
                     };
                     logCount++;
                 }
+
+                s.Integrity -= Stats.RaiderIntegrityCost(s.RaiderType[r]);
+                s.RaiderAlive[r] = false;
+
                 any = true;
             }
             return any;
