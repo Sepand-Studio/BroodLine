@@ -184,7 +184,7 @@ Extends Phase 1's existing layers rather than inventing a parallel structure.
 | Layer | Covers |
 |---|---|
 | **Unit** | Each phase function in isolation. The comparator's total-order property |
-| **Golden** | Two pinned whole-run hashes — **wave 6** and **wave 7** (§6.1). Drift fails the build |
+| **Golden** | Two pinned whole-run hashes — wave 6 without Chill, and with it (§6.1). Drift fails the build |
 | **Fuzz** | Randomised deployments and wave compositions. Asserts termination always, and that `Stalled` never occurs on a valid wave |
 | **Enforcement** | The tick order cannot be reordered without a test going red. Follows the pattern established by `EnforcementTests` |
 | **Corpus** | Combat scenarios added to the existing set, so `cross-runtime-diff.sh` proves the tick loop bit-identical on CoreCLR and IL2CPP |
@@ -196,14 +196,23 @@ Extends Phase 1's existing layers rather than inventing a parallel structure.
 this slice's scope exactly — one lane, one raider, five pockets — and it was
 authored to be so before the engine existed.
 
-Wave 7 is its payoff: the same Courser, into a lane the player is managing, with
-a Pale that slows it to a walk. Together they are the two ends of the counter
-check, and they make the goldens assert behaviour rather than only stability:
+The authored payoff is **wave 8** — *"1 Courser · 4 Skirmishers … Teaches: the
+answer works. Chill I stops the Courser."* But wave 8 brings Skirmishers, and
+Skirmisher is a second raider outside this slice. So the clear-case golden is
+**wave 6 run against a Chill-carrying deployment** rather than wave 8.
 
-| Wave | Deployment | Expected outcome | Asserts |
-|---|---|---|---|
-| **6** | 5 creatures, **no Chill** | `Loss` — one breach, integrity 2 → 0 | Diagnosis records `access = false`. The Courser is unanswerable because the trait is absent, not mis-tiered or mis-placed |
-| **7** | Pale carrying Chill I | `Win` — Courser slowed to 0.5 t/s | Capacity assignment, the State phase, and the counter actually locking |
+That is the better test anyway: same authored wave, same seed, one variable
+changed. It isolates the counter as the only difference between a loss and a
+clear, which wave 8 cannot do because its Skirmishers move too.
+
+| Golden | Wave | Deployment | Expected | Asserts |
+|---|---|---|---|---|
+| **A** | 6, as authored | 5 creatures, **no Chill** | `Loss` — one breach, integrity 2 → 0 | Diagnosis records `access = false`. The Courser is unanswerable because the trait is absent, not mis-tiered or mis-placed |
+| **B** | 6, same seed | Pale carrying **Chill I** | `Win` — Courser slowed to 0.5 t/s, killed before the Ark | Capacity assignment, the State phase, and the counter actually locking |
+
+**Wave 8 is the regression target for Phase 3**, once Skirmisher and Splash
+exist. It is the first authored wave that mixes a hard lock with volume, and it
+should be pinned as a golden then rather than approximated now.
 
 **A golden pair that spans loss and clear tests the diagnosis, not just the
 hash.** Wave 6 exists precisely to make the loss legible — *"Wave Defeat names
