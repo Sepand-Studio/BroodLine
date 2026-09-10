@@ -36,7 +36,7 @@ The plan assumed a toolchain. Verify it before anything else — Task 2 is a har
 - Consumes: nothing.
 - Produces: `verify-prereqs.sh`, exit 0 when the toolchain is complete. Re-run after each install.
 
-- [ ] **Step 1: Run the check**
+- [x] **Step 1: Run the check**
 
 ```bash
 ./implementation/scripts/verify-prereqs.sh
@@ -44,7 +44,7 @@ The plan assumed a toolchain. Verify it before anything else — Task 2 is a har
 
 It reports git-lfs, Xcode, and every installed Unity editor together with whether that editor carries the **iOS Build Support** module. An editor without the module passes a naive "is Unity installed" check and then fails at Build Settings, which is why the script looks for `PlaybackEngines/iOSSupport` specifically rather than for the editor alone.
 
-- [ ] **Step 2: Install git-lfs if it is missing**
+- [x] **Step 2: Install git-lfs if it is missing**
 
 ```bash
 brew install git-lfs && git lfs install
@@ -52,7 +52,7 @@ brew install git-lfs && git lfs install
 
 `git lfs install` writes the global hooks; without it the filters in `.gitattributes` are inert and binaries commit as plain blobs.
 
-- [ ] **Step 3: Install Unity if it is missing**
+- [x] **Step 3: Install Unity if it is missing**
 
 This is a GUI flow — the Hub's headless CLI needs an interactive sign-in, so it cannot be scripted from here.
 
@@ -61,7 +61,7 @@ This is a GUI flow — the Hub's headless CLI needs an interactive sign-in, so i
 3. In the module list, tick **iOS Build Support**. Nothing in this plan works without it
 4. Wait for the download — it is several gigabytes
 
-- [ ] **Step 4: Re-run the check until it exits 0**
+- [x] **Step 4: Re-run the check until it exits 0**
 
 ```bash
 ./implementation/scripts/verify-prereqs.sh; echo "exit=$?"
@@ -69,11 +69,11 @@ This is a GUI flow — the Hub's headless CLI needs an interactive sign-in, so i
 
 Expected: three `ok` lines and `exit=0`.
 
-- [ ] **Step 5: Pin the Unity version in this plan**
+- [x] **Step 5: Pin the Unity version in this plan**
 
 Determinism work later depends on knowing which editor produced a build. Record the installed version in the Tech Stack line at the top of this document, replacing `Unity 6 (version pinned at Task 0)` with the exact version string, for example `Unity 6000.0.32f1`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add implementation/scripts/verify-prereqs.sh implementation/
@@ -100,7 +100,7 @@ Git LFS must be configured **before the first binary is committed** — retrofit
 - Consumes: nothing.
 - Produces: a repository where `client/Assets/Art/**` binaries route to LFS and Unity's generated files are ignored.
 
-- [ ] **Step 1: Confirm the toolchain is ready**
+- [x] **Step 1: Confirm the toolchain is ready**
 
 ```bash
 ./implementation/scripts/verify-prereqs.sh
@@ -108,7 +108,7 @@ Git LFS must be configured **before the first binary is committed** — retrofit
 
 Expected: exit 0. Task 0 covers installation; this is the gate.
 
-- [ ] **Step 2: Write `.gitattributes`**
+- [x] **Step 2: Write `.gitattributes`**
 
 The repository already has one line (`* text=auto eol=lf`) plus markdown and image rules. Replace the file with this, which keeps those rules and adds the LFS split:
 
@@ -141,7 +141,7 @@ The repository already has one line (`* text=auto eol=lf`) plus markdown and ima
 *.pdf filter=lfs diff=lfs merge=lfs -text
 ```
 
-- [ ] **Step 3: Verify the LFS routing before committing anything binary**
+- [x] **Step 3: Verify the LFS routing before committing anything binary**
 
 ```bash
 git check-attr filter -- client/Assets/Art/example.fbx
@@ -156,7 +156,7 @@ client/Assets/Game/example.prefab: filter: unspecified
 
 If `.prefab` reports `lfs`, the rules are wrong — fix before proceeding. A prefab in LFS is unmergeable and it is the mistake this step exists to catch.
 
-- [ ] **Step 4: Write `.gitignore`**
+- [x] **Step 4: Write `.gitignore`**
 
 ```gitignore
 # Unity generated
@@ -182,7 +182,7 @@ implementation/results/*.json
 .DS_Store
 ```
 
-- [ ] **Step 5: Write `implementation/README.md`**
+- [x] **Step 5: Write `implementation/README.md`**
 
 ```markdown
 # Implementation
@@ -195,7 +195,7 @@ Task plans and their outputs. Design and architecture live in `specs/`.
   plan document itself.
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 mkdir -p implementation/results
@@ -224,7 +224,7 @@ Three settings are painful to notice late: text serialization, visible meta file
 - Consumes: Task 1's `.gitignore`, which keeps `client/Library/` out of git.
 - Produces: a Unity project at `client/` whose settings are asserted by `verify-unity-settings.sh`, reused by CI in Phase 1.
 
-- [ ] **Step 1: Create the Unity project**
+- [x] **Step 1: Create the Unity project**
 
 Install Unity 6 LTS through Unity Hub with the **iOS Build Support** module. Then create a project:
 
@@ -232,7 +232,7 @@ Install Unity 6 LTS through Unity Hub with the **iOS Build Support** module. The
 - Name: `client`
 - Location: the repository root
 
-- [ ] **Step 2: Set the three settings in the editor**
+- [x] **Step 2: Set the three settings in the editor**
 
 - `Edit → Project Settings → Editor → Asset Serialization → Mode: **Force Text**`
 - `Edit → Project Settings → Editor → Version Control → Mode: **Visible Meta Files**`
@@ -242,7 +242,7 @@ Install Unity 6 LTS through Unity Hub with the **iOS Build Support** module. The
   - Target Architectures: **ARM64**
   - `Edit → Project Settings → Player → Resolution and Presentation`: **Default Orientation: Portrait**, all other orientations unchecked
 
-- [ ] **Step 3: Verify with `implementation/scripts/verify-unity-settings.sh`**
+- [x] **Step 3: Verify with `implementation/scripts/verify-unity-settings.sh`**
 
 The script exists. It asserts only values that live in **committed** files, which excludes two things worth knowing about:
 
@@ -254,7 +254,7 @@ Two assertions are written the way they are for a reason, and both were wrong on
 - Unity 6 omits `m_ExternalVersionControlSupport` when it holds the default, so the script asserts the observable consequence — that `.meta` files exist under `client/Assets` — rather than a key that is absent precisely when the setting is correct.
 - Always Included Shaders are stored **by GUID, never by name**. The script greps for `933532a4fcc9baf4fa0491de14d08ed7`, URP's `Lit.shader`. A grep for the string "Universal Render Pipeline/Lit" matches nothing even when the shader is correctly added.
 
-- [ ] **Step 4: Run it and confirm every line passes**
+- [x] **Step 4: Run it and confirm every line passes**
 
 ```bash
 chmod +x implementation/scripts/verify-unity-settings.sh
@@ -263,7 +263,7 @@ chmod +x implementation/scripts/verify-unity-settings.sh
 
 Expected: six `ok` lines, exit status 0. Any `FAIL` means the editor setting did not take — fix it in Unity and re-run rather than editing the `.asset` by hand.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add client/ implementation/scripts/verify-unity-settings.sh
@@ -294,7 +294,7 @@ The proof needs meshes with controllable cost before any art exists. This genera
   The returned GameObject carries a `SkinnedMeshRenderer` whose mesh has exactly
   `spec.Triangles` triangles, `spec.Bones` bones, and `spec.Materials` submeshes.
 
-- [ ] **Step 1: Create the assembly definitions**
+- [x] **Step 1: Create the assembly definitions**
 
 `client/Assets/Benchmark/Broodline.Benchmark.asmdef`:
 
@@ -332,7 +332,7 @@ Three fields here are load-bearing and a test assembly silently fails to compile
 - **`includePlatforms: ["Editor"]`** — EditMode tests compile for the editor only.
 - **`defineConstraints: ["UNITY_INCLUDE_TESTS"]`** — keeps the test assembly out of player builds.
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 `client/Assets/Benchmark/Tests/SyntheticCreatureTests.cs`:
 
@@ -365,7 +365,7 @@ public class SyntheticCreatureTests
 }
 ```
 
-- [ ] **Step 3: Run it and confirm it fails**
+- [x] **Step 3: Run it and confirm it fails**
 
 ```bash
 ./implementation/scripts/run-unity-tests.sh EditMode
@@ -373,7 +373,7 @@ public class SyntheticCreatureTests
 
 Expected: non-zero exit with a compile error — `SyntheticCreature` and `SyntheticCreatureSpec` do not exist. A compile failure is a valid failing state here; do not proceed until you have seen it.
 
-- [ ] **Step 4: Write the implementation**
+- [x] **Step 4: Write the implementation**
 
 `client/Assets/Benchmark/SyntheticCreature.cs`:
 
@@ -464,7 +464,7 @@ namespace Broodline.Benchmark
 }
 ```
 
-- [ ] **Step 5: Run the test and confirm it passes**
+- [x] **Step 5: Run the test and confirm it passes**
 
 ```bash
 ./implementation/scripts/run-unity-tests.sh EditMode
@@ -474,7 +474,7 @@ Expected: exit 0, and `total=1 passed=1 failed=0`.
 
 If the triangle count is short, the submesh remainder distribution is wrong — the last submesh takes `spec.Triangles - cursor`, not `perSub`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add client/Assets/Benchmark/
@@ -504,7 +504,7 @@ pessimistic — the real budget can only be better."
   - `BenchmarkResult.ToCsvRow() -> string` and `BenchmarkResult.CsvHeader -> string`
   - `WaveBenchmark.Despawn(GameObject[] spawned) -> void` — destroys the entities **and the materials they own**
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `client/Assets/Benchmark/Tests/WaveBenchmarkTests.cs`:
 
@@ -580,7 +580,7 @@ public class WaveBenchmarkTests
 }
 ```
 
-- [ ] **Step 2: Run and confirm failure**
+- [x] **Step 2: Run and confirm failure**
 
 ```bash
 ./implementation/scripts/run-unity-tests.sh EditMode
@@ -588,7 +588,7 @@ public class WaveBenchmarkTests
 
 Expected: non-zero exit, compile error — `WaveBenchmark` and `BenchmarkResult` do not exist.
 
-- [ ] **Step 3: Write `BenchmarkResult.cs`**
+- [x] **Step 3: Write `BenchmarkResult.cs`**
 
 ```csharp
 using System.Globalization;
@@ -646,7 +646,7 @@ namespace Broodline.Benchmark
 
 Thresholds are `1000.0/60.0` and `1000.0/30.0`, not 16.6 and 33.3. One frame at 60 fps is **16.667 ms**, so the old constant made a flawless 60 fps read as failure — every row of the first run said `holds_60=0` while the phone rendered perfectly.
 
-- [ ] **Step 4: Write `WaveBenchmark.cs`**
+- [x] **Step 4: Write `WaveBenchmark.cs`**
 
 ```csharp
 using System.Collections.Generic;
@@ -725,7 +725,7 @@ namespace Broodline.Benchmark
 }
 ```
 
-- [ ] **Step 5: Run the tests and confirm they pass**
+- [x] **Step 5: Run the tests and confirm they pass**
 
 ```bash
 ./implementation/scripts/run-unity-tests.sh EditMode
@@ -733,7 +733,7 @@ namespace Broodline.Benchmark
 
 Expected: exit 0, `total=6 passed=6 failed=0` — the one test from Task 3 plus the five added here.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add client/Assets/Benchmark/
@@ -760,7 +760,7 @@ This is the task that produces the deliverable: the number for the commission.
 - Consumes: `WaveBenchmark.Spawn`, `WaveBenchmark.Summarise`, `BenchmarkResult.ToCsvRow`.
 - Produces: a CSV at `Application.persistentDataPath/entity-budget.csv`, one row per parameter combination.
 
-- [ ] **Step 1: Write `SweepRunner.cs`**
+- [x] **Step 1: Write `SweepRunner.cs`**
 
 ```csharp
 using System.Collections;
@@ -838,7 +838,7 @@ namespace Broodline.Benchmark
 
 `Profiler.GetTotalAllocatedMemoryLong()` already includes the managed heap, so do **not** add `GC.GetTotalMemory` to it — that double-counts and will make every row fail the 600 MB check for no reason.
 
-- [ ] **Step 2: Build the scene from a script, not by hand**
+- [x] **Step 2: Build the scene from a script, not by hand**
 
 Create `client/Assets/Editor/BenchmarkSceneBuilder.cs` exposing `[MenuItem("Broodline/Build Benchmark Scene")]` and a static method callable from the CLI. It must:
 
@@ -852,13 +852,13 @@ A scripted scene is reproducible and reviewable as text; a hand-built one is nei
 
 URP/Lit is already in Always Included Shaders — `Phase0Setup.Apply` did it, and `verify-unity-settings.sh` asserts its GUID.
 
-- [ ] **Step 3: Run it in the editor as a smoke test**
+- [x] **Step 3: Run it in the editor as a smoke test**
 
 Press Play. Expected: `[sweep]` lines in the Console, one per combination, ending in `[sweep] COMPLETE`.
 
 **Editor numbers are not the result** — they measure your Mac. This step only proves the harness runs to completion without throwing.
 
-- [ ] **Step 4: Build and run on device — two tiers, and only one of them produces the budget**
+- [x] **Step 4: Build and run on device — two tiers, and only one of them produces the budget**
 
 **The Unity side is scripted.** Unity moved its build window between versions — `File → Build Settings` became **Build Profiles** — so menu instructions rot. `client/Assets/Editor/BenchmarkBuilder.cs` uses `BuildPipeline.BuildPlayer`, which is stable across both, and switches the active build target itself:
 
@@ -903,13 +903,13 @@ A modern phone holds 60 fps at triangle and bone counts an SE (2020) cannot appr
 
 Take the device off charge and let it reach a steady thermal state before trusting anything. A cold phone on mains reports a device you do not ship to.
 
-- [ ] **Step 5: Retrieve the CSV**
+- [x] **Step 5: Retrieve the CSV**
 
 Xcode → `Window → Devices and Simulators` → select the device → select the app → **Download Container** → inspect `AppData/Documents/entity-budget.csv`.
 
 Copy it to `implementation/results/entity-budget.csv` (gitignored).
 
-- [ ] **Step 6: Record the budget in this plan document**
+- [x] **Step 6: Record the budget in this plan document**
 
 **A ceiling run records an upper bound and nothing else.** A proxy run produces a provisional budget after the 0.7 margin. Only a floor run produces a budget for production assets.
 
@@ -937,7 +937,7 @@ Append to this file, filling in the measured values:
 needs instancing or impostors before art begins>.
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add client/Assets/Benchmark/ client/Assets/Scenes/Benchmark.unity implementation/
@@ -966,7 +966,7 @@ The proof is only useful if it reaches the artist. `specs/broodline_rig_proof.md
 - Consumes: the budget table recorded in Task 5 Step 6.
 - Produces: a commission brief an artist can hit or reject on cost grounds.
 
-- [ ] **Step 1: Add a budget subsection to §8**
+- [x] **Step 1: Add a budget subsection to §8**
 
 Insert immediately before the `**Deliverables:**` line, substituting the measured numbers:
 
@@ -988,7 +988,7 @@ of the art; it is a request to hit the number, and it is far cheaper to
 hear now than after six bodies are final.
 ```
 
-- [ ] **Step 2: Give the proof a duration, closing §9.4**
+- [x] **Step 2: Give the proof a duration, closing §9.4**
 
 Replace open question 4 with:
 
@@ -998,7 +998,7 @@ Replace open question 4 with:
    three weeks" as a taken decision. A gate with no deadline is not a gate.
 ```
 
-- [ ] **Step 3: Verify no other document contradicts the budget**
+- [x] **Step 3: Verify no other document contradicts the budget**
 
 ```bash
 cd "$(git rev-parse --show-toplevel)"
@@ -1007,7 +1007,7 @@ grep -rn -iE "triangle|poly ?count|bone count|draw call" specs/*.md specs/plans/
 
 Expected: hits only in `broodline_client_architecture.md`, which is where the budget's rationale lives. Any other document naming a different number is a contradiction to reconcile before briefing.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add specs/broodline_rig_proof.md
@@ -1023,6 +1023,41 @@ section 2 already recorded as a taken decision."
 ```
 
 ---
+
+## Phase 0 result — recorded 2026-09-09
+
+**Device:** `iPad13,1` — iPad Air (4th generation), Apple A14 GPU, 3868 MB, iPadOS 27.0, Unity 6000.6.0f1.
+**Tier:** **proxy** (A14 / 4 GB). The budget below is **PROVISIONAL** — sufficient to commission the rig proof, not valid for production assets.
+**Source:** `implementation/results/entity-budget-ipadair4-run2.csv` — 42 combinations, 300 measured frames each, device off charge at a steady thermal state.
+
+**Per-creature budget at 104 entities, 60 fps, under 600 MB:**
+
+| | Measured | After the 0.7 proxy margin |
+|---|---|---|
+| Triangles | 10000 | **7000** |
+| Bones | 48 | **33** — not a measurement, see below |
+| Materials | 2 | **2** |
+| Measured p95 cost | 12.50 ms (GPU-bound) | |
+| Measured p95 main thread | 6.02 ms | |
+| Measured peak memory | 404 MB | |
+
+**Verdict: PASS** — the modular pipeline is viable at this budget. The first failing rung is 16000 triangles: GPU p95 20.06 ms against a 16.667 ms frame, wall clock 33.50 ms as the device fell back to 30 fps, 536 MB peak. The ceiling therefore sits between 10000 and 16000 triangles and was not narrowed further.
+
+### What this number does not cover
+
+**The bone figure is a placeholder, not a measurement.** 12, 24 and 48 bones produce identical timings at every triangle count in the sweep, because `SyntheticCreature.Build` constructs a bone hierarchy and then nothing ever animates it. A static skinned mesh does not exercise skinning, and the main thread sitting flat at ~6 ms across a 40× triangle range is consistent with a CPU that was never asked to do the work. Task 5's own premise — *"skinning is the dominant per-entity CPU cost"* — is untested by this run. **Rotate the bones per frame and re-run before any bone count is quoted as a constraint.**
+
+**The harness renders bare geometry.** No textures, no shadows, no animation playback, one default URP Lit material. The triangle figure is an upper bound on the geometry axis alone and not a whole-creature cost.
+
+**Peak memory is Unity's allocator**, from `Profiler.GetTotalAllocatedMemoryLong()`, not the process footprint iOS accounts against the 600 MB ceiling. The true figure exceeds 404 MB by the binary, system frameworks and driver allocations, and has not been read off Xcode's memory gauge.
+
+### Runs that produced no budget, and why
+
+Recorded so the same ground is not re-covered:
+
+1. **iPhone 15 Pro, ceiling tier** (`entity-budget-iphone15pro.csv`) — every row read 16.67 ms from 400 to 6000 triangles. `Time.unscaledDeltaTime` reports the frame-rate cap, not the cost.
+2. **iPad Air 4, first attempt** (`entity-budget-ipadair4-run1-capped-cpu.csv`) — GPU and memory columns valid, CPU column flat at ~16.8 ms. `cpuFrameTime` includes the main thread's block on present, so it reports the same cap a second time. This run's GPU curve is still usable.
+3. **iPad Air 4, second attempt** (`entity-budget-ipadair4-run2.csv`) — CPU column clamped to 0.00 by subtracting `cpuMainThreadPresentWaitTime` from `cpuMainThreadFrameTime`. Those two fields partition the frame rather than nesting, so the subtraction was wrong. **The budget above was recovered from this run's raw component columns without a fourth device trip** — which is the whole reason the components are recorded separately.
 
 ## What this plan deliberately does not do
 

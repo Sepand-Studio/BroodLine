@@ -155,6 +155,21 @@ For whoever is briefed.
 
 **Read first:** bible §10 in full, then §1.2 for the six species and `broodline_raider_roster.md` §4 for the recognition rules. The Character Bible in the design handoff bundle is the visual reference.
 
+**Per-asset budget — PROVISIONAL.** Measured on an **A14 / 4 GB proxy** (iPad Air 4), not on the A13 / 3 GB reference device, then reduced by 30% to cover the gap. Source and reasoning: `implementation/2026-09-08-phase0-entity-count-proof.md`.
+
+**This is sufficient for the rig proof and not for production.** §7 makes the proof's two bodies throwaway — *"They will be remade"* — and also states the proof is not a performance test. A provisional budget is therefore adequate to commission it. **Re-measure on an A13 / 3 GB device and replace these numbers before any of the remaining four species are modelled.**
+
+| | Budget | Why |
+|---|---|---|
+| Triangles per body | **7000** | Wave 44 puts 104 entities on screen at once; 10000 held 60 fps on the proxy, less the 30% margin |
+| Bones per rig | **33 — provisional, unmeasured** | See the caveat below before treating this as a constraint |
+| Materials per body | **2** | Each material is a draw call before batching |
+| Trait part | Within the body budget, not additional | A body carries two parts and an Instinct cue |
+
+**The bone figure is not backed by measurement.** The Phase 0 harness built rigs at 12, 24 and 48 bones and recorded identical frame costs at every triangle count, because nothing animated them — a static skinned mesh does not exercise skinning. The triangle and material figures are measured; the bone figure is a placeholder carried at the same 30% margin. If a rig needs to exceed 33 bones to work, **say so rather than compromising the rig** — that is a signal to measure properly, not a limit to design around.
+
+**A body over budget is not a rejection of the art**; it is a request to hit the number, and it is far cheaper to hear now than after six bodies are final.
+
 **Deliverables:** two rigged creature bodies with three sockets each, twelve socket-agnostic trait part assets, one Instinct cue with a trigger state, one raider body with two kits, a growth curve on one rig, and forty-eight combination renders plus 40px silhouette sheets.
 
 **Total roster this proves out:** 36 assets — 6 creature bodies, 12 trait parts, 6 Instinct cues, 4 raider bodies, 8 variant kits.
@@ -168,7 +183,7 @@ For whoever is briefed.
 1. **Socket-agnostic parts are more demanding to author than fixed ones.** A shape that reads along a spine and along a flank has less room to be specific to either. If the artist finds that forty-eight combinations cannot all read as intentional, the fallback is a **third combat socket** with traits grouped so that no two in a group can co-occur — which is possible but requires working out the co-occurrence graph from bible §2.2, and it is not obviously solvable.
 2. **Is Pale the right second body?** It is the most dissimilar to Vetch. Loam — segmented, legless, no neck — is arguably the harder attachment problem, and proving Vetch and Loam might retire more risk than Vetch and Pale. It is worth ten minutes of an artist's opinion before committing.
 3. **Six Instinct cues at `sk_crown` may crowd the head.** Bible §10.4 already moves Instinct to a card badge for static display because two trait parts plus a third element muddies the silhouette. If the crown cue is visible in combat only, it may not need to be a mesh at all — which would cut six assets.
-4. **The proof has no stated duration.** It should have one before it starts, because a gate with no deadline is not a gate.
+4. ~~**The proof has no stated duration.**~~ **Resolved — three weeks**, per `broodline_whats_left.md` §2, which already records "the rig proof runs three weeks" as a taken decision. A gate with no deadline is not a gate.
 
 ---
 
