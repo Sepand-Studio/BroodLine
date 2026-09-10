@@ -54,5 +54,33 @@ namespace Broodline.Sim.Tests.Combat
             // Nothing spawned yet, but the table is not exhausted.
             Assert.Equal(Result.Running, Phases.Resolve(s));
         }
+
+        [Fact]
+        public void Resolve_PrefersLossWhenTheWaveEndsAndIntegrityEmptiesTogether()
+        {
+            // The race the loss-before-win ordering exists for, and the only
+            // state in which the ordering is observable: the spawn table is
+            // exhausted, no raider is left alive, AND integrity has just reached
+            // zero. Both branches are live, so only their ORDER decides the
+            // answer. Every other test in this file leaves one branch
+            // structurally unreachable, so a refactor that moved the integrity
+            // check below the win checks would pass all of them and fail only
+            // this one.
+            var s = new SimState(WaveDef.Wave6(), Lane.Defile(),
+                                 SimStateTests.FiveWithoutChill());
+            s.Tick = 90;
+            Phases.Spawn(s);                       // spawn table now exhausted
+            s.RaiderProgress[0] = Fix64.FromInt(Stats.LaneTiles);
+
+            var log = new Breach[1];
+            int count = 0;
+            Phases.Breach(s, log, ref count);      // integrity 2 -> 0, raider removed
+
+            Assert.Equal(0, s.Integrity);
+            Assert.False(s.RaiderAlive[0]);
+            Assert.Equal(s.Wave.Spawns.Length, s.RaiderCount);   // nothing pending
+
+            Assert.Equal(Result.Loss, Phases.Resolve(s));
+        }
     }
 }
