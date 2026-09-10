@@ -49,6 +49,8 @@ namespace Broodline.Sim.Combat
         public readonly int[] CreatureTarget;        // raider id, or -1
         public readonly int[] CreatureAcquireAt;     // tick it may next acquire
         public readonly int[] CreatureNextAttackAt;  // tick it may next fire
+        public readonly int[] CreatureBusyUntil;     // tick it may act again
+        public readonly bool[] CreatureRepositioned; // Skittish fires once
         public readonly int CreatureCount;
 
         public SimState(WaveDef wave, Lane lane, CreatureSpec[] deployment)
@@ -78,6 +80,8 @@ namespace Broodline.Sim.Combat
             CreatureTarget = new int[CreatureCount];
             CreatureAcquireAt = new int[CreatureCount];
             CreatureNextAttackAt = new int[CreatureCount];
+            CreatureBusyUntil = new int[CreatureCount];
+            CreatureRepositioned = new bool[CreatureCount];
 
             for (int c = 0; c < CreatureCount; c++)
             {
@@ -92,6 +96,8 @@ namespace Broodline.Sim.Combat
                 CreatureTarget[c] = -1;
                 CreatureAcquireAt[c] = 0;
                 CreatureNextAttackAt[c] = 0;
+                CreatureBusyUntil[c] = 0;
+                CreatureRepositioned[c] = false;
             }
         }
 
@@ -115,5 +121,9 @@ namespace Broodline.Sim.Combat
         }
 
         public bool CreatureAlive(int c) => CreatureHp[c] > 0;
+
+        /// A repositioning Skittish creature cannot act. combat_engine section
+        /// 6: "2s, cannot act".
+        public bool CreatureCanAct(int c) => CreatureAlive(c) && Tick >= CreatureBusyUntil[c];
     }
 }

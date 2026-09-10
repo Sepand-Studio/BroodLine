@@ -36,6 +36,7 @@ namespace Broodline.Sim.Combat
         /// Phase 2's slice carries Chill only.
         public static void State(SimState s, int[] scratch)
         {
+            Skittish(s);
             Counters.ApplyChill(s, scratch);
         }
 
@@ -96,6 +97,99 @@ namespace Broodline.Sim.Combat
                 if (s.Tick >= s.CreatureAcquireAt[c])
                     s.CreatureTarget[c] = Combat.Targeting.Select(s, c);
             }
+        }
+
+        /// Phase 5 - Attack. Resolve attacks whose interval has elapsed.
+        public static void Attack(SimState s)
+        {
+            for (int c = 0; c < s.CreatureCount; c++)
+            {
+                if (!s.CreatureCanAct(c)) continue;
+                if (s.Tick < s.CreatureNextAttackAt[c]) continue;
+
+                int target = s.CreatureTarget[c];
+                if (target < 0 || !s.RaiderAlive[target]) continue;
+
+                s.RaiderHp[target] -= Attacks.Damage(s, c);
+                s.CreatureNextAttackAt[c] = s.Tick + Attacks.IntervalTicks(s, c);
+            }
+        }
+
+        /// Phase 6 - Death. Resolve deaths.
+        ///
+        /// In the full engine this is also where a Brood splits and where
+        /// Cinder suppresses the split at birth. Neither is in this slice, so
+        /// death here is only a clearing pass - but it stays its own phase
+        /// because section 4 makes the ordering normative: a raider that dies
+        /// this tick has already moved and has already been hit.
+        public static void Death(SimState s)
+        {
+            for (int r = 0; r < s.RaiderCount; r++)
+                if (s.RaiderAlive[r] && s.RaiderHp[r] <= 0)
+                    s.RaiderAlive[r] = false;
+
+            for (int c = 0; c < s.CreatureCount; c++)
+                if (s.CreatureHp[c] < 0)
+                    s.CreatureHp[c] = 0;
+        }
+
+        /// Skittish - phase 2, State. A forced state change, not an attack
+        /// modifier, which is why it lives here rather than in Attacks.
+        ///
+        /// combat_engine section 6: below 40% HP, reposition to the nearest
+        /// free pocket away from the threat, 2s, cannot act. Deterministic by
+        /// decision (whats_left section 2), which is what keeps the engine's
+        /// RNG surface down to tie-breaks.
+        public static void Skittish(SimState s)
+        {
+            for (int c = 0; c < s.CreatureCount; c++)
+            {
+                if (!s.CreatureAlive(c)) continue;
+                if (s.CreatureInstinct[c] != Instinct.Skittish) continue;
+                if (s.CreatureRepositioned[c]) continue;
+                if (!Attacks.BelowFraction(s, c, 2, 5)) continue;   // < 40%
+
+                int destination = NearestFreePocketAwayFromThreat(s, c);
+                if (destination < 0) continue;
+
+                s.CreaturePocket[c] = destination;
+                s.CreatureRepositioned[c] = true;
+                s.CreatureBusyUntil[c] = s.Tick + 2 * Stats.TicksPerSecond;
+                s.CreatureTarget[c] = -1;
+            }
+        }
+
+        /// "Away from the threat" is away from the raider nearest the Ark,
+        /// which is the one the pocket most needs distance from. Scans pockets
+        /// in ascending index and takes the first free one whose distance to
+        /// that raider exceeds the current pocket's - lowest index wins ties,
+        /// so the choice is total-ordered like every other comparator here.
+        private static int NearestFreePocketAwayFromThreat(SimState s, int c)
+        {
+            int threat = -1;
+            for (int r = 0; r < s.RaiderCount; r++)
+            {
+                if (!s.RaiderAlive[r]) continue;
+                if (threat < 0 || s.RaiderProgress[r] > s.RaiderProgress[threat]) threat = r;
+            }
+            if (threat < 0) return -1;
+
+            int threatTile = s.RaiderTile(threat);
+            int here = s.Lane.DistSq(s.CreaturePocket[c], threatTile);
+
+            for (int p = 0; p < s.Lane.PocketCount; p++)
+            {
+                if (Occupied(s, p)) continue;
+                if (s.Lane.DistSq(p, threatTile) > here) return p;
+            }
+            return -1;
+        }
+
+        private static bool Occupied(SimState s, int pocket)
+        {
+            for (int c = 0; c < s.CreatureCount; c++)
+                if (s.CreatureAlive(c) && s.CreaturePocket[c] == pocket) return true;
+            return false;
         }
     }
 }
