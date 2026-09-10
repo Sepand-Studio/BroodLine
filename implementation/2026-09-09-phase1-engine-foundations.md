@@ -24,7 +24,7 @@ From `specs/plans/broodline_solo_execution.md` and `specs/broodline_combat_engin
 - **The core has no dependencies** — no Unity, no Newtonsoft, nothing beyond primitives and arrays.
 - **Engine is shared source, not a compiled DLL** — `broodline_solo_execution.md` §9.2.
 - `.meta` files are committed, **including a directory's own meta, which lives one level up**.
-- **No `#if UNITY_*` regions in `engine/Runtime/`** (vendored `ThirdParty/` excepted). The csproj glob and the asmdef cover the same *files*, but a Unity-conditional region means they do not cover the same *code*: Unity compiles it and the .NET build excludes it, so the banned-API analyzer, the IL float scan and `dotnet build` itself are all blind to something that still ships in the player. Added in fix round 2 and enforced by `EnforcementTests.SimulationCore_HasNoUnityConditionalCompilation`, which makes "both compilers see the same thing" a checked premise rather than an assumption.
+- **No `#if`/`#elif`/`#define`/`#undef` in `engine/Runtime/`** (vendored `ThirdParty/` excepted) — the ban is not limited to Unity's own symbols. The csproj glob and the asmdef cover the same *files*, but a conditional region means they do not cover the same *code*: the banned-API analyzer, the IL float scan and `dotnet build` itself all run over the .NET compilation, so they are blind to whatever that region hides while it still ships in the player. Added in fix round 2 and enforced by `EnforcementTests.SimulationCore_HasNoConditionalCompilation`, which makes "both compilers see the same thing" a checked premise rather than an assumption.
 
 **This plan writes no gameplay.** No raiders, no traits, no counters, no tick phases. The toy simulation exists only to prove the harness catches drift.
 
@@ -1705,7 +1705,7 @@ perturbing one scenario and watching the diff name it."
 - The **IL float scan** reads instruction operands, so float arriving through a call or a field no longer passes (Task 2 Step 5).
 - The **`500` is asserted** from both directions — by the script against the lines it actually diffed, and by `EnforcementTests` against the constant both emitters loop to.
 - The **enforcement is itself enforced**: `tests/engine/EnforcementTests.cs` fails if the analyzer reference, the `AdditionalFiles` include, `RS0030`-as-error, the asmdef's empty `references` or its `noEngineReferences: true` is removed — each of which previously left the whole board green.
-- **`#if UNITY_*` in `engine/Runtime/` is banned and checked**, so "both compilers see the same code" is a premise rather than an assumption (Global Constraints).
+- **`#if`/`#elif`/`#define`/`#undef` in `engine/Runtime/` are banned and checked**, not just Unity's own symbols, so "both compilers see the same code" is a premise rather than an assumption (Global Constraints).
 - The gate **runs on pull requests**, and watches `manifest.json` and `ProjectVersion.txt`.
 - The gate **cannot revert the human's uncommitted work** on any exit path.
 
