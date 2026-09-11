@@ -16,35 +16,50 @@ namespace Broodline.Sim.Tests.Combat
         public const string EditorBin = "editor-replay.bin";
         public const string EditorOutcome = "editor-replay-outcome.txt";
 
-        /// The engine version the two tracked captures were recorded under.
+        /// The engine version the tracked captures were recorded under, READ
+        /// OUT OF THE BYTES.
         ///
-        /// This constant is the whole point. solo_execution 9.4 supersedes a
-        /// replay when the engine version moves, and Replay.Validate enforces
-        /// that - correctly. But the round-trip tests below re-simulate tracked
-        /// captures, so enforcing it without this turned a SimVersion bump into
-        /// four red tests whose only repair was an iPhone, a played wave and a
-        /// correctly-timed tap. That made "never bump SimVersion" the rational
-        /// choice, and left 9.4 permanently inert - the exact outcome the
-        /// enforcement was added to prevent.
-        ///
-        /// So a bump is a TWO-LINE change: SimVersion.Value, and this. The
-        /// suite then asserts the supersession PATH instead of the round trip,
-        /// and says in its own failure message that fresh captures are owed.
-        /// TheTrackedCapturesSayWhatTheyWereRecordedUnder keeps this honest -
-        /// it reads the version out of the bytes, so the constant cannot
-        /// disagree with the files it describes.
-        public const string CapturedUnder = "0.1.0";
+        /// This was a hand-maintained constant, and a constant that duplicates
+        /// a fact already in the file is a claim with a maintenance cost and no
+        /// enforcement. Worse, its own doc said a bump was "a two-line change:
+        /// SimVersion.Value, and this" - and doing exactly that produced four
+        /// failures, because this describes the ARTIFACTS, not the engine. It
+        /// moves when someone re-captures, and at no other time. Deriving it
+        /// removes the line to get wrong.
+        public static string CapturedUnder => Read(DeviceBin).EngineVersion;
 
         /// Whether this engine can still re-simulate the tracked captures.
         public static bool AreCurrent => CapturedUnder == SimVersion.Value;
 
         /// What is owed once they are not.
-        public const string ReCaptureOwed =
+        public static string ReCaptureOwed =>
             "The tracked captures were recorded under engine " + CapturedUnder +
-            " and this engine is a different version, so solo_execution 9.4 supersedes them and " +
-            "the renderer round-trip is NOT being proven right now. Re-capture per Task 10 of the " +
-            "Phase 3 plan - play Assets/Scenes/Wave.unity in the Editor and on device, with a tap " +
-            "between ticks 184 and 240 - then move ReplayArtifact.CapturedUnder to match.";
+            " and this engine is " + SimVersion.Value + ", so solo_execution 9.4 supersedes them " +
+            "and the renderer round-trip is NOT being proven right now. Re-capture per Task 10 of " +
+            "the Phase 3 plan: play Assets/Scenes/Wave.unity in the Editor and on device, with a " +
+            "tap between ticks 184 and 240, then commit the four files in implementation/results/.";
+
+        /// The supersession half of every test that re-simulates a capture.
+        ///
+        /// Returns true when the caller should stop. Written once because it
+        /// was pasted into three places and forgotten in a fourth, which is how
+        /// TheDeviceRunsRallyActuallyChangedTheSimulation ended up asserting
+        /// against a stale capture while its siblings bailed out.
+        public static bool Superseded(Replay record, ITestOutputHelper output)
+        {
+            if (AreCurrent) return false;
+
+            // solo_execution 9.4, asserted rather than assumed: a superseded
+            // record is REFUSED by the re-simulation path, and the refusal
+            // names the version so a viewer can render the stored outcome with
+            // a notice instead.
+            var e = Assert.Throws<ReplayFormatException>(
+                () => Broodline.Sim.Combat.Sim.Replay(record));
+            Assert.Contains(record.EngineVersion, e.Message);
+
+            output.WriteLine(ReCaptureOwed);
+            return true;
+        }
 
         public static string Path(string name)
         {
@@ -99,19 +114,33 @@ namespace Broodline.Sim.Tests.Combat
         }
 
         [Fact]
-        public void TheTrackedCapturesSayWhatTheyWereRecordedUnder()
+        public void TheTwoCapturesAgreeAboutTheirEngine()
         {
-            // Both files, read from the bytes. Without this, CapturedUnder is a
-            // claim - and a claim is what a version bump would edit first,
-            // because editing it is what makes the suite green again.
+            // Catches the half-done re-capture: replace one artifact and not
+            // the other and this fails, where every test that branches on
+            // AreCurrent would keep passing on the stale one.
+            Assert.Equal(ReplayArtifact.Read(ReplayArtifact.DeviceBin).EngineVersion,
+                         ReplayArtifact.Read(ReplayArtifact.EditorBin).EngineVersion);
+        }
+
+        [Fact]
+        public void TheTrackedCapturesAreCurrent()
+        {
+            // THE loud one, and the only test that fails on a SimVersion bump.
             //
-            // It also catches the half-done re-capture: replace one artifact
-            // and not the other and this fails, where every test below would
-            // keep passing on the stale one.
-            Assert.Equal(ReplayArtifact.CapturedUnder,
-                ReplayArtifact.Read(ReplayArtifact.DeviceBin).EngineVersion);
-            Assert.Equal(ReplayArtifact.CapturedUnder,
-                ReplayArtifact.Read(ReplayArtifact.EditorBin).EngineVersion);
+            // The tests that re-simulate a capture branch on AreCurrent and go
+            // green when it is false - deliberately, because four red tests
+            // repairable only with an iPhone is what made "never bump
+            // SimVersion" the rational choice and left solo_execution 9.4
+            // inert. But green must never mean "proving nothing", and it did:
+            // bumping SimVersion alone left 162/162 passing with zero skips,
+            // and nothing in the suite or in CI said the done-when had stopped
+            // being proven. tests.yml greps the summary for SKIPS, and an early
+            // return produces none.
+            //
+            // So the cost of a bump is now exactly one red test that says what
+            // to do about it - not four that do not, and not silence.
+            Assert.True(ReplayArtifact.AreCurrent, ReplayArtifact.ReCaptureOwed);
         }
     }
 
@@ -133,23 +162,7 @@ namespace Broodline.Sim.Tests.Combat
         public void TheDeviceRunReSimulatesToTheSameHash()
         {
             var record = ReplayArtifact.Read(ReplayArtifact.DeviceBin);
-
-            if (!ReplayArtifact.AreCurrent)
-            {
-                // solo_execution 9.4, asserted rather than assumed: a
-                // superseded record is REFUSED by the re-simulation path, and
-                // the refusal names the version so a viewer can render the
-                // stored outcome with a notice instead.
-                var e = Assert.Throws<ReplayFormatException>(
-                    () => Broodline.Sim.Combat.Sim.Replay(record));
-                Assert.Contains(record.EngineVersion, e.Message);
-
-                // Green here does NOT mean the done-when still holds. It is
-                // said out loud rather than left implicit, and it is the
-                // deliberate cost of making a version bump affordable.
-                _out.WriteLine(ReplayArtifact.ReCaptureOwed);
-                return;
-            }
+            if (ReplayArtifact.Superseded(record, _out)) return;
 
             var lines = File.ReadAllLines(ReplayArtifact.Require(ReplayArtifact.DeviceOutcome));
             Assert.True(lines.Length >= 4,
@@ -194,6 +207,14 @@ namespace Broodline.Sim.Tests.Combat
             // validates the format it produces, so RallyCreature is in range or
             // there is no Replay object at all.
             var record = ReplayArtifact.Read(ReplayArtifact.DeviceBin);
+
+            // The branch its three siblings had and this one did not. Without
+            // it, a SimVersion bump left this test re-simulating a stale
+            // capture on the current engine and failing with "re-capture with
+            // the tap while the Courser is still BELOW the first defender" -
+            // pointing at tap timing when the cause was that the engine moved.
+            if (ReplayArtifact.Superseded(record, _out)) return;
+
             Assert.True(record.RallyTick >= 0,
                 "the device capture records no Rally at all - re-capture with a tap, per Task 10");
 

@@ -93,6 +93,34 @@ namespace Broodline.View
         /// breaching on this very tick.
         public bool RaiderVisible(int i) => i < RaiderCount && (_raiderAlive[i] || _raiderBreaching[i]);
 
+        /// How many raiders are DRAWN. Not how many are alive.
+        ///
+        /// The HUD's entity count used SimRunner.AliveRaiderCount while both
+        /// renderers drew RaiderVisible, so on the breach frame - the one frame
+        /// wave 6 exists to show - the readout said one fewer than was on
+        /// screen. Two accessors added in the same change, disagreeing about
+        /// the same tick. Counting from the snapshot the renderers read means
+        /// the number cannot drift from the picture.
+        public int VisibleRaiderCount
+        {
+            get
+            {
+                int n = 0;
+                for (int i = 0; i < RaiderCount; i++) if (RaiderVisible(i)) n++;
+                return n;
+            }
+        }
+
+        public int LiveCreatureCount
+        {
+            get
+            {
+                int n = 0;
+                for (int c = 0; c < _creatureHp.Length; c++) if (_creatureHp[c] > 0) n++;
+                return n;
+            }
+        }
+
         /// Interpolated lane position. THE expression - WaveView and WaveHud
         /// both call this rather than each writing their own lerp, because when
         /// they did, a bar and the body it labelled answered two different

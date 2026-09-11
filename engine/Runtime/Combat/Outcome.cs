@@ -33,36 +33,50 @@ namespace Broodline.Sim.Combat
     ///
     /// ReadOnlySpan cannot be written through, so `Breaches[0] = default` is
     /// now a compile error rather than a silent corruption of the diagnosis
-    /// every other consumer reads. The span is bounded at BreachCount, which
-    /// also retires the "iterate to BreachCount, never Breaches.Length" hazard
-    /// this comment used to carry: the two lengths are the same number now.
+    /// every other consumer reads.
+    ///
+    /// The count is DERIVED, not passed. The first version took the buffer and
+    /// a separate breachCount and checked neither against the other, so
+    /// `new Outcome(..., new Breach[2], 5, ...)` was constructible and threw
+    /// ArgumentOutOfRangeException out of the Breaches getter - from OnGUI,
+    /// every frame - while a null buffer with a count of 5 reported
+    /// BreachCount 5 and Length 0 with no complaint at all. For a type whose
+    /// whole point is "made impossible rather than promised", a free-floating
+    /// number the caller can get wrong is the promise. One buffer, trimmed by
+    /// its producer, and the count is its length; that also retires the
+    /// "iterate to BreachCount, never Breaches.Length" hazard by making them
+    /// the same expression.
     public readonly struct Outcome
     {
         public Result Result { get; }
         public int Ticks { get; }
         public int IntegrityRemaining { get; }
-        public int BreachCount { get; }
         public ulong Hash { get; }
 
         private readonly Breach[] _breaches;
 
+        /// `breaches` must already be trimmed to the breaches recorded -
+        /// SimRunner.Finish does that, and it is the only producer.
         public Outcome(Result result, int ticks, int integrityRemaining,
-                       Breach[] breaches, int breachCount, ulong hash)
+                       Breach[] breaches, ulong hash)
         {
             Result = result;
             Ticks = ticks;
             IntegrityRemaining = integrityRemaining;
-            BreachCount = breachCount;
             Hash = hash;
             _breaches = breaches;
         }
 
-        /// The breaches recorded, exactly BreachCount of them.
+        /// The breaches recorded.
         ///
         /// default(Outcome) - the value a runner holds before it finishes -
         /// has no buffer at all, so this answers with an empty span rather
         /// than throwing.
-        public ReadOnlySpan<Breach> Breaches =>
-            _breaches == null ? default : new ReadOnlySpan<Breach>(_breaches, 0, BreachCount);
+        public ReadOnlySpan<Breach> Breaches => _breaches;
+
+        /// How many raiders reached the Ark. Kept because it reads better than
+        /// Breaches.Length at a call site that does not want the span, and it
+        /// cannot disagree with one.
+        public int BreachCount => Breaches.Length;
     }
 }

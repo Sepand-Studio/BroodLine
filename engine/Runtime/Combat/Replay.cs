@@ -26,6 +26,10 @@ namespace Broodline.Sim.Combat
         private const uint Magic = 0x50524C42;   // "BLRP" little-endian
         private const ushort FormatVersion = 1;
 
+        /// The most creatures this ENCODING could describe. Deliberately not
+        /// Stats.DeploymentCap - see ValidateFormat.
+        private const int FormatDeploymentCeiling = 255;
+
         public int WaveId;
         public ulong Seed;
 
@@ -50,11 +54,9 @@ namespace Broodline.Sim.Combat
         /// it is checked against what the family produces, at Validate.
         public Lane BuildLane()
         {
-            switch (Terrain)
-            {
-                case Terrain.Defile: return Lane.Defile();
-                default: throw new ReplayFormatException("unknown terrain family " + (int)Terrain);
-            }
+            var lane = Lane.ForFamily(Terrain);
+            if (lane == null) throw new ReplayFormatException("unknown terrain family " + (int)Terrain);
+            return lane;
         }
 
         /// Whether this engine can re-simulate the record at all.
@@ -79,18 +81,25 @@ namespace Broodline.Sim.Combat
         /// that is not there. That diagnosis belongs to Validate, behind the
         /// version check.
         ///
-        /// What is here is what protects the READER: array agreement, the
-        /// deployment cap Deserialize already enforces, and rally indices,
-        /// which callers feed straight to TryRally.
+        /// What is here is what protects the READER and nothing else: array
+        /// agreement, and rally indices, which callers feed straight to
+        /// TryRally.
+        ///
+        /// Stats.DeploymentCap is NOT here, and that is the point of the line.
+        /// It is a balance constant - Stats.cs says so - so a later engine that
+        /// raises it to 6 writes a perfectly good six-creature record, and this
+        /// half rejected it from inside Deserialize with "deployment count 6 out
+        /// of range". No Replay object was produced at all, so IsFromThisEngine
+        /// could not even be consulted and solo_execution 9.4's
+        /// render-the-stored-outcome path was unreachable. That is the same
+        /// misdiagnosis the version-first ordering below was written to
+        /// eliminate, one layer down. The cap now lives once, behind the
+        /// version check, in Deployments.Problem.
         public void ValidateFormat()
         {
             if (Deployment == null || DeploymentHp == null ||
                 Deployment.Length != DeploymentHp.Length)
                 throw new ReplayFormatException("deployment and HP arrays disagree");
-
-            if (Deployment.Length > Stats.DeploymentCap)
-                throw new ReplayFormatException(
-                    "deployment of " + Deployment.Length + " exceeds the cap of " + Stats.DeploymentCap);
 
             if (RallyTick < -1) throw new ReplayFormatException("negative rally tick");
             if ((RallyTick < 0) != (RallyCreature < 0))
@@ -127,7 +136,10 @@ namespace Broodline.Sim.Combat
             // against local content.
             //
             // solo_execution 9.4: "a replay recorded under an earlier engine
-            // version renders its stored outcome and is not re-simulated."
+            // version renders its stored outcome WITH A NOTICE and is not
+            // re-simulated." The notice is the operative half: a superseded
+            // replay must visibly say it was not re-run, not silently show a
+            // number.
             // Callers wanting that behaviour branch on IsFromThisEngine rather
             // than catching this.
             if (!IsFromThisEngine)
@@ -208,6 +220,16 @@ namespace Broodline.Sim.Combat
 
         public byte[] Serialize()
         {
+            // Copy() tolerates a null Deployment, and the fields are public and
+            // settable, so a hand-built record reaches here - and this was the
+            // one public entry point that answered with a bare
+            // NullReferenceException instead of a ReplayFormatException. The
+            // test that asserts Copy() tolerates such a record was, in effect,
+            // blessing the object that crashed here.
+            if (Deployment == null || DeploymentHp == null ||
+                Deployment.Length != DeploymentHp.Length)
+                throw new ReplayFormatException("deployment and HP arrays disagree");
+
             var version = Encoding.UTF8.GetBytes(EngineVersion ?? "");
             if (version.Length > 255) throw new ReplayFormatException("engine version string too long");
 
@@ -276,7 +298,14 @@ namespace Broodline.Sim.Combat
 
             if (i + 4 > b.Length) throw new ReplayFormatException("truncated deployment count");
             int count = GetI32(b, ref i);
-            if (count < 0 || count > Stats.DeploymentCap)
+
+            // A FORMAT ceiling, not this engine's roster cap. This bound exists
+            // to stop a forged length allocating wildly before the buffer check
+            // below can run; what a roster may legally contain is
+            // Stats.DeploymentCap, a balance constant, and enforcing it here
+            // made a later engine's legitimate record undecodable rather than
+            // superseded. 255 is what one byte of roster could ever mean.
+            if (count < 0 || count > FormatDeploymentCeiling)
                 throw new ReplayFormatException("deployment count " + count + " out of range");
             if (i + count * 8 * 4 + 8 > b.Length) throw new ReplayFormatException("truncated deployment");
 

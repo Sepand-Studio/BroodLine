@@ -301,6 +301,52 @@ namespace Broodline.Sim.Tests.Combat
         }
 
         [Fact]
+        public void ALaterEnginesBiggerRosterIsSupersededRatherThanUndecodable()
+        {
+            // Stats.DeploymentCap is a BALANCE constant, so a later engine that
+            // raises it writes a legitimate record this one cannot simulate.
+            // Enforcing it inside Deserialize made that record undecodable:
+            // "deployment count 6 out of range", no Replay object at all, and
+            // therefore no way to reach IsFromThisEngine and render the stored
+            // outcome. Same misdiagnosis the version-first ordering exists to
+            // prevent, one layer down.
+            var record = Replay.Deserialize(Record());
+            record.EngineVersion = "9.9.9-later";
+            var six = new CreatureSpec[Stats.DeploymentCap + 1];
+            var hp = new int[six.Length];
+            for (int i = 0; i < six.Length; i++)
+            {
+                six[i] = new CreatureSpec { Species = Species.Vetch, Pocket = 0, Instinct = Instinct.Vanguard };
+                hp[i] = Stats.CreatureHp(Species.Vetch);
+            }
+            record.Deployment = six;
+            record.DeploymentHp = hp;
+
+            // Decodes: the format can describe it.
+            var readBack = Replay.Deserialize(record.Serialize());
+            Assert.False(readBack.IsFromThisEngine);
+            Assert.Equal(6, readBack.Deployment.Length);
+
+            // And is diagnosed as superseded, not as corrupt.
+            var e = Assert.Throws<ReplayFormatException>(() => readBack.Validate());
+            Assert.Contains("stored outcome", e.Message);
+
+            // The cap itself still binds for a record from THIS engine.
+            readBack.EngineVersion = SimVersion.Value;
+            Assert.Contains("cap", Assert.Throws<ReplayFormatException>(() => readBack.Validate()).Message);
+        }
+
+        [Fact]
+        public void SerializeRejectsAHandBuiltRecordRatherThanThrowingNre()
+        {
+            // Copy tolerates null arrays, so it MANUFACTURES the object that
+            // used to make Serialize raise a bare NullReferenceException - and
+            // the test below asserts Copy produces exactly it.
+            var e = Assert.Throws<ReplayFormatException>(() => new Replay().Copy().Serialize());
+            Assert.Contains("disagree", e.Message);
+        }
+
+        [Fact]
         public void CopyToleratesARecordThatWasNotDeserialized()
         {
             // Copy is the only method that dereferenced both arrays without a

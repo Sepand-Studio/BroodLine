@@ -126,6 +126,106 @@ namespace Broodline.Sim.Tests.Combat
         }
 
         [Fact]
+        public void ABreachThatDoesNotEndTheWaveIsStillVisibleToTheRenderer()
+        {
+            // The accessor compared the logged breach tick against _s.Tick,
+            // which Step advances on every tick that does NOT terminate - so it
+            // answered true only for a breach that ended the wave, and wave 6
+            // has exactly that shape. Measured before the fix: integrity 6 and
+            // two Coursers logs breaches at ticks 540 and 750, and the
+            // renderer's read point saw the flag true ONCE.
+            //
+            // Polled exactly where WaveSnapshot.Capture polls it: after Step
+            // returns, from WaveClock's onTick.
+            var wave = new WaveDef(6, 6, 1, new[]
+            {
+                new SpawnEntry { Tick = 90,  Type = RaiderType.Courser },
+                new SpawnEntry { Tick = 300, Type = RaiderType.Courser }
+            });
+            var r = new SimRunner(wave, Lane.Defile(),
+                                  GoldenTests.DeploymentWithoutChill(), GoldenTests.Seed);
+
+            int seen = 0;
+            for (int i = 0; i <= Stats.HardTickCap + 1; i++)
+            {
+                bool more = r.Step();
+                for (int raider = 0; raider < r.RaiderCount; raider++)
+                    if (r.RaiderBreachedThisTick(raider)) seen++;
+                if (!more) break;
+            }
+
+            Assert.Equal(2, r.Outcome.BreachCount);
+            Assert.Equal(r.Outcome.BreachCount, seen);
+        }
+
+        [Fact]
+        public void AliveCountsDoNotCountCorpses()
+        {
+            // The property the accessors exist for. RaiderCount is the number
+            // SPAWNED and never goes down, so a ladder keyed off it degrades on
+            // a board that has emptied.
+            var r = new SimRunner(WaveDef.Wave6(), Lane.Defile(),
+                                  GoldenTests.DeploymentWithoutChill(), GoldenTests.Seed);
+            while (r.Step()) { }
+
+            Assert.Equal(1, r.RaiderCount);          // one Courser, spawned
+            Assert.Equal(0, r.AliveRaiderCount);     // and gone at the Ark
+            Assert.Equal(5, r.AliveCreatureCount);   // the roster survives wave 6
+        }
+
+        [Fact]
+        public void ARunOnContentTheRecordCannotDescribeRefusesToRecord()
+        {
+            // The worst shape in the family, and the one nothing reported: a
+            // WaveDef claiming id 6 while carrying integrity 8 ran to Win with
+            // hash 8532104364784216008, its record VALIDATED, and Sim.Replay
+            // returned Loss with hash 2495532238167386945. An honest player's
+            // win scored as a loss on the verification path.
+            //
+            // The record stores an id and a family, not their contents, so the
+            // only content a RECORDED run may use is what this engine rebuilds
+            // for them. Running unauthored content is still allowed - FuzzTests
+            // does it twelve times a run - it just cannot be written down.
+            var lying = new WaveDef(6, 8, 1, new[]
+            {
+                new SpawnEntry { Tick = 90, Type = RaiderType.Courser }
+            });
+            var r = new SimRunner(lying, Lane.Defile(),
+                                  GoldenTests.DeploymentWithoutChill(), GoldenTests.Seed);
+
+            Assert.NotNull(r.Unrecordable);
+            Assert.Contains("integrity", r.Unrecordable);
+            Assert.Throws<WaveCompositionException>(() => r.SerializeRecord());
+            Assert.Throws<WaveCompositionException>(() => r.ReadRecord());
+
+            // Same family, one axis over: a lane that claims a family whose
+            // geometry it does not have. This one at least failed loudly on
+            // load before; now it never gets written.
+            var wrongLane = new SimRunner(WaveDef.Wave6(), new Lane(Terrain.Defile, 30, new[] { 6, 10, 13, 17, 20 }),
+                                          GoldenTests.DeploymentWithoutChill(), GoldenTests.Seed);
+            Assert.NotNull(wrongLane.Unrecordable);
+            Assert.Throws<WaveCompositionException>(() => wrongLane.SerializeRecord());
+
+            // And the authored pair records normally.
+            Assert.Null(new SimRunner(WaveDef.Wave6(), Lane.Defile(),
+                                      GoldenTests.DeploymentWithoutChill(), GoldenTests.Seed).Unrecordable);
+        }
+
+        [Fact]
+        public void EveryDoorIntoTheTickLoopValidatesTheDeployment()
+        {
+            // SimRunner's constructor and Replay.Validate were the two doors
+            // someone remembered. `new SimState(...)` plus direct Phases calls
+            // is a third, and thirty-one call sites in this suite already take
+            // it - so the shared rules had to move to where the state is BUILT.
+            var bad = GoldenTests.DeploymentWithoutChill();
+            bad[0].Pocket = 178956971;      // wraps into Lane's distance table
+
+            Assert.Throws<WaveCompositionException>(
+                () => new SimState(WaveDef.Wave6(), Lane.Defile(), bad));
+        }
+
+        [Fact]
         public void ReadOnlySurface_TracksTheLiveState()
         {
             var r = new SimRunner(WaveDef.Wave6(), Lane.Defile(),
@@ -176,47 +276,97 @@ namespace Broodline.Sim.Tests.Combat
         public void TheReadOnlySurfaceGuardCanActuallyFail()
         {
             // A guard whose green is decoupled from the property it asserts is
-            // worse than no guard: it is a claim. So the predicate above is
-            // pointed at things that ARE violations and required to say so.
+            // worse than no guard: it is a claim. So the predicate is pointed
+            // at things that ARE violations and required to say so.
             //
-            // SimState itself is the reference case - the whole mutable world,
-            // reached in one hop through a public property.
+            // Span and List are the fixtures that matter. The previous
+            // predicate recognised only T[] and SimState, so `public Span<int>
+            // RaiderHp => _s.RaiderHp;` - ONE KEYWORD from the real property,
+            // and the exact regression this exists to prevent - sailed through
+            // at depth zero, and no fixture could notice because all three were
+            // built from the two shapes the predicate already knew.
             Assert.NotEmpty(Leaks(typeof(LeaksAnArray)));
             Assert.NotEmpty(Leaks(typeof(LeaksSimState)));
+            Assert.NotEmpty(Leaks(typeof(LeaksASpan)));
+            Assert.NotEmpty(Leaks(typeof(LeaksAList)));
             Assert.NotEmpty(Leaks(typeof(LeaksOneHopAway)));
+            Assert.NotEmpty(Leaks(typeof(LeaksAFieldOneHopAway)));
+        }
+
+        [Fact]
+        public void EveryExemptedTypeIsActuallyImmutable()
+        {
+            // The cost of an allow-list is that an exemption is a promise. This
+            // is the part that checks it: nothing Lane or Outcome exposes as a
+            // property or a field may itself be writable-through.
+            foreach (var t in Exempt)
+            {
+                foreach (var p in t.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                    Assert.True(IsSealedSurface(p.PropertyType),
+                        t.Name + "." + p.Name + " is exempted but hands out " + p.PropertyType.Name);
+                foreach (var f in t.GetFields(BindingFlags.Public | BindingFlags.Instance))
+                    Assert.True(IsSealedSurface(f.FieldType),
+                        t.Name + "." + f.Name + " is exempted but hands out " + f.FieldType.Name);
+            }
         }
 
         private sealed class LeaksAnArray { public int[] Table => null; }
         private sealed class LeaksSimState { public SimState World => null; }
+        private sealed class LeaksASpan { public Span<int> Live => default; }
+        private sealed class LeaksAList { public List<int> Items => null; }
         private sealed class LeaksOneHopAway { public LeaksAnArray Inner => null; }
+        private sealed class HasAPublicArrayField { public int[] Table = null; }
+        private sealed class LeaksAFieldOneHopAway { public HasAPublicArrayField Inner => null; }
 
-        /// Public properties that hand out writable engine state, directly or
-        /// one hop away.
+        /// The only engine types a SimRunner property may hand out whole.
+        ///
+        /// Named, not inferred, and each one is CHECKED below rather than
+        /// trusted - an exemption that is never verified is how a deny-list
+        /// rots. Both are immutable surfaces: Lane exposes ints, a Terrain and
+        /// a ReadOnlySpan; Outcome exposes a Result, ints, a ulong and a
+        /// ReadOnlySpan.
+        private static readonly Type[] Exempt = { typeof(Lane), typeof(Outcome) };
+
+        /// Public properties that hand out anything a caller could write
+        /// through.
+        ///
+        /// An ALLOW-list, which is the axis that needed hardening. The previous
+        /// predicate denied "T[] or SimState", which only catches the shapes
+        /// someone thought of: `public Span&lt;int&gt; RaiderHp => _s.RaiderHp;` is
+        /// ONE KEYWORD from the real property and is not an array, and
+        /// List&lt;T&gt; is worse still - every property it exposes is an int, so
+        /// even a structural walk of its surface calls it clean while Add and
+        /// Clear sit on it. Shape cannot tell you a type is immutable. A name
+        /// can, once someone has looked.
+        ///
+        /// So: a primitive, an enum, a string, a ReadOnlySpan, or a type on the
+        /// Exempt list. Anything else is a finding until someone adds it there
+        /// and says why.
         ///
         /// Properties only, deliberately. SerializeRecord() returns a freshly
         /// encoded byte[] and ReadRecord() returns a Replay built by Copy();
         /// both are copies whose whole purpose is to be handed out and written
         /// to, and both have their own tests. A property is a SURFACE - it
-        /// reads as "the runner's X" - which is what makes the same array
-        /// shape a mistake there and not in a method named Read or Serialize.
+        /// reads as "the runner's X" - which is what makes the same shape a
+        /// mistake there and not in a method named Read or Serialize.
         private static List<string> Leaks(Type t)
         {
             var found = new List<string>();
             foreach (var p in t.GetProperties(BindingFlags.Public | BindingFlags.Instance))
             {
-                if (p.PropertyType == typeof(SimState))
-                { found.Add(t.Name + "." + p.Name + " hands out SimState"); continue; }
-                if (p.PropertyType.IsArray)
-                { found.Add(t.Name + "." + p.Name + " hands out a raw array; use ReadOnlySpan<T>"); continue; }
-
-                foreach (var inner in p.PropertyType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
-                    if (inner.PropertyType == typeof(SimState) || inner.PropertyType.IsArray)
-                        found.Add(t.Name + "." + p.Name + "." + inner.Name + " is writable one hop away");
-                foreach (var inner in p.PropertyType.GetFields(BindingFlags.Public | BindingFlags.Instance))
-                    if (inner.FieldType == typeof(SimState) || inner.FieldType.IsArray)
-                        found.Add(t.Name + "." + p.Name + "." + inner.Name + " is writable one hop away");
+                if (IsSealedSurface(p.PropertyType)) continue;
+                if (Array.IndexOf(Exempt, p.PropertyType) >= 0) continue;
+                found.Add(t.Name + "." + p.Name + " returns " + p.PropertyType.Name +
+                          ", which is not provably read-only. Use ReadOnlySpan<T>, or add the " +
+                          "type to SimRunnerTests.Exempt with a reason.");
             }
             return found;
         }
+
+        /// A type nothing can be written through: a value, a string, or a
+        /// ReadOnlySpan.
+        private static bool IsSealedSurface(Type t) =>
+            t.IsPrimitive || t.IsEnum || t == typeof(string) || t == typeof(decimal) ||
+            (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(ReadOnlySpan<>));
     }
 }

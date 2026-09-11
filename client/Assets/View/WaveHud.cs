@@ -19,28 +19,49 @@ namespace Broodline.View
         public WavePair Pair;
         public Camera View;
 
-        /// How far to lift a bar above the body it labels, as a fraction of the
-        /// safe area's height.
+        /// How far above a body its bar sits, in WORLD units along whichever
+        /// axis the camera maps to screen-up.
         ///
-        /// SCREEN space, and that is the fix rather than the number. This was a
-        /// world-space offset twice, and was wrong both times. On +Y it was a
-        /// no-op: WaveSceneBuilder frames the scene top-down with
-        /// Quaternion.LookRotation(Vector3.down, Vector3.right), so world +Y
-        /// runs down the view axis and an orthographic projection discards it -
-        /// every bar drew dead centre on its own cube. Moving it to +X made the
-        /// direction right and the result worse: +X runs along the LANE, the
-        /// camera covers world-X [-0.96, 24.96], and the Ark is at 24, so a
-        /// raider past tile ~23.6 had its bar pushed off the top of the screen -
-        /// vanishing for the last several ticks of the Courser's approach, which
-        /// is exactly the moment wave 6 exists to show.
+        /// The body is a cube at scale 0.81, so this clears it with room for
+        /// the tag. The number is in world units and the CONVERSION to pixels
+        /// comes from the camera - which is the whole point, and the correction
+        /// of two previous attempts.
         ///
-        /// A lift is a screen-space idea. Saying it in world units required
-        /// knowing which world axis maps to screen-up, and that knowledge is
-        /// what was wrong on both attempts. ClampIntoSafeArea below is the
-        /// belt to this braces: no anchor, however derived, leaves the frame.
-        private const float BarLiftFraction = 0.022f;
+        /// As a world-space +Y offset it was a no-op: WaveSceneBuilder frames
+        /// this scene top-down, so +Y runs down the view axis and an
+        /// orthographic projection discards it. Re-derived as +X it ran along
+        /// the LANE, pushing a raider's bar past the top of the frame near the
+        /// Ark - vanishing at exactly the moment wave 6 exists to show. Then as
+        /// a fraction of the safe area it worked, but only because 2.2% happens
+        /// to be under the 3.7% of margin WaveSceneBuilder leaves above the
+        /// Ark: an unasserted numeric relationship between two constants in two
+        /// assemblies, neither of which names the other.
+        ///
+        /// camera.transform.up IS "which world axis maps to screen-up", by
+        /// definition. Taking it from there rather than re-deriving it is the
+        /// only version of this that cannot be wrong the next time the camera
+        /// moves.
+        private const float BarLiftWorld = 0.75f;
+
+        /// Reserved for the integrity readout, in pixels. A bar clamped to the
+        /// top of the safe area would otherwise land on it.
+        private const float HeaderHeight = 34f;
 
         private GUIStyle _label;
+
+        /// The safe area in GUI space, computed ONCE per OnGUI.
+        ///
+        /// It was a property, and a property that reads Screen.safeArea AND
+        /// Screen.height on every access - evaluated twice in DrawIntegrity,
+        /// twice in DrawDebug, four times in DrawOutcome and twice per drawn
+        /// bar, which is 16 to 20 evaluations and 32 to 40 native calls per
+        /// OnGUI. OnGUI fires at least twice per frame. Nothing in it can
+        /// change mid-frame.
+        private Rect _safe;
+
+        /// Pixels per BarLiftWorld along screen-up, for the current camera.
+        /// Constant across the frame for an orthographic camera.
+        private float _liftPixels;
 
         private void OnGUI()
         {
@@ -48,38 +69,42 @@ namespace Broodline.View
             if (_label == null)
                 _label = new GUIStyle(GUI.skin.label) { fontSize = 14, richText = true };
 
+            // client_architecture section 11: "Layout is safe-area driven with
+            // no fixed pixel positions." Every Rect below is offset from this.
+            //
+            // FLIPPED into GUI space. Screen.safeArea is pixels with the origin
+            // at the BOTTOM-left; IMGUI puts it at the top-left. Used raw,
+            // safeArea.yMin is the bottom inset read as a distance from the
+            // top: on an iPhone 15 Pro that put the integrity readout at y=110
+            // with the Dynamic Island occupying 0..177, still entirely
+            // underneath it. Invisible in the Editor, where a notchless display
+            // has yMin == 0 and the bug is an identity.
+            var s = Screen.safeArea;
+            _safe = new Rect(s.xMin, Screen.height - s.yMax, s.width, s.height);
+            _liftPixels = MeasureLift();
+
             DrawIntegrity();
             DrawBars();
             DrawDebug();
             if (Runner.Done) DrawOutcome();
         }
 
-        /// client_architecture section 11: "Layout is safe-area driven with no
-        /// fixed pixel positions." Every Rect below is offset from this rather
-        /// than from the screen edge.
-        ///
-        /// FLIPPED into GUI space, which is the whole point of the property.
-        /// Screen.safeArea is pixels with the origin at the BOTTOM-left; IMGUI
-        /// puts it at the top-left. Used raw, safeArea.yMin is the bottom inset
-        /// being read as a distance from the top: on an iPhone 15 Pro that put
-        /// the integrity readout at y=110 with the Dynamic Island occupying
-        /// 0..177, still entirely underneath it - the exact symptom the
-        /// safe-area work was done to fix. Invisible in the Editor, where a
-        /// notchless display has yMin == 0 and the bug is an identity.
-        private static Rect Safe
+        /// How many pixels BarLiftWorld is, asked of the camera.
+        private float MeasureLift()
         {
-            get
-            {
-                var s = Screen.safeArea;
-                return new Rect(s.xMin, Screen.height - s.yMax, s.width, s.height);
-            }
+            var camera = View != null ? View : Camera.main;
+            if (camera == null) return 0f;
+
+            var origin = camera.WorldToScreenPoint(Vector3.zero);
+            var lifted = camera.WorldToScreenPoint(camera.transform.up * BarLiftWorld);
+            return Mathf.Abs(lifted.y - origin.y);
         }
 
         private void DrawIntegrity()
         {
             // Integrity is the loss condition. combat_engine section 8 makes it
             // a pool, not a life count.
-            GUI.Label(new Rect(Safe.xMin + 12, Safe.yMin + 8, 420, 24),
+            GUI.Label(new Rect(_safe.xMin + 12, _safe.yMin + 8, 420, 24),
                 "<b>Integrity " + Runner.Integrity + "</b>   tick " + Runner.Tick, _label);
         }
 
@@ -145,17 +170,19 @@ namespace Broodline.View
             // ladder off it, so surfacing it now means the ladder arrives with
             // a number already proven to be there and already deterministic.
             //
-            // Read from the engine, not summed here. RaiderCount is the number
-            // SPAWNED, so the sum this used to compute counted corpses and
-            // never went down - a ladder keyed off it would degrade on an empty
-            // board.
-            int entities = Runner.AliveRaiderCount + Runner.AliveCreatureCount;
-
+            // Counted from the SNAPSHOT, which is what the renderers draw from.
+            // Summing RaiderCount + CreatureCount counted corpses; reading
+            // SimRunner.AliveRaiderCount fixed that and introduced a subtler
+            // one, because a breaching raider is drawn and is not alive - so on
+            // the breach frame the readout said one fewer than was on screen.
+            //
             // Backlog, not StepsLastFrame. Steps saturates at MaxCatchUpSteps
             // by construction, so it can show 8 and never the 22 or 352 ticks
-            // of real debt that sustained overload produces - which is the
-            // number worth seeing.
-            GUI.Label(new Rect(Safe.xMin + 12, Safe.yMax - 76, 460, 72),
+            // of real debt that sustained overload produces.
+            var current = Pair.Current;
+            int entities = current.VisibleRaiderCount + current.LiveCreatureCount;
+
+            GUI.Label(new Rect(_safe.xMin + 12, _safe.yMax - 76, 460, 72),
                 "entities " + entities +
                 "\nalpha " + Clock.Alpha.ToString("F2") +
                 "   catch-up " + Clock.StepsLastFrame +
@@ -169,10 +196,11 @@ namespace Broodline.View
             string text = "<b>" + o.Result + "</b>\nticks " + o.Ticks +
                           "\nintegrity " + o.IntegrityRemaining;
 
-            // Breaches is a ReadOnlySpan bounded at BreachCount, so its Length
-            // IS the count. The old warning - iterate to BreachCount, never
-            // Length, or a zeroed trailing entry reads as "the trait was
-            // absent" - describes a buffer this no longer receives.
+            // Breaches is a ReadOnlySpan bounded at the breaches recorded, so
+            // its Length IS the count. The old warning - iterate to
+            // BreachCount, never Length, or a zeroed trailing entry reads as
+            // "the trait was absent" - describes a buffer this no longer
+            // receives.
             for (int b = 0; b < o.Breaches.Length; b++)
             {
                 var br = o.Breaches[b];
@@ -182,8 +210,8 @@ namespace Broodline.View
                         "\n  placement " + br.Placement;
             }
 
-            GUI.Box(new Rect(Safe.center.x - 160, Safe.yMin + 60, 320, 220), "");
-            GUI.Label(new Rect(Safe.center.x - 144, Safe.yMin + 72, 300, 200), text, _label);
+            GUI.Box(new Rect(_safe.center.x - 160, _safe.yMin + 60, 320, 220), "");
+            GUI.Label(new Rect(_safe.center.x - 144, _safe.yMin + 72, 300, 200), text, _label);
         }
 
         private void Bar(Vector2 at, int hp, int max, Color fill, string tag)
@@ -193,7 +221,7 @@ namespace Broodline.View
             float frac = max > 0 ? Mathf.Clamp01((float)hp / max) : 0f;
 
             var back = ClampIntoSafeArea(
-                new Rect(at.x - w / 2f, at.y - Safe.height * BarLiftFraction, w, h),
+                new Rect(at.x - w / 2f, at.y - _liftPixels, w, h),
                 tag != null ? tagHeight : 0f);
 
             GUI.DrawTexture(back, Texture2D.whiteTexture, ScaleMode.StretchToFill, false, 0f,
@@ -205,20 +233,24 @@ namespace Broodline.View
                 GUI.Label(new Rect(back.x, back.y + h, 120f, tagHeight), tag, _label);
         }
 
-        /// Keeps a bar - and the tag hanging under it - inside the safe area.
+        /// Keeps a bar - and the tag hanging under it - inside the safe area
+        /// and clear of the integrity readout.
         ///
-        /// The lift is small and the clamp rarely fires, which is the point:
-        /// it is not a layout strategy, it is the guarantee that no bar can
-        /// leave the frame at the moment it matters most. The Courser's bar
-        /// disappearing at the Ark is what this exists to make impossible, and
-        /// it is impossible by construction rather than by the offset happening
-        /// to be small enough.
-        private static Rect ClampIntoSafeArea(Rect r, float extraBelow)
+        /// A last resort, not a layout strategy. With the lift taken from the
+        /// camera this should never fire: WaveSceneBuilder leaves 3.7% of the
+        /// vertical extent above the Ark at every aspect, which is more than
+        /// the lift. It exists for the cases the framing cannot promise - no
+        /// camera at all, where WorldToScreen answers zero - and it reserves
+        /// HeaderHeight so that a bar which DOES get clamped lands below the
+        /// integrity line rather than on top of the one element the safe-area
+        /// work was done to make readable.
+        private Rect ClampIntoSafeArea(Rect r, float extraBelow)
         {
-            var safe = Safe;
-            r.x = Mathf.Clamp(r.x, safe.xMin, Mathf.Max(safe.xMin, safe.xMax - r.width));
-            r.y = Mathf.Clamp(r.y, safe.yMin,
-                              Mathf.Max(safe.yMin, safe.yMax - r.height - extraBelow));
+            float top = _safe.yMin + HeaderHeight;
+            float bottom = _safe.yMax - r.height - extraBelow;
+
+            r.x = Mathf.Clamp(r.x, _safe.xMin, Mathf.Max(_safe.xMin, _safe.xMax - r.width));
+            r.y = Mathf.Clamp(r.y, top, Mathf.Max(top, bottom));
             return r;
         }
 

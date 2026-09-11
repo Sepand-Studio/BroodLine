@@ -56,6 +56,17 @@ namespace Broodline.Sim.Combat
 
         public SimState(WaveDef wave, Lane lane, CreatureSpec[] deployment)
         {
+            // THE door, not one of three. The shared rules used to be called
+            // from the SimRunner constructor and from Replay.Validate - the two
+            // anyone remembered - while `new SimState(...)` followed by direct
+            // Phases calls was a fully supported third route that consulted
+            // neither, and thirty-one call sites in the test suite already took
+            // it. An invariant that lives in a validator two callers must
+            // remember is a convention; enforced where the state is BUILT, it
+            // is a guarantee, because there is nowhere else to build it.
+            var problem = Deployments.Problem(deployment, lane);
+            if (problem != null) throw new WaveCompositionException(problem);
+
             Wave = wave;
             Lane = lane;
             Integrity = wave.Integrity;

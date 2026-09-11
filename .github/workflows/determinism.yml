@@ -78,14 +78,22 @@ on:
       # learning from CI rather than from the next person to run it locally.
       - 'client/Packages/manifest.json'
       - 'client/ProjectSettings/ProjectVersion.txt'
-      # Phase 3's client assemblies. The EditMode step below is the ONLY CI
-      # coverage the accumulator contract has - the thing the phase design
-      # calls "the phase's real risk surface" - and until these paths were
-      # listed, a change to WaveClock.cs did not trigger this workflow at all.
-      # It costs a full self-hosted run on a View-only change; that is the
-      # correct trade when the alternative is no coverage.
-      - 'client/Assets/View/**'
-      - 'client/Assets/Game/**'
+      # ALL of client/Assets, not the two folders someone listed.
+      #
+      # This job is the only thing that COMPILES Unity C#, and the narrow
+      # filter created a false green: a PR touching only
+      # client/Assets/Editor/IosFileSharingPostProcess.cs triggered tests.yml
+      # alone, which produced two passing checks - one of them named "Unity
+      # settings" - without compiling a line of the changed file. That is worse
+      # than no checks at all, because a green check reads as coverage. It cost
+      # exactly that: the plist rewrite shipped a file Apple's parser refuses,
+      # and nothing in CI could have said so.
+      #
+      # It costs a full self-hosted run on an Editor-only change; that is the
+      # correct trade when the alternative is a check that lies.
+      - 'client/Assets/**'
+      # The scripts this job runs.
+      - 'implementation/scripts/run-unity-tests.sh'
   pull_request:
     paths:
       - 'engine/**'
@@ -98,14 +106,22 @@ on:
       - 'Broodline.sln'
       - 'client/Packages/manifest.json'
       - 'client/ProjectSettings/ProjectVersion.txt'
-      # Phase 3's client assemblies. The EditMode step below is the ONLY CI
-      # coverage the accumulator contract has - the thing the phase design
-      # calls "the phase's real risk surface" - and until these paths were
-      # listed, a change to WaveClock.cs did not trigger this workflow at all.
-      # It costs a full self-hosted run on a View-only change; that is the
-      # correct trade when the alternative is no coverage.
-      - 'client/Assets/View/**'
-      - 'client/Assets/Game/**'
+      # ALL of client/Assets, not the two folders someone listed.
+      #
+      # This job is the only thing that COMPILES Unity C#, and the narrow
+      # filter created a false green: a PR touching only
+      # client/Assets/Editor/IosFileSharingPostProcess.cs triggered tests.yml
+      # alone, which produced two passing checks - one of them named "Unity
+      # settings" - without compiling a line of the changed file. That is worse
+      # than no checks at all, because a green check reads as coverage. It cost
+      # exactly that: the plist rewrite shipped a file Apple's parser refuses,
+      # and nothing in CI could have said so.
+      #
+      # It costs a full self-hosted run on an Editor-only change; that is the
+      # correct trade when the alternative is a check that lies.
+      - 'client/Assets/**'
+      # The scripts this job runs.
+      - 'implementation/scripts/run-unity-tests.sh'
   schedule:
     # Nightly at 09:00 UTC.
     - cron: '0 9 * * *'

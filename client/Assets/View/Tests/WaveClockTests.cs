@@ -9,17 +9,9 @@ namespace Broodline.View.Tests
         const double Frame60 = 1.0 / 60.0;
         const double Tick30  = 1.0 / 30.0;
 
-        static SimRunner Runner() => new SimRunner(
-            WaveDef.Wave6(), Lane.Defile(), Deployment(), 6UL);
-
-        static CreatureSpec[] Deployment() => new[]
-        {
-            new CreatureSpec { Species = Species.Vetch, Pocket = 0, Instinct = Instinct.Vanguard },
-            new CreatureSpec { Species = Species.Vetch, Pocket = 1, Instinct = Instinct.Vanguard },
-            new CreatureSpec { Species = Species.Vetch, Pocket = 2, Instinct = Instinct.Vanguard },
-            new CreatureSpec { Species = Species.Vetch, Pocket = 3, Instinct = Instinct.Vanguard },
-            new CreatureSpec { Species = Species.Loam,  Pocket = 4, Instinct = Instinct.Vanguard }
-        };
+        // The roster lives in WaveFixture - it was typed out here and in the
+        // sibling test file, identically, in the same asmdef.
+        static SimRunner Runner() => WaveFixture.Runner();
 
         [Test]
         public void SixtyHertzRenderingStepsTheSimEveryOtherFrame()

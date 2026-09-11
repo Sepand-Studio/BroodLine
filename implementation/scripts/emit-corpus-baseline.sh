@@ -19,8 +19,17 @@ BASELINE=tests/engine/corpus-baseline.txt
 # afterwards, which it never is: it is TRACKED, so it is on disk before this
 # script starts and stays there whether or not the emitter writes a byte. The
 # question worth asking is whether this run touched it.
-before=$(shasum "$BASELINE" 2>/dev/null | cut -d' ' -f1 || echo "absent")
-before_mtime=$(stat -f %m "$BASELINE" 2>/dev/null || stat -c %Y "$BASELINE" 2>/dev/null || echo 0)
+#
+# GNU FIRST. On coreutils -f is --file-system and takes no argument, so
+# `stat -f %m FILE` parses %m as a filename, prints a multi-line filesystem
+# report to stdout, and exits 1 - after which the fallback APPENDS the real
+# mtime, leaving a blob containing free-block counts that drift on their own.
+# The guard below would then go green on disk activity rather than on a write.
+# BSD stat rejects -c cleanly, so this order is correct on both hosts.
+mtime () { stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null; }
+
+before=$(shasum "$BASELINE" | cut -d' ' -f1)
+before_mtime=$(mtime "$BASELINE")
 
 out=$(dotnet test Broodline.sln --nologo \
   --filter "FullyQualifiedName~CorpusBaselineTests.Emit" \
@@ -41,10 +50,14 @@ fi
 # already failed.
 echo "$out" | grep -E 'Passed!|Failed!|Passed:|passed' | tail -2 || true
 
-after=$(shasum "$BASELINE" 2>/dev/null | cut -d' ' -f1 || echo "absent")
-after_mtime=$(stat -f %m "$BASELINE" 2>/dev/null || stat -c %Y "$BASELINE" 2>/dev/null || echo 0)
+after=$(shasum "$BASELINE" | cut -d' ' -f1)
+after_mtime=$(mtime "$BASELINE")
 
-[ "$after" != "absent" ] || { echo "FAIL: $BASELINE is gone"; exit 1; }
+# No existence check. The file is TRACKED - the comment above says so - so it is
+# on disk before this script starts and stays there whether or not the emitter
+# writes a byte; asking whether it is absent afterwards was checking a condition
+# this script's own rationale declares impossible. `set -e` plus an unguarded
+# shasum covers the genuinely impossible case.
 [ "$after_mtime" != "$before_mtime" ] || {
   echo "FAIL: $BASELINE was not rewritten by this run."
   echo "The emitter is gated on BROODLINE_EMIT_BASELINE=1 and writes to the"

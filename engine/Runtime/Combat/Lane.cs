@@ -73,6 +73,22 @@ namespace Broodline.Sim.Combat
         public static Lane Defile() =>
             new Lane(Terrain.Defile, Stats.LaneTiles, new[] { 6, 10, 13, 17, 20 });
 
+        /// The authored geometry for a family, or null if there is none.
+        ///
+        /// ONE switch. A replay stores the family and rebuilds from it, and the
+        /// play path has to be able to ask the same question - otherwise a Lane
+        /// can be constructed that CLAIMS a family whose real geometry it does
+        /// not have, run a full wave, and emit a record that throws on load.
+        /// Replay.BuildLane is this, plus a throw for the caller that wants one.
+        public static Lane ForFamily(Terrain family)
+        {
+            switch (family)
+            {
+                case Terrain.Defile: return Defile();
+                default: return null;
+            }
+        }
+
         public int DistSq(int pocket, int tile) => _distSq[pocket * Tiles + tile];
 
         public bool InRange(int pocket, int tile, int rangeTiles) =>

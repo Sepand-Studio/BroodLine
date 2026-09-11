@@ -33,29 +33,11 @@ namespace Broodline.Sim.Tests.Combat
 
         private static Replay Record() => ReplayArtifact.Read(ReplayArtifact.EditorBin);
 
-        /// True when this engine can still re-simulate the capture at all.
-        ///
-        /// solo_execution section 9.4: a replay recorded under a superseded
-        /// engine renders its stored outcome and is NOT re-simulated. Every
-        /// test in this file that re-runs the artifact is therefore a claim
-        /// about a PARTICULAR engine version, and says so rather than failing
-        /// red the moment SimVersion moves - see ReplayArtifact.CapturedUnder
-        /// for why that distinction is what makes a bump affordable.
-        private static bool Current => ReplayArtifact.AreCurrent;
-
         [Fact]
         public void TheEditorRunReSimulatesToTheSameHash()
         {
             var record = Record();
-
-            if (!Current)
-            {
-                var refused = Assert.Throws<ReplayFormatException>(
-                    () => Broodline.Sim.Combat.Sim.Replay(record));
-                Assert.Contains(record.EngineVersion, refused.Message);
-                _out.WriteLine(ReplayArtifact.ReCaptureOwed);
-                return;
-            }
+            if (ReplayArtifact.Superseded(record, _out)) return;
 
             var lines = File.ReadAllLines(ReplayArtifact.Require(ReplayArtifact.EditorOutcome));
             Assert.True(lines.Length >= 4,
@@ -121,9 +103,10 @@ namespace Broodline.Sim.Tests.Combat
             // counter system, so a Loss here is the wave working. The diagnosis
             // is the point: ACCESS false means the trait was absent, not
             // mis-tiered and not mis-placed.
-            if (!Current) { _out.WriteLine(ReplayArtifact.ReCaptureOwed); return; }
+            var record = Record();
+            if (ReplayArtifact.Superseded(record, _out)) return;
 
-            var replayed = Broodline.Sim.Combat.Sim.Replay(Record());
+            var replayed = Broodline.Sim.Combat.Sim.Replay(record);
 
             Assert.Equal(Result.Loss, replayed.Result);
             Assert.Equal(0, replayed.IntegrityRemaining);

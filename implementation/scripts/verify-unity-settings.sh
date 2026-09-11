@@ -71,6 +71,15 @@ defines_for () {
     inblock && $1 == want        { sub(/^[[:space:]]*[A-Za-z]+:[[:space:]]*/, ""); print; exit }
   ' "$P" | tr -d ' \r'
 }
+# FAIL CLOSED. awk prints nothing and exits 0 when the block is absent, so a
+# renamed key - Unity has done this before - made both platforms read as empty,
+# compare equal, and report ok while the real values differed. A guard added to
+# catch a silent pass must not have one of its own.
+grep -q '^  scriptingDefineSymbols:' "$P" \
+  && ok "scriptingDefineSymbols block found" \
+  || bad "no scriptingDefineSymbols block in $P" \
+         "Unity may have renamed the key. Until this check can read the block it cannot compare the platforms, and it must not report ok."
+
 DEFINES_STANDALONE=$(defines_for Standalone)
 DEFINES_IPHONE=$(defines_for iPhone)
 [ "$DEFINES_STANDALONE" = "$DEFINES_IPHONE" ] \

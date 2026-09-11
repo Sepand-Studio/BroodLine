@@ -24,10 +24,21 @@ namespace Broodline.Sim.Combat
 
         private Hash _hash;
         private int _breachCount;
+
+        /// The tick whose phases most recently ran.
+        ///
+        /// NOT _s.Tick. Step increments that after a non-terminating tick and
+        /// leaves it alone on the terminating one, so anything reading it from
+        /// outside Step is one ahead in the common case and exact in the rare
+        /// one - which made RaiderBreachedThisTick true only for a breach that
+        /// ended the wave. Wave 6 has exactly that shape, so the suite could
+        /// not see it.
+        private int _completedTick = -1;
         private int _stallTicks;
         private long _lastFingerprint = long.MinValue;
 
         private readonly Replay _record;
+        private readonly string _unrecordable;
         private bool _rallyUsed;
 
         private Result _result = Result.Running;
@@ -51,8 +62,30 @@ namespace Broodline.Sim.Combat
             //
             // ONE list, shared with Replay.Validate. A second, shorter copy of
             // the same rules is how the asymmetry arose in the first place.
+            //
             var problem = Deployments.Problem(deployment, lane);
             if (problem != null) throw new WaveCompositionException(problem);
+
+            // Whether this run could be RECORDED faithfully - computed here,
+            // where the inputs are, and enforced at SerializeRecord.
+            //
+            // Not thrown here, deliberately. A replay stores a wave ID and a
+            // terrain family rather than their contents, so only authored
+            // content round-trips - but running UNauthored content is a
+            // first-class use of this engine, and FuzzTests generates 12
+            // synthetic waves per run precisely to exercise the tick loop on
+            // shapes no author wrote. Refusing those at construction would
+            // trade a real bug for a worse one.
+            //
+            // The real bug is narrower: a run whose record describes a
+            // DIFFERENT game. A WaveDef claiming id 6 while carrying integrity
+            // 8 ran to Win with hash 8532104364784216008; the record stored
+            // only the id, so verification rebuilt the authored wave 6 and
+            // returned Loss with hash 2495532238167386945 - and Validate
+            // accepted it, because nothing cross-checks fields the record does
+            // not carry. A win read back as a loss, reported by nobody. So the
+            // check lands at the moment the lie would be written, not before.
+            _unrecordable = Deployments.Unrecordable(wave, lane);
 
             _s = new SimState(wave, lane, deployment);
             _log = new Breach[wave.Spawns.Length];
@@ -128,6 +161,15 @@ namespace Broodline.Sim.Combat
         /// RaiderCount + CreatureCount. RaiderCount is the number SPAWNED, so
         /// that number counts corpses: it never goes down, and the ladder would
         /// have degraded on a board that had emptied.
+        ///
+        /// The HUD does NOT read this. It counts what it draws, from the
+        /// snapshot - because a breaching raider is drawn and is not alive, so
+        /// this number and the picture disagree for exactly one tick. That is
+        /// correct for both: the ladder wants live entities, the readout wants
+        /// entities on screen. This is the engine's answer, kept because
+        /// section 11 says the view must not derive it and asserted by
+        /// AliveCountsDoNotCountCorpses so it cannot rot before Phase 4 uses
+        /// it.
         public int AliveRaiderCount
         {
             get
@@ -148,7 +190,7 @@ namespace Broodline.Sim.Combat
             }
         }
 
-        /// Whether raider r reached the Ark on the CURRENT tick.
+        /// Whether raider r reached the Ark on the tick that just ran.
         ///
         /// Phases.Breach deducts integrity and clears RaiderAlive in the same
         /// breath, so by the time anything outside the loop can look, a raider
@@ -157,14 +199,23 @@ namespace Broodline.Sim.Combat
         /// frame wave 6 exists to show, and it was never drawn: the Courser
         /// simply vanished a tile short of the Ark while the HUD printed Loss.
         ///
+        /// Compared against _completedTick, NOT _s.Tick. The first version of
+        /// this used _s.Tick, which Step has already advanced on every tick
+        /// that did not terminate - so a wave whose integrity outlives a breach
+        /// lost the breach frame exactly as before. Measured: integrity 6 and
+        /// two Coursers logs breaches at ticks 540 and 750, and the renderer's
+        /// read point saw the flag true once.
+        ///
         /// An accessor over the breach log rather than a second RaiderAlive-
-        /// shaped array, because the log already records exactly this and
-        /// folding a new array into the run hash would move every golden in the
-        /// project for a rendering concern.
+        /// shaped array, because the log already records exactly this and a
+        /// parallel array is redundant state that can drift from it. (The
+        /// earlier claim here - that a new SimState array would move every
+        /// golden - was simply wrong: FoldTick is a hand-written field list,
+        /// so an array costs nothing until someone folds it.)
         public bool RaiderBreachedThisTick(int raider)
         {
             for (int b = 0; b < _breachCount; b++)
-                if (_log[b].Raider == raider && _log[b].Tick == _s.Tick) return true;
+                if (_log[b].Raider == raider && _log[b].Tick == _completedTick) return true;
             return false;
         }
 
@@ -191,7 +242,11 @@ namespace Broodline.Sim.Combat
         /// could stamp a rally onto a run that never had one and serialize a
         /// structurally valid forgery - which is precisely the "the recording
         /// disagreed with what was consumed" bug this design says it killed.
-        public byte[] SerializeRecord() => _record.Serialize();
+        public byte[] SerializeRecord()
+        {
+            RequireRecordable();
+            return _record.Serialize();
+        }
 
         /// A COPY of the record for tests and tooling that want the fields
         /// rather than the bytes. Callers cannot reach _record through it, so
@@ -203,7 +258,24 @@ namespace Broodline.Sim.Combat
         /// full encode and decode - plus every Validate-adjacent bounds check -
         /// for what is a field copy, and callers in the test suite invoke this
         /// two or three times in a row.
-        public Replay ReadRecord() => _record.Copy();
+        public Replay ReadRecord()
+        {
+            RequireRecordable();
+            return _record.Copy();
+        }
+
+        /// Why this run cannot be recorded, or null.
+        ///
+        /// Public so a caller that INTENDS to record can ask before it spends a
+        /// wave, rather than finding out at the end. SerializeRecord and
+        /// ReadRecord throw on it; running a wave and never recording it is
+        /// fine and is what the fuzz and corpus suites do.
+        public string Unrecordable => _unrecordable;
+
+        private void RequireRecordable()
+        {
+            if (_unrecordable != null) throw new WaveCompositionException(_unrecordable);
+        }
 
         /// Advances exactly one tick. Returns false once the wave has
         /// terminated, after which it is a harmless no-op.
@@ -214,6 +286,8 @@ namespace Broodline.Sim.Combat
             // The hard cap is checked BEFORE the phases, exactly as the
             // original while-condition did.
             if (_s.Tick >= Stats.HardTickCap) { Finish(Result.Stalled); return false; }
+
+            _completedTick = _s.Tick;    // the tick these eight phases belong to
 
             Phases.Spawn(_s);            // 1
             Phases.State(_s, _scratch);  // 2
@@ -312,8 +386,7 @@ namespace Broodline.Sim.Combat
             var breaches = new Breach[_breachCount];
             for (int b = 0; b < _breachCount; b++) breaches[b] = _log[b];
 
-            _outcome = new Outcome(result, _s.Tick, _s.Integrity,
-                                   breaches, _breachCount, _hash.Value);
+            _outcome = new Outcome(result, _s.Tick, _s.Integrity, breaches, _hash.Value);
             _done = true;
         }
 

@@ -4,12 +4,12 @@ using Broodline.Sim.Combat;
 
 namespace Broodline.Sim.Tests.Combat
 {
-    /// Deployments.Problem bounds every enum against a hardcoded width - for
-    /// the play path and the replay codec alike - because Enum.IsDefined
-    /// allocates and reflects and the enums are contiguous from zero. That is a
-    /// fair trade only while the constants and the enums agree, and nothing
-    /// made them agree - an earlier comment in Replay.cs claimed this file
-    /// existed when it did not.
+    /// Deployments.Problem bounds every enum against a hardcoded width in
+    /// Ids.cs - for the play path and the replay codec alike - because
+    /// Enum.IsDefined allocates and reflects and the enums are contiguous from
+    /// zero. That is a fair trade only while the constants and the enums agree,
+    /// and nothing made them agree - an earlier comment in Replay.cs claimed
+    /// this file existed when it did not.
     ///
     /// The cost of drift is a bad diagnosis, not just a missed check. Trait has
     /// two members today and combat_engine names seven more; add Splash without
@@ -20,9 +20,12 @@ namespace Broodline.Sim.Tests.Combat
         [Fact]
         public void TheWidthsReplayValidatesAgainstMatchTheEnums()
         {
-            Assert.Equal(Deployments.SpeciesCount, Enum.GetValues(typeof(Species)).Length);
-            Assert.Equal(Deployments.InstinctCount, Enum.GetValues(typeof(Instinct)).Length);
-            Assert.Equal(Deployments.TraitCount, Enum.GetValues(typeof(Trait)).Length);
+#pragma warning disable xUnit2013   // these ARE width assertions, not size checks
+            Assert.Equal(Ids.SpeciesCount, Enum.GetValues(typeof(Species)).Length);
+            Assert.Equal(Ids.InstinctCount, Enum.GetValues(typeof(Instinct)).Length);
+            Assert.Equal(Ids.TraitCount, Enum.GetValues(typeof(Trait)).Length);
+            Assert.Equal(RaiderTypeCounts.RaiderTypeCount, Enum.GetValues(typeof(RaiderType)).Length);
+#pragma warning restore xUnit2013
         }
 
         [Fact]
@@ -36,6 +39,7 @@ namespace Broodline.Sim.Tests.Combat
             AssertContiguous(typeof(Species));
             AssertContiguous(typeof(Instinct));
             AssertContiguous(typeof(Trait));
+            AssertContiguous(typeof(RaiderType));
         }
 
         private static void AssertContiguous(Type t)
