@@ -27,9 +27,12 @@ namespace Broodline.Sim.Tests
         private static string SourcePath() =>
             Path.Combine(TestPaths.ProjectDir(), "corpus-baseline.txt");
 
+        private const string HeaderPrefix = "# simversion ";
+
         private static string Render()
         {
             var sb = new StringBuilder();
+            sb.Append(HeaderPrefix).Append(SimVersion.Value).Append('\n');
             for (int i = 0; i < Corpus.ScenarioCount; i++)
                 sb.Append(i).Append(' ').Append(Corpus.RunScenario(i)).Append('\n');
             return sb.ToString();
@@ -46,25 +49,44 @@ namespace Broodline.Sim.Tests
         }
 
         [Fact]
+        public void TheBaselineHeaderNamesTheCurrentEngineVersion()
+        {
+            // The emitter writes this line from SimVersion.Value, and refuses
+            // to re-baseline when the hashes moved and the version did not.
+            // This assertion catches the other direction: a bump that never
+            // re-ran the emitter, leaving the file claiming an older engine.
+            var lines = File.ReadAllLines(BaselinePath);
+            Assert.True(lines.Length > 0, "corpus-baseline.txt is empty.");
+            Assert.Equal("# simversion " + SimVersion.Value, lines[0]);
+        }
+
+        [Fact]
         public void EveryScenarioMatchesTheCommittedBaseline()
         {
             Assert.True(File.Exists(BaselinePath),
                 "corpus-baseline.txt was not copied to the output directory - check the csproj Content item.");
 
-            var expected = File.ReadAllLines(BaselinePath);
-            Assert.Equal(Corpus.ScenarioCount, expected.Length);
+            var lines = File.ReadAllLines(BaselinePath);
+
+            // One header line, then one line per scenario. Asserting the total
+            // rather than the body length keeps a truncated file from reading
+            // as a header problem.
+            Assert.Equal(Corpus.ScenarioCount + 1, lines.Length);
+            Assert.StartsWith(HeaderPrefix, lines[0]);
 
             var drifted = new List<string>();
             for (int i = 0; i < Corpus.ScenarioCount; i++)
             {
                 string actual = i + " " + Corpus.RunScenario(i);
-                if (actual != expected[i]) drifted.Add("  line " + i + ": expected '" + expected[i] + "', got '" + actual + "'");
+                // +1 throughout: line 0 is the header, scenario i is line i+1.
+                if (actual != lines[i + 1]) drifted.Add("  line " + (i + 1) + ": expected '" + lines[i + 1] + "', got '" + actual + "'");
                 if (drifted.Count == 10) break;
             }
 
             Assert.True(drifted.Count == 0,
                 "The engine no longer reproduces the committed corpus.\n" +
-                "If this is an INTENDED behaviour change, run\n" +
+                "If this is an INTENDED behaviour change, BUMP SimVersion.Value first,\n" +
+                "then run\n" +
                 "  ./implementation/scripts/emit-corpus-baseline.sh\n" +
                 "and say in the commit message what changed and why.\n" +
                 "First differences:\n" + string.Join("\n", drifted));

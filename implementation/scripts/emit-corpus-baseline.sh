@@ -53,6 +53,38 @@ echo "$out" | grep -E 'Passed!|Failed!|Passed:|passed' | tail -2 || true
 after=$(shasum "$BASELINE" | cut -d' ' -f1)
 after_mtime=$(mtime "$BASELINE")
 
+# THE POLICY, ENFORCED HERE RATHER THAN IN A TEST.
+#
+# The emitter regenerates the whole file from the current engine, so the header
+# it writes is ALWAYS the current SimVersion. A test comparing the header to
+# SimVersion therefore cannot catch a re-baseline under an unbumped version -
+# the file agrees with itself. The deliberate act is this script, so the guard
+# belongs in this script.
+#
+# Hashes compared WITHOUT the header, or a bump alone would read as a
+# behaviour change and mask the thing being checked.
+body_before=$(git show HEAD:"$BASELINE" | grep -v '^# simversion ' | shasum | cut -d' ' -f1)
+body_after=$(grep -v '^# simversion ' "$BASELINE" | shasum | cut -d' ' -f1)
+ver_before=$(git show HEAD:"$BASELINE" | sed -n 's/^# simversion //p')
+ver_after=$(sed -n 's/^# simversion //p' "$BASELINE")
+
+if [ "$body_before" != "$body_after" ] && [ "$ver_before" = "$ver_after" ]; then
+  git checkout -- "$BASELINE"
+  echo "FAIL: the engine's output changed but SimVersion did not."
+  echo ""
+  echo "  SimVersion.Value is still '$ver_after'."
+  echo ""
+  echo "A replay stores the version it was recorded under, and a replay whose"
+  echo "version matches the running engine is RE-SIMULATED rather than shown."
+  echo "Re-baselining without a bump means old replays silently re-simulate"
+  echo "into different outcomes - solo_execution section 9.4 exists to stop"
+  echo "exactly that."
+  echo ""
+  echo "Bump engine/Runtime/SimVersion.cs, then run this script again."
+  echo "$BASELINE has been restored."
+  exit 1
+fi
+
 # No existence check. The file is TRACKED - the comment above says so - so it is
 # on disk before this script starts and stays there whether or not the emitter
 # writes a byte; asking whether it is absent afterwards was checking a condition
