@@ -3,6 +3,7 @@ import type { BundleStore } from './config/store.ts'
 import type { Db } from './db/client.ts'
 import { fail } from './http/errors.ts'
 import { registerAccountRoutes } from './routes/account.ts'
+import { registerSyncRoutes } from './routes/sync.ts'
 
 export interface Deps {
   db: Db
@@ -20,6 +21,7 @@ export function createApp(deps: Deps): Hono {
   app.get('/healthz', (c) => c.json({ ok: true }))
 
   registerAccountRoutes(app, deps)
+  registerSyncRoutes(app, deps)
 
   app.notFound(() => fail('not_found', 'No such route.'))
   app.onError((err) => {
