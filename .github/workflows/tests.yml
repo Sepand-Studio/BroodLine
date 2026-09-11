@@ -2,11 +2,23 @@ name: Tests
 
 # The engine suite, on a GitHub-HOSTED runner.
 #
-# This exists because determinism.yml could not run. It requires a self-hosted
-# macOS machine with Unity and an activated licence - deliberately, and for good
-# reasons stated in that file - but no such runner was ever registered, so
-# `gh run list` returned zero runs and PR #3 reached review with 72 changed
-# files and no checks at all. Three phases of work were verified by one laptop.
+# This exists because no check had ever run on this repository. PR #3 reached
+# review with 72 changed files and none at all: `gh run list` returns zero runs
+# and `gh pr checks` reports nothing. Three phases of work were verified by one
+# laptop.
+#
+# TWO separate causes, and the second was found only after this file was
+# written. determinism.yml requires a self-hosted macOS runner with Unity and
+# an activated licence - deliberately, for the reasons stated in that file -
+# and none was registered. But underneath that, GITHUB ACTIONS IS DISABLED FOR
+# THE REPOSITORY: `gh api repos/.../actions/permissions` returns
+# {"enabled": false}. Until someone turns it on in Settings > Actions >
+# General, no workflow runs, hosted or otherwise, and this file is inert.
+#
+# It is still the right half to split off: once Actions is enabled, this job
+# runs on every PR without waiting on hardware, while the IL2CPP comparison
+# and the Unity EditMode suite stay in determinism.yml where they need the
+# self-hosted machine.
 #
 # Splitting the cheap half off fixes that today, without waiting on hardware:
 # `dotnet test` needs no Unity, no licence and no macOS. It covers the engine,
