@@ -1,0 +1,76 @@
+name: Tests
+
+# The engine suite, on a GitHub-HOSTED runner.
+#
+# This exists because determinism.yml could not run. It requires a self-hosted
+# macOS machine with Unity and an activated licence - deliberately, and for good
+# reasons stated in that file - but no such runner was ever registered, so
+# `gh run list` returned zero runs and PR #3 reached review with 72 changed
+# files and no checks at all. Three phases of work were verified by one laptop.
+#
+# Splitting the cheap half off fixes that today, without waiting on hardware:
+# `dotnet test` needs no Unity, no licence and no macOS. It covers the engine,
+# the replay codec, the corpus baseline, the enforcement scans and both
+# round-trip artifacts - everything except the IL2CPP comparison and the Unity
+# EditMode tests, which genuinely cannot run here and stay in determinism.yml.
+#
+# Ubuntu rather than macOS: a 1x minute multiplier against macOS's 10x, for a
+# job whose only requirement is the .NET SDK. The engine targets
+# netstandard2.1 and the tests net10.0; neither has a platform dependency, and
+# the determinism rules exist precisely so results do not vary by host.
+
+on:
+  push:
+    paths:
+      - 'engine/**'
+      - 'tests/engine/**'
+      - 'Broodline.sln'
+      - '.github/workflows/tests.yml'
+      # The tracked round-trip artifacts. EditorReplayTests and
+      # DeviceReplayTests re-simulate these on every run, so a re-capture is a
+      # change to what the suite asserts and has to be checked like one.
+      - 'implementation/results/**'
+  pull_request:
+    paths:
+      - 'engine/**'
+      - 'tests/engine/**'
+      - 'Broodline.sln'
+      - '.github/workflows/tests.yml'
+      - 'implementation/results/**'
+  workflow_dispatch: {}
+
+jobs:
+  engine-tests:
+    name: Engine suite (CoreCLR)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: dotnet test
+        # Tee'd so the summary can be asserted on below. --nologo keeps the
+        # banner out of the line the grep reads.
+        run: |
+          set -o pipefail
+          dotnet test Broodline.sln --nologo | tee /tmp/test.log
+
+      - name: No test may skip
+        # A skipped test reads as a pass in the summary and in the exit code.
+        # This branch had a Fact attribute that skipped when a TRACKED artifact
+        # was missing, so deleting the file that IS Phase 3's done-when produced
+        # "Passed: 139, Skipped: 2" and exit 0. That attribute is gone and the
+        # artifact's presence is a red test now, but the failure mode is generic
+        # and the guard costs one line - the next environment-gated test gets it
+        # for free.
+        run: |
+          if grep -qE 'Skipped:[[:space:]]*[1-9]' /tmp/test.log; then
+            echo "FAIL: the suite skipped at least one test."
+            grep -E 'Skipped:' /tmp/test.log
+            echo "A skip is not a pass. Find out why it skipped before merging."
+            exit 1
+          fi
+          echo "ok: no skipped tests"

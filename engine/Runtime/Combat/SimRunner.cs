@@ -139,10 +139,17 @@ namespace Broodline.Sim.Combat
         /// disagreed with what was consumed" bug this design says it killed.
         public byte[] SerializeRecord() => _record.Serialize();
 
-        /// Read-only view for tests and tooling that need the fields rather
-        /// than the bytes. Round-tripping through Deserialize is what makes it
-        /// a copy - callers cannot reach _record through it.
-        public Replay ReadRecord() => Replay.Deserialize(_record.Serialize());
+        /// A COPY of the record for tests and tooling that want the fields
+        /// rather than the bytes. Callers cannot reach _record through it, so
+        /// mutating the result cannot forge what this run claims to have
+        /// consumed.
+        ///
+        /// Built directly rather than round-tripped through
+        /// Serialize/Deserialize: the round trip also worked, but it paid a
+        /// full encode and decode - plus every Validate-adjacent bounds check -
+        /// for what is a field copy, and callers in the test suite invoke this
+        /// two or three times in a row.
+        public Replay ReadRecord() => _record.Copy();
 
         /// Advances exactly one tick. Returns false once the wave has
         /// terminated, after which it is a harmless no-op.

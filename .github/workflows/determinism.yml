@@ -1,5 +1,12 @@
 name: Determinism gate
 
+# NOTE: the plain `dotnet test` half of this now ALSO runs in tests.yml on a
+# hosted Ubuntu runner. That is not duplication for its own sake - this
+# workflow never ran, because the self-hosted runner it requires was never
+# registered, and a gate that cannot execute protects nothing. tests.yml gives
+# every PR a check today; this job remains the only place the IL2CPP
+# comparison and the Unity EditMode suite can run, and remains the gate.
+
 # Proves the engine produces byte-identical results on both runtimes it
 # actually ships on: CoreCLR (server/tools) and Unity's IL2CPP (client).
 # See implementation/scripts/cross-runtime-diff.sh for how, and
@@ -71,6 +78,14 @@ on:
       # learning from CI rather than from the next person to run it locally.
       - 'client/Packages/manifest.json'
       - 'client/ProjectSettings/ProjectVersion.txt'
+      # Phase 3's client assemblies. The EditMode step below is the ONLY CI
+      # coverage the accumulator contract has - the thing the phase design
+      # calls "the phase's real risk surface" - and until these paths were
+      # listed, a change to WaveClock.cs did not trigger this workflow at all.
+      # It costs a full self-hosted run on a View-only change; that is the
+      # correct trade when the alternative is no coverage.
+      - 'client/Assets/View/**'
+      - 'client/Assets/Game/**'
   pull_request:
     paths:
       - 'engine/**'
@@ -83,6 +98,14 @@ on:
       - 'Broodline.sln'
       - 'client/Packages/manifest.json'
       - 'client/ProjectSettings/ProjectVersion.txt'
+      # Phase 3's client assemblies. The EditMode step below is the ONLY CI
+      # coverage the accumulator contract has - the thing the phase design
+      # calls "the phase's real risk surface" - and until these paths were
+      # listed, a change to WaveClock.cs did not trigger this workflow at all.
+      # It costs a full self-hosted run on a View-only change; that is the
+      # correct trade when the alternative is no coverage.
+      - 'client/Assets/View/**'
+      - 'client/Assets/Game/**'
   schedule:
     # Nightly at 09:00 UTC.
     - cron: '0 9 * * *'
@@ -98,6 +121,18 @@ jobs:
 
       - name: dotnet test
         run: dotnet test Broodline.sln
+
+      # Phase 3 added 24 EditMode tests, including the accumulator contract -
+      # a dropped frame never drops a tick, a stall past the cap runs slow
+      # rather than skipping, and a Rally between boundaries records the NEXT
+      # tick index. None of it was run by CI. It needs Unity and a licence, so
+      # this is the only job that can host it.
+      #
+      # Before the IL2CPP diff, not after: the diff switches the active build
+      # target to StandaloneOSX and back, and a test run either side of that
+      # is slower and noisier than one before it.
+      - name: Unity EditMode tests
+        run: ./implementation/scripts/run-unity-tests.sh EditMode
 
       - name: Cross-runtime determinism diff
         run: ./implementation/scripts/cross-runtime-diff.sh

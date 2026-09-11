@@ -62,6 +62,16 @@ namespace Broodline.Sim.Combat
         /// than re-simulated into something else - the same treatment
         /// WaveDef.Validate gives a composition violation, and for the same
         /// reason.
+        /// Whether this engine can re-simulate the record at all.
+        ///
+        /// solo_execution 9.4 wants a superseded replay to render its stored
+        /// outcome WITH A NOTICE rather than be re-run. Validate throws on a
+        /// mismatch, which is right for the verification path but makes a
+        /// replay viewer catch an exception to decide what to draw. This is the
+        /// same question asked without control flow: branch on it, show the
+        /// notice, and never call Sim.Replay.
+        public bool IsFromThisEngine => EngineVersion == SimVersion.Value;
+
         public void Validate()
         {
             // EVERY field here arrives from untrusted bytes. Sim.Replay is the
@@ -148,19 +158,47 @@ namespace Broodline.Sim.Combat
             // an honest player's raid as a mismatch. This is where it becomes
             // real. Callers wanting the stored-outcome-with-a-notice behaviour
             // catch this and render rather than re-running.
-            if (EngineVersion != SimVersion.Value)
+            if (!IsFromThisEngine)
                 throw new ReplayFormatException(
                     "replay was recorded by engine " + EngineVersion + ", this engine is " +
                     SimVersion.Value + " - show its stored outcome rather than re-simulating it");
         }
 
-        // Enum widths, checked by a test against the enums themselves rather
-        // than trusted here. System.Enum.IsDefined allocates and reflects, and
+        // Enum widths. System.Enum.IsDefined allocates and reflects, and
         // Convert.ToInt32 boxes; the enums are contiguous from 0, so a bare int
-        // comparison is both cheaper and clearer about what it enforces.
-        private const int SpeciesCount = 6;
-        private const int InstinctCount = 6;
-        private const int TraitCount = 2;     // None, Chill
+        // comparison is cheaper and clearer about what it enforces.
+        //
+        // These are INTERNAL, not private, because EnumWidthTests asserts each
+        // against the enum it describes. An earlier revision of this comment
+        // claimed such a test existed when it did not - and the cost of that
+        // being false is not cosmetic: add a Trait (seven are coming) without
+        // moving TraitCount and every replay carrying it is rejected as
+        // CORRUPT rather than as unsupported, which sends the reader after a
+        // forgery that is not there.
+        internal const int SpeciesCount = 6;
+        internal const int InstinctCount = 6;
+        internal const int TraitCount = 2;     // None, Chill
+
+        /// A deep copy. Deployment and DeploymentHp are arrays, so a shallow
+        /// field copy would leave two Replays sharing them - which is exactly
+        /// the aliasing SimRunner.ReadRecord exists to prevent.
+        public Replay Copy()
+        {
+            return new Replay
+            {
+                WaveId = WaveId,
+                Seed = Seed,
+                Terrain = Terrain,
+                LaneCount = LaneCount,
+                PocketCount = PocketCount,
+                LaneTiles = LaneTiles,
+                Deployment = (CreatureSpec[])Deployment.Clone(),
+                DeploymentHp = (int[])DeploymentHp.Clone(),
+                RallyTick = RallyTick,
+                RallyCreature = RallyCreature,
+                EngineVersion = EngineVersion
+            };
+        }
 
         public byte[] Serialize()
         {

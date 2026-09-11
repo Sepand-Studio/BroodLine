@@ -17,6 +17,16 @@
     <Compile Include="Runtime/**/*.cs" />
   </ItemGroup>
   <ItemGroup>
+    <!--
+      So EnumWidthTests can assert Replay's hardcoded enum widths against the
+      enums themselves. The alternative was making those constants public,
+      which widens the shipped surface to serve a test. Unity ignores this
+      file entirely - it compiles engine/ through the .asmdef - so this
+      changes nothing about the player build.
+    -->
+    <InternalsVisibleTo Include="Broodline.Sim.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="3.3.4">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
