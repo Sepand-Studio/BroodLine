@@ -1,3 +1,17 @@
+/**
+ * Typed query surface only - NOT the source of truth for the schema.
+ *
+ * drizzle/*.sql is authoritative: the CHECK constraints, every foreign key
+ * (including the composite ones tying a server-scoped row to its parent on
+ * the SAME server), and all of RLS live there and nowhere here. This file
+ * mirrors table/column names and types so a query fails to compile the
+ * moment it drifts from the SQL, but it enforces none of the above.
+ *
+ * There is no drizzle.config.ts wiring this file up to drizzle-kit today.
+ * Keep it that way: running `drizzle-kit push` or `drizzle-kit generate`
+ * from this file would silently produce a materially weaker schema - no
+ * constraints, no RLS - with no warning that anything was lost.
+ */
 import {
   bigint, index, integer, jsonb, pgEnum, pgTable, primaryKey,
   smallint, text, timestamp, uniqueIndex, uuid,

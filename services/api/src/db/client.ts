@@ -37,6 +37,14 @@ export function createDb(pool: pg.Pool): Db {
  * it.
  */
 export async function withServer<T>(db: Db, serverId: number, fn: (tx: Tx) => Promise<T>): Promise<T> {
+  // Fail closed, but visibly. Without this, a non-integer serverId (most
+  // realistically NaN from an upstream parse bug) survives set_config as
+  // the literal string 'NaN' - NULLIF leaves it intact, and it only fails
+  // later on the policy's `::int` cast, surfacing as an opaque 500 from
+  // deep inside an unrelated query instead of a clear denial here.
+  if (!Number.isInteger(serverId)) {
+    throw new Error(`withServer: serverId must be an integer, got ${String(serverId)}`)
+  }
   return db.transaction(async (tx) => {
     await tx.execute(sql`SELECT set_config('app.server_id', ${String(serverId)}, true)`)
     return fn(tx)

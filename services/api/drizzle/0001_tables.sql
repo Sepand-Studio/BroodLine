@@ -33,6 +33,13 @@ CREATE TABLE accounts (
   deleted_at      timestamptz
 );
 
+-- Composite, not just account_id's own uniqueness: this is what lets
+-- players below carry a composite FK of (server_id, account_id) rather than
+-- account_id alone. account_id is already globally unique via the primary
+-- key, so this index is free - it exists purely to give the composite FK
+-- something to reference.
+CREATE UNIQUE INDEX accounts_by_server ON accounts (server_id, account_id);
+
 CREATE TYPE currency AS ENUM ('shards', 'splice_charges', 'marks', 'premium');
 
 -- Five SERVER-SCOPED tables. server_id leads every primary key and index, so
@@ -41,9 +48,16 @@ CREATE TYPE currency AS ENUM ('shards', 'splice_charges', 'marks', 'premium');
 CREATE TABLE players (
   server_id   integer NOT NULL,
   player_id   uuid    NOT NULL DEFAULT gen_random_uuid(),
-  account_id  uuid    NOT NULL REFERENCES accounts(account_id),
+  account_id  uuid    NOT NULL,
   created_at  timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (server_id, player_id)
+  PRIMARY KEY (server_id, player_id),
+  -- Composite, not account_id alone. A single-column FK only proves the
+  -- account exists SOMEWHERE; it says nothing about which server it
+  -- belongs to. Without this, RLS's WITH CHECK only validates
+  -- players.server_id against the session, so a handler scoped to server 1
+  -- could create a player row bound to a server 2 account - the account
+  -- reference itself was never checked against the server.
+  FOREIGN KEY (server_id, account_id) REFERENCES accounts (server_id, account_id)
 );
 CREATE UNIQUE INDEX players_by_account ON players (server_id, account_id);
 
@@ -55,7 +69,10 @@ CREATE TABLE wallets (
   -- Optimistic concurrency. solo_execution 5.4: compare-and-set, retry once,
   -- surface a conflict on the second failure. No locks.
   version    integer  NOT NULL DEFAULT 0,
-  PRIMARY KEY (server_id, player_id, currency)
+  PRIMARY KEY (server_id, player_id, currency),
+  -- Without this, a wallet can reference a player that does not exist -
+  -- nearly free to add now, expensive once there are rows to reconcile.
+  FOREIGN KEY (server_id, player_id) REFERENCES players (server_id, player_id)
 );
 
 CREATE TABLE ledger (
@@ -72,7 +89,8 @@ CREATE TABLE ledger (
   ref_id           text,
   idempotency_key  text,
   created_at       timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (server_id, entry_id)
+  PRIMARY KEY (server_id, entry_id),
+  FOREIGN KEY (server_id, player_id) REFERENCES players (server_id, player_id)
 );
 CREATE INDEX ledger_by_player ON ledger (server_id, player_id, currency, created_at);
 
@@ -94,5 +112,6 @@ CREATE TABLE campaign_progress (
   highest_wave_cleared integer NOT NULL DEFAULT 0,
   milestones_claimed   integer NOT NULL DEFAULT 0,
   updated_at           timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (server_id, player_id)
+  PRIMARY KEY (server_id, player_id),
+  FOREIGN KEY (server_id, player_id) REFERENCES players (server_id, player_id)
 );
