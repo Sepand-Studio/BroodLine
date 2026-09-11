@@ -226,9 +226,17 @@ that fails to reproduce it. **A change that requires re-baselining is a change
 that requires a bump, and the two sets are identical by construction.**
 
 > **Resolved: the corpus baseline gains a header carrying the `SimVersion` it was
-> generated under, and a test asserts the pairing.** Re-baselining without bumping
-> fails. Bumping without re-baselining is harmless and allowed — a deliberate bump
-> for a non-behavioural release is legitimate.
+> generated under, and `emit-corpus-baseline.sh` — not a test — refuses to
+> re-baseline when the hashes moved and the version did not.** The emitter
+> regenerates the whole file from the current engine, so the header it writes is
+> always the *current* `SimVersion`; a test comparing the two can never observe
+> the failure case, because the file always agrees with itself. The deliberate
+> act is running the emitter, so the guard has to live there, comparing the
+> committed baseline (`git show HEAD:`) against the freshly emitted one. A test
+> keeps the narrower, and checkable, job of catching a bump that forgot to run
+> the emitter afterwards. Bumping without re-baselining is harmless and allowed —
+> a deliberate bump for a non-behavioural release is legitimate, and the emitter
+> reports the baseline as unchanged.
 
 `tests/engine/corpus-baseline.txt` is currently bare `index hash` lines with no
 header at all, so this touches three things: `emit-corpus-baseline.sh` writes the
