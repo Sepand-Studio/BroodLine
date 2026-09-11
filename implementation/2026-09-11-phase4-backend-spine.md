@@ -2938,6 +2938,7 @@ export class LocalBundleStore implements BundleStore {
 import { execFile } from 'node:child_process'
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 
 const run = promisify(execFile)
@@ -3010,8 +3011,14 @@ function lastJsonLine(stdout: string): string {
 }
 
 function repoRoot(): string {
-  // services/api/src/config -> repo root
-  return new URL('../../../../', import.meta.url).pathname
+  // services/api/src/config -> repo root.
+  //
+  // fileURLToPath, NOT .pathname. A file:// URL percent-encodes, so on a
+  // checkout under a directory with a space - "Personal Development" on the
+  // machine this was written on - .pathname yields "Personal%20Development"
+  // and every path built from it is wrong. migrate.ts already does this
+  // correctly; follow it.
+  return fileURLToPath(new URL('../../../../', import.meta.url))
 }
 
 interface Pack { id: string; priceUsdCents: number; value: number }
@@ -3224,7 +3231,9 @@ import { BundleInvalidError, publishBundle } from '../src/config/publish.ts'
 import { LocalBundleStore } from '../src/config/store.ts'
 import { validateBundle } from '../src/config/validate.ts'
 
-const REPO = new URL('../../../', import.meta.url).pathname
+// fileURLToPath, not .pathname - a path containing a space would arrive
+// percent-encoded and every join below would miss.
+const REPO = fileURLToPath(new URL('../../../', import.meta.url))
 const SEED = join(REPO, 'config/bundles/0.1.0')
 const FIX = (name: string) => join(REPO, 'services/api/test/fixtures', name)
 
@@ -3411,7 +3420,9 @@ import { withServer } from '../src/db/client.ts'
 import { accounts, ledger, players, servers, wallets } from '../src/db/schema.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 
-const REPO = new URL('../../../', import.meta.url).pathname
+// fileURLToPath, not .pathname - a path containing a space would arrive
+// percent-encoded and every join below would miss.
+const REPO = fileURLToPath(new URL('../../../', import.meta.url))
 const SEED = join(REPO, 'config/bundles/0.1.0')
 
 let t: TestDb
@@ -3990,7 +4001,9 @@ import { issueAccessToken } from '../src/identity/jwt.ts'
 import { servers } from '../src/db/schema.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 
-const REPO = new URL('../../../', import.meta.url).pathname
+// fileURLToPath, not .pathname - a path containing a space would arrive
+// percent-encoded and every join below would miss.
+const REPO = fileURLToPath(new URL('../../../', import.meta.url))
 const SEED = join(REPO, 'config/bundles/0.1.0')
 
 let t: TestDb
@@ -4396,7 +4409,7 @@ const out = new URL('../../../openapi/broodline.json', import.meta.url)
 // committed and CI fails on a non-empty diff - formatting drift would read
 // as a contract change.
 await writeFile(out, `${JSON.stringify(document, null, 2)}\n`, 'utf8')
-console.log(`wrote ${out.pathname}`)
+console.log(`wrote ${fileURLToPath(out)}`)
 ```
 
 - [ ] **Step 4: Generate the document**
