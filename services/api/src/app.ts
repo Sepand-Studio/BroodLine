@@ -1,23 +1,28 @@
 import { Hono } from 'hono'
+import type { BundleStore } from './config/store.ts'
+import type { Db } from './db/client.ts'
 import { fail } from './http/errors.ts'
+import { registerAccountRoutes } from './routes/account.ts'
+
+export interface Deps {
+  db: Db
+  bundleStore: BundleStore
+}
 
 /**
- * A factory rather than a module-level singleton, so every test gets a clean
- * app with no listener and no shared state. src/index.ts is the only place
- * that binds a port.
+ * Dependencies are passed in rather than imported, so a test drives the real
+ * app against a real Postgres and a real bundle store without a module mock.
+ * Nothing in this service reaches for a singleton connection.
  */
-export function createApp(): Hono {
+export function createApp(deps: Deps): Hono {
   const app = new Hono()
 
-  // Cloud Run's health check. Deliberately touches nothing - a probe that
-  // queries the database turns a slow query into a rolled-back deploy.
   app.get('/healthz', (c) => c.json({ ok: true }))
 
-  app.notFound(() => fail('not_found', 'No such route.'))
+  registerAccountRoutes(app, deps)
 
+  app.notFound(() => fail('not_found', 'No such route.'))
   app.onError((err) => {
-    // Never leak an exception message to a client; it is the fastest route
-    // from a stack trace to a schema disclosure.
     console.error('unhandled', err)
     return fail('internal', 'Something went wrong.')
   })

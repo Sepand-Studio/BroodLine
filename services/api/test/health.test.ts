@@ -1,17 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import { createApp } from '../src/app.ts'
+import type { Db } from '../src/db/client.ts'
+import type { BundleStore } from '../src/config/store.ts'
+
+const deps = { db: {} as Db, bundleStore: {} as BundleStore }
 
 describe('the app', () => {
   it('answers the health check Cloud Run probes', async () => {
-    const res = await createApp().request('/healthz')
+    const res = await createApp(deps).request('/healthz')
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ ok: true })
   })
 
   it('returns the error envelope, not a bare string', async () => {
-    const res = await createApp().request('/v1/nope')
+    const res = await createApp(deps).request('/v1/nope')
     expect(res.status).toBe(404)
-    // The shape is the contract. A client switching on `code` must find one.
     expect(await res.json()).toMatchObject({ code: 'not_found' })
   })
 })
