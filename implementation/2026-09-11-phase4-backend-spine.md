@@ -2970,7 +2970,16 @@ async function validateWaves(dir: string): Promise<string[]> {
       // with "wave validator could not run"; without it, exit 0 and clean
       // JSON. Fails closed either way, but for entirely the wrong reason.
       'run', '--project', 'tools/config-validate', '--', dir,
-    ], { cwd: repoRoot() })
+    ], {
+      cwd: repoRoot(),
+      // Both of these keep the CLI's contract - ONE json line on stdout -
+      // true on a machine that has never run dotnet before. The first-use
+      // telemetry banner goes to STDOUT ahead of program output, which would
+      // put unparseable text where the JSON is expected. GitHub's setup-dotnet
+      // happens to set these already; a developer's laptop and a fresh
+      // container do not, and relying on one CI's defaults is not a contract.
+      env: { ...process.env, DOTNET_NOLOGO: '1', DOTNET_CLI_TELEMETRY_OPTOUT: '1' },
+    })
     return (JSON.parse(lastJsonLine(stdout)) as { violations: string[] }).violations
   } catch (err) {
     // Exit 1 means violations, and execFile rejects on a non-zero exit - the
