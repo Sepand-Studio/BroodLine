@@ -1,0 +1,13 @@
+{
+  "name": "Broodline.View.Tests",
+  "rootNamespace": "Broodline.View.Tests",
+  "references": ["Broodline.View", "Broodline.Sim", "UnityEngine.TestRunner", "UnityEditor.TestRunner"],
+  "includePlatforms": ["Editor"],
+  "excludePlatforms": [],
+  "overrideReferences": true,
+  "precompiledReferences": ["nunit.framework.dll"],
+  "autoReferenced": false,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
