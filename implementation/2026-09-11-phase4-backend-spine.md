@@ -1422,23 +1422,18 @@ Expected: **7 passed** (2 from Task 2, 5 here... plus the gate's own 2 = 8 total
 
 - [ ] **Step 10: Prove the gate can fail**
 
-Temporarily weaken the policy and confirm the suite goes red:
+Comment out the `FORCE ROW LEVEL SECURITY` line in `0002_rls.sql`, then run the suite:
 
 ```bash
-docker run --rm -d --name rlsprobe -e POSTGRES_PASSWORD=x -p 55432:5432 postgres:16-alpine >/dev/null && sleep 3 && echo "probe up"
+pnpm --filter @broodline/api test isolation 2>&1 | tail -20
 ```
 
-Simpler and sufficient: comment out the `FORCE ROW LEVEL SECURITY` line in `0002_rls.sql`, run the suite, and confirm `forces RLS on every server-scoped table` fails. Then restore it.
+Expected while weakened: **FAIL** on `forces RLS on every server-scoped table`. That assertion is the one standing between a real gate and a suite that reports green while every policy does nothing.
+
+Restore the line and re-run to green:
 
 ```bash
-pnpm --filter @broodline/api test 2>&1 | tail -20
-```
-
-Expected while weakened: **FAIL** on the FORCE assertion. Restore the line and re-run to green.
-
-```bash
-docker rm -f rlsprobe >/dev/null 2>&1 || true
-git checkout -- services/api/drizzle/0002_rls.sql 2>/dev/null || true
+git checkout -- services/api/drizzle/0002_rls.sql && pnpm --filter @broodline/api test isolation
 ```
 
 - [ ] **Step 11: Wire the test script and commit**
