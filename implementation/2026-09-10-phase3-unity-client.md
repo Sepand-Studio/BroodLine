@@ -1783,7 +1783,7 @@ Two assemblies and no more. `client_architecture` §1 names six; `Broodline.UI`,
 - Consumes: `Broodline.Sim` via the existing UPM reference — `client/Packages/manifest.json` already carries `"com.sepandstudio.broodline.sim": "file:../../engine"`.
 - Produces: assemblies `Broodline.View` (references `Broodline.Sim`) and `Broodline.Game` (references both). `Broodline.Benchmark.SyntheticCreature` becomes `Broodline.View.SyntheticCreature`.
 
-- [ ] **Step 1: Move the two files, `.meta` included**
+- [x] **Step 1: Move the two files, `.meta` included**
 
 **Use `git mv` and move the `.meta` with the file.** A `.cs` that arrives without its `.meta` gets a fresh GUID from Unity, which silently breaks every reference to it.
 
@@ -1798,7 +1798,7 @@ ls client/Assets/View/
 
 Expected: four files.
 
-- [ ] **Step 2: Renamespace the two moved files**
+- [x] **Step 2: Renamespace the two moved files**
 
 In both `client/Assets/View/SyntheticCreature.cs` and `client/Assets/View/BoneAnimator.cs`, change:
 
@@ -1812,7 +1812,7 @@ to:
 namespace Broodline.View
 ```
 
-- [ ] **Step 3: Write the two asmdefs**
+- [x] **Step 3: Write the two asmdefs**
 
 `client/Assets/View/Broodline.View.asmdef`:
 
@@ -1846,7 +1846,7 @@ namespace Broodline.View
 }
 ```
 
-- [ ] **Step 4: Point the benchmark at its new home**
+- [x] **Step 4: Point the benchmark at its new home**
 
 `client/Assets/Benchmark/Broodline.Benchmark.asmdef` — the `references` array is currently empty:
 
@@ -1882,7 +1882,7 @@ grep -rln "SyntheticCreature\|BoneAnimator" client/Assets | grep "\.cs$"
 
 Expected: the five above, plus the two moved files now under `client/Assets/View/`.
 
-- [ ] **Step 5: Generate the directory and asmdef `.meta` files**
+- [x] **Step 5: Generate the directory and asmdef `.meta` files**
 
 Unity needs a `.meta` for every asset **and for every directory**, and a directory's meta lives one level up.
 
@@ -1906,7 +1906,7 @@ print("ok")
 PY
 ```
 
-- [ ] **Step 6: Compile the Unity project**
+- [x] **Step 6: Compile the Unity project**
 
 ```bash
 ./implementation/scripts/run-unity-tests.sh EditMode
@@ -1914,7 +1914,7 @@ PY
 
 Expected: the existing benchmark tests still pass. A compile error here is a missing `using Broodline.View;` from Step 4.
 
-- [ ] **Step 7: Confirm the .NET side is untouched, then commit**
+- [x] **Step 7: Confirm the .NET side is untouched, then commit**
 
 ```bash
 dotnet test Broodline.sln --nologo
@@ -1958,7 +1958,7 @@ commission not yet placed."
   - `void RequestRally(int creatureId)`
   - `void Advance(SimRunner runner, double deltaSeconds, System.Action onTick)`
 
-- [ ] **Step 1: Write the test assembly definition**
+- [x] **Step 1: Write the test assembly definition**
 
 `client/Assets/View/Tests/Broodline.View.Tests.asmdef`:
 
@@ -1978,7 +1978,7 @@ commission not yet placed."
 }
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 `client/Assets/View/Tests/WaveClockTests.cs`:
 
@@ -2127,7 +2127,7 @@ namespace Broodline.View.Tests
 }
 ```
 
-- [ ] **Step 3: Run it and watch it fail**
+- [x] **Step 3: Run it and watch it fail**
 
 ```bash
 ./implementation/scripts/run-unity-tests.sh EditMode
@@ -2135,7 +2135,7 @@ namespace Broodline.View.Tests
 
 Expected: compile failure — `WaveClock` does not exist.
 
-- [ ] **Step 4: Write `WaveClock.cs`**
+- [x] **Step 4: Write `WaveClock.cs`**
 
 `client/Assets/View/WaveClock.cs`:
 
@@ -2220,7 +2220,7 @@ namespace Broodline.View
 }
 ```
 
-- [ ] **Step 5: Create the `.meta` files**
+- [x] **Step 5: Create the `.meta` files**
 
 ```bash
 python3 - <<'PY'
@@ -2246,7 +2246,7 @@ print("ok")
 PY
 ```
 
-- [ ] **Step 6: Run until green**
+- [x] **Step 6: Run until green**
 
 ```bash
 ./implementation/scripts/run-unity-tests.sh EditMode
@@ -2254,7 +2254,7 @@ PY
 
 Expected: seven new tests pass, benchmark tests still pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add client/Assets/View client/Assets/View.meta
@@ -2297,7 +2297,7 @@ and the run is seconds instead of minutes."
 
 **`Fix64` has no float conversion, on purpose** — floats are banned in the engine. The conversion lives here, in View, and nowhere else: `raw / 4294967296.0`, which is 2^32, the Q32.32 scale.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `client/Assets/View/Tests/WaveSnapshotTests.cs`:
 
@@ -2371,7 +2371,7 @@ namespace Broodline.View.Tests
 }
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 ./implementation/scripts/run-unity-tests.sh EditMode
@@ -2379,7 +2379,7 @@ namespace Broodline.View.Tests
 
 Expected: compile failure — `WaveSnapshot` does not exist.
 
-- [ ] **Step 3: Write `WaveSnapshot.cs`**
+- [x] **Step 3: Write `WaveSnapshot.cs`**
 
 `client/Assets/View/WaveSnapshot.cs`:
 
@@ -2476,7 +2476,7 @@ namespace Broodline.View
 }
 ```
 
-- [ ] **Step 4: Run the snapshot tests**
+- [x] **Step 4: Run the snapshot tests**
 
 ```bash
 ./implementation/scripts/run-unity-tests.sh EditMode
@@ -2484,7 +2484,7 @@ namespace Broodline.View
 
 Expected: three new tests pass.
 
-- [ ] **Step 5: Write `WaveView.cs`**
+- [x] **Step 5: Write `WaveView.cs`**
 
 `client/Assets/View/WaveView.cs`:
 
@@ -2591,7 +2591,7 @@ namespace Broodline.View
 }
 ```
 
-- [ ] **Step 6: Create the `.meta` files, compile, commit**
+- [x] **Step 6: Create the `.meta` files, compile, commit**
 
 ```bash
 python3 - <<'PY'
@@ -2637,7 +2637,7 @@ The done-when needs none of this. A phase that ends without anyone having watche
 - Consumes: `SimRunner`'s read-only surface, `WaveClock.StepsLastFrame`, `Outcome`, `Breach`.
 - Produces: `sealed class WaveHud : MonoBehaviour` with `void Render(SimRunner, WaveClock, WavePair)`.
 
-- [ ] **Step 1: Write `WaveHud.cs`**
+- [x] **Step 1: Write `WaveHud.cs`**
 
 `client/Assets/View/WaveHud.cs`:
 
@@ -2777,7 +2777,7 @@ namespace Broodline.View
 }
 ```
 
-- [ ] **Step 2: Create the `.meta`, compile, commit**
+- [x] **Step 2: Create the `.meta`, compile, commit**
 
 ```bash
 python3 - <<'PY'
