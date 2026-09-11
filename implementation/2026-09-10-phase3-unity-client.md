@@ -2998,7 +2998,7 @@ namespace Broodline.Game.Editor
 }
 ```
 
-- [ ] **Step 3: Create the `.meta` files and build the scene**
+- [x] **Step 3: Create the `.meta` files and build the scene**
 
 ```bash
 python3 - <<'PY'
@@ -3038,13 +3038,13 @@ Then in the Unity editor: **Broodline → Build Wave Scene**, and press Play.
 
 Expected: a lane of tiles, five bodies in pockets, one body entering at tick 90 and advancing, HP bars, and after roughly 20 seconds an end panel reading **Loss**, integrity 0, one breach with `access False`. **That is the wave working** — wave 6 is the designed loss.
 
-- [ ] **Step 4: Confirm Rally is visibly consumed**
+- [x] **Step 4: Confirm Rally is visibly consumed**
 
 Press Play again and click once while the Courser is on the board.
 
 Expected: creature 0's bar turns amber, the `RALLY n` countdown appears and runs to zero over four seconds, and the console's final log line carries a **different hash** from the no-Rally run. A hash that did not change means the tap never reached the simulation.
 
-- [ ] **Step 5: Build and run on device, and pull the artifact**
+- [x] **Step 5: Build and run on device, and pull the artifact**
 
 **Corrected in execution — the plan had the wrong retrieval route.** It named `UIFileSharingEnabled` plus `devicectl` as the way off the device, on the assumption that Phase 0's `CorpusPlayerHarness` was precedent. It is not: `cross-runtime-diff.sh` builds a **macOS ARM64** player, so Phase 0 never pulled a file off an iOS device that way.
 
@@ -3071,9 +3071,30 @@ xcrun devicectl device copy from --device <DEVICE-UDID> \
 ls -l implementation/results/device-replay*
 ```
 
-**Record which route worked** — Download Container or `devicectl` — in this step. The next phase should not have to rediscover it, and the plan has already been wrong about it once.
+> **Recorded 2026-09-11: `devicectl` worked, and Download Container was never needed.**
+>
+> ```bash
+> xcrun devicectl device copy from --device <UDID> \
+>   --domain-type appDataContainer --domain-identifier com.sepandstudio.broodlinebench \
+>   --source Documents --destination /tmp/wavepull
+> ```
+>
+> **Copy the directory, not the file.** `--source Documents/replay.bin` fails silently — it reports success and writes nothing, which cost a poll loop that would have waited forever. `--source Documents` pulls both files and works first time.
+>
+> Two other things that cost a cycle each. The device must be **unlocked** or launch is refused outright (`FBSOpenApplicationErrorDomain error 7, Locked`). And Unity's generated Xcode project ships only a `GameAssembly` scheme, so `xcodebuild` has to be driven by `-target Unity-iPhone` with an explicit `CONFIGURATION_BUILD_DIR` rather than by `-scheme` with `-derivedDataPath`.
+>
+> The full sequence that worked, from a closed Editor and an unlocked connected device:
+>
+> ```bash
+> Unity -batchmode -quit -projectPath client -executeMethod WaveBuilder.BuildIOS -logFile -
+> xcodebuild -project build/ios-wave/Unity-iPhone.xcodeproj -target Unity-iPhone \
+>   -configuration Debug -sdk iphoneos -allowProvisioningUpdates \
+>   CONFIGURATION_BUILD_DIR="$PWD/build/ios-wave-out" build
+> xcrun devicectl device install app --device <UDID> build/ios-wave-out/BroodlineBench.app
+> xcrun devicectl device process launch --console --device <UDID> com.sepandstudio.broodlinebench
+> ```
 
-- [ ] **Step 6: Track the artifact**
+- [x] **Step 6: Track the artifact**
 
 `.gitignore` ignores `implementation/results/*`. This artifact is evidence, like the sweep CSVs, and reproducing it needs a physical device:
 
@@ -3159,7 +3180,7 @@ namespace Broodline.Sim.Tests.Combat
 }
 ```
 
-- [ ] **Step 8: Run it**
+- [x] **Step 8: Run it**
 
 ```bash
 dotnet test Broodline.sln --nologo --filter "FullyQualifiedName~DeviceReplayTests"
@@ -3169,7 +3190,7 @@ Expected: PASS.
 
 **If the hash differs, do not adjust the test.** Read the record — `Replay.Deserialize` then inspect `RallyTick` — and compare it against what the device logged. A Rally at a tick the device did not consume it at, or a tick count short of the device's, is the diagnosis. That divergence is the thing this whole phase exists to find.
 
-- [ ] **Step 9: Run everything and commit**
+- [x] **Step 9: Run everything and commit**
 
 ```bash
 dotnet test Broodline.sln --nologo && ./implementation/scripts/run-unity-tests.sh EditMode
