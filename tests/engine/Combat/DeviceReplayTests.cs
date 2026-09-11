@@ -142,12 +142,23 @@ namespace Broodline.Sim.Tests.Combat
             // is the better answer - do it at Task 12 if the device is to
             // hand, and restore the strong assertion then.
             //
-            // The round-trip tests above still re-simulate this artifact
-            // DELIBERATELY, via ReplayArtifact.Superseded - it is the phase's
-            // evidence, and comparing it against the engine that recorded it
-            // is the whole proof, with the supersession itself asserted
-            // there via the ReplayFormatException the engine throws. This
-            // test pins the fact that a PRODUCTION reader must not.
+            // The round-trip tests above do NOT still prove the round-trip.
+            // ReplayArtifact.Superseded opens with `if (AreCurrent) return
+            // false;`, and AreCurrent is now false, so both
+            // TheDeviceRunReSimulatesToTheSameHash and
+            // TheDeviceRunsRallyActuallyChangedTheSimulation hit their
+            // `if (ReplayArtifact.Superseded(...)) return;` guard and bail
+            // before their own asserts ever run. All Superseded proves at
+            // that point is that Sim.Replay THROWS on a superseded record -
+            // the artifact being refused, not re-simulated.
+            //
+            // So Phase 3's done-when - a device wave re-simulating to the
+            // same hash - is NOT being proven by this suite right now, and
+            // `dotnet test` going green does not cover it. That is exactly
+            // the "sentence someone has to remember to check" the deleted
+            // TheTrackedCapturesAreCurrent warned about, stated outright
+            // rather than softened: re-capturing the device artifact under
+            // 0.2.0 at Task 12 is what restores real coverage.
             Assert.NotEqual(SimVersion.Value, ReplayArtifact.CapturedUnder);
             Assert.Equal("0.1.0", ReplayArtifact.CapturedUnder);
         }
