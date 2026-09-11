@@ -19,17 +19,26 @@ namespace Broodline.View
         public WavePair Pair;
         public Camera View;
 
-        /// How far to lift a bar off the body it labels, in world units along
-        /// the axis that maps to SCREEN-UP.
+        /// How far to lift a bar above the body it labels, as a fraction of the
+        /// safe area's height.
         ///
-        /// That axis is +X, not +Y. WaveSceneBuilder frames this scene top-down
-        /// with Quaternion.LookRotation(Vector3.down, Vector3.right), so world
-        /// +Y runs straight down the view axis and an orthographic projection
-        /// discards it entirely - a +Y offset moved every bar by exactly zero
-        /// pixels and drew it dead centre on its own cube. The offset was
-        /// correct for a side-on camera and was not re-derived when the camera
-        /// turned portrait.
-        private const float BarLift = 1.4f;
+        /// SCREEN space, and that is the fix rather than the number. This was a
+        /// world-space offset twice, and was wrong both times. On +Y it was a
+        /// no-op: WaveSceneBuilder frames the scene top-down with
+        /// Quaternion.LookRotation(Vector3.down, Vector3.right), so world +Y
+        /// runs down the view axis and an orthographic projection discards it -
+        /// every bar drew dead centre on its own cube. Moving it to +X made the
+        /// direction right and the result worse: +X runs along the LANE, the
+        /// camera covers world-X [-0.96, 24.96], and the Ark is at 24, so a
+        /// raider past tile ~23.6 had its bar pushed off the top of the screen -
+        /// vanishing for the last several ticks of the Courser's approach, which
+        /// is exactly the moment wave 6 exists to show.
+        ///
+        /// A lift is a screen-space idea. Saying it in world units required
+        /// knowing which world axis maps to screen-up, and that knowledge is
+        /// what was wrong on both attempts. ClampIntoSafeArea below is the
+        /// belt to this braces: no anchor, however derived, leaves the frame.
+        private const float BarLiftFraction = 0.022f;
 
         private GUIStyle _label;
 
@@ -47,10 +56,24 @@ namespace Broodline.View
 
         /// client_architecture section 11: "Layout is safe-area driven with no
         /// fixed pixel positions." Every Rect below is offset from this rather
-        /// than from the screen edge. It is not a nicety on the device this
-        /// phase actually ran on: y=8 put the integrity readout under the
-        /// iPhone 15 Pro's Dynamic Island.
-        private Rect Safe => Screen.safeArea;
+        /// than from the screen edge.
+        ///
+        /// FLIPPED into GUI space, which is the whole point of the property.
+        /// Screen.safeArea is pixels with the origin at the BOTTOM-left; IMGUI
+        /// puts it at the top-left. Used raw, safeArea.yMin is the bottom inset
+        /// being read as a distance from the top: on an iPhone 15 Pro that put
+        /// the integrity readout at y=110 with the Dynamic Island occupying
+        /// 0..177, still entirely underneath it - the exact symptom the
+        /// safe-area work was done to fix. Invisible in the Editor, where a
+        /// notchless display has yMin == 0 and the bug is an identity.
+        private static Rect Safe
+        {
+            get
+            {
+                var s = Screen.safeArea;
+                return new Rect(s.xMin, Screen.height - s.yMax, s.width, s.height);
+            }
+        }
 
         private void DrawIntegrity()
         {
@@ -61,7 +84,9 @@ namespace Broodline.View
         }
 
         /// ONE source per entity, and it is the snapshot pair - the same thing
-        /// WaveView draws from, interpolated by the same expression.
+        /// WaveView draws from, interpolated by the same expression, which is
+        /// now literally the same method rather than a second lerp that happens
+        /// to agree.
         ///
         /// This used to mix them: existence and HP came from the live runner
         /// while position came from Pair.Current un-interpolated. Between tick
@@ -71,32 +96,35 @@ namespace Broodline.View
         /// snapshot said alive so the body stayed. A body with no bar.
         private void DrawBars()
         {
-            float a = Mathf.Clamp01((float)Clock.Alpha);
+            float a = (float)Clock.Alpha;             // clamped at the clock
             var current = Pair.Current;
             var previous = Pair.Previous;
 
             for (int i = 0; i < current.RaiderCount; i++)
             {
-                if (!current.RaiderAlive(i)) continue;
+                if (!current.RaiderVisible(i)) continue;
                 int max = Stats.RaiderHp(Runner.RaiderType[i]);   // static for the wave
                 float tile = WaveSnapshot.LerpTile(previous, current, i, a);
-                var at = WorldToScreen(new Vector3(tile * WaveView.TileSize + BarLift, 0f, 0f));
+                var at = WorldToScreen(new Vector3(tile * WaveView.TileSize, 0f, 0f));
 
                 // Chill is the thing wave 6 exists to teach. If it is not
-                // visible the slice cannot be judged by eye.
+                // visible the slice cannot be judged by eye. A breach outranks
+                // it: that frame is the verdict.
+                bool breaching = current.RaiderBreaching(i);
                 bool chilled = current.RaiderChilled(i);
                 Bar(at, current.RaiderHp(i), max,
-                    chilled ? new Color(0.45f, 0.75f, 1f) : new Color(0.85f, 0.35f, 0.3f),
-                    chilled ? "CHILLED" : null);
+                    breaching ? new Color(1f, 0.4f, 0.4f)
+                    : chilled ? new Color(0.45f, 0.75f, 1f)
+                              : new Color(0.85f, 0.35f, 0.3f),
+                    breaching ? "BREACH" : chilled ? "CHILLED" : null);
             }
 
-            for (int c = 0; c < Runner.CreatureCount; c++)
+            for (int c = 0; c < current.CreatureCount; c++)
             {
                 if (current.CreatureHp(c) <= 0) continue;
                 int max = Stats.CreatureHp(Runner.CreatureSpecies[c]);   // static for the wave
                 var at = WorldToScreen(new Vector3(
-                    Runner.Lane.PocketTiles[Runner.CreaturePocket[c]] * WaveView.TileSize + BarLift,
-                    0f, WaveView.PocketOffset));
+                    current.CreatureTile(c) * WaveView.TileSize, 0f, WaveView.PocketOffset));
 
                 // Rally is the player's ONLY input. A tap with no visible
                 // consequence is indistinguishable from a tap that was dropped,
@@ -116,11 +144,22 @@ namespace Broodline.View
             // client_architecture section 4 keys every rung of the degradation
             // ladder off it, so surfacing it now means the ladder arrives with
             // a number already proven to be there and already deterministic.
-            int entities = Runner.RaiderCount + Runner.CreatureCount;
+            //
+            // Read from the engine, not summed here. RaiderCount is the number
+            // SPAWNED, so the sum this used to compute counted corpses and
+            // never went down - a ladder keyed off it would degrade on an empty
+            // board.
+            int entities = Runner.AliveRaiderCount + Runner.AliveCreatureCount;
+
+            // Backlog, not StepsLastFrame. Steps saturates at MaxCatchUpSteps
+            // by construction, so it can show 8 and never the 22 or 352 ticks
+            // of real debt that sustained overload produces - which is the
+            // number worth seeing.
             GUI.Label(new Rect(Safe.xMin + 12, Safe.yMax - 76, 460, 72),
                 "entities " + entities +
                 "\nalpha " + Clock.Alpha.ToString("F2") +
                 "   catch-up " + Clock.StepsLastFrame +
+                "   backlog " + Clock.BacklogTicks.ToString("F1") +
                 "\nframe " + (Time.deltaTime * 1000f).ToString("F1") + " ms", _label);
         }
 
@@ -130,11 +169,12 @@ namespace Broodline.View
             string text = "<b>" + o.Result + "</b>\nticks " + o.Ticks +
                           "\nintegrity " + o.IntegrityRemaining;
 
-            for (int b = 0; b < o.BreachCount; b++)
+            // Breaches is a ReadOnlySpan bounded at BreachCount, so its Length
+            // IS the count. The old warning - iterate to BreachCount, never
+            // Length, or a zeroed trailing entry reads as "the trait was
+            // absent" - describes a buffer this no longer receives.
+            for (int b = 0; b < o.Breaches.Length; b++)
             {
-                // Iterate to BreachCount, never Breaches.Length - the buffer is
-                // the wave's spawn capacity and a zeroed trailing entry reads
-                // as "the trait was absent".
                 var br = o.Breaches[b];
                 text += "\n\n<b>breach</b> " + br.Type + " at tick " + br.Tick +
                         "\n  access    " + br.Access +
@@ -149,16 +189,37 @@ namespace Broodline.View
         private void Bar(Vector2 at, int hp, int max, Color fill, string tag)
         {
             const float w = 52f, h = 6f;
+            const float tagHeight = 18f;
             float frac = max > 0 ? Mathf.Clamp01((float)hp / max) : 0f;
 
-            var back = new Rect(at.x - w / 2f, at.y, w, h);
+            var back = ClampIntoSafeArea(
+                new Rect(at.x - w / 2f, at.y - Safe.height * BarLiftFraction, w, h),
+                tag != null ? tagHeight : 0f);
+
             GUI.DrawTexture(back, Texture2D.whiteTexture, ScaleMode.StretchToFill, false, 0f,
                             new Color(0f, 0f, 0f, 0.55f), 0f, 0f);
             GUI.DrawTexture(new Rect(back.x, back.y, w * frac, h), Texture2D.whiteTexture,
                             ScaleMode.StretchToFill, false, 0f, fill, 0f, 0f);
 
             if (tag != null)
-                GUI.Label(new Rect(at.x - w / 2f, at.y + h, 120f, 18f), tag, _label);
+                GUI.Label(new Rect(back.x, back.y + h, 120f, tagHeight), tag, _label);
+        }
+
+        /// Keeps a bar - and the tag hanging under it - inside the safe area.
+        ///
+        /// The lift is small and the clamp rarely fires, which is the point:
+        /// it is not a layout strategy, it is the guarantee that no bar can
+        /// leave the frame at the moment it matters most. The Courser's bar
+        /// disappearing at the Ark is what this exists to make impossible, and
+        /// it is impossible by construction rather than by the offset happening
+        /// to be small enough.
+        private static Rect ClampIntoSafeArea(Rect r, float extraBelow)
+        {
+            var safe = Safe;
+            r.x = Mathf.Clamp(r.x, safe.xMin, Mathf.Max(safe.xMin, safe.xMax - r.width));
+            r.y = Mathf.Clamp(r.y, safe.yMin,
+                              Mathf.Max(safe.yMin, safe.yMax - r.height - extraBelow));
+            return r;
         }
 
         private Vector2 WorldToScreen(Vector3 world)

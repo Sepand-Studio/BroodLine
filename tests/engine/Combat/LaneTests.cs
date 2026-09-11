@@ -44,6 +44,42 @@ namespace Broodline.Sim.Tests.Combat
         }
 
         [Fact]
+        public void APocketTableCannotBeEditedFromOutsideTheLane()
+        {
+            // PocketTiles is a ReadOnlySpan, which cannot be written THROUGH -
+            // but the constructor stored the caller's reference, so the caller
+            // still held a writable handle to the same memory. Writing a[0]
+            // moved PocketTiles[0] while _distSq stayed baked at the original
+            // tile: "geometry and range checks silently disagreeing", which is
+            // the exact thing the property's own doc says the span prevents. At
+            // a large enough value the tick loop threw
+            // IndexOutOfRangeException out of Phases.
+            var tiles = new[] { 6, 10, 13, 17, 20 };
+            var lane = new Lane(Terrain.Defile, Stats.LaneTiles, tiles);
+
+            int baked = lane.DistSq(0, 6);
+            tiles[0] = 23;
+
+            Assert.Equal(6, lane.PocketTiles[0]);
+            Assert.Equal(baked, lane.DistSq(0, 6));
+        }
+
+        [Fact]
+        public void AnAuthoredWaveCannotBeEditedAfterItValidates()
+        {
+            // Same shape, one type over. WaveDef.Validate runs once at
+            // construction, so a caller that kept its spawn array and edited an
+            // entry afterwards moved a wave out from under its own
+            // verification - a 540-tick outcome became 650.
+            var spawns = new[] { new SpawnEntry { Tick = 90, Type = RaiderType.Courser } };
+            var wave = new WaveDef(6, 2, 1, spawns);
+
+            spawns[0].Tick = 200;
+
+            Assert.Equal(90, wave.Spawns[0].Tick);
+        }
+
+        [Fact]
         public void SpeedPerTick_IsExactAcrossThirtyTicks()
         {
             // A Courser at 1.6 tiles/sec advances 1.6 tiles in 30 ticks.

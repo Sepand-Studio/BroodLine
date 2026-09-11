@@ -4,11 +4,12 @@ using Broodline.Sim.Combat;
 
 namespace Broodline.Sim.Tests.Combat
 {
-    /// Replay.Validate bounds every deserialized enum against a hardcoded
-    /// width, because Enum.IsDefined allocates and reflects and the enums are
-    /// contiguous from zero. That is a fair trade only while the constants and
-    /// the enums agree, and nothing made them agree - an earlier comment in
-    /// Replay.cs claimed this file existed when it did not.
+    /// Deployments.Problem bounds every enum against a hardcoded width - for
+    /// the play path and the replay codec alike - because Enum.IsDefined
+    /// allocates and reflects and the enums are contiguous from zero. That is a
+    /// fair trade only while the constants and the enums agree, and nothing
+    /// made them agree - an earlier comment in Replay.cs claimed this file
+    /// existed when it did not.
     ///
     /// The cost of drift is a bad diagnosis, not just a missed check. Trait has
     /// two members today and combat_engine names seven more; add Splash without
@@ -19,15 +20,15 @@ namespace Broodline.Sim.Tests.Combat
         [Fact]
         public void TheWidthsReplayValidatesAgainstMatchTheEnums()
         {
-            Assert.Equal(Enum.GetValues(typeof(Species)).Length, Replay.SpeciesCount);
-            Assert.Equal(Enum.GetValues(typeof(Instinct)).Length, Replay.InstinctCount);
-            Assert.Equal(Enum.GetValues(typeof(Trait)).Length, Replay.TraitCount);
+            Assert.Equal(Deployments.SpeciesCount, Enum.GetValues(typeof(Species)).Length);
+            Assert.Equal(Deployments.InstinctCount, Enum.GetValues(typeof(Instinct)).Length);
+            Assert.Equal(Deployments.TraitCount, Enum.GetValues(typeof(Trait)).Length);
         }
 
         [Fact]
         public void TheEnumsAreContiguousFromZero()
         {
-            // The bare int comparison in Validate is only equivalent to
+            // The bare int comparison in Deployments.Problem is only equivalent to
             // IsDefined while this holds. Ids.cs declares explicit values, so a
             // gap or a renumber is a one-character edit away - and replays
             // persist these values, so a renumber silently reinterprets every

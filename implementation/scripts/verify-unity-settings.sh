@@ -43,6 +43,41 @@ grep -q 'enableFrameTimingStats: 1' "$P" \
 grep -q 'com.unity.render-pipelines.universal' "$M" \
   && ok "URP package present" || bad "URP missing from manifest.json" "install com.unity.render-pipelines.universal"
 
+# The two platforms must carry the SAME scripting defines, and nothing noticed
+# when they stopped.
+#
+# Unity rewrites the define list onto whichever platform is not the active build
+# target, so switching between the benchmark's iOS build and the determinism
+# player's Standalone build leaves the project dirty in one direction or the
+# other. b0f6385 removed SENTIS_ANALYTICS_ENABLED from both for exactly that
+# reason; a package write put it back on Standalone only, and a `git add -A`
+# swept it into a commit about re-capturing a device artifact.
+#
+# The cost is not cosmetic: cross-runtime-diff.sh builds a StandaloneOSX IL2CPP
+# player and compares it against the iPhone player, so a define present on one
+# and absent from the other means the gate is comparing two different
+# compilations. determinism.yml watches this file with the note "a change here
+# can silently gut the gate", and this is the check that makes that watch mean
+# something.
+#
+# Read the platform lines from INSIDE the scriptingDefineSymbols block. A bare
+# grep for "Standalone:" finds applicationIdentifier's first and reports the
+# bundle id as a define list - which this check did, and which is its own small
+# lesson about pinning a YAML value by grep.
+defines_for () {
+  awk -v want="$1:" '
+    /^  scriptingDefineSymbols:/ { inblock = 1; next }
+    inblock && /^  [^ ]/         { exit }
+    inblock && $1 == want        { sub(/^[[:space:]]*[A-Za-z]+:[[:space:]]*/, ""); print; exit }
+  ' "$P" | tr -d ' \r'
+}
+DEFINES_STANDALONE=$(defines_for Standalone)
+DEFINES_IPHONE=$(defines_for iPhone)
+[ "$DEFINES_STANDALONE" = "$DEFINES_IPHONE" ] \
+  && ok "Scripting defines match across Standalone and iPhone ($DEFINES_STANDALONE)" \
+  || bad "Scripting defines differ: Standalone='$DEFINES_STANDALONE' iPhone='$DEFINES_IPHONE'" \
+         "Player > Other Settings > Scripting Define Symbols - make both platforms match, then commit ProjectSettings.asset. cross-runtime-diff.sh compares a Standalone IL2CPP player against the iPhone one; a define on only one side means the two are not the same program."
+
 # Unity stores Always Included Shaders by GUID, never by name, so assert the
 # GUID of URP's Lit.shader rather than the string a human would recognise.
 URP_LIT_GUID=933532a4fcc9baf4fa0491de14d08ed7

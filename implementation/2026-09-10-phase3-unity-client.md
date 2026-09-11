@@ -1233,6 +1233,28 @@ count and diagnosis confirmed unchanged first."
   - `SimRunner.Record { get; }` → `Replay`
   - `static Outcome Sim.Replay(Replay record)`
 
+> **What shipped differs, and this list is kept as written for the record.** Three
+> changes, each made for a reason found during execution or review:
+>
+> - `SimRunner.Record { get; }` **does not exist.** Handing out the live `Replay`
+>   made the "TryRally is the only writer" claim false — its fields are public and
+>   mutable, so a caller could stamp a rally onto a run that never had one and
+>   serialize a structurally valid forgery. It shipped as `byte[]
+>   SerializeRecord()` plus `Replay ReadRecord()`, which returns a deep copy.
+>   Every `live.Record.…` in the code blocks below reads `live.SerializeRecord()`
+>   or `live.ReadRecord().…` in the file that actually exists.
+> - `Replay.Validate()` is now two methods. `ValidateFormat()` checks what no
+>   engine version can disagree about and runs INSIDE `Deserialize`, so there is
+>   no unvalidated `Replay` for a caller to forget about; `Validate()` checks the
+>   engine version FIRST and then everything that is this engine's — enum widths,
+>   the authored wave, the lane's geometry — because those bounds reject a
+>   legitimate record from a LATER engine and reporting that as corruption sends
+>   the reader after a forgery that is not there.
+> - The deployment's field bounds live in `Deployments.Problem`, shared with the
+>   `SimRunner` constructor. They were only in the codec, so the simulation would
+>   run a wave with `Pocket = 178956971` to completion and write a record it could
+>   not itself read back.
+
 - [x] **Step 1: Write the failing test**
 
 `tests/engine/Combat/ReplayTests.cs`:

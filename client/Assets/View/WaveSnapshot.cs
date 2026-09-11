@@ -9,6 +9,12 @@ namespace Broodline.View
     /// the minimum it needs for interpolation rather than deep-copying world
     /// state each tick." This is that minimum: what moves and what is alive.
     ///
+    /// It is also the ONE source every renderer reads. That is not a
+    /// convenience: the HUD used to take existence and HP from the live runner
+    /// while taking position from here, so between tick boundaries a bar
+    /// trailed the body it labelled, and on the terminating tick the two
+    /// sources disagreed about whether a raider existed at all.
+    ///
     /// Fix64 carries no float conversion because floats are banned in the
     /// engine. The conversion happens HERE and nowhere else: Q32.32 means the
     /// raw long is the value scaled by 2^32.
@@ -20,9 +26,12 @@ namespace Broodline.View
         private readonly int[] _raiderHp;
         private readonly bool[] _raiderAlive;
         private readonly bool[] _raiderChilled;
+        private readonly bool[] _raiderBreaching;
         private readonly int[] _creatureHp;
+        private readonly int[] _creatureTile;
 
         public int RaiderCount { get; private set; }
+        public int CreatureCount => _creatureHp.Length;
         public int Integrity { get; private set; }
         public int Tick { get; private set; }
 
@@ -32,7 +41,9 @@ namespace Broodline.View
             _raiderHp = new int[raiderCapacity];
             _raiderAlive = new bool[raiderCapacity];
             _raiderChilled = new bool[raiderCapacity];
+            _raiderBreaching = new bool[raiderCapacity];
             _creatureHp = new int[creatureCount];
+            _creatureTile = new int[creatureCount];
         }
 
         public void Capture(SimRunner r)
@@ -47,9 +58,17 @@ namespace Broodline.View
                 _raiderHp[i] = r.RaiderHp[i];
                 _raiderAlive[i] = r.RaiderAlive[i];
                 _raiderChilled[i] = r.RaiderChilled[i];
+                _raiderBreaching[i] = r.RaiderBreachedThisTick(i);
             }
             for (int c = 0; c < r.CreatureCount; c++)
+            {
                 _creatureHp[c] = r.CreatureHp[c];
+                // Skittish repositions, so the pocket is read every tick rather
+                // than once at Build - and it is read HERE rather than in each
+                // renderer, which is what keeps "one source per entity" true
+                // for position as well as for existence.
+                _creatureTile[c] = r.Lane.PocketTiles[r.CreaturePocket[c]];
+            }
         }
 
         public float RaiderTile(int i) => _raiderTile[i];
@@ -57,11 +76,27 @@ namespace Broodline.View
         public bool RaiderAlive(int i) => _raiderAlive[i];
         public bool RaiderChilled(int i) => _raiderChilled[i];
         public int CreatureHp(int c) => _creatureHp[c];
+        public int CreatureTile(int c) => _creatureTile[c];
 
-        /// Interpolated lane position, using the same expression WaveView uses
-        /// to place the body. The HUD used to read Current directly while the
-        /// View lerped, so a bar and the thing it labelled answered two
-        /// different questions about where a raider was.
+        /// Whether this raider reached the Ark on THIS tick.
+        ///
+        /// Phases.Breach clears RaiderAlive in the same breath it deducts
+        /// integrity, so a breaching raider and a dead one look identical to
+        /// anything reading the live state - and both renderers gate on
+        /// aliveness. The breach frame is the one frame wave 6 exists to show,
+        /// and it was never drawn: the Courser simply vanished a tile short of
+        /// the Ark while the HUD printed Loss. Capturing the terminating tick
+        /// was necessary for that and not sufficient.
+        public bool RaiderBreaching(int i) => _raiderBreaching[i];
+
+        /// Whether anything should be drawn for this raider: on the board, or
+        /// breaching on this very tick.
+        public bool RaiderVisible(int i) => i < RaiderCount && (_raiderAlive[i] || _raiderBreaching[i]);
+
+        /// Interpolated lane position. THE expression - WaveView and WaveHud
+        /// both call this rather than each writing their own lerp, because when
+        /// they did, a bar and the body it labelled answered two different
+        /// questions about where a raider was.
         public static float LerpTile(WaveSnapshot previous, WaveSnapshot current, int i, float alpha)
             => previous.RaiderTile(i) + (current.RaiderTile(i) - previous.RaiderTile(i)) * alpha;
     }

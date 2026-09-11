@@ -35,20 +35,7 @@ namespace Broodline.Sim.Tests
     /// </para>
     public class EnforcementTests
     {
-        // Walks up from the test binary rather than hardcoding a relative depth,
-        // so this survives a different TargetFramework or output layout.
-        static readonly string RepoRoot = FindRepoRoot();
-
-        static string FindRepoRoot()
-        {
-            var dir = new DirectoryInfo(AppContext.BaseDirectory);
-            while (dir != null && !File.Exists(Path.Combine(dir.FullName, "Broodline.sln")))
-                dir = dir.Parent;
-
-            Assert.True(dir != null,
-                $"could not find Broodline.sln above {AppContext.BaseDirectory}");
-            return dir.FullName;
-        }
+        static readonly string RepoRoot = TestPaths.RepoRoot();
 
         static string RepoPath(params string[] parts) =>
             Path.Combine(new[] { RepoRoot }.Concat(parts).ToArray());

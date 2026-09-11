@@ -1,3 +1,5 @@
+using System;
+
 namespace Broodline.Sim.Combat
 {
     public enum Result { Running = 0, Win = 1, Loss = 2, Stalled = 3 }
@@ -19,19 +21,48 @@ namespace Broodline.Sim.Combat
     }
 
     /// What a simulation returns. Inputs in, result out.
-    public struct Outcome
+    ///
+    /// A READONLY struct with a private breach buffer, which is the second
+    /// attempt at this. The first kept `public Breach[] Breaches` and had
+    /// SimRunner hand out a trimmed copy - and that fixed nothing a caller
+    /// could observe: the struct is copied by value but the array reference is
+    /// not, so `runner.Outcome.Breaches[0] = default` still wrote through into
+    /// the runner's stored outcome, and two Outcome copies still shared one
+    /// array. The test written to prove otherwise compared Breach.Type, where
+    /// RaiderType.Courser == 0 == default(Breach).Type, so it asserted 0 == 0.
+    ///
+    /// ReadOnlySpan cannot be written through, so `Breaches[0] = default` is
+    /// now a compile error rather than a silent corruption of the diagnosis
+    /// every other consumer reads. The span is bounded at BreachCount, which
+    /// also retires the "iterate to BreachCount, never Breaches.Length" hazard
+    /// this comment used to carry: the two lengths are the same number now.
+    public readonly struct Outcome
     {
-        public Result Result;
-        public int Ticks;
-        public int IntegrityRemaining;
+        public Result Result { get; }
+        public int Ticks { get; }
+        public int IntegrityRemaining { get; }
+        public int BreachCount { get; }
+        public ulong Hash { get; }
 
-        /// The preallocated breach-log buffer. Its length is the wave's spawn
-        /// capacity, not the number of breaches recorded - callers MUST
-        /// iterate up to BreachCount, never Breaches.Length, or a loss screen
-        /// renders phantom breaches: on a cleared wave, a zeroed trailing
-        /// entry reads as "the trait was absent".
-        public Breach[] Breaches;
-        public int BreachCount;
-        public ulong Hash;
+        private readonly Breach[] _breaches;
+
+        public Outcome(Result result, int ticks, int integrityRemaining,
+                       Breach[] breaches, int breachCount, ulong hash)
+        {
+            Result = result;
+            Ticks = ticks;
+            IntegrityRemaining = integrityRemaining;
+            BreachCount = breachCount;
+            Hash = hash;
+            _breaches = breaches;
+        }
+
+        /// The breaches recorded, exactly BreachCount of them.
+        ///
+        /// default(Outcome) - the value a runner holds before it finishes -
+        /// has no buffer at all, so this answers with an empty span rather
+        /// than throwing.
+        public ReadOnlySpan<Breach> Breaches =>
+            _breaches == null ? default : new ReadOnlySpan<Breach>(_breaches, 0, BreachCount);
     }
 }

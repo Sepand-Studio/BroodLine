@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Reflection;
 using Xunit;
 using Broodline.Sim.Combat;
 
@@ -90,22 +93,36 @@ namespace Broodline.Sim.Tests.Combat
         }
 
         [Fact]
-        public void OutcomeBreachesIsACopyTrimmedToBreachCount()
+        public void OutcomeHandsOutNoWritableBreachBuffer()
         {
-            // Outcome is a struct, so C# refuses `Outcome.Ticks = 5` and the
-            // type reads as immutable - but `Outcome.Breaches[0] = default`
-            // wrote straight through into the runner's live buffer, and two
-            // Outcome copies shared one array. Trimming also retires the
-            // "iterate to BreachCount, never Length" hazard: they now agree.
+            // The version of this test that shipped with the previous fix
+            // asserted 0 == 0. It read Breaches[0].Type, wrote
+            // `Breaches[0] = default`, and compared the two - but
+            // RaiderType.Courser is 0 and so is default(Breach).Type, so it
+            // passed with the whole fix reverted. Asserting .Tick instead -
+            // 540 against 0 - failed immediately, and did so because the fix
+            // never worked: Outcome is copied by value, the array reference
+            // inside it is not.
+            //
+            // So the guarantee is structural now. `Breaches[0] = default` does
+            // not compile, and this asserts the shape that makes that true,
+            // because a runtime test of a compile-time property can only ever
+            // assert the wrong thing.
+            var t = typeof(Outcome);
+            Assert.Empty(t.GetFields(BindingFlags.Public | BindingFlags.Instance));
+            foreach (var p in t.GetProperties())
+                Assert.False(p.PropertyType.IsArray,
+                    "Outcome." + p.Name + " hands out a raw array; callers share it with the runner.");
+
             var r = new SimRunner(WaveDef.Wave6(), Lane.Defile(),
                                   GoldenTests.DeploymentWithoutChill(), GoldenTests.Seed);
             while (r.Step()) { }
 
+            // Bounded at BreachCount, which retires the "iterate to
+            // BreachCount, never Length" hazard Outcome.cs used to warn about:
+            // the two lengths are the same number.
             Assert.Equal(r.Outcome.BreachCount, r.Outcome.Breaches.Length);
-
-            var type = r.Outcome.Breaches[0].Type;
-            r.Outcome.Breaches[0] = default;
-            Assert.Equal(type, r.Outcome.Breaches[0].Type);   // the runner's copy is untouched
+            Assert.Equal(540, r.Outcome.Breaches[0].Tick);
         }
 
         [Fact]
@@ -138,22 +155,68 @@ namespace Broodline.Sim.Tests.Combat
         public void SimRunner_ExposesNoPathToMutableState()
         {
             // The guarantee is structural, so it is asserted structurally: no
-            // public member of SimRunner may hand out SimState or a raw array.
-            // A ReadOnlySpan property cannot be written through; a T[] property
-            // can, and that is the mistake this test exists to prevent.
-            var t = typeof(SimRunner);
-            foreach (var p in t.GetProperties())
-            {
-                Assert.False(p.PropertyType == typeof(SimState),
-                    "SimRunner." + p.Name + " hands out SimState, which View could write through.");
-                Assert.False(p.PropertyType.IsArray,
-                    "SimRunner." + p.Name + " hands out a raw array. Use ReadOnlySpan<T>.");
-            }
-            foreach (var m in t.GetMethods())
-            {
+            // public property of SimRunner may hand out SimState, a raw array,
+            // or an object that has one of those on ITS public surface. A
+            // ReadOnlySpan property cannot be written through; a T[] property
+            // can, and so can a T[] one hop further away.
+            //
+            // One hop is what the previous version was missing, and it was the
+            // hop that mattered: zero of SimRunner's twenty-one properties were
+            // ever flagged while Outcome carried a writable Breach[] and Lane
+            // handed out its pocket table. It went green on a surface it was
+            // not looking at.
+            Assert.Empty(Leaks(typeof(SimRunner)));
+
+            foreach (var m in typeof(SimRunner).GetMethods())
                 Assert.False(m.ReturnType == typeof(SimState),
                     "SimRunner." + m.Name + " returns SimState.");
+        }
+
+        [Fact]
+        public void TheReadOnlySurfaceGuardCanActuallyFail()
+        {
+            // A guard whose green is decoupled from the property it asserts is
+            // worse than no guard: it is a claim. So the predicate above is
+            // pointed at things that ARE violations and required to say so.
+            //
+            // SimState itself is the reference case - the whole mutable world,
+            // reached in one hop through a public property.
+            Assert.NotEmpty(Leaks(typeof(LeaksAnArray)));
+            Assert.NotEmpty(Leaks(typeof(LeaksSimState)));
+            Assert.NotEmpty(Leaks(typeof(LeaksOneHopAway)));
+        }
+
+        private sealed class LeaksAnArray { public int[] Table => null; }
+        private sealed class LeaksSimState { public SimState World => null; }
+        private sealed class LeaksOneHopAway { public LeaksAnArray Inner => null; }
+
+        /// Public properties that hand out writable engine state, directly or
+        /// one hop away.
+        ///
+        /// Properties only, deliberately. SerializeRecord() returns a freshly
+        /// encoded byte[] and ReadRecord() returns a Replay built by Copy();
+        /// both are copies whose whole purpose is to be handed out and written
+        /// to, and both have their own tests. A property is a SURFACE - it
+        /// reads as "the runner's X" - which is what makes the same array
+        /// shape a mistake there and not in a method named Read or Serialize.
+        private static List<string> Leaks(Type t)
+        {
+            var found = new List<string>();
+            foreach (var p in t.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            {
+                if (p.PropertyType == typeof(SimState))
+                { found.Add(t.Name + "." + p.Name + " hands out SimState"); continue; }
+                if (p.PropertyType.IsArray)
+                { found.Add(t.Name + "." + p.Name + " hands out a raw array; use ReadOnlySpan<T>"); continue; }
+
+                foreach (var inner in p.PropertyType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                    if (inner.PropertyType == typeof(SimState) || inner.PropertyType.IsArray)
+                        found.Add(t.Name + "." + p.Name + "." + inner.Name + " is writable one hop away");
+                foreach (var inner in p.PropertyType.GetFields(BindingFlags.Public | BindingFlags.Instance))
+                    if (inner.FieldType == typeof(SimState) || inner.FieldType.IsArray)
+                        found.Add(t.Name + "." + p.Name + "." + inner.Name + " is writable one hop away");
             }
+            return found;
         }
     }
 }

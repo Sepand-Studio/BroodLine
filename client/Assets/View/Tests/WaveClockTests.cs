@@ -123,6 +123,49 @@ namespace Broodline.View.Tests
         }
 
         [Test]
+        public void OnTickFiresOnTheTerminatingStepToo()
+        {
+            // Step runs all eight phases and THEN returns false, so the final
+            // tick's mutations - the breach, the integrity drop - are in
+            // SimState whether or not the loop continues. Returning before
+            // onTick left the pair holding the second-to-last tick forever.
+            //
+            // Outcome.Ticks counts the steps that did NOT terminate, so the
+            // number of Step calls, and of fires, is one more than that. An
+            // equality rather than a Greater: off by one in either direction is
+            // the bug this is here for.
+            var clock = new WaveClock();
+            var runner = Runner();
+            int fired = 0;
+
+            for (int i = 0; i < 500 && !clock.Terminated; i++)
+                clock.Advance(runner, Tick30 * 6.5, () => fired++);
+
+            Assert.IsTrue(runner.Done);
+            Assert.AreEqual(runner.Outcome.Ticks + 1, fired);
+
+            // Pinned at a whole tick, so the final frame renders Current - the
+            // tick that just terminated - rather than lerping back to Previous.
+            Assert.AreEqual(1.0, clock.Alpha, 1e-9);
+        }
+
+        [Test]
+        public void BacklogIsVisibleWhereStepsLastFrameSaturates()
+        {
+            // StepsLastFrame stops at MaxCatchUpSteps by construction, so it
+            // reports 8 whether the debt is nine ticks or three hundred. The
+            // number that actually grows is the accumulator.
+            var clock = new WaveClock();
+            var runner = Runner();
+
+            clock.Advance(runner, Tick30 * 15.5, null);
+
+            Assert.AreEqual(WaveClock.MaxCatchUpSteps, clock.StepsLastFrame);
+            Assert.AreEqual(7.5, clock.BacklogTicks, 1e-6);
+            Assert.AreEqual(1.0, clock.Alpha, 1e-9, "Alpha must never exceed one tick");
+        }
+
+        [Test]
         public void TerminationStopsTheClockWithoutBurningFrames()
         {
             var clock = new WaveClock();

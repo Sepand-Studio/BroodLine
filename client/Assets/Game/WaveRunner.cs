@@ -27,6 +27,12 @@ namespace Broodline.Game
         private WaveHud _hud;
         private bool _written;
 
+        /// Allocated once, in Start. `() => _pair.Advance(_runner)` written
+        /// inline in Update is a fresh closure object every frame - about
+        /// 115 KB a minute at 60fps, handed to the collector for nothing, on
+        /// the path whose entire job is not to hitch.
+        private System.Action _onTick;
+
         /// Exposed so the scene builder can frame the camera on the lane
         /// without duplicating its length as a literal.
         public static int LaneTiles => Stats.LaneTiles;
@@ -45,6 +51,7 @@ namespace Broodline.Game
             _runner = new SimRunner(WaveDef.Wave6(), Lane.Defile(), Deployment(), Seed);
             _clock = new WaveClock();
             _pair = new WavePair(_runner);
+            _onTick = () => _pair.Advance(_runner);
 
             _view = gameObject.AddComponent<WaveView>();
             _view.Build(_runner);
@@ -88,8 +95,8 @@ namespace Broodline.Game
             // Time.deltaTime, NOT a fixed value. Feeding the accumulator the
             // real frame delta is the whole point - it is what makes a stall on
             // a real device produce catch-up steps rather than a slower wave.
-            _clock.Advance(_runner, Time.deltaTime, () => _pair.Advance(_runner));
-            _view.Render(_runner, _pair, _clock.Alpha);
+            _clock.Advance(_runner, Time.deltaTime, _onTick);
+            _view.Render(_pair, _clock.Alpha);
 
             if (_runner.Done && !_written) WriteArtifact();
         }

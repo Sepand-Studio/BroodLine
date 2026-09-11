@@ -11,6 +11,16 @@ namespace Broodline.Sim.Tests.Combat
             new SimRunner(WaveDef.Wave6(), Lane.Defile(),
                           GoldenTests.DeploymentWithoutChill(), GoldenTests.Seed);
 
+        /// A serialized record, WITHOUT running the wave.
+        ///
+        /// The record is complete at construction - SimRunner fills every field
+        /// from the wave, the lane and the deployment, and only TryRally ever
+        /// writes to it afterwards. Eight tests below were stepping a full
+        /// 540-tick wave to reach bytes the constructor had already produced.
+        /// Any test that needs the OUTCOME still runs the wave; these need the
+        /// codec.
+        private static byte[] Record() => Fresh().SerializeRecord();
+
         [Fact]
         public void RoundTrip_WithoutRally_ReproducesTheOutcome()
         {
@@ -63,17 +73,13 @@ namespace Broodline.Sim.Tests.Combat
             // description: bible section 4.9 gives every raid a replay and
             // there are two raids per player per day. Asserting it is what
             // stops someone reaching for JSON later.
-            var live = Fresh();
-            while (live.Step()) { }
-            Assert.InRange(live.SerializeRecord().Length, 1, 512);
+            Assert.InRange(Record().Length, 1, 512);
         }
 
         [Fact]
         public void DeserializeRejectsCorruption()
         {
-            var live = Fresh();
-            while (live.Step()) { }
-            var bytes = live.SerializeRecord();
+            var bytes = Record();
 
             Assert.Throws<ReplayFormatException>(() => Replay.Deserialize(new byte[] { 1, 2, 3 }));
 
@@ -89,9 +95,7 @@ namespace Broodline.Sim.Tests.Combat
             // engine derives it from Stats. Storing a value the simulation then
             // ignores is worse than not storing it, because the two can
             // disagree and nothing says so. So it is checked on load.
-            var live = Fresh();
-            while (live.Step()) { }
-            var record = Replay.Deserialize(live.SerializeRecord());
+            var record = Replay.Deserialize(Record());
 
             record.DeploymentHp[0] = 9999;
             Assert.Throws<ReplayFormatException>(() => record.Validate());
@@ -100,9 +104,7 @@ namespace Broodline.Sim.Tests.Combat
         [Fact]
         public void ValidateRejectsGeometryThatDisagreesWithTheTerrain()
         {
-            var live = Fresh();
-            while (live.Step()) { }
-            var record = Replay.Deserialize(live.SerializeRecord());
+            var record = Replay.Deserialize(Record());
 
             record.PocketCount = 4;          // Defile has 5
             Assert.Throws<ReplayFormatException>(() => record.Validate());
@@ -117,9 +119,7 @@ namespace Broodline.Sim.Tests.Combat
             // outcome, because 178956971 * 24 wraps into Lane's 120-entry
             // distance table; -1 and int.MaxValue threw IndexOutOfRangeException
             // out of the verifier instead of being rejected.
-            var live = Fresh();
-            while (live.Step()) { }
-            var bytes = live.SerializeRecord();
+            var bytes = Record();
 
             AssertRejected(bytes, r => r.Deployment[0].Pocket = 5, "pocket");
             AssertRejected(bytes, r => r.Deployment[0].Pocket = -1, "pocket");
@@ -151,9 +151,7 @@ namespace Broodline.Sim.Tests.Combat
             // catch (ReplayFormatException) - would let it escape, so the single
             // most likely single-field corruption crashed the verifier rather
             // than being rejected. Validate translates it at the boundary.
-            var live = Fresh();
-            while (live.Step()) { }
-            var record = Replay.Deserialize(live.SerializeRecord());
+            var record = Replay.Deserialize(Record());
 
             record.WaveId = 7;
             var e = Assert.Throws<ReplayFormatException>(() => record.Validate());
@@ -163,9 +161,7 @@ namespace Broodline.Sim.Tests.Combat
         [Fact]
         public void DeserializeRejectsTrailingData()
         {
-            var live = Fresh();
-            while (live.Step()) { }
-            var bytes = live.SerializeRecord();
+            var bytes = Record();
 
             var padded = new byte[bytes.Length + 8];
             Array.Copy(bytes, padded, bytes.Length);
@@ -181,9 +177,7 @@ namespace Broodline.Sim.Tests.Combat
             // re-simulate silently under the post-Rally state vector and return
             // a different hash, which on the server reads an honest player's
             // raid as a mismatch.
-            var live = Fresh();
-            while (live.Step()) { }
-            var record = Replay.Deserialize(live.SerializeRecord());
+            var record = Replay.Deserialize(Record());
 
             record.EngineVersion = "0.0.1-ancient";
             var e = Assert.Throws<ReplayFormatException>(() => record.Validate());
@@ -193,9 +187,147 @@ namespace Broodline.Sim.Tests.Combat
         [Fact]
         public void EngineVersionIsStored()
         {
+            Assert.Equal(SimVersion.Value, Fresh().ReadRecord().EngineVersion);
+        }
+
+        [Fact]
+        public void DeserializeValidatesTheFormatItProduces()
+        {
+            // There is no such thing as an unvalidated Replay object. Handing
+            // one back and trusting every caller to remember a second call is a
+            // rule, and the batch that HARDENED Validate wrote two callers that
+            // skipped it - one feeding the unbounded RallyCreature straight
+            // into TryRally.
+            //
+            // -7 is the case the old upper-bound-only check missed entirely: it
+            // read as "absent", so six distinct byte encodings validated to one
+            // outcome in a format whose job is to be canonical.
+            var record = Replay.Deserialize(Record());
+            record.RallyTick = -1;
+            record.RallyCreature = -7;      // pairs with "absent", and is not -1
+
+            var e = Assert.Throws<ReplayFormatException>(
+                () => Replay.Deserialize(record.Serialize()));
+            Assert.Contains("out of range", e.Message);
+        }
+
+        [Fact]
+        public void AFutureEngineRecordIsDiagnosedAsSupersededAndNotAsCorrupt()
+        {
+            // Every bound in Validate is THIS engine's width. Trait has two
+            // members and combat_engine names seven more, so a legitimate
+            // record from a later engine trips them - and checked last, as the
+            // version was, the diagnosis came back "creature 0 carries an
+            // unknown trait", which sends the reader after a forgery that is
+            // not there.
+            var record = Replay.Deserialize(Record());
+            record.EngineVersion = "9.9.9-later";
+            record.Deployment[0].Trait1 = (Trait)7;     // a Trait this engine does not have
+
+            var e = Assert.Throws<ReplayFormatException>(() => record.Validate());
+            Assert.Contains("stored outcome", e.Message);
+            Assert.DoesNotContain("trait", e.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.False(record.IsFromThisEngine);
+        }
+
+        [Fact]
+        public void TheSimulationRefusesEveryDeploymentTheCodecRefuses()
+        {
+            // The produce-vs-validate asymmetry, closed. The constructor
+            // bounded the array LENGTH and nothing else, so the engine could
+            // run a wave to completion and emit a record it could not read
+            // back: Pocket 178956971 simulated to Loss in 540 ticks because
+            // 178956971 * 24 wraps into Lane's 120-entry distance table, and
+            // Species 6, Trait 2, Tier 7 and Instinct 9 each produced a
+            // 212-byte record that Validate then rejected. On the verification
+            // path that reads as an honest player's raid being corrupt.
+            AssertBothRefuse(d => d[0].Pocket = 5);
+            AssertBothRefuse(d => d[0].Pocket = -1);
+            AssertBothRefuse(d => d[0].Pocket = 178956971);
+            AssertBothRefuse(d => d[0].Species = (Species)6);
+            AssertBothRefuse(d => d[0].Instinct = (Instinct)9);
+            AssertBothRefuse(d => d[0].Trait1 = (Trait)2);
+            AssertBothRefuse(d => d[0].Tier1 = 7);
+        }
+
+        private static void AssertBothRefuse(Action<CreatureSpec[]> corrupt)
+        {
+            var deployment = GoldenTests.DeploymentWithoutChill();
+            corrupt(deployment);
+
+            // The play path: refused before a single tick runs, and refused as
+            // a composition fault rather than as an IndexOutOfRangeException
+            // thrown out of the tick loop.
+            Assert.Throws<WaveCompositionException>(
+                () => new SimRunner(WaveDef.Wave6(), Lane.Defile(), deployment, GoldenTests.Seed));
+
+            // The codec path: the same rule, from the same list.
+            var record = Replay.Deserialize(Record());
+            for (int c = 0; c < deployment.Length; c++) record.Deployment[c] = deployment[c];
+            Assert.Throws<ReplayFormatException>(() => record.Validate());
+        }
+
+        [Fact]
+        public void EveryRallyTheEngineAcceptsProducesARecordItCanReadBack()
+        {
+            // The produce-vs-validate symmetry as a PROPERTY rather than as one
+            // case: whatever TryRally accepts, Validate must accept back. The
+            // rally fields had the same asymmetry the deployment fields did -
+            // Validate rejects a rally at or past the hard cap on the grounds
+            // that no run reaches it, while TryRally would happily record one
+            // there - so this sweeps the whole reachable range instead of
+            // pinning the single tick that happened to be wrong.
+            for (int tick = 0; tick <= 600; tick += 29)
+            {
+                var live = Fresh();
+                while (live.Tick < tick && live.Step()) { }
+                if (live.Done) break;
+                if (!live.TryRally(0)) continue;
+
+                // Must not throw: Deserialize validates the format, Validate
+                // the rest.
+                Replay.Deserialize(live.SerializeRecord()).Validate();
+            }
+        }
+
+        [Fact]
+        public void TryRallyAfterTheRunEndsIsRefused()
+        {
             var live = Fresh();
             while (live.Step()) { }
-            Assert.Equal(SimVersion.Value, live.ReadRecord().EngineVersion);
+
+            Assert.False(live.TryRally(0));
+            Assert.Equal(-1, live.ReadRecord().RallyTick);
+        }
+
+        [Fact]
+        public void CopyToleratesARecordThatWasNotDeserialized()
+        {
+            // Copy is the only method that dereferenced both arrays without a
+            // check, so a hand-built Replay - which the public settable fields
+            // invite - raised a bare NullReferenceException from inside a
+            // method called Copy.
+            var copy = new Replay().Copy();
+            Assert.Null(copy.Deployment);
+            Assert.Null(copy.DeploymentHp);
+        }
+
+        [Fact]
+        public void ReadRecordHandsOutACopyAndNotTheRecord()
+        {
+            // SerializeRecord returns bytes precisely so a caller cannot stamp
+            // a rally onto a run that never had one. ReadRecord returns an
+            // object, so it owes the same guarantee by copying.
+            var live = Fresh();
+            var first = live.ReadRecord();
+            first.RallyTick = 400;
+            first.RallyCreature = 1;
+            first.Deployment[0].Pocket = 3;
+
+            var second = live.ReadRecord();
+            Assert.Equal(-1, second.RallyTick);
+            Assert.Equal(-1, second.RallyCreature);
+            Assert.Equal(0, second.Deployment[0].Pocket);
         }
     }
 }

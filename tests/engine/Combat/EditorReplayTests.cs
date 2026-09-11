@@ -16,8 +16,8 @@ namespace Broodline.Sim.Tests.Combat
     /// in general - and separating them means bisecting on hardware. With it,
     /// that question is already answered before the device is involved.
     ///
-    /// Unlike DeviceReplayTests this never skips. The artifact is tracked, so
-    /// it runs everywhere, including CI.
+    /// The artifact is tracked, so this runs everywhere, including CI - there
+    /// is no skip and no hardware gate.
     ///
     /// Captured 2026-09-11 from Assets/Scenes/Wave.unity in the Unity 6 Editor.
     /// The tap landed at tick 78, twelve ticks before the Courser spawns - but
@@ -31,27 +31,31 @@ namespace Broodline.Sim.Tests.Combat
         private readonly ITestOutputHelper _out;
         public EditorReplayTests(ITestOutputHelper output) { _out = output; }
 
-        private static Replay Record() =>
-            Replay.Deserialize(File.ReadAllBytes(ReplayArtifact.Require(ReplayArtifact.EditorBin)));
+        private static Replay Record() => ReplayArtifact.Read(ReplayArtifact.EditorBin);
+
+        /// True when this engine can still re-simulate the capture at all.
+        ///
+        /// solo_execution section 9.4: a replay recorded under a superseded
+        /// engine renders its stored outcome and is NOT re-simulated. Every
+        /// test in this file that re-runs the artifact is therefore a claim
+        /// about a PARTICULAR engine version, and says so rather than failing
+        /// red the moment SimVersion moves - see ReplayArtifact.CapturedUnder
+        /// for why that distinction is what makes a bump affordable.
+        private static bool Current => ReplayArtifact.AreCurrent;
 
         [Fact]
         public void TheEditorRunReSimulatesToTheSameHash()
         {
             var record = Record();
-            record.Validate();
 
-            // solo_execution section 9.4: a replay recorded under a superseded
-            // engine renders its stored outcome and is NOT re-simulated. That
-            // rule is what keeps this test honest across a balance change -
-            // re-running a stale record would compare two different games and
-            // report the difference as a bug.
-            //
-            // NOTE, and it is a real gap rather than a caution: SimVersion is
-            // not bumped when behaviour changes. It was still 0.1.0 after Rally
-            // moved every hash in the project. So this guard cannot currently
-            // fire, and section 9.4's mechanism is inert. Tracked as a decision
-            // owed in the Phase 3 plan.
-            Assert.Equal(SimVersion.Value, record.EngineVersion);
+            if (!Current)
+            {
+                var refused = Assert.Throws<ReplayFormatException>(
+                    () => Broodline.Sim.Combat.Sim.Replay(record));
+                Assert.Contains(record.EngineVersion, refused.Message);
+                _out.WriteLine(ReplayArtifact.ReCaptureOwed);
+                return;
+            }
 
             var lines = File.ReadAllLines(ReplayArtifact.Require(ReplayArtifact.EditorOutcome));
             Assert.True(lines.Length >= 4,
@@ -117,6 +121,8 @@ namespace Broodline.Sim.Tests.Combat
             // counter system, so a Loss here is the wave working. The diagnosis
             // is the point: ACCESS false means the trait was absent, not
             // mis-tiered and not mis-placed.
+            if (!Current) { _out.WriteLine(ReplayArtifact.ReCaptureOwed); return; }
+
             var replayed = Broodline.Sim.Combat.Sim.Replay(Record());
 
             Assert.Equal(Result.Loss, replayed.Result);

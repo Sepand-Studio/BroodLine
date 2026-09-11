@@ -1,14 +1,14 @@
-using System;
 using System.IO;
 using Xunit;
+using Xunit.Abstractions;
 using Broodline.Sim;
 using Broodline.Sim.Combat;
 
 namespace Broodline.Sim.Tests.Combat
 {
     /// Locates a replay artifact captured from a real run through the
-    /// renderer. Shared by the device tests, the Editor tests and the skip
-    /// attribute, so there is one definition of where these live.
+    /// renderer. Shared by the device tests and the Editor tests, so there is
+    /// one definition of where these live.
     internal static class ReplayArtifact
     {
         public const string DeviceBin = "device-replay.bin";
@@ -16,19 +16,42 @@ namespace Broodline.Sim.Tests.Combat
         public const string EditorBin = "editor-replay.bin";
         public const string EditorOutcome = "editor-replay-outcome.txt";
 
+        /// The engine version the two tracked captures were recorded under.
+        ///
+        /// This constant is the whole point. solo_execution 9.4 supersedes a
+        /// replay when the engine version moves, and Replay.Validate enforces
+        /// that - correctly. But the round-trip tests below re-simulate tracked
+        /// captures, so enforcing it without this turned a SimVersion bump into
+        /// four red tests whose only repair was an iPhone, a played wave and a
+        /// correctly-timed tap. That made "never bump SimVersion" the rational
+        /// choice, and left 9.4 permanently inert - the exact outcome the
+        /// enforcement was added to prevent.
+        ///
+        /// So a bump is a TWO-LINE change: SimVersion.Value, and this. The
+        /// suite then asserts the supersession PATH instead of the round trip,
+        /// and says in its own failure message that fresh captures are owed.
+        /// TheTrackedCapturesSayWhatTheyWereRecordedUnder keeps this honest -
+        /// it reads the version out of the bytes, so the constant cannot
+        /// disagree with the files it describes.
+        public const string CapturedUnder = "0.1.0";
+
+        /// Whether this engine can still re-simulate the tracked captures.
+        public static bool AreCurrent => CapturedUnder == SimVersion.Value;
+
+        /// What is owed once they are not.
+        public const string ReCaptureOwed =
+            "The tracked captures were recorded under engine " + CapturedUnder +
+            " and this engine is a different version, so solo_execution 9.4 supersedes them and " +
+            "the renderer round-trip is NOT being proven right now. Re-capture per Task 10 of the " +
+            "Phase 3 plan - play Assets/Scenes/Wave.unity in the Editor and on device, with a tap " +
+            "between ticks 184 and 240 - then move ReplayArtifact.CapturedUnder to match.";
+
         public static string Path(string name)
         {
-            var dir = new DirectoryInfo(AppContext.BaseDirectory);
-            while (dir != null && !File.Exists(System.IO.Path.Combine(dir.FullName, "Broodline.sln")))
-                dir = dir.Parent;
-            if (dir == null) return null;
-            return System.IO.Path.Combine(dir.FullName, "implementation", "results", name);
-        }
-
-        public static bool Present(string name)
-        {
-            var p = Path(name);
-            return p != null && File.Exists(p);
+            var root = TestPaths.RepoRootOrNull();
+            return root == null
+                ? null
+                : System.IO.Path.Combine(root, "implementation", "results", name);
         }
 
         /// Path or a diagnosable failure. Returning null let File.ReadAllBytes
@@ -36,12 +59,13 @@ namespace Broodline.Sim.Tests.Combat
         public static string Require(string name)
         {
             var p = Path(name);
-            Assert.True(p != null,
-                "could not locate Broodline.sln above " + AppContext.BaseDirectory +
-                " - the artifact path cannot be resolved");
+            Assert.True(p != null, "could not locate the repository root - the artifact path cannot be resolved");
             Assert.True(File.Exists(p), "missing tracked artifact: implementation/results/" + name);
             return p;
         }
+
+        public static Replay Read(string name) =>
+            Replay.Deserialize(File.ReadAllBytes(Require(name)));
     }
 
     /// The artifacts are TRACKED, so absence means a committed file was
@@ -66,12 +90,28 @@ namespace Broodline.Sim.Tests.Combat
             })
             {
                 var path = ReplayArtifact.Path(name);
-                Assert.True(path != null, "could not locate the repository root from " + AppContext.BaseDirectory);
+                Assert.True(path != null, "could not locate the repository root");
                 Assert.True(File.Exists(path),
                     "implementation/results/" + name + " is missing. It is tracked, so this means a " +
                     "committed artifact was deleted rather than that you lack the device. Restore it " +
                     "with git checkout, or re-capture it per Task 10 of the Phase 3 plan.");
             }
+        }
+
+        [Fact]
+        public void TheTrackedCapturesSayWhatTheyWereRecordedUnder()
+        {
+            // Both files, read from the bytes. Without this, CapturedUnder is a
+            // claim - and a claim is what a version bump would edit first,
+            // because editing it is what makes the suite green again.
+            //
+            // It also catches the half-done re-capture: replace one artifact
+            // and not the other and this fails, where every test below would
+            // keep passing on the stale one.
+            Assert.Equal(ReplayArtifact.CapturedUnder,
+                ReplayArtifact.Read(ReplayArtifact.DeviceBin).EngineVersion);
+            Assert.Equal(ReplayArtifact.CapturedUnder,
+                ReplayArtifact.Read(ReplayArtifact.EditorBin).EngineVersion);
         }
     }
 
@@ -86,11 +126,30 @@ namespace Broodline.Sim.Tests.Combat
     /// implies the other.
     public class DeviceReplayTests
     {
+        private readonly ITestOutputHelper _out;
+        public DeviceReplayTests(ITestOutputHelper output) { _out = output; }
+
         [Fact]
         public void TheDeviceRunReSimulatesToTheSameHash()
         {
-            var record = Replay.Deserialize(File.ReadAllBytes(ReplayArtifact.Require(ReplayArtifact.DeviceBin)));
-            record.Validate();
+            var record = ReplayArtifact.Read(ReplayArtifact.DeviceBin);
+
+            if (!ReplayArtifact.AreCurrent)
+            {
+                // solo_execution 9.4, asserted rather than assumed: a
+                // superseded record is REFUSED by the re-simulation path, and
+                // the refusal names the version so a viewer can render the
+                // stored outcome with a notice instead.
+                var e = Assert.Throws<ReplayFormatException>(
+                    () => Broodline.Sim.Combat.Sim.Replay(record));
+                Assert.Contains(record.EngineVersion, e.Message);
+
+                // Green here does NOT mean the done-when still holds. It is
+                // said out loud rather than left implicit, and it is the
+                // deliberate cost of making a version bump affordable.
+                _out.WriteLine(ReplayArtifact.ReCaptureOwed);
+                return;
+            }
 
             var lines = File.ReadAllLines(ReplayArtifact.Require(ReplayArtifact.DeviceOutcome));
             Assert.True(lines.Length >= 4,
@@ -130,7 +189,11 @@ namespace Broodline.Sim.Tests.Combat
             // So this asserts the capture is WORTH having: re-simulate with the
             // recorded rally and without it, and require the damage landed to
             // differ. That is Attacks.IntervalTicks having executed on device.
-            var record = Replay.Deserialize(File.ReadAllBytes(ReplayArtifact.Require(ReplayArtifact.DeviceBin)));
+            //
+            // The rally fields are bounded before they get here - Deserialize
+            // validates the format it produces, so RallyCreature is in range or
+            // there is no Replay object at all.
+            var record = ReplayArtifact.Read(ReplayArtifact.DeviceBin);
             Assert.True(record.RallyTick >= 0,
                 "the device capture records no Rally at all - re-capture with a tap, per Task 10");
 
@@ -162,15 +225,5 @@ namespace Broodline.Sim.Tests.Combat
             return last;
         }
 
-        [Fact]
-        public void TheDeviceRunWasRecordedByThisEngineVersion()
-        {
-            // solo_execution section 9.4: a replay from a superseded engine
-            // shows its recorded outcome and is not re-simulated. If this fails,
-            // the test above is comparing across a balance change and its
-            // verdict means nothing.
-            var record = Replay.Deserialize(File.ReadAllBytes(ReplayArtifact.Require(ReplayArtifact.DeviceBin)));
-            Assert.Equal(SimVersion.Value, record.EngineVersion);
-        }
     }
 }

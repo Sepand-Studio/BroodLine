@@ -57,11 +57,6 @@ namespace Broodline.Sim.Combat
             }
         }
 
-        /// Everything the record asserts about itself, checked against what
-        /// this engine would build. A replay that disagrees is rejected rather
-        /// than re-simulated into something else - the same treatment
-        /// WaveDef.Validate gives a composition violation, and for the same
-        /// reason.
         /// Whether this engine can re-simulate the record at all.
         ///
         /// solo_execution 9.4 wants a superseded replay to render its stored
@@ -72,14 +67,23 @@ namespace Broodline.Sim.Combat
         /// notice, and never call Sim.Replay.
         public bool IsFromThisEngine => EngineVersion == SimVersion.Value;
 
-        public void Validate()
+        /// Self-consistency, in terms no engine version can disagree about.
+        ///
+        /// This half runs inside Deserialize, so there is no such thing as an
+        /// unvalidated Replay object for a caller to forget about. The split
+        /// exists because the OTHER half - enum widths, the authored wave, the
+        /// lane's geometry, the HP a species starts at - is all THIS engine's,
+        /// and a record from a later one legitimately disagrees with every bit
+        /// of it. Running those against a future record reports "creature 0
+        /// carries an unknown trait", which sends the reader after a forgery
+        /// that is not there. That diagnosis belongs to Validate, behind the
+        /// version check.
+        ///
+        /// What is here is what protects the READER: array agreement, the
+        /// deployment cap Deserialize already enforces, and rally indices,
+        /// which callers feed straight to TryRally.
+        public void ValidateFormat()
         {
-            // EVERY field here arrives from untrusted bytes. Sim.Replay is the
-            // server verification path, so a field that is read but not bounded
-            // is not a cosmetic gap - it is either a crash in the verifier or,
-            // worse, a forged run that validates. Both were demonstrated before
-            // this method was widened: Pocket 178956971 passed and SIMULATED,
-            // because 178956971 * 24 wraps into Lane's 120-entry distance table.
             if (Deployment == null || DeploymentHp == null ||
                 Deployment.Length != DeploymentHp.Length)
                 throw new ReplayFormatException("deployment and HP arrays disagree");
@@ -88,17 +92,61 @@ namespace Broodline.Sim.Combat
                 throw new ReplayFormatException(
                     "deployment of " + Deployment.Length + " exceeds the cap of " + Stats.DeploymentCap);
 
+            if (RallyTick < -1) throw new ReplayFormatException("negative rally tick");
+            if ((RallyTick < 0) != (RallyCreature < 0))
+                throw new ReplayFormatException("rally tick and creature disagree about being absent");
+
+            // BOTH bounds. Only the upper one was checked, so -7 and -1 and
+            // -2000000000 all read as "absent" - six distinct byte encodings
+            // validating to one outcome, in a format whose whole job is to be
+            // the canonical description of a run.
+            if (RallyCreature < -1 || RallyCreature >= Deployment.Length)
+                throw new ReplayFormatException("rally names creature " + RallyCreature + ", out of range");
+        }
+
+        /// Everything the record asserts about itself, checked against what
+        /// THIS engine would build. A replay that disagrees is rejected rather
+        /// than re-simulated into something else - the same treatment
+        /// WaveDef.Validate gives a composition violation, and for the same
+        /// reason.
+        public void Validate() => Validate(out _, out _);
+
+        /// Validate, handing back the wave and lane it had to build anyway.
+        ///
+        /// Sim.Replay needs both immediately afterwards and used to construct a
+        /// second copy of each, which is a WaveDef, a Lane and its 120-entry
+        /// distance table rebuilt per verification for nothing.
+        internal void Validate(out WaveDef wave, out Lane lane)
+        {
+            // FIRST, before any bound below. Every one of them is this engine's
+            // width, and a legitimate record from a LATER engine - one carrying
+            // the seven Traits combat_engine names - trips them. Checked last,
+            // as it was, an out-of-range Species or Trait or wave id on a
+            // future record was reported as corruption; the version is the
+            // honest diagnosis and it is available before anything is parsed
+            // against local content.
+            //
+            // solo_execution 9.4: "a replay recorded under an earlier engine
+            // version renders its stored outcome and is not re-simulated."
+            // Callers wanting that behaviour branch on IsFromThisEngine rather
+            // than catching this.
+            if (!IsFromThisEngine)
+                throw new ReplayFormatException(
+                    "replay was recorded by engine " + EngineVersion + ", this engine is " +
+                    SimVersion.Value + " - show its stored outcome rather than re-simulating it");
+
+            ValidateFormat();
+
             // ForId throws WaveCompositionException, which is a SIBLING of this
             // class's exception rather than a subtype. Every other rejection
             // here is a ReplayFormatException and callers catch that, so an
             // unknown wave id has to be translated at this boundary or it
             // escapes a correctly-written handler.
-            WaveDef wave;
             try { wave = WaveDef.ForId(WaveId); }
             catch (WaveCompositionException e)
             { throw new ReplayFormatException("wave id " + WaveId + " is not authored: " + e.Message); }
 
-            var lane = BuildLane();
+            lane = BuildLane();
             if (LaneTiles != lane.Tiles)
                 throw new ReplayFormatException(
                     "lane length " + LaneTiles + " disagrees with " + Terrain + "'s " + lane.Tiles);
@@ -108,80 +156,38 @@ namespace Broodline.Sim.Combat
             if (LaneCount != wave.LaneCount)
                 throw new ReplayFormatException("lane count disagrees with the authored wave");
 
+            // ONE definition of what a simulatable deployment is, shared with
+            // the SimRunner constructor. Enum casts in Deserialize are
+            // unchecked by design - C# permits any int - so range is
+            // established here, and the play path establishes it from the same
+            // source rather than from a second, shorter list.
+            var problem = Deployments.Problem(Deployment, lane);
+            if (problem != null) throw new ReplayFormatException(problem);
+
             for (int c = 0; c < Deployment.Length; c++)
             {
-                var d = Deployment[c];
-
-                // Enum casts in Deserialize are unchecked by design - C# permits
-                // any int - so range is established here. Species first, because
-                // Stats.CreatureHp returns 0 for an unknown one, which would
-                // turn the HP cross-check below into a no-op and let a forged
-                // record delete a creature by starting it at 0 HP.
-                if ((int)d.Species < 0 || (int)d.Species >= SpeciesCount)
-                    throw new ReplayFormatException("creature " + c + " has species " + (int)d.Species);
-                if ((int)d.Instinct < 0 || (int)d.Instinct >= InstinctCount)
-                    throw new ReplayFormatException("creature " + c + " has instinct " + (int)d.Instinct);
-                if ((int)d.Trait1 < 0 || (int)d.Trait1 >= TraitCount ||
-                    (int)d.Trait2 < 0 || (int)d.Trait2 >= TraitCount)
-                    throw new ReplayFormatException("creature " + c + " carries an unknown trait");
-
-                if (d.Pocket < 0 || d.Pocket >= lane.PocketCount)
-                    throw new ReplayFormatException(
-                        "creature " + c + " is in pocket " + d.Pocket +
-                        ", outside " + Terrain + "'s 0.." + (lane.PocketCount - 1));
-
-                if (d.Tier1 < 0 || d.Tier1 > 3 || d.Tier2 < 0 || d.Tier2 > 3)
-                    throw new ReplayFormatException("creature " + c + " has a coverage tier outside 0..3");
-
-                int expected = Stats.CreatureHp(d.Species);
+                int expected = Stats.CreatureHp(Deployment[c].Species);
                 if (DeploymentHp[c] != expected)
                     throw new ReplayFormatException(
                         "creature " + c + " stores HP " + DeploymentHp[c] +
-                        " but " + d.Species + " starts at " + expected);
+                        " but " + Deployment[c].Species + " starts at " + expected);
             }
 
-            if (RallyTick < -1) throw new ReplayFormatException("negative rally tick");
-            if ((RallyTick < 0) != (RallyCreature < 0))
-                throw new ReplayFormatException("rally tick and creature disagree about being absent");
-            if (RallyCreature >= Deployment.Length)
-                throw new ReplayFormatException("rally names creature " + RallyCreature + ", out of range");
             if (RallyTick >= Stats.HardTickCap)
                 throw new ReplayFormatException(
                     "rally at tick " + RallyTick + ", at or past the hard cap of " + Stats.HardTickCap +
                     " - no run reaches it, so the input could never have been consumed");
-
-            // solo_execution 9.4: "a replay recorded under an earlier engine
-            // version renders its stored outcome and is not re-simulated." That
-            // rule had no implementation - the field was written and never
-            // compared - so a replay from a superseded engine re-simulated
-            // silently into a different outcome, which on the server path reads
-            // an honest player's raid as a mismatch. This is where it becomes
-            // real. Callers wanting the stored-outcome-with-a-notice behaviour
-            // catch this and render rather than re-running.
-            if (!IsFromThisEngine)
-                throw new ReplayFormatException(
-                    "replay was recorded by engine " + EngineVersion + ", this engine is " +
-                    SimVersion.Value + " - show its stored outcome rather than re-simulating it");
         }
-
-        // Enum widths. System.Enum.IsDefined allocates and reflects, and
-        // Convert.ToInt32 boxes; the enums are contiguous from 0, so a bare int
-        // comparison is cheaper and clearer about what it enforces.
-        //
-        // These are INTERNAL, not private, because EnumWidthTests asserts each
-        // against the enum it describes. An earlier revision of this comment
-        // claimed such a test existed when it did not - and the cost of that
-        // being false is not cosmetic: add a Trait (seven are coming) without
-        // moving TraitCount and every replay carrying it is rejected as
-        // CORRUPT rather than as unsupported, which sends the reader after a
-        // forgery that is not there.
-        internal const int SpeciesCount = 6;
-        internal const int InstinctCount = 6;
-        internal const int TraitCount = 2;     // None, Chill
 
         /// A deep copy. Deployment and DeploymentHp are arrays, so a shallow
         /// field copy would leave two Replays sharing them - which is exactly
         /// the aliasing SimRunner.ReadRecord exists to prevent.
+        ///
+        /// Null-tolerant on both arrays. Deserialize can no longer produce a
+        /// Replay with either one null, but the fields are public and settable
+        /// and this is the only method that dereferences them without a check -
+        /// a hand-built Replay copied for a test raised a bare
+        /// NullReferenceException from inside a method named Copy.
         public Replay Copy()
         {
             return new Replay
@@ -192,8 +198,8 @@ namespace Broodline.Sim.Combat
                 LaneCount = LaneCount,
                 PocketCount = PocketCount,
                 LaneTiles = LaneTiles,
-                Deployment = (CreatureSpec[])Deployment.Clone(),
-                DeploymentHp = (int[])DeploymentHp.Clone(),
+                Deployment = (CreatureSpec[])Deployment?.Clone(),
+                DeploymentHp = (int[])DeploymentHp?.Clone(),
                 RallyTick = RallyTick,
                 RallyCreature = RallyCreature,
                 EngineVersion = EngineVersion
@@ -302,6 +308,14 @@ namespace Broodline.Sim.Combat
                 throw new ReplayFormatException(
                     "record is " + i + " bytes but the buffer is " + b.Length + " - trailing data");
 
+            // An unvalidated Replay is not a thing this returns. Handing one
+            // back and trusting every caller to remember a second call is a
+            // rule, and the batch that HARDENED Validate wrote two new callers
+            // that skipped it - one of which fed the unbounded RallyCreature
+            // straight into TryRally. The engine-specific half stays in
+            // Validate, where a superseded record is diagnosed as superseded
+            // rather than as corrupt.
+            r.ValidateFormat();
             return r;
         }
 

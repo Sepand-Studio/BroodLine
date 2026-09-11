@@ -38,14 +38,21 @@ namespace Broodline.Sim.Combat
         {
             wave.Validate();
 
-            // The cap belongs here, beside the wave's own invariants. Replay
-            // rejected >5 on deserialize while the simulation accepted it, so
+            // The deployment's invariants belong here, beside the wave's own.
+            // Replay bounded every field of a deserialized deployment while the
+            // simulation bounded exactly one of them - the array length - so
             // the engine could run a wave to completion and write a record it
-            // could not itself read back - demonstrated at 6 creatures: Loss in
-            // 540 ticks, a 244-byte record, and ReplayFormatException on load.
-            if (deployment.Length > Stats.DeploymentCap)
-                throw new WaveCompositionException(
-                    "deployment of " + deployment.Length + " exceeds the cap of " + Stats.DeploymentCap);
+            // could not itself read back. Measured with a single Vetch: Pocket
+            // 178956971 simulated to Loss in 540 ticks because 178956971 * 24
+            // wraps into Lane's 120-entry distance table, Pocket 5 threw
+            // IndexOutOfRangeException out of the tick loop, and Species 6,
+            // Trait 2, Tier 7 and Instinct 9 each emitted a 212-byte record
+            // that Validate then rejected.
+            //
+            // ONE list, shared with Replay.Validate. A second, shorter copy of
+            // the same rules is how the asymmetry arose in the first place.
+            var problem = Deployments.Problem(deployment, lane);
+            if (problem != null) throw new WaveCompositionException(problem);
 
             _s = new SimState(wave, lane, deployment);
             _log = new Breach[wave.Spawns.Length];
@@ -113,6 +120,53 @@ namespace Broodline.Sim.Combat
         public ReadOnlySpan<int> CreatureRallyUntil => _s.CreatureRallyUntil;
         public ReadOnlySpan<int> CreatureNextAttackAt => _s.CreatureNextAttackAt;
         public bool RallyUsed => _rallyUsed;
+
+        /// Raiders on the board right now - spawned, not yet dead or breached.
+        ///
+        /// client_architecture section 4 keys every rung of the degradation
+        /// ladder off a live entity count, and the HUD was deriving one as
+        /// RaiderCount + CreatureCount. RaiderCount is the number SPAWNED, so
+        /// that number counts corpses: it never goes down, and the ladder would
+        /// have degraded on a board that had emptied.
+        public int AliveRaiderCount
+        {
+            get
+            {
+                int n = 0;
+                for (int r = 0; r < _s.RaiderCount; r++) if (_s.RaiderAlive[r]) n++;
+                return n;
+            }
+        }
+
+        public int AliveCreatureCount
+        {
+            get
+            {
+                int n = 0;
+                for (int c = 0; c < _s.CreatureCount; c++) if (_s.CreatureHp[c] > 0) n++;
+                return n;
+            }
+        }
+
+        /// Whether raider r reached the Ark on the CURRENT tick.
+        ///
+        /// Phases.Breach deducts integrity and clears RaiderAlive in the same
+        /// breath, so by the time anything outside the loop can look, a raider
+        /// that BREACHED is indistinguishable from one that was killed - and
+        /// both renderers gate on RaiderAlive. The breach frame is the one
+        /// frame wave 6 exists to show, and it was never drawn: the Courser
+        /// simply vanished a tile short of the Ark while the HUD printed Loss.
+        ///
+        /// An accessor over the breach log rather than a second RaiderAlive-
+        /// shaped array, because the log already records exactly this and
+        /// folding a new array into the run hash would move every golden in the
+        /// project for a rendering concern.
+        public bool RaiderBreachedThisTick(int raider)
+        {
+            for (int b = 0; b < _breachCount; b++)
+                if (_log[b].Raider == raider && _log[b].Tick == _s.Tick) return true;
+            return false;
+        }
 
         /// Ticks of Rally left on a creature, 0 when it is not rallied.
         ///
@@ -210,6 +264,12 @@ namespace Broodline.Sim.Combat
         {
             if (_done) return false;
             if (_rallyUsed) return false;
+            // At the cap, the NEXT Step terminates before running a phase, so an
+            // input accepted here is written to the record and never consumed -
+            // and Replay.Validate rejects exactly that record on the grounds
+            // that no run reaches the cap. The producer has to agree with the
+            // validator or the engine writes records it cannot read back.
+            if (_s.Tick >= Stats.HardTickCap) return false;
             if (creatureId < 0 || creatureId >= _s.CreatureCount) return false;
             // CreatureCanAct, not CreatureAlive. A creature repositioning after
             // Skittish has CreatureBusyUntil set and is skipped by Phases.Attack
@@ -240,29 +300,20 @@ namespace Broodline.Sim.Combat
             _hash.Add((int)result);
             _hash.Add(_s.Integrity);
 
-            // A TRIMMED COPY, not _log. Outcome is a struct, so C# refuses
-            // `runner.Outcome.Ticks = 5` and the type reads as immutable - but
-            // `runner.Outcome.Breaches[0] = default` writes straight through the
-            // copied reference into the runner's live buffer, and two Outcome
-            // copies handed to different consumers share one array.
-            //
-            // Trimming to BreachCount also retires the hazard Outcome.cs warns
-            // about: the buffer is the wave's spawn capacity, so a caller
-            // iterating Breaches.Length instead of BreachCount renders zeroed
-            // trailing entries, and a zeroed Breach reads as "the trait was
-            // absent" on a cleared wave. Now the two lengths agree.
+            // A TRIMMED COPY, not _log, so an Outcome does not hold a handle on
+            // the runner's live buffer. Trimming alone was the PREVIOUS attempt
+            // at this and it fixed nothing observable: Outcome is copied by
+            // value but the array reference inside it is not, so
+            // `runner.Outcome.Breaches[0] = default` still wrote through into
+            // the stored outcome. Outcome now keeps the buffer private and
+            // exposes ReadOnlySpan, which makes that line a compile error; the
+            // copy here is what keeps the claim true for the runner's own
+            // buffer as well.
             var breaches = new Breach[_breachCount];
             for (int b = 0; b < _breachCount; b++) breaches[b] = _log[b];
 
-            _outcome = new Outcome
-            {
-                Result = result,
-                Ticks = _s.Tick,
-                IntegrityRemaining = _s.Integrity,
-                Breaches = breaches,
-                BreachCount = _breachCount,
-                Hash = _hash.Value
-            };
+            _outcome = new Outcome(result, _s.Tick, _s.Integrity,
+                                   breaches, _breachCount, _hash.Value);
             _done = true;
         }
 

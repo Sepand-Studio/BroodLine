@@ -43,15 +43,26 @@ namespace Broodline.Sim.Combat
         {
             Family = family;
             Tiles = tiles;
-            _pocketTiles = pocketTiles;
-            PocketCount = pocketTiles.Length;
+
+            // CLONED, not aliased. The span above cannot be written THROUGH,
+            // but storing the caller's reference left the caller holding a
+            // writable handle to the same memory - so `a[0] = 23` after
+            // construction moved PocketTiles[0] to 23 while _distSq stayed
+            // baked at tile 6, which is precisely the "geometry and range
+            // checks silently disagreeing" the property claims to prevent. At
+            // a[0] = 1000000, Phases feeds it to DistSq and the tick loop
+            // throws IndexOutOfRangeException.
+            //
+            // Once per lane, which is once per run.
+            _pocketTiles = (int[])pocketTiles.Clone();
+            PocketCount = _pocketTiles.Length;
 
             _distSq = new int[PocketCount * tiles];
             for (int p = 0; p < PocketCount; p++)
             {
                 for (int t = 0; t < tiles; t++)
                 {
-                    int along = pocketTiles[p] - t;
+                    int along = _pocketTiles[p] - t;
                     _distSq[p * tiles + t] = along * along + PerpendicularOffsetSq;
                 }
             }

@@ -25,14 +25,23 @@ namespace Broodline.Sim.Combat
         public int Id { get; }
         public int Integrity { get; }
         public int LaneCount { get; }
-        public SpawnEntry[] Spawns { get; }
+
+        private readonly SpawnEntry[] _spawns;
+
+        /// The authored timeline. ReadOnlySpan over a CLONE, for the reason
+        /// Lane.PocketTiles gives: a get-only array property is only read-only
+        /// about the reference. Validate runs once at construction, so a caller
+        /// that kept its array and edited an entry afterwards moved a verified
+        /// wave out from under its own verification - mutating Spawns[0].Tick
+        /// mid-run took a 540-tick outcome to 650.
+        public ReadOnlySpan<SpawnEntry> Spawns => _spawns;
 
         public WaveDef(int id, int integrity, int laneCount, SpawnEntry[] spawns)
         {
             Id = id;
             Integrity = integrity;
             LaneCount = laneCount;
-            Spawns = spawns;
+            _spawns = (SpawnEntry[])spawns.Clone();
         }
 
         /// Wave 6, from broodline_waves_01_12.md section 3:

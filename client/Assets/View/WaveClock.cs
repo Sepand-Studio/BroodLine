@@ -44,11 +44,11 @@ namespace Broodline.View
         /// overload that debt grows: measured at 22 ticks after one frame and
         /// 352 after fifteen. Handing that out raw invites a consumer to
         /// EXTRAPOLATE past Current instead of interpolating toward it.
-        /// WaveView clamped defensively; the clamp belongs here, where the
-        /// documented range is promised.
         ///
-        /// The debt itself is visible as StepsLastFrame, which is the honest
-        /// place to read "this frame is behind".
+        /// The clamp lives HERE, where the documented range is promised, and
+        /// nowhere else. It was here and in WaveView and in WaveHud while this
+        /// comment claimed it had been consolidated - three copies, of which
+        /// two were the ones the consolidation was supposed to remove.
         public double Alpha
         {
             get
@@ -57,6 +57,15 @@ namespace Broodline.View
                 return a > 1.0 ? 1.0 : a;
             }
         }
+
+        /// Unpaid simulation debt, in ticks. This is the honest place to read
+        /// "this frame is behind".
+        ///
+        /// StepsLastFrame is not, and this comment used to say it was:
+        /// StepsLastFrame saturates at MaxCatchUpSteps by construction, so it
+        /// reports 8 whether the backlog is nine ticks or 352. The number that
+        /// grows is the accumulator, which is what Alpha is clamping away.
+        public double BacklogTicks => _accumulator / TickSeconds;
 
         public int StepsLastFrame { get; private set; }
         public bool Terminated { get; private set; }
@@ -90,8 +99,15 @@ namespace Broodline.View
                 // SimState whether or not the loop continues. Returning before
                 // this left WavePair holding the second-to-last tick forever:
                 // the Courser froze visibly one tile short of the Ark, still
-                // alive, while the HUD printed Loss. The breach frame is the one
-                // frame wave 6 exists to show, and it was the one never drawn.
+                // alive, while the HUD printed Loss.
+                //
+                // NECESSARY AND NOT SUFFICIENT, which the first version of this
+                // comment got wrong: capturing the terminating tick makes the
+                // breach available, and Phases.Breach clears RaiderAlive on that
+                // same tick, so both renderers still drew the Courser as gone
+                // rather than as breaching. What finished the job is
+                // SimRunner.RaiderBreachedThisTick, read through
+                // WaveSnapshot.RaiderVisible.
                 StepsLastFrame++;
                 onTick?.Invoke();
 

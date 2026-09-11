@@ -29,11 +29,13 @@ namespace Broodline.Sim.Combat
         /// server here; that is Phase 5's.
         public static Outcome Replay(Replay record)
         {
-            record.Validate();
+            // Validate hands back the wave and the lane it had to build in
+            // order to check the record's geometry against them. Looking both
+            // up a second time rebuilt a WaveDef, a Lane and its 120-entry
+            // distance table on every verification, for nothing.
+            record.Validate(out var wave, out var lane);
 
-            var runner = new SimRunner(
-                WaveDef.ForId(record.WaveId), record.BuildLane(),
-                record.Deployment, record.Seed);
+            var runner = new SimRunner(wave, lane, record.Deployment, record.Seed);
 
             while (true)
             {

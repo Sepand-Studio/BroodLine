@@ -58,33 +58,43 @@ namespace Broodline.View
         }
 
         /// Interpolates between the two retained snapshots. alpha is 0 at a
-        /// tick boundary and approaches 1 - WaveClock.Alpha.
-        public void Render(SimRunner r, WavePair pair, double alpha)
+        /// tick boundary and approaches 1 - WaveClock.Alpha, which is clamped
+        /// where it is produced, so it is not re-clamped here. Three copies of
+        /// that clamp existed while the class comment on Alpha claimed it had
+        /// moved to one.
+        ///
+        /// No SimRunner parameter. Everything drawn comes from the pair, which
+        /// is what "one source per entity" has to mean to be worth asserting:
+        /// creature position used to be read live from the runner while
+        /// everything else came from the snapshot.
+        public void Render(WavePair pair, double alpha)
         {
-            float a = Mathf.Clamp01((float)alpha);
+            float a = (float)alpha;
+            var current = pair.Current;
 
             for (int i = 0; i < _raiders.Length; i++)
             {
-                bool live = i < pair.Current.RaiderCount && pair.Current.RaiderAlive(i);
+                // Visible, not alive. A raider that reached the Ark is cleared
+                // by Phases.Breach on the same tick it takes the integrity, so
+                // gating on aliveness drew the breach as a disappearance.
+                bool live = current.RaiderVisible(i);
                 if (_raiders[i].gameObject.activeSelf != live)
                     _raiders[i].gameObject.SetActive(live);
                 if (!live) continue;
 
-                float tile = Mathf.Lerp(pair.Previous.RaiderTile(i), pair.Current.RaiderTile(i), a);
+                float tile = WaveSnapshot.LerpTile(pair.Previous, current, i, a);
                 _raiders[i].position = new Vector3(tile * TileSize, 0f, 0f);
             }
 
             for (int c = 0; c < _creatures.Length; c++)
             {
-                bool alive = pair.Current.CreatureHp(c) > 0;
+                bool alive = current.CreatureHp(c) > 0;
                 if (_creatures[c].gameObject.activeSelf != alive)
                     _creatures[c].gameObject.SetActive(alive);
                 if (!alive) continue;
 
-                // Skittish repositions, so the pocket is read every frame
-                // rather than cached at Build.
                 _creatures[c].position = new Vector3(
-                    r.Lane.PocketTiles[r.CreaturePocket[c]] * TileSize, 0f, PocketOffset);
+                    current.CreatureTile(c) * TileSize, 0f, PocketOffset);
             }
         }
 

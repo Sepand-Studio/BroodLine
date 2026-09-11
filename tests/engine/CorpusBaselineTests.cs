@@ -22,16 +22,10 @@ namespace Broodline.Sim.Tests
         private static string BaselinePath =>
             Path.Combine(AppContext.BaseDirectory, "corpus-baseline.txt");
 
-        private static string SourcePath()
-        {
-            // Walk up from bin/Debug/net10.0 to the project folder, so the
-            // emitter writes the TRACKED file rather than the copied one.
-            var dir = new DirectoryInfo(AppContext.BaseDirectory);
-            while (dir != null && !File.Exists(Path.Combine(dir.FullName, "Broodline.Sim.Tests.csproj")))
-                dir = dir.Parent;
-            Assert.NotNull(dir);
-            return Path.Combine(dir.FullName, "corpus-baseline.txt");
-        }
+        // The PROJECT folder, not the repo root: the emitter must write the
+        // TRACKED file rather than the copy in bin/Debug/net10.0.
+        private static string SourcePath() =>
+            Path.Combine(TestPaths.ProjectDir(), "corpus-baseline.txt");
 
         private static string Render()
         {

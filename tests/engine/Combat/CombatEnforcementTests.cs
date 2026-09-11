@@ -17,23 +17,17 @@ namespace Broodline.Sim.Tests.Combat
     /// wrong", it is "a balance change is being made and should be explicit".
     public class CombatEnforcementTests
     {
-        /// Named once. Both facts below depend on agreeing about which file
-        /// holds the loop, and they disagreed silently when it moved.
-        private const string TickLoopFile = "SimRunner.cs";
+        /// Named once, as a path RELATIVE TO engine/Runtime. Both facts below
+        /// depend on agreeing about which file holds the loop, and they
+        /// disagreed silently when it moved. A bare file name is not enough:
+        /// the exemption below compared basenames, so a second tick loop
+        /// reintroduced the violation simply by being called
+        /// engine/Runtime/AutoResolve/SimRunner.cs.
+        private const string TickLoopFile = "Combat/SimRunner.cs";
+        private const string PhasesFile = "Combat/Phases.cs";
 
-        // Walks up looking for Broodline.sln rather than for a directory named
-        // "engine": the test project itself lives at tests/engine, so a search
-        // for a same-named directory stops one level too early, at tests/,
-        // which also contains an "engine" subfolder. Matches the pattern
-        // already proven in tests/engine/EnforcementTests.cs (Phase 1).
-        private static string RepoRoot()
-        {
-            var dir = new DirectoryInfo(AppContext.BaseDirectory);
-            while (dir != null && !File.Exists(Path.Combine(dir.FullName, "Broodline.sln")))
-                dir = dir.Parent;
-            Assert.True(dir != null, "could not locate the repository root");
-            return dir.FullName;
-        }
+        private static string EngineRuntime() =>
+            Path.Combine(TestPaths.RepoRoot(), "engine", "Runtime");
 
         [Fact]
         public void TheTickLoop_StillCallsTheEightPhasesInNormativeOrder()
@@ -44,10 +38,15 @@ namespace Broodline.Sim.Tests.Combat
             // sense that matters to this contract, but the file they live in
             // did. TheTickLoopLivesInExactlyOnePlace below is what keeps this
             // scan pointed at the only loop there is.
-            string path = Path.Combine(RepoRoot(), "engine", "Runtime", "Combat", TickLoopFile);
+            string path = Path.Combine(EngineRuntime(), "Combat", "SimRunner.cs");
             Assert.True(File.Exists(path), "missing " + path);
 
-            string source = File.ReadAllText(path);
+            // CODE, not prose. This is the load-bearing scan of the pair and it
+            // was the one reading raw source: a doc comment at the top of
+            // SimRunner.cs listing the eight calls in order satisfied all eight
+            // assertions no matter what the real loop did - and this file's own
+            // class comment is exactly the kind of prose that would do it.
+            string source = CodeOnly(File.ReadAllText(path));
 
             string[] ordered =
             {
@@ -89,16 +88,24 @@ namespace Broodline.Sim.Tests.Combat
             // passed. Scanning EVERY engine file is what makes the order scan
             // above mean anything, because that scan reads one file and is
             // worthless if a second loop can live in another.
+            //
+            // Everything below is judged by path RELATIVE to engine/Runtime.
+            // Absolute paths made two of these checks wrong at once: the
+            // exemption matched Path.GetFileName, so the reviewer's second tick
+            // loop reproduced the violation after being renamed to
+            // AutoResolve/SimRunner.cs, and the ThirdParty skip matched the
+            // whole absolute path, so a clone into ~/ThirdParty/BroodLine
+            // emptied the offender list and passed the test unconditionally.
+            string root = EngineRuntime();
             var offenders = new List<string>();
-            foreach (var file in Directory.GetFiles(
-                         Path.Combine(RepoRoot(), "engine", "Runtime"), "*.cs", SearchOption.AllDirectories))
+            foreach (var file in Directory.GetFiles(root, "*.cs", SearchOption.AllDirectories))
             {
-                string name = Path.GetFileName(file);
-                if (name == "Phases.cs" || name == TickLoopFile) continue;   // the loop, and the phases themselves
-                if (file.Contains("ThirdParty")) continue;
+                string rel = file.Substring(root.Length).TrimStart('/', '\\').Replace('\\', '/');
+                if (rel == TickLoopFile || rel == PhasesFile) continue;   // the loop, and the phases themselves
+                if (rel == "ThirdParty" || rel.StartsWith("ThirdParty/", StringComparison.Ordinal)) continue;
 
                 if (CodeOnly(File.ReadAllText(file)).Contains("Phases."))
-                    offenders.Add(name);
+                    offenders.Add(rel);
             }
 
             Assert.True(offenders.Count == 0,
@@ -129,13 +136,29 @@ namespace Broodline.Sim.Tests.Combat
         }
 
         [Fact]
+        public void TheOrderScanReadsCodeAndNotProse()
+        {
+            // Both scans above are only as good as this, and the order scan -
+            // the load-bearing one - was not using it at all. A file whose
+            // ONLY mention of the phases is a comment must read as calling
+            // none of them, or a doc comment listing the eight in order
+            // satisfies the contract on its own.
+            string prose =
+                "/// The tick order is Phases.Spawn( then Phases.State( then the rest.\n" +
+                "int x = 1;   // Phases.Resolve(\n";
+
+            Assert.DoesNotContain("Phases.", CodeOnly(prose));
+            Assert.Contains("int x = 1;", CodeOnly(prose));
+        }
+
+        [Fact]
         public void CapacityIsRecomputedRatherThanAccumulated()
         {
             // 5.3: "Capacity is recomputed from scratch every tick from the
             // live creature set, never accumulated." An accumulating
             // implementation would need somewhere to accumulate INTO, so the
             // guard is that AssignChill clears before it assigns.
-            string path = Path.Combine(RepoRoot(), "engine", "Runtime", "Combat", "Capacity.cs");
+            string path = Path.Combine(EngineRuntime(), "Combat", "Capacity.cs");
             string source = File.ReadAllText(path);
 
             Assert.Contains("RaiderChilled[r] = false", source);
