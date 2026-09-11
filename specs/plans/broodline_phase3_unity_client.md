@@ -272,10 +272,21 @@ itself.
 speed on one creature, no cooldown, *"a player input with a tick index."* Four
 seconds at 30 Hz is **120 ticks**.
 
-**It lands in the State phase, beside Chill.** It is the same shape — a timed
-state on a creature — and `Phases.State` is already where timed state is applied.
-`SimState` gains `CreatureRallyTicks[]`, counted down there; the runner holds a
-single `_rallyUsed` flag. It is folded into the run hash like everything else.
+**It is an absolute expiry tick read at the Attack phase, and it adds no phase
+function.** `SimState` gains `CreatureRallyUntil[]`; the runner holds a single
+`_rallyUsed` flag; `Attacks.IntervalTicks` tests `Tick < CreatureRallyUntil[c]`.
+It is folded into the run hash like everything else.
+
+A countdown decremented in the State phase was the obvious shape and it is
+wrong twice over. It is off by one against a 120-tick window — State is phase 2
+and Attack reads the value at phase 5, so a window opened between ticks closes a
+tick early — and it is not the idiom: `CreatureAcquireAt`, `CreatureNextAttackAt`
+and `CreatureBusyUntil` are all absolute expiry ticks read where they are used.
+Chill is not a precedent for the alternative, because Chill is recomputed from
+capacity every tick rather than counted down.
+
+**The normative phase order is untouched**, which makes this a smaller change
+than a counter would be rather than a larger one.
 
 **An invalid Rally is a no-op, not an error.** Already used, unknown id, dead
 creature: `TryRally` returns false and records nothing. The replay must contain
@@ -378,8 +389,15 @@ it proves something nothing existing proves.
 | Layer | Covers | Runs |
 |---|---|---|
 | **xUnit, headless** | Runner equivalence against the committed baseline (§2.2). Rally semantics — the 28-tick case at §5.1, the cooldown halving at §5.2, the no-op cases. Replay round-trip: record → serialize → deserialize → re-run → identical `Outcome.Hash` | Existing CI |
-| **Unity PlayMode** | The §4 contract. A synthetic 200 ms frame stall produces exactly 6 catch-up steps and no dropped tick; a 500 ms stall runs slow at the 8-step cap rather than skipping; a Rally tapped mid-frame records the **next** tick index, not the current render time | Editor, and CI where available |
+| **Unity EditMode** | The §4 contract. A six-and-a-half tick frame stall produces exactly 6 catch-up steps and no dropped tick; a fifteen-tick stall runs slow at the 8-step cap rather than skipping; a Rally tapped between boundaries records the **next** tick index, not the current render time | Editor, and CI where available |
 | **Device round-trip** | **The done-when.** Wave 6 played on device writes `replay.bin` and its outcome hash; the artifact is pulled off device; an xUnit test re-runs it on CoreCLR and asserts an identical hash | Manual, per release |
+
+**Layer 2 is EditMode rather than PlayMode** because the accumulator has no
+`UnityEngine` dependency. A scene buys nothing that feeding a large delta does
+not already cover, and the run is seconds instead of minutes. Frame timings are
+expressed as multiples of a tick rather than in milliseconds: `0.200` and
+`1.0/30.0` are both inexact in binary, so a test written against 200 ms would be
+asserting which side of a floating-point tie the division lands on.
 
 **Layer 3 is a different proof from the corpus**, and the distinction is the
 reason the phase exists. `cross-runtime-diff.sh` proves CoreCLR and IL2CPP agree
