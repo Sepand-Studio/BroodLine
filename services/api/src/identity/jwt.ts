@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm'
-import { SignJWT, jwtVerify } from 'jose'
+import { SignJWT, jwtVerify, type JWTPayload } from 'jose'
 import type { Db } from '../db/client.ts'
 import { accounts } from '../db/schema.ts'
 
@@ -34,9 +34,31 @@ async function issue(claims: SessionClaims, audience: string, ttl: string): Prom
 export const issueAccessToken = (c: SessionClaims) => issue(c, ACCESS_AUD, ACCESS_TTL)
 export const issueRefreshToken = (c: SessionClaims) => issue(c, REFRESH_AUD, REFRESH_TTL)
 
+/**
+ * Validates claim SHAPE at the trust boundary, right after signature/audience
+ * verification and before anything downstream treats them as real values.
+ *
+ * `String(undefined)` is the literal string `"undefined"`, and `Number(undefined)`
+ * is `NaN` - both satisfy their TypeScript types while being nonsense, so a
+ * naive cast here would let a malformed but validly-signed token (or a bug in
+ * `issue`) launder a bad claim past the type system. NaN in particular still
+ * passes `typeof x === 'number'`, so every downstream `===` comparison on it
+ * silently fails instead of raising - this is why Number.isInteger is checked
+ * explicitly rather than trusting `typeof`.
+ */
+function extractClaims(payload: JWTPayload): SessionClaims {
+  if (typeof payload.sub !== 'string' || payload.sub.length === 0) {
+    throw new Error('Token carried no subject.')
+  }
+  if (typeof payload.serverId !== 'number' || !Number.isInteger(payload.serverId)) {
+    throw new Error('Token carried an invalid serverId claim.')
+  }
+  return { accountId: payload.sub, serverId: payload.serverId }
+}
+
 export async function verifyAccessToken(token: string): Promise<SessionClaims> {
   const { payload } = await jwtVerify(token, secret(), { audience: ACCESS_AUD, algorithms: ['HS256'] })
-  return { accountId: String(payload.sub), serverId: Number(payload.serverId) }
+  return extractClaims(payload)
 }
 
 /**
@@ -55,11 +77,15 @@ export async function verifyAccessToken(token: string): Promise<SessionClaims> {
  */
 export async function redeemRefreshToken(db: Db, token: string): Promise<SessionClaims> {
   const { payload } = await jwtVerify(token, secret(), { audience: REFRESH_AUD, algorithms: ['HS256'] })
-  const claims: SessionClaims = { accountId: String(payload.sub), serverId: Number(payload.serverId) }
+  const claims = extractClaims(payload)
 
   const [row] = await db.select().from(accounts).where(eq(accounts.accountId, claims.accountId))
   if (row === undefined) throw new Error('No such account.')
   if (row.deletedAt !== null) throw new Error('This account was deleted.')
 
-  return claims
+  // The ACCOUNT's serverId, not the token's. Assignment is immutable so
+  // these can never legitimately diverge, but returning the row's own value
+  // closes the gap permanently rather than trusting a claim the account
+  // itself can now confirm or deny.
+  return { accountId: claims.accountId, serverId: row.serverId }
 }
