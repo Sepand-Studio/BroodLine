@@ -1232,7 +1232,7 @@ count and diagnosis confirmed unchanged first."
   - `SimRunner.Record { get; }` → `Replay`
   - `static Outcome Sim.Replay(Replay record)`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/engine/Combat/ReplayTests.cs`:
 
@@ -1358,7 +1358,7 @@ namespace Broodline.Sim.Tests.Combat
 }
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 dotnet test Broodline.sln --nologo --filter "FullyQualifiedName~ReplayTests"
@@ -1366,7 +1366,7 @@ dotnet test Broodline.sln --nologo --filter "FullyQualifiedName~ReplayTests"
 
 Expected: compile failure — `Replay` does not exist.
 
-- [ ] **Step 3: Add `Terrain` to `Ids.cs`**
+- [x] **Step 3: Add `Terrain` to `Ids.cs`**
 
 Append inside the namespace in `engine/Runtime/Combat/Ids.cs`:
 
@@ -1380,7 +1380,7 @@ Append inside the namespace in `engine/Runtime/Combat/Ids.cs`:
     public enum Terrain { Defile = 0 }
 ```
 
-- [ ] **Step 4: Add `WaveDef.ForId`**
+- [x] **Step 4: Add `WaveDef.ForId`**
 
 Append to the `WaveDef` class in `engine/Runtime/Combat/WaveDef.cs`:
 
@@ -1396,7 +1396,7 @@ Append to the `WaveDef` class in `engine/Runtime/Combat/WaveDef.cs`:
         }
 ```
 
-- [ ] **Step 5: Write `Replay.cs`**
+- [x] **Step 5: Write `Replay.cs`**
 
 `engine/Runtime/Combat/Replay.cs`:
 
@@ -1630,7 +1630,7 @@ namespace Broodline.Sim.Combat
 }
 ```
 
-- [ ] **Step 6: Create its `.meta`**
+- [x] **Step 6: Create its `.meta`**
 
 ```bash
 python3 - <<'PY'
@@ -1640,7 +1640,7 @@ p.write_text("fileFormatVersion: 2\nguid: %s\n" % uuid.uuid4().hex)
 PY
 ```
 
-- [ ] **Step 7: Have `SimRunner` produce the record**
+- [x] **Step 7: Have `SimRunner` produce the record**
 
 In `engine/Runtime/Combat/SimRunner.cs`, add the field:
 
@@ -1688,7 +1688,7 @@ And in `TryRally`, immediately before `return true;`:
             _record.RallyCreature = creatureId;
 ```
 
-- [ ] **Step 8: Add `Sim.Replay`**
+- [x] **Step 8: Add `Sim.Replay`**
 
 Append to the `Sim` class in `engine/Runtime/Combat/Sim.cs`:
 
@@ -1723,7 +1723,7 @@ Append to the `Sim` class in `engine/Runtime/Combat/Sim.cs`:
         }
 ```
 
-- [ ] **Step 9: Run until green**
+- [x] **Step 9: Run until green**
 
 ```bash
 dotnet test Broodline.sln --nologo
@@ -1731,7 +1731,7 @@ dotnet test Broodline.sln --nologo
 
 Expected: PASS, eight new tests. **No hash moves** — this task records inputs and does not change the simulation.
 
-- [ ] **Step 10: Run the cross-runtime gate and commit**
+- [x] **Step 10: Run the cross-runtime gate and commit**
 
 ```bash
 ./implementation/scripts/cross-runtime-diff.sh
