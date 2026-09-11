@@ -6,8 +6,8 @@ namespace Broodline.Sim.Tests.Combat
 {
     /// combat_engine section 4: "the order is normative - changing it changes
     /// outcomes." That makes tick order a behavioural contract, but a contract
-    /// nothing enforces: reorder two lines in Sim.Run and every unit test still
-    /// passes, because each phase in isolation is still correct.
+    /// nothing enforces: reorder two lines in the tick loop and every unit test
+    /// still passes, because each phase in isolation is still correct.
     ///
     /// The goldens would catch it - but only until someone re-pins them to
     /// match new output, which is exactly what a person does when they believe
@@ -31,9 +31,15 @@ namespace Broodline.Sim.Tests.Combat
         }
 
         [Fact]
-        public void SimRun_StillCallsTheEightPhasesInNormativeOrder()
+        public void TheTickLoop_StillCallsTheEightPhasesInNormativeOrder()
         {
-            string path = Path.Combine(RepoRoot(), "engine", "Runtime", "Combat", "Sim.cs");
+            // Scans SimRunner.cs rather than Sim.cs. Phase 3 moved the loop
+            // body there so a renderer could step it, and Sim.Run became a
+            // four-line loop over SimRunner - the phases did not move in any
+            // sense that matters to this contract, but the file they live in
+            // did. TheTickLoopLivesInExactlyOnePlace below is what keeps this
+            // scan pointed at the only loop there is.
+            string path = Path.Combine(RepoRoot(), "engine", "Runtime", "Combat", "SimRunner.cs");
             Assert.True(File.Exists(path), "missing " + path);
 
             string source = File.ReadAllText(path);
@@ -54,13 +60,36 @@ namespace Broodline.Sim.Tests.Combat
             for (int i = 0; i < ordered.Length; i++)
             {
                 int at = source.IndexOf(ordered[i], StringComparison.Ordinal);
-                Assert.True(at >= 0, "Sim.Run no longer calls " + ordered[i]);
+                Assert.True(at >= 0, "the tick loop no longer calls " + ordered[i]);
                 Assert.True(at > previous,
                     ordered[i] + " is out of normative order - see combat_engine section 4. " +
                     "Movement must precede targeting so a creature never fires at a " +
                     "position a raider has already left, and death must follow attack.");
                 previous = at;
             }
+        }
+
+        [Fact]
+        public void TheTickLoopLivesInExactlyOnePlace()
+        {
+            // Phase 3's whole claim about the decomposition: Sim.Run is a loop
+            // over SimRunner, not a second implementation of it.
+            // solo_execution section 9.3 rejects "a second model of the game
+            // that has to stay in sync with the first" on cost grounds, and two
+            // tick loops is exactly that shape.
+            //
+            // It is also what keeps the order scan above honest. A scan pointed
+            // at one file proves nothing if a second loop can exist in another,
+            // so this is the other half of that test rather than a separate
+            // concern.
+            string path = Path.Combine(RepoRoot(), "engine", "Runtime", "Combat", "Sim.cs");
+            string source = File.ReadAllText(path);
+
+            Assert.False(source.Contains("Phases."),
+                "Sim.cs calls a phase function directly. The tick loop lives in " +
+                "SimRunner; Sim.Run drives it. A second loop here would have to " +
+                "be kept in step with that one forever, and the order-enforcement " +
+                "scan only reads SimRunner.cs.");
         }
 
         [Fact]
