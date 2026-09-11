@@ -107,7 +107,7 @@ Phase 3 builds on the merged Phase 2. Confirm it is green before adding to it.
 - Consumes: the Phase 2 combat engine on `develop`.
 - Produces: nothing.
 
-- [ ] **Step 1: Confirm the branch and the toolchain**
+- [x] **Step 1: Confirm the branch and the toolchain**
 
 ```bash
 git rev-parse --abbrev-ref HEAD && ./implementation/scripts/verify-prereqs.sh; echo "exit=$?"
@@ -115,15 +115,15 @@ git rev-parse --abbrev-ref HEAD && ./implementation/scripts/verify-prereqs.sh; e
 
 Expected: `phase_3`, five `ok` lines, `exit=0`.
 
-- [ ] **Step 2: Confirm the suite is green and record the count**
+- [x] **Step 2: Confirm the suite is green and record the count**
 
 ```bash
 dotnet test Broodline.sln --nologo
 ```
 
-Expected: all pass. **Write the total down.** Later tasks add to it, and a drop means something was deleted rather than extended.
+Expected: all pass. **Write the total down.** Recorded 2026-09-10: **111**. Later tasks add to it, and a drop means something was deleted rather than extended.
 
-- [ ] **Step 3: Confirm the cross-runtime gate passes**
+- [x] **Step 3: Confirm the cross-runtime gate passes**
 
 ```bash
 ./implementation/scripts/cross-runtime-diff.sh
@@ -151,7 +151,7 @@ Expected: `PASS: 500 scenarios agree`, exit 0. Close the Unity editor first.
 - Consumes: `Corpus.RunScenario(int)` → `ulong`, `Corpus.ScenarioCount` = 500.
 - Produces: `tests/engine/corpus-baseline.txt`, 500 lines of `index hash`, copied beside the test binary at build.
 
-- [ ] **Step 1: Make the baseline file visible to the test binary**
+- [x] **Step 1: Make the baseline file visible to the test binary**
 
 `tests/engine/Broodline.Sim.Tests.csproj` — add this `ItemGroup` before the closing `</Project>`:
 
@@ -163,7 +163,7 @@ Expected: `PASS: 500 scenarios agree`, exit 0. Close the Unity editor first.
   </ItemGroup>
 ```
 
-- [ ] **Step 2: Write the emitter**
+- [x] **Step 2: Write the emitter**
 
 `implementation/scripts/emit-corpus-baseline.sh`:
 
@@ -189,7 +189,7 @@ git --no-pager diff --stat -- tests/engine/corpus-baseline.txt
 chmod +x implementation/scripts/emit-corpus-baseline.sh
 ```
 
-- [ ] **Step 3: Write the test that reads it, and the emitter behind an env guard**
+- [x] **Step 3: Write the test that reads it, and the emitter behind an env guard**
 
 `tests/engine/CorpusBaselineTests.cs`:
 
@@ -275,7 +275,7 @@ namespace Broodline.Sim.Tests
 }
 ```
 
-- [ ] **Step 4: Generate the baseline**
+- [x] **Step 4: Generate the baseline**
 
 ```bash
 touch tests/engine/corpus-baseline.txt
@@ -285,7 +285,7 @@ wc -l tests/engine/corpus-baseline.txt
 
 Expected: `500 tests/engine/corpus-baseline.txt`.
 
-- [ ] **Step 5: Prove the net actually catches drift**
+- [x] **Step 5: Prove the net actually catches drift**
 
 Temporarily perturb one thing inside the tick loop. In `engine/Runtime/Combat/Attacks.cs`, change `Damage` to return `damage + 1` for `Species.Hollow`, then:
 
@@ -297,7 +297,7 @@ Expected: **FAIL**, naming specific line numbers. Revert the perturbation and co
 
 **This step is the task.** A baseline that would not have caught the thing it exists to catch is worse than none, because it looks like protection.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add tests/engine/corpus-baseline.txt tests/engine/CorpusBaselineTests.cs \
@@ -327,6 +327,7 @@ outside that script so an ordinary test run can never rewrite it."
 - Create: `engine/Runtime/Combat/SimRunner.cs`
 - Create: `engine/Runtime/Combat/SimRunner.cs.meta`
 - Modify: `engine/Runtime/Combat/Sim.cs`
+- Modify: `tests/engine/Combat/CombatEnforcementTests.cs`
 - Create: `tests/engine/Combat/SimRunnerTests.cs`
 
 **Interfaces:**
@@ -340,7 +341,7 @@ outside that script so an ordinary test run can never rewrite it."
 
 **The ordering is the entire risk.** In the existing loop `FoldTick` runs *before* the termination check, and `s.Tick++` happens *after* it. Shifting either produces a whole-run hash offset by one tick on every scenario.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/engine/Combat/SimRunnerTests.cs`:
 
@@ -422,7 +423,7 @@ namespace Broodline.Sim.Tests.Combat
 }
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 dotnet test Broodline.sln --nologo --filter "FullyQualifiedName~SimRunnerTests"
@@ -430,7 +431,7 @@ dotnet test Broodline.sln --nologo --filter "FullyQualifiedName~SimRunnerTests"
 
 Expected: compile failure — `SimRunner` does not exist.
 
-- [ ] **Step 3: Write `SimRunner.cs`**
+- [x] **Step 3: Write `SimRunner.cs`**
 
 `engine/Runtime/Combat/SimRunner.cs`:
 
@@ -579,20 +580,20 @@ namespace Broodline.Sim.Combat
 }
 ```
 
-- [ ] **Step 4: Create the `.meta` file**
+- [x] **Step 4: Create the `.meta` file**
 
-Unity requires one per asset. Copy the shape of an existing sibling and give it a fresh GUID:
+Unity requires one per asset. **The existing metas in this repo are two lines** — `fileFormatVersion` and `guid`, nothing else — and Unity fills in the importer block on first load. Match that rather than writing the verbose form:
 
 ```bash
 python3 - <<'PY'
 import uuid, pathlib
 p = pathlib.Path("engine/Runtime/Combat/SimRunner.cs.meta")
-p.write_text("fileFormatVersion: 2\nguid: %s\nMonoImporter:\n  externalObjects: {}\n  serializedVersion: 2\n  defaultReferences: []\n  executionOrder: 0\n  icon: {instanceID: 0}\n  userData: \n  assetBundleName: \n  assetBundleVariant: \n" % uuid.uuid4().hex)
+p.write_text("fileFormatVersion: 2\nguid: %s\n" % uuid.uuid4().hex)
 print(p.read_text())
 PY
 ```
 
-- [ ] **Step 5: Reduce `Sim.Run` to a loop over it**
+- [x] **Step 5: Reduce `Sim.Run` to a loop over it**
 
 `engine/Runtime/Combat/Sim.cs` — replace the whole file body. `FoldTick` and `Fingerprint` move to `SimRunner` and are deleted here.
 
@@ -621,7 +622,44 @@ namespace Broodline.Sim.Combat
 }
 ```
 
-- [ ] **Step 6: Run the new tests**
+- [x] **Step 5b: Repoint the tick-order enforcement scan**
+
+**Folded back from execution: this step was missing and the suite went red at Step 7.**
+
+`tests/engine/Combat/CombatEnforcementTests.cs` scans a source file for the eight `Phases.X(` calls in order. It reads `Sim.cs`, and the phases have just moved out of it — so the scan fails with *"Sim.Run no longer calls Phases.Spawn("* even though nothing about the order changed.
+
+Point it at the file the loop now lives in. Rename the test to `TheTickLoop_StillCallsTheEightPhasesInNormativeOrder`, change the path to `SimRunner.cs`, and change the message from `"Sim.Run no longer calls "` to `"the tick loop no longer calls "`.
+
+Then add the half that keeps it honest — a scan pointed at one file proves nothing if a second loop can exist in another:
+
+```csharp
+        [Fact]
+        public void TheTickLoopLivesInExactlyOnePlace()
+        {
+            // Phase 3's whole claim about the decomposition: Sim.Run is a loop
+            // over SimRunner, not a second implementation of it.
+            // solo_execution section 9.3 rejects "a second model of the game
+            // that has to stay in sync with the first" on cost grounds, and two
+            // tick loops is exactly that shape.
+            //
+            // It is also what keeps the order scan above honest. A scan pointed
+            // at one file proves nothing if a second loop can exist in another,
+            // so this is the other half of that test rather than a separate
+            // concern.
+            string path = Path.Combine(RepoRoot(), "engine", "Runtime", "Combat", "Sim.cs");
+            string source = File.ReadAllText(path);
+
+            Assert.False(source.Contains("Phases."),
+                "Sim.cs calls a phase function directly. The tick loop lives in " +
+                "SimRunner; Sim.Run drives it. A second loop here would have to " +
+                "be kept in step with that one forever, and the order-enforcement " +
+                "scan only reads SimRunner.cs.");
+        }
+```
+
+Re-prove the relocated scan the way Phase 2 proved the original — swap `Phases.Movement` and `Phases.Targeting` in `SimRunner.Step`, confirm **FAIL** with *"is out of normative order"*, and revert.
+
+- [x] **Step 6: Run the new tests**
 
 ```bash
 dotnet test Broodline.sln --nologo --filter "FullyQualifiedName~SimRunnerTests"
@@ -629,7 +667,7 @@ dotnet test Broodline.sln --nologo --filter "FullyQualifiedName~SimRunnerTests"
 
 Expected: PASS, five tests.
 
-- [ ] **Step 7: Run everything, including the baseline**
+- [x] **Step 7: Run everything, including the baseline**
 
 ```bash
 dotnet test Broodline.sln --nologo
@@ -639,7 +677,7 @@ Expected: PASS, with the total at least what Task 0 Step 2 recorded, plus five.
 
 **`CorpusBaselineTests` and `GoldenTests` must both be green with no re-baselining.** That is the acceptance criterion for this task and it is binary. If the baseline drifted, the decomposition changed behaviour — read the first differing line, and look at the two orderings called out at the top of `SimRunner`. **Do not run `emit-corpus-baseline.sh` to make this pass.**
 
-- [ ] **Step 8: Run the cross-runtime gate**
+- [x] **Step 8: Run the cross-runtime gate**
 
 ```bash
 ./implementation/scripts/cross-runtime-diff.sh
@@ -647,7 +685,7 @@ Expected: PASS, with the total at least what Task 0 Step 2 recorded, plus five.
 
 Expected: `PASS: 500 scenarios agree`.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add engine/Runtime/Combat/SimRunner.cs engine/Runtime/Combat/SimRunner.cs.meta \
@@ -1598,7 +1636,7 @@ namespace Broodline.Sim.Combat
 python3 - <<'PY'
 import uuid, pathlib
 p = pathlib.Path("engine/Runtime/Combat/Replay.cs.meta")
-p.write_text("fileFormatVersion: 2\nguid: %s\nMonoImporter:\n  externalObjects: {}\n  serializedVersion: 2\n  defaultReferences: []\n  executionOrder: 0\n  icon: {instanceID: 0}\n  userData: \n  assetBundleName: \n  assetBundleVariant: \n" % uuid.uuid4().hex)
+p.write_text("fileFormatVersion: 2\nguid: %s\n" % uuid.uuid4().hex)
 PY
 ```
 
@@ -1854,15 +1892,11 @@ import uuid, pathlib
 
 def folder(p):
     pathlib.Path(p).write_text(
-        "fileFormatVersion: 2\nguid: %s\nfolderAsset: yes\nDefaultImporter:\n"
-        "  externalObjects: {}\n  userData: \n  assetBundleName: \n"
-        "  assetBundleVariant: \n" % uuid.uuid4().hex)
+        "fileFormatVersion: 2\nguid: %s\nfolderAsset: yes\n" % uuid.uuid4().hex)
 
 def asset(p):
     pathlib.Path(p).write_text(
-        "fileFormatVersion: 2\nguid: %s\nAssemblyDefinitionImporter:\n"
-        "  externalObjects: {}\n  userData: \n  assetBundleName: \n"
-        "  assetBundleVariant: \n" % uuid.uuid4().hex)
+        "fileFormatVersion: 2\nguid: %s\n" % uuid.uuid4().hex)
 
 folder("client/Assets/View.meta")
 folder("client/Assets/Game.meta")
@@ -2194,22 +2228,15 @@ import uuid, pathlib
 
 def folder(p):
     pathlib.Path(p).write_text(
-        "fileFormatVersion: 2\nguid: %s\nfolderAsset: yes\nDefaultImporter:\n"
-        "  externalObjects: {}\n  userData: \n  assetBundleName: \n"
-        "  assetBundleVariant: \n" % uuid.uuid4().hex)
+        "fileFormatVersion: 2\nguid: %s\nfolderAsset: yes\n" % uuid.uuid4().hex)
 
 def script(p):
     pathlib.Path(p).write_text(
-        "fileFormatVersion: 2\nguid: %s\nMonoImporter:\n  externalObjects: {}\n"
-        "  serializedVersion: 2\n  defaultReferences: []\n  executionOrder: 0\n"
-        "  icon: {instanceID: 0}\n  userData: \n  assetBundleName: \n"
-        "  assetBundleVariant: \n" % uuid.uuid4().hex)
+        "fileFormatVersion: 2\nguid: %s\n" % uuid.uuid4().hex)
 
 def asset(p):
     pathlib.Path(p).write_text(
-        "fileFormatVersion: 2\nguid: %s\nAssemblyDefinitionImporter:\n"
-        "  externalObjects: {}\n  userData: \n  assetBundleName: \n"
-        "  assetBundleVariant: \n" % uuid.uuid4().hex)
+        "fileFormatVersion: 2\nguid: %s\n" % uuid.uuid4().hex)
 
 folder("client/Assets/View/Tests.meta")
 script("client/Assets/View/WaveClock.cs.meta")
@@ -2573,10 +2600,7 @@ for p in ["client/Assets/View/WaveSnapshot.cs.meta",
           "client/Assets/View/WaveView.cs.meta",
           "client/Assets/View/Tests/WaveSnapshotTests.cs.meta"]:
     pathlib.Path(p).write_text(
-        "fileFormatVersion: 2\nguid: %s\nMonoImporter:\n  externalObjects: {}\n"
-        "  serializedVersion: 2\n  defaultReferences: []\n  executionOrder: 0\n"
-        "  icon: {instanceID: 0}\n  userData: \n  assetBundleName: \n"
-        "  assetBundleVariant: \n" % uuid.uuid4().hex)
+        "fileFormatVersion: 2\nguid: %s\n" % uuid.uuid4().hex)
 print("ok")
 PY
 ./implementation/scripts/run-unity-tests.sh EditMode
@@ -2759,10 +2783,7 @@ namespace Broodline.View
 python3 - <<'PY'
 import uuid, pathlib
 pathlib.Path("client/Assets/View/WaveHud.cs.meta").write_text(
-    "fileFormatVersion: 2\nguid: %s\nMonoImporter:\n  externalObjects: {}\n"
-    "  serializedVersion: 2\n  defaultReferences: []\n  executionOrder: 0\n"
-    "  icon: {instanceID: 0}\n  userData: \n  assetBundleName: \n"
-    "  assetBundleVariant: \n" % uuid.uuid4().hex)
+    "fileFormatVersion: 2\nguid: %s\n" % uuid.uuid4().hex)
 PY
 ./implementation/scripts/run-unity-tests.sh EditMode
 ```
@@ -2973,22 +2994,15 @@ import uuid, pathlib
 
 def folder(p):
     pathlib.Path(p).write_text(
-        "fileFormatVersion: 2\nguid: %s\nfolderAsset: yes\nDefaultImporter:\n"
-        "  externalObjects: {}\n  userData: \n  assetBundleName: \n"
-        "  assetBundleVariant: \n" % uuid.uuid4().hex)
+        "fileFormatVersion: 2\nguid: %s\nfolderAsset: yes\n" % uuid.uuid4().hex)
 
 def script(p):
     pathlib.Path(p).write_text(
-        "fileFormatVersion: 2\nguid: %s\nMonoImporter:\n  externalObjects: {}\n"
-        "  serializedVersion: 2\n  defaultReferences: []\n  executionOrder: 0\n"
-        "  icon: {instanceID: 0}\n  userData: \n  assetBundleName: \n"
-        "  assetBundleVariant: \n" % uuid.uuid4().hex)
+        "fileFormatVersion: 2\nguid: %s\n" % uuid.uuid4().hex)
 
 def asset(p):
     pathlib.Path(p).write_text(
-        "fileFormatVersion: 2\nguid: %s\nAssemblyDefinitionImporter:\n"
-        "  externalObjects: {}\n  userData: \n  assetBundleName: \n"
-        "  assetBundleVariant: \n" % uuid.uuid4().hex)
+        "fileFormatVersion: 2\nguid: %s\n" % uuid.uuid4().hex)
 
 folder("client/Assets/Game/Editor.meta")
 script("client/Assets/Game/WaveRunner.cs.meta")
