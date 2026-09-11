@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using UnityEngine;
+using Broodline.View;
 
 namespace Broodline.Benchmark
 {

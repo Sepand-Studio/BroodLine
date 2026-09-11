@@ -1,7 +1,9 @@
 {
   "name": "Broodline.Benchmark",
   "rootNamespace": "Broodline.Benchmark",
-  "references": [],
+  "references": [
+    "Broodline.View"
+  ],
   "includePlatforms": [],
   "autoReferenced": true
 }
