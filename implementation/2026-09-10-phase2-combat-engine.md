@@ -175,7 +175,7 @@ namespace Broodline.Sim.Tests.Combat
         }
 
         [Fact]
-        public void Validate_ThrowsWhenTwoRaidersShareACounter()
+        public void Validate_AllowsTwoSpawnsOfTheSameRaiderType()
         {
             var w = new WaveDef(
                 id: 999, integrity: 3, laneCount: 1,
@@ -921,8 +921,9 @@ universal tie-break available without storing a field for it."
 - Consumes: `SimState`, `Stats`, `Lane`.
 - Produces:
   - `static int TotalChillCapacity(SimState s)` — summed across live carriers
-  - `static int Compare(SimState s, int raiderA, int raiderB, int pocket)` — the `(distance, spawnIndex)` total order
-  - `static void AssignChill(SimState s, int[] scratch)` — fills `s.RaiderChilled`
+  - `static int NearestCarrierDistSq(SimState s, int raider)` — squared distance to the nearest live Chill carrier that has it in range, or `-1` when none can reach it
+  - `static int Compare(SimState s, int raiderA, int raiderB)` — the `(distance, spawnIndex)` total order
+  - `static void AssignChill(SimState s, int[] scratch)` — fills `s.RaiderChilled`, gated on carrier range
 
 - [ ] **Step 1: Write the failing test**
 
@@ -988,9 +989,9 @@ namespace Broodline.Sim.Tests.Combat
             // common rather than rare.
             s.RaiderProgress[0] = s.RaiderProgress[1] = Fix64.FromInt(10);
 
-            Assert.True(Capacity.Compare(s, 0, 1, pocket: 0) < 0);
-            Assert.True(Capacity.Compare(s, 1, 0, pocket: 0) > 0);
-            Assert.Equal(0, Capacity.Compare(s, 0, 0, pocket: 0));
+            Assert.True(Capacity.Compare(s, 0, 1) < 0);
+            Assert.True(Capacity.Compare(s, 1, 0) > 0);
+            Assert.Equal(0, Capacity.Compare(s, 0, 0));
         }
 
         [Fact]
@@ -1017,6 +1018,33 @@ namespace Broodline.Sim.Tests.Combat
             Assert.False(s.RaiderChilled[0]);
             Assert.False(s.RaiderChilled[1]);
             Assert.True(s.RaiderChilled[2]);
+        }
+
+        [Fact]
+        public void AssignChill_LeavesRaidersNoCarrierCanReachUnchilled()
+        {
+            // combat_engine 5.1 assigns "within range". A Pale in pocket 0
+            // (tile 6, range 5) reaches tiles 2-10 and nothing beyond, so a
+            // raider at tile 22 must stay at full speed however much spare
+            // capacity exists. Without the gate an unopposed Courser crosses
+            // in 48s against the 30s combat_numbers 240 describes.
+            var wave = new WaveDef(1, 9, 1, new[]
+            {
+                new SpawnEntry { Tick = 0, Type = RaiderType.Courser },
+                new SpawnEntry { Tick = 0, Type = RaiderType.Courser }
+            });
+            var s = new SimState(wave, Lane.Defile(), WithChill(tier: 3, copies: 1));
+            s.RaiderCount = 2;
+            s.RaiderAlive[0] = s.RaiderAlive[1] = true;
+
+            s.RaiderProgress[0] = Fix64.FromInt(6);    // beside the carrier
+            s.RaiderProgress[1] = Fix64.FromInt(22);   // far past it
+
+            Capacity.AssignChill(s, new int[2]);
+
+            // Chill III is capacity 4 - ample - so only range explains this.
+            Assert.True(s.RaiderChilled[0]);
+            Assert.False(s.RaiderChilled[1]);
         }
     }
 }
@@ -1057,6 +1085,40 @@ namespace Broodline.Sim.Combat
             return total;
         }
 
+        /// Squared distance from this raider to the NEAREST live Chill carrier
+        /// that currently has it IN RANGE, or -1 when no carrier can reach it.
+        ///
+        /// combat_engine 5.1 assigns Chill "nearest-first within range,
+        /// re-evaluated each tick", and the range gate is not decoration.
+        /// Without it a carrier slows raiders it could never reach and an
+        /// unopposed Courser crosses in 48s, against the 30s combat_numbers 240
+        /// describes. Gated, it crosses in about 27s - which is what makes
+        /// 134's "0.5 t/s" and 240's "halves its speed to 30 seconds" the same
+        /// claim rather than a contradiction.
+        ///
+        /// Measured per raider rather than from one fixed anchor pocket:
+        /// capacity sums across carriers standing in different pockets, so
+        /// "nearest" has to mean nearest to THAT raider.
+        public static int NearestCarrierDistSq(SimState s, int raider)
+        {
+            int best = -1;
+            int tile = s.RaiderTile(raider);
+
+            for (int c = 0; c < s.CreatureCount; c++)
+            {
+                if (!s.CreatureAlive(c)) continue;
+                if (!s.CreatureCarries(c, Trait.Chill, out int tier) || tier <= 0) continue;
+
+                int pocket = s.CreaturePocket[c];
+                if (!s.Lane.InRange(pocket, tile, Stats.CreatureRange(s.CreatureSpecies[c])))
+                    continue;
+
+                int d = s.Lane.DistSq(pocket, tile);
+                if (best < 0 || d < best) best = d;
+            }
+            return best;
+        }
+
         /// The (distance, spawnIndex) total order of combat_engine 5.1.
         ///
         /// Nearest-first alone is not deterministic: 2.2 makes distance an
@@ -1064,22 +1126,19 @@ namespace Broodline.Sim.Combat
         /// order them differently on two runtimes. Tie-breaking on spawn index
         /// makes this a total order, so any correct sort produces identical
         /// output everywhere.
-        public static int Compare(SimState s, int raiderA, int raiderB, int pocket)
+        public static int Compare(SimState s, int raiderA, int raiderB)
         {
-            int da = s.Lane.DistSq(pocket, s.RaiderTile(raiderA));
-            int db = s.Lane.DistSq(pocket, s.RaiderTile(raiderB));
+            int da = NearestCarrierDistSq(s, raiderA);
+            int db = NearestCarrierDistSq(s, raiderB);
             if (da != db) return da < db ? -1 : 1;
             if (raiderA != raiderB) return raiderA < raiderB ? -1 : 1;
             return 0;
         }
 
-        /// Chill is one of combat_engine 5.1's three exceptions: its carrier
-        /// may not be attacking the raider it slows, so assignment is
-        /// nearest-first within range, re-evaluated every tick.
-        ///
-        /// "Nearest" is measured from the carrier pocket that is nearest to
-        /// each candidate, since capacity sums across carriers standing in
-        /// different pockets.
+        /// Chill - one of combat_engine 5.1's three exceptions to
+        /// follow-the-carrier's-target, because a Chill carrier may not be
+        /// attacking the raider it slows. Assignment is nearest-first within
+        /// range, re-evaluated every tick.
         public static void AssignChill(SimState s, int[] scratch)
         {
             for (int r = 0; r < s.RaiderCount; r++) s.RaiderChilled[r] = false;
@@ -1087,12 +1146,14 @@ namespace Broodline.Sim.Combat
             int capacity = TotalChillCapacity(s);
             if (capacity <= 0) return;
 
-            int anchor = NearestChillPocket(s);
-            if (anchor < 0) return;
-
+            // Only raiders some live carrier can actually reach are candidates.
             int n = 0;
             for (int r = 0; r < s.RaiderCount; r++)
-                if (s.RaiderAlive[r]) scratch[n++] = r;
+            {
+                if (!s.RaiderAlive[r]) continue;
+                if (NearestCarrierDistSq(s, r) < 0) continue;
+                scratch[n++] = r;
+            }
 
             // Insertion sort: stable by construction over a total order, and
             // allocation-free. n is bounded by the wave's spawn count.
@@ -1100,7 +1161,7 @@ namespace Broodline.Sim.Combat
             {
                 int v = scratch[i];
                 int j = i - 1;
-                while (j >= 0 && Compare(s, scratch[j], v, anchor) > 0)
+                while (j >= 0 && Compare(s, scratch[j], v) > 0)
                 {
                     scratch[j + 1] = scratch[j];
                     j--;
@@ -1110,19 +1171,6 @@ namespace Broodline.Sim.Combat
 
             int slowed = n < capacity ? n : capacity;
             for (int i = 0; i < slowed; i++) s.RaiderChilled[scratch[i]] = true;
-        }
-
-        /// The lowest-indexed pocket holding a live Chill carrier. Lowest index
-        /// rather than "best" so the anchor is itself deterministic.
-        private static int NearestChillPocket(SimState s)
-        {
-            for (int c = 0; c < s.CreatureCount; c++)
-            {
-                if (!s.CreatureAlive(c)) continue;
-                if (s.CreatureCarries(c, Trait.Chill, out _))
-                    return s.CreaturePocket[c];
-            }
-            return -1;
         }
     }
 }
@@ -1243,6 +1291,12 @@ namespace Broodline.Sim.Tests.Combat
             var s = Wave6State(d);
             s.Tick = 90;
             Phases.Spawn(s);
+
+            // Chill is assigned "within range" (combat_engine 5.1), so walk the
+            // raider into the carrier's reach first. A Pale in pocket 0 sits at
+            // tile 6 with range 5, covering tiles 2-10; a raider still at the
+            // spawn line is correctly NOT chillable.
+            s.RaiderProgress[0] = Fix64.FromInt(6);
 
             var scratch = new int[1];
             Phases.State(s, scratch);
@@ -2161,6 +2215,34 @@ namespace Broodline.Sim.Tests.Combat
             // Nothing spawned yet, but the table is not exhausted.
             Assert.Equal(Result.Running, Phases.Resolve(s));
         }
+
+        [Fact]
+        public void Resolve_PrefersLossWhenTheWaveEndsAndIntegrityEmptiesTogether()
+        {
+            // The race the loss-before-win ordering exists for, and the only
+            // state in which the ordering is observable: the spawn table is
+            // exhausted, no raider is left alive, AND integrity has just reached
+            // zero. Both branches are live, so only their ORDER decides the
+            // answer. Every other test in this file leaves one branch
+            // structurally unreachable, so a refactor that moved the integrity
+            // check below the win checks would pass all of them and fail only
+            // this one.
+            var s = new SimState(WaveDef.Wave6(), Lane.Defile(),
+                                 SimStateTests.FiveWithoutChill());
+            s.Tick = 90;
+            Phases.Spawn(s);                       // spawn table now exhausted
+            s.RaiderProgress[0] = Fix64.FromInt(Stats.LaneTiles);
+
+            var log = new Breach[1];
+            int count = 0;
+            Phases.Breach(s, log, ref count);      // integrity 2 -> 0, raider removed
+
+            Assert.Equal(0, s.Integrity);
+            Assert.False(s.RaiderAlive[0]);
+            Assert.Equal(s.Wave.Spawns.Length, s.RaiderCount);   // nothing pending
+
+            Assert.Equal(Result.Loss, Phases.Resolve(s));
+        }
     }
 }
 ```
@@ -2395,6 +2477,58 @@ namespace Broodline.Sim.Tests.Combat
             var none = new SimState(WaveDef.Wave6(), Lane.Defile(),
                                     SimStateTests.FiveWithoutChill());
             Assert.False(Diagnosis.PreWaveCheck(none, RaiderType.Courser).Answered);
+        }
+
+        [Fact]
+        public void Breach_DiagnosesAgainstTheBoardIncludingTheBreachingRaider()
+        {
+            // Pins the reordering this task exists for. Two Coursers are on the
+            // board and Chill I covers exactly one, so coverage is insufficient -
+            // but ONLY if the breaching raider is still counted when its own
+            // diagnosis is computed. Mark it dead first and the count drops to
+            // one, capacity 1 >= 1 reads "sufficient", and the loss screen
+            // explains the defeat with the wrong reason. Nothing else in the
+            // suite would notice that change.
+            var wave = new WaveDef(7, 9, 1, new[]
+            {
+                new SpawnEntry { Tick = 0, Type = RaiderType.Courser },
+                new SpawnEntry { Tick = 0, Type = RaiderType.Courser }
+            });
+            var s = new SimState(wave, Lane.Defile(), WithChill(tier: 1));
+            s.Tick = 0;
+            Phases.Spawn(s);
+
+            s.RaiderProgress[0] = Fix64.FromInt(Stats.LaneTiles);   // at the Ark
+            s.RaiderProgress[1] = Fix64.FromInt(10);                // still coming
+
+            var log = new Breach[2];
+            int count = 0;
+            Phases.Breach(s, log, ref count);
+
+            Assert.Equal(1, count);
+            Assert.True(log[0].Access);      // a Pale does carry Chill I
+            Assert.False(log[0].Coverage);   // but capacity 1 against 2 on the board
+        }
+
+        [Fact]
+        public void Evaluate_StopsAtTheFirstFalseRatherThanScoringEveryField()
+        {
+            // With no carrier at all, access is false and the later fields must
+            // stay false rather than be computed. simultaneous:0 is the only
+            // input that tells the two implementations apart: an Evaluate that
+            // scored every field unconditionally would report coverage TRUE here,
+            // because capacity 0 >= 0 is vacuously satisfied - and the loss
+            // screen would claim the deployment covered a raider it had no
+            // answer to.
+            var s = new SimState(WaveDef.Wave6(), Lane.Defile(),
+                                 SimStateTests.FiveWithoutChill());
+
+            var v = Diagnosis.Evaluate(s, RaiderType.Courser, simultaneous: 0, tile: 12);
+
+            Assert.False(v.Access);
+            Assert.False(v.Coverage);
+            Assert.False(v.Placement);
+            Assert.False(v.Answered);
         }
     }
 }
@@ -2700,7 +2834,7 @@ namespace Broodline.Sim.Combat
 }
 ```
 
-**`Fix64.Raw` is required here.** If it is not already public, add a `public long Raw => _raw;` accessor to `Fix64` in the same commit — hashing the raw bits is the only way to fold a fixed-point value without going through a lossy conversion.
+**`Fix64.Raw` is already public** (`engine/Runtime/Fix64.cs:118`, `public long Raw { get; }`), verified before this plan was dispatched. **Do not modify `Fix64`** — this task touches no Phase 1 file. Hashing the raw bits is the only way to fold a fixed-point value without a lossy conversion, and the accessor is already there.
 
 - [ ] **Step 2: Write the golden tests, with the hashes left unpinned**
 
@@ -2720,26 +2854,52 @@ namespace Broodline.Sim.Tests.Combat
 
         public const ulong Seed = 6;
 
-        /// Golden A - wave 6 exactly as authored. Five creatures, none
-        /// carrying Chill. broodline_waves_01_12.md section 3 designs this to
-        /// be lost.
+        /// Golden A - wave 6 exactly as authored: five creatures, none
+        /// carrying Chill, designed to be lost.
+        ///
+        /// Four Vetch and a Loam. Chosen for two reasons. It is a plausible
+        /// pre-wave-6 roster - Vetch is the starter wall - and it dramatises the
+        /// exact lesson the wave exists to teach, which waves_01_12 section 3
+        /// states outright: "Courser ignores Taunt, so the Vetch does not save
+        /// them."
+        ///
+        /// Chosen for MARGIN as well as verdict. The Courser breaches with 54 of
+        /// its 220 hp remaining, so the Loss does not hinge on a damage race that
+        /// an implementation detail could flip. A longer-ranged roster does not
+        /// merely narrow that margin, it reverses the outcome: a Hollow running
+        /// Overwatch covers 15 of the lane's 24 tiles and kills the Courser on its
+        /// own, which would make this wave a clear and the golden pair meaningless.
         public static CreatureSpec[] DeploymentWithoutChill() => new[]
         {
-            new CreatureSpec { Species = Species.Vetch,   Pocket = 0, Instinct = Instinct.Vanguard },
-            new CreatureSpec { Species = Species.Hollow,  Pocket = 1, Instinct = Instinct.Overwatch },
-            new CreatureSpec { Species = Species.Skitter, Pocket = 2, Instinct = Instinct.Bloodscent },
-            new CreatureSpec { Species = Species.Loam,    Pocket = 3, Instinct = Instinct.LastStand },
-            new CreatureSpec { Species = Species.Ember,   Pocket = 4, Instinct = Instinct.PackSense }
+            new CreatureSpec { Species = Species.Vetch, Pocket = 0, Instinct = Instinct.Vanguard },
+            new CreatureSpec { Species = Species.Vetch, Pocket = 1, Instinct = Instinct.Vanguard },
+            new CreatureSpec { Species = Species.Vetch, Pocket = 2, Instinct = Instinct.Vanguard },
+            new CreatureSpec { Species = Species.Vetch, Pocket = 3, Instinct = Instinct.Vanguard },
+            new CreatureSpec { Species = Species.Loam,  Pocket = 4, Instinct = Instinct.Vanguard }
         };
 
-        /// Golden B - the same wave, the same seed, one variable changed: a
-        /// Pale carrying Chill I replaces the Vetch.
+        /// Golden B - the Pale the player is granted on defeat, carrying Chill I,
+        /// standing in the Loam's pocket. waves_01_12 section 3: "The Wave Defeat
+        /// screen grants a Pale."
+        ///
+        /// The Courser dies at tile 16 of 24 - eight tiles of margin - so the Win
+        /// does not hinge on a damage race either.
+        ///
+        /// This pair changes the creature as well as the trait, and that is the
+        /// authored narrative rather than sloppy method: the player has no Pale at
+        /// wave 6 and is granted one for losing. A same-body control (this roster
+        /// with the Pale carrying NO trait) was evaluated and deliberately rejected
+        /// as a golden - it loses by 3 hp of 220, a margin thin enough that
+        /// ordinary implementation detail would flip it, which is exactly the
+        /// property a pinned golden must not have. Chill's causality is isolated in
+        /// unit tests instead, where it belongs: Task 5 asserts the speed change
+        /// directly and Task 4 asserts the capacity assignment.
         public static CreatureSpec[] DeploymentWithChill()
         {
             var d = DeploymentWithoutChill();
-            d[0] = new CreatureSpec
+            d[4] = new CreatureSpec
             {
-                Species = Species.Pale, Pocket = 0, Instinct = Instinct.Vanguard,
+                Species = Species.Pale, Pocket = 4, Instinct = Instinct.Vanguard,
                 Trait1 = Trait.Chill, Tier1 = 1
             };
             return d;
@@ -2966,12 +3126,24 @@ namespace Broodline.Sim.Tests.Combat
         }
 
         [Fact]
-        public void ADeliberateSoftLockIsCaughtByTheStallDetector()
+        public void AnUnopposedRaiderTerminatesPromptlyRatherThanCreepingToTheCap()
         {
-            // A wave whose only creature cannot reach the lane at all, against
-            // a raider that is chilled to a crawl - the shape section 8.1
-            // describes, forced on purpose. It must still terminate, and it
-            // must terminate as a Loss rather than by burning to the cap.
+            // Renamed and re-scoped from a "soft-lock" test that never reached
+            // the stall detector at all. The lone Vetch has range 2 and the
+            // Courser crosses essentially uncontested, so this is an ordinary
+            // resolution at roughly 450 ticks. Still worth asserting -- a raider
+            // that advances every tick must resolve promptly rather than creep
+            // toward the 5400-tick cap -- but it is NOT a stall test, and naming
+            // it one hid the fact that nothing covers StallTicks.
+            //
+            // THE STALL DETECTOR'S TRIP PATH IS UNREACHABLE IN THIS SLICE, and
+            // that is expected rather than a defect. The only raider is a
+            // Courser, which advances every tick even while chilled (0.5 t/s is
+            // 0.0167 tiles per tick, never zero), so the fingerprint always
+            // changes. combat_engine 8.1's soft-lock shape -- "a submerged
+            // Delver with no Burrow present and nothing able to reach it" --
+            // needs a raider that can stop moving, and none exists yet. Whoever
+            // adds Delver owns the first genuine test of StallTicks.
             var wave = new WaveDef(9999, 99, 1, new[]
             {
                 new SpawnEntry { Tick = 0, Type = RaiderType.Courser }
@@ -2982,11 +3154,14 @@ namespace Broodline.Sim.Tests.Combat
                                    Instinct = Instinct.Vanguard }
             };
 
-            var o = Sim.Run(wave, Lane.Defile(), d, 1);
+            var o = Broodline.Sim.Combat.Sim.Run(wave, Lane.Defile(), d, 1);
 
-            Assert.NotEqual(Result.Running, o.Result);
-            Assert.True(o.Ticks < Stats.HardTickCap,
-                "the raider still advances, so this must resolve well before the cap");
+            // Integrity 99 against one Courser costing 2: it breaches, and the
+            // wave is still won because nothing remains and the table is spent.
+            Assert.Equal(Result.Win, o.Result);
+            Assert.Equal(97, o.IntegrityRemaining);
+            Assert.True(o.Ticks < Stats.StallTicks * 2,
+                "an advancing raider must resolve promptly, not creep toward the cap");
         }
     }
 }
