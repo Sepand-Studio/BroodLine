@@ -6,13 +6,15 @@ using Broodline.Sim.Combat;
 
 namespace Broodline.Sim.Tests.Combat
 {
-    /// Locates the artifact the device run leaves behind. Shared by the
-    /// attribute below and by the tests themselves, so there is one definition
-    /// of where it lives.
-    internal static class DeviceArtifact
+    /// Locates a replay artifact captured from a real run through the
+    /// renderer. Shared by the device tests, the Editor tests and the skip
+    /// attribute, so there is one definition of where these live.
+    internal static class ReplayArtifact
     {
-        public const string Bin = "device-replay.bin";
-        public const string Outcome = "device-replay-outcome.txt";
+        public const string DeviceBin = "device-replay.bin";
+        public const string DeviceOutcome = "device-replay-outcome.txt";
+        public const string EditorBin = "editor-replay.bin";
+        public const string EditorOutcome = "editor-replay-outcome.txt";
 
         public static string Path(string name)
         {
@@ -23,13 +25,10 @@ namespace Broodline.Sim.Tests.Combat
             return System.IO.Path.Combine(dir.FullName, "implementation", "results", name);
         }
 
-        public static bool Present
+        public static bool Present(string name)
         {
-            get
-            {
-                var p = Path(Bin);
-                return p != null && File.Exists(p);
-            }
+            var p = Path(name);
+            return p != null && File.Exists(p);
         }
     }
 
@@ -49,8 +48,8 @@ namespace Broodline.Sim.Tests.Combat
     {
         public DeviceArtifactFactAttribute()
         {
-            if (!DeviceArtifact.Present)
-                Skip = "implementation/results/" + DeviceArtifact.Bin + " is absent. " +
+            if (!ReplayArtifact.Present(ReplayArtifact.DeviceBin))
+                Skip = "implementation/results/" + ReplayArtifact.DeviceBin + " is absent. " +
                        "It is produced by running wave 6 on a physical device and pulling " +
                        "the artifact - Task 10 Steps 5-6 of the Phase 3 plan. Phase 3's " +
                        "Definition of Done requires this test to RUN, not to skip.";
@@ -71,10 +70,10 @@ namespace Broodline.Sim.Tests.Combat
         [DeviceArtifactFact]
         public void TheDeviceRunReSimulatesToTheSameHash()
         {
-            var record = Replay.Deserialize(File.ReadAllBytes(DeviceArtifact.Path(DeviceArtifact.Bin)));
+            var record = Replay.Deserialize(File.ReadAllBytes(ReplayArtifact.Path(ReplayArtifact.DeviceBin)));
             record.Validate();
 
-            var lines = File.ReadAllLines(DeviceArtifact.Path(DeviceArtifact.Outcome));
+            var lines = File.ReadAllLines(ReplayArtifact.Path(ReplayArtifact.DeviceOutcome));
             Assert.True(lines.Length >= 4,
                 "device-replay-outcome.txt should carry hash, result, ticks and integrity on four lines");
 
@@ -102,7 +101,7 @@ namespace Broodline.Sim.Tests.Combat
             // shows its recorded outcome and is not re-simulated. If this fails,
             // the test above is comparing across a balance change and its
             // verdict means nothing.
-            var record = Replay.Deserialize(File.ReadAllBytes(DeviceArtifact.Path(DeviceArtifact.Bin)));
+            var record = Replay.Deserialize(File.ReadAllBytes(ReplayArtifact.Path(ReplayArtifact.DeviceBin)));
             Assert.Equal(SimVersion.Value, record.EngineVersion);
         }
     }
