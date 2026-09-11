@@ -881,7 +881,7 @@ The only player input during a wave. `combat_engine` §8: one use, four seconds 
   - `SimRunner.RallyUsed { get; }` → `bool`
   - `SimRunner.CreatureRallyUntil { get; }` → `ReadOnlySpan<int>`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/engine/Combat/RallyTests.cs`:
 
@@ -1009,7 +1009,7 @@ namespace Broodline.Sim.Tests.Combat
 }
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 dotnet test Broodline.sln --nologo --filter "FullyQualifiedName~RallyTests"
@@ -1017,7 +1017,7 @@ dotnet test Broodline.sln --nologo --filter "FullyQualifiedName~RallyTests"
 
 Expected: compile failure — `CreatureRallyUntil` does not exist.
 
-- [ ] **Step 3: Add the state**
+- [x] **Step 3: Add the state**
 
 `engine/Runtime/Combat/SimState.cs` — add the field beside the other creature arrays, after `CreatureRepositioned`:
 
@@ -1033,7 +1033,7 @@ And in the constructor, beside the other `new`s:
 
 The per-creature init loop needs nothing — `0` already means "never rallied", because `Tick < 0` is false for every tick.
 
-- [ ] **Step 4: Apply it in `Attacks.IntervalTicks`**
+- [x] **Step 4: Apply it in `Attacks.IntervalTicks`**
 
 `engine/Runtime/Combat/Attacks.cs` — replace the whole `IntervalTicks` method. The existing version returns from inside the switch, which leaves nowhere to apply Rally afterwards.
 
@@ -1072,7 +1072,7 @@ The per-creature init loop needs nothing — `0` already means "never rallied", 
         }
 ```
 
-- [ ] **Step 5: Add `TryRally` and its surface to `SimRunner`**
+- [x] **Step 5: Add `TryRally` and its surface to `SimRunner`**
 
 In `engine/Runtime/Combat/SimRunner.cs`, add the field beside the others:
 
@@ -1125,7 +1125,7 @@ And the method, after `Step()`:
         }
 ```
 
-- [ ] **Step 6: Fold it into the run hash**
+- [x] **Step 6: Fold it into the run hash**
 
 In `SimRunner.FoldTick`, add to the creature loop:
 
@@ -1135,7 +1135,7 @@ In `SimRunner.FoldTick`, add to the creature loop:
 
 **This changes every hash in the project.** It is deliberate: an input the hash cannot see is an input server verification cannot check.
 
-- [ ] **Step 7: Run and watch the goldens fail**
+- [x] **Step 7: Run and watch the goldens fail**
 
 ```bash
 dotnet test Broodline.sln --nologo
@@ -1143,9 +1143,9 @@ dotnet test Broodline.sln --nologo
 
 Expected: `RallyTests` PASS; `GoldenTests` and `CorpusBaselineTests` **FAIL** on changed hashes. That is the correct result at this step — confirm the failures are *only* those hash assertions and nothing behavioural. `GoldenTests` must still report `Loss`/`Win`, one breach, `Access == false`, integrity 2.
 
-- [ ] **Step 8: Re-baseline deliberately, and record the new goldens**
+- [x] **Step 8: Re-baseline deliberately, and record the new goldens**
 
-Read the two new hashes out of the test output — `GoldenTests` writes them with `_out.WriteLine`:
+Read the two new hashes out of the test output (**2026-09-10: A = 2495532238167386945, B = 13482666686023521257**) — `GoldenTests` writes them with `_out.WriteLine`:
 
 ```bash
 dotnet test Broodline.sln --nologo --filter "FullyQualifiedName~GoldenTests" --logger "console;verbosity=detailed" | grep "Golden"
@@ -1166,7 +1166,7 @@ Then regenerate the corpus baseline:
 ./implementation/scripts/emit-corpus-baseline.sh
 ```
 
-- [ ] **Step 9: Run everything green, then the cross-runtime gate**
+- [x] **Step 9: Run everything green, then the cross-runtime gate**
 
 ```bash
 dotnet test Broodline.sln --nologo && ./implementation/scripts/cross-runtime-diff.sh
@@ -1174,7 +1174,7 @@ dotnet test Broodline.sln --nologo && ./implementation/scripts/cross-runtime-dif
 
 Expected: all PASS; `PASS: 500 scenarios agree`.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add engine/Runtime/Combat/SimState.cs engine/Runtime/Combat/Attacks.cs \
