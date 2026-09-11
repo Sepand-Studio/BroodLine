@@ -12,6 +12,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../engine/Broodline.Sim.csproj" />
+    <ProjectReference Include="../../tools/config-validate/Broodline.Config.Validate.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="corpus-baseline.txt">

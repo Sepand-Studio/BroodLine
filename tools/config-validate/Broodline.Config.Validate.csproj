@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Broodline.Config.Validate</RootNamespace>
+    <AssemblyName>Broodline.Config.Validate</AssemblyName>
+    <Nullable>disable</Nullable>
+    <IsPackable>false</IsPackable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <!--
+      References the engine, which is the entire point: the wave-composition
+      rules live in WaveDef and are invoked here rather than reimplemented in
+      the publish pipeline. solo_execution 6.1 forbids a game rule existing in
+      two languages, and 5.2's validation list would otherwise require exactly
+      that.
+
+      This project is NOT subject to the engine's constraints. It uses
+      System.IO and System.Text.Json freely - the Cecil scan and
+      BannedSymbols.txt target Broodline.Sim, and nothing here ships in the
+      client or the simulation.
+    -->
+    <ProjectReference Include="../../engine/Broodline.Sim.csproj" />
+  </ItemGroup>
+</Project>

@@ -42,6 +42,11 @@ engine/obj~/
 tests/**/bin/
 tests/**/obj/
 
+# .NET build outputs (tools/ projects — same reasoning as tests/ above: pure
+# .NET CLIs with no Unity import concern).
+tools/**/bin/
+tools/**/obj/
+
 # Unity generated
 client/[Ll]ibrary/
 client/[Tt]emp/
