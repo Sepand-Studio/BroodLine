@@ -14,7 +14,7 @@ namespace Broodline.Sim.Tests.Combat
                                   GoldenTests.DeploymentWithoutChill(), GoldenTests.Seed);
             while (r.Step()) { }
 
-            Assert.Equal(4169973534116968225UL, r.Outcome.Hash);
+            Assert.Equal(2495532238167386945UL, r.Outcome.Hash);
             Assert.Equal(Result.Loss, r.Outcome.Result);
             Assert.Equal(1, r.Outcome.BreachCount);
             Assert.False(r.Outcome.Breaches[0].Access);
@@ -27,7 +27,7 @@ namespace Broodline.Sim.Tests.Combat
                                   GoldenTests.DeploymentWithChill(), GoldenTests.Seed);
             while (r.Step()) { }
 
-            Assert.Equal(434502781243215433UL, r.Outcome.Hash);
+            Assert.Equal(13482666686023521257UL, r.Outcome.Hash);
             Assert.Equal(Result.Win, r.Outcome.Result);
             Assert.Equal(2, r.Outcome.IntegrityRemaining);
         }

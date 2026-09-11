@@ -51,6 +51,7 @@ namespace Broodline.Sim.Combat
         public readonly int[] CreatureNextAttackAt;  // tick it may next fire
         public readonly int[] CreatureBusyUntil;     // tick it may act again
         public readonly bool[] CreatureRepositioned; // Skittish fires once
+        public readonly int[] CreatureRallyUntil;    // absolute tick; 0 == never
         public readonly int CreatureCount;
 
         public SimState(WaveDef wave, Lane lane, CreatureSpec[] deployment)
@@ -82,6 +83,9 @@ namespace Broodline.Sim.Combat
             CreatureNextAttackAt = new int[CreatureCount];
             CreatureBusyUntil = new int[CreatureCount];
             CreatureRepositioned = new bool[CreatureCount];
+            // 0 already means "never rallied": Tick < 0 is false for every tick,
+            // so the per-creature loop below needs no entry for it.
+            CreatureRallyUntil = new int[CreatureCount];
 
             for (int c = 0; c < CreatureCount; c++)
             {

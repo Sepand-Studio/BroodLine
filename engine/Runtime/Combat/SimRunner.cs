@@ -27,6 +27,8 @@ namespace Broodline.Sim.Combat
         private int _stallTicks;
         private long _lastFingerprint = long.MinValue;
 
+        private bool _rallyUsed;
+
         private Result _result = Result.Running;
         private Outcome _outcome;
         private bool _done;
@@ -77,6 +79,9 @@ namespace Broodline.Sim.Combat
         public ReadOnlySpan<int> CreatureHp => _s.CreatureHp;
         public ReadOnlySpan<int> CreaturePocket => _s.CreaturePocket;
         public ReadOnlySpan<int> CreatureTarget => _s.CreatureTarget;
+        public ReadOnlySpan<int> CreatureRallyUntil => _s.CreatureRallyUntil;
+        public ReadOnlySpan<int> CreatureNextAttackAt => _s.CreatureNextAttackAt;
+        public bool RallyUsed => _rallyUsed;
 
         /// Advances exactly one tick. Returns false once the wave has
         /// terminated, after which it is a harmless no-op.
@@ -121,6 +126,39 @@ namespace Broodline.Sim.Combat
             return true;
         }
 
+        /// combat_engine section 8: four seconds of doubled attack speed on one
+        /// creature, one use per wave, no cooldown. 4s at 30Hz.
+        public const int RallyTicks = 4 * Stats.TicksPerSecond;
+
+        /// The only player input during a wave. Returns false - harmlessly -
+        /// for every invalid case rather than throwing.
+        ///
+        /// An invalid Rally MUST be a no-op, because the replay records only
+        /// what the simulation consumed. An input that was rejected but still
+        /// written to the record is precisely the shape of a replay that does
+        /// not reproduce, and it would surface as a rejected raid for an honest
+        /// player rather than as a bug anyone could find.
+        public bool TryRally(int creatureId)
+        {
+            if (_done) return false;
+            if (_rallyUsed) return false;
+            if (creatureId < 0 || creatureId >= _s.CreatureCount) return false;
+            if (!_s.CreatureAlive(creatureId)) return false;
+
+            _rallyUsed = true;
+            _s.CreatureRallyUntil[creatureId] = _s.Tick + RallyTicks;
+
+            // Halve the REMAINING cooldown too. NextAttackAt is an absolute
+            // tick already computed against the un-halved interval, so without
+            // this a Hollow's 75-tick interval swallows most of the 120-tick
+            // window and the player's one input per wave looks dropped.
+            int remaining = _s.CreatureNextAttackAt[creatureId] - _s.Tick;
+            if (remaining > 0)
+                _s.CreatureNextAttackAt[creatureId] = _s.Tick + remaining / 2;
+
+            return true;
+        }
+
         private void Finish(Result result)
         {
             _result = result;
@@ -158,6 +196,7 @@ namespace Broodline.Sim.Combat
                 hash.Add(s.CreatureHp[c]);
                 hash.Add(s.CreatureTarget[c]);
                 hash.Add(s.CreaturePocket[c]);
+                hash.Add(s.CreatureRallyUntil[c]);
             }
         }
 
