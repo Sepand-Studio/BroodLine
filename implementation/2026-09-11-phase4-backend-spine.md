@@ -1983,7 +1983,7 @@ pnpm --filter @broodline/api test idempotency
 pnpm --filter @broodline/api test && pnpm --filter @broodline/api typecheck
 ```
 
-Expected: green — 2 app, 7 isolation, 4 ledger, 3 idempotency.
+Expected: green — 2 health, 12 isolation, 4 ledger, 3 idempotency. **21 across the package.** The isolation suite grew from 6 to 12 during Task 3's review round; see the corrections section below.
 
 ```bash
 git add services/api
@@ -5435,6 +5435,59 @@ needs a deployed Cloud Run revision rather than a rerun.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
+
+---
+
+## Corrections found during execution
+
+The code is ahead of this document in several places. Each correction below was
+found by review during execution, landed in the commit named, and is recorded
+here so this plan is not read as the design of record where it was wrong.
+
+**Task 1 — the guard could not have worked as designed.** §3.1 of the design put
+the `SimVersion` enforcement in a test. The emitter regenerates the baseline from
+the current engine, so its header is always the current version and the file
+agrees with itself. The guard moved into `emit-corpus-baseline.sh` (`62362ae`),
+and the fix round added a history check so a version *revert* cannot disarm it
+either (`f7c93bf`).
+
+**Task 1 — two probe defects.** The named test did not exist, and the probe
+constant could not perturb a hash: `damage * 115 / 100` swallows a one-point
+change at every damage value in the game. Both corrected in this document at
+`5d1d887`.
+
+**Task 3 — the migration runner's concurrency claim was false.** `SELECT ... FOR
+UPDATE` locks nothing when the row does not exist, so two cold-start runners both
+entered the DDL and the comment claimed the opposite. Replaced with
+`INSERT ... ON CONFLICT DO NOTHING RETURNING 1`, which makes the loser block on
+the winner's row lock, plus an advisory lock around the `_migrations` bootstrap
+(`4a58309`).
+
+**Task 3 — `GRANT UPDATE ON accounts` was an account-takeover primitive.** A
+handler scoped to one server could rewrite any account's `apple_sub` — the
+credential later tasks authenticate against — and flip `server_id`, which
+`0001_tables.sql` declares immutable and nothing enforced. Narrowed to
+`GRANT UPDATE (apple_sub, deleted_at)` with a trigger enforcing the immutability
+(`4a58309`). The comment justifying the exemption was also factually wrong: the
+real reason is that login resolves by `apple_sub` before a server is known.
+
+**Task 3 — the gate pinned an enumeration rather than an invariant.** The
+five-table list appeared in three places, so a table added later and forgotten
+would be unprotected *and* green. The gate now queries `pg_class` for every
+ordinary table in `public`, subtracts an explicit allowlist, and requires
+`relrowsecurity AND relforcerowsecurity` on the rest, with a vacuity guard
+(`4a58309`).
+
+**Task 3 — the schema had no composite foreign keys.** `wallets`, `ledger` and
+`campaign_progress` could reference a player that does not exist, and a handler
+scoped to one server could bind a player to another server's account. Added in
+`4a58309`, before money landed on them.
+
+**Carried forward, not yet acted on.** RLS defends against a handler that forgets
+to scope, not one that scopes to the *wrong* server — `broodline_app` can set
+`app.server_id` to any value, since custom GUCs are `USERSET`. Tasks 5 and 8 must
+take `serverId` from the verified token claim and never from request input, or
+this phase's first gate is bypassed by a query parameter.
 
 ---
 
