@@ -729,7 +729,7 @@ reproducing byte-for-byte - no hash moved, which is the whole claim."
   - `ReadOnlySpan<int> CreatureTarget { get; }`
   - `Lane Lane { get; }`, `int LaneTiles { get; }`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/engine/Combat/SimRunnerTests.cs`, inside the class:
 
@@ -783,7 +783,7 @@ Append to `tests/engine/Combat/SimRunnerTests.cs`, inside the class:
         }
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 dotnet test Broodline.sln --nologo --filter "FullyQualifiedName~SimRunnerTests"
@@ -791,7 +791,7 @@ dotnet test Broodline.sln --nologo --filter "FullyQualifiedName~SimRunnerTests"
 
 Expected: compile failure — `SimRunner` has no `Integrity`.
 
-- [ ] **Step 3: Add the accessors**
+- [x] **Step 3: Add the accessors**
 
 In `engine/Runtime/Combat/SimRunner.cs`, add `using System;` at the top of the file and insert these members after the existing `public Outcome Outcome => _outcome;`:
 
@@ -826,7 +826,7 @@ In `engine/Runtime/Combat/SimRunner.cs`, add `using System;` at the top of the f
         public ReadOnlySpan<int> CreatureTarget => _s.CreatureTarget;
 ```
 
-- [ ] **Step 4: Run until green**
+- [x] **Step 4: Run until green**
 
 ```bash
 dotnet test Broodline.sln --nologo
@@ -834,7 +834,7 @@ dotnet test Broodline.sln --nologo
 
 Expected: PASS. No hash moves — this task adds accessors and touches no arithmetic.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add engine/Runtime/Combat/SimRunner.cs tests/engine/Combat/SimRunnerTests.cs
