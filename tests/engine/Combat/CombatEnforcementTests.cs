@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using Xunit;
 
@@ -16,6 +17,10 @@ namespace Broodline.Sim.Tests.Combat
     /// wrong", it is "a balance change is being made and should be explicit".
     public class CombatEnforcementTests
     {
+        /// Named once. Both facts below depend on agreeing about which file
+        /// holds the loop, and they disagreed silently when it moved.
+        private const string TickLoopFile = "SimRunner.cs";
+
         // Walks up looking for Broodline.sln rather than for a directory named
         // "engine": the test project itself lives at tests/engine, so a search
         // for a same-named directory stops one level too early, at tests/,
@@ -39,7 +44,7 @@ namespace Broodline.Sim.Tests.Combat
             // sense that matters to this contract, but the file they live in
             // did. TheTickLoopLivesInExactlyOnePlace below is what keeps this
             // scan pointed at the only loop there is.
-            string path = Path.Combine(RepoRoot(), "engine", "Runtime", "Combat", "SimRunner.cs");
+            string path = Path.Combine(RepoRoot(), "engine", "Runtime", "Combat", TickLoopFile);
             Assert.True(File.Exists(path), "missing " + path);
 
             string source = File.ReadAllText(path);
@@ -72,24 +77,55 @@ namespace Broodline.Sim.Tests.Combat
         [Fact]
         public void TheTickLoopLivesInExactlyOnePlace()
         {
-            // Phase 3's whole claim about the decomposition: Sim.Run is a loop
-            // over SimRunner, not a second implementation of it.
-            // solo_execution section 9.3 rejects "a second model of the game
-            // that has to stay in sync with the first" on cost grounds, and two
-            // tick loops is exactly that shape.
+            // Phase 3's claim about the decomposition: Sim.Run is a loop over
+            // SimRunner, not a second implementation of it. solo_execution 9.3
+            // rejects "a second model of the game that has to stay in sync with
+            // the first" on cost grounds, and two tick loops is that shape.
             //
-            // It is also what keeps the order scan above honest. A scan pointed
-            // at one file proves nothing if a second loop can exist in another,
-            // so this is the other half of that test rather than a separate
-            // concern.
-            string path = Path.Combine(RepoRoot(), "engine", "Runtime", "Combat", "Sim.cs");
-            string source = File.ReadAllText(path);
+            // This used to check only Sim.cs, which left the hole it claimed to
+            // close: a reviewer demonstrated it by adding AutoResolve.cs with a
+            // full second tick loop - Targeting BEFORE Movement, the exact
+            // violation the order scan exists to catch - and all 141 tests
+            // passed. Scanning EVERY engine file is what makes the order scan
+            // above mean anything, because that scan reads one file and is
+            // worthless if a second loop can live in another.
+            var offenders = new List<string>();
+            foreach (var file in Directory.GetFiles(
+                         Path.Combine(RepoRoot(), "engine", "Runtime"), "*.cs", SearchOption.AllDirectories))
+            {
+                string name = Path.GetFileName(file);
+                if (name == "Phases.cs" || name == TickLoopFile) continue;   // the loop, and the phases themselves
+                if (file.Contains("ThirdParty")) continue;
 
-            Assert.False(source.Contains("Phases."),
-                "Sim.cs calls a phase function directly. The tick loop lives in " +
-                "SimRunner; Sim.Run drives it. A second loop here would have to " +
-                "be kept in step with that one forever, and the order-enforcement " +
-                "scan only reads SimRunner.cs.");
+                if (CodeOnly(File.ReadAllText(file)).Contains("Phases."))
+                    offenders.Add(name);
+            }
+
+            Assert.True(offenders.Count == 0,
+                "these engine files call a phase function directly: " + string.Join(", ", offenders) + ". " +
+                "The tick loop lives in " + TickLoopFile + " and Sim.Run drives it. A second loop " +
+                "would have to be kept in step with that one forever, and the order-enforcement " +
+                "scan only reads " + TickLoopFile + ".");
+        }
+
+        /// Source with line comments removed, so the scan above judges CODE.
+        /// Without this, a doc comment that merely mentions the phases fails the
+        /// test - which is exactly what happened: Ids.cs documents the tick
+        /// order for readers and names "Phases.*" while calling nothing. A
+        /// guard that fires on prose teaches people to weaken it.
+        ///
+        /// Line comments only. The engine has no block comments, and a scanner
+        /// that tried to handle strings and verbatim literals would be a parser
+        /// pretending to be a grep.
+        private static string CodeOnly(string source)
+        {
+            var sb = new System.Text.StringBuilder(source.Length);
+            foreach (var line in source.Split('\n'))
+            {
+                int at = line.IndexOf("//", StringComparison.Ordinal);
+                sb.Append(at >= 0 ? line.Substring(0, at) : line).Append('\n');
+            }
+            return sb.ToString();
         }
 
         [Fact]

@@ -57,6 +57,13 @@ namespace Broodline.View
         public bool RaiderAlive(int i) => _raiderAlive[i];
         public bool RaiderChilled(int i) => _raiderChilled[i];
         public int CreatureHp(int c) => _creatureHp[c];
+
+        /// Interpolated lane position, using the same expression WaveView uses
+        /// to place the body. The HUD used to read Current directly while the
+        /// View lerped, so a bar and the thing it labelled answered two
+        /// different questions about where a raider was.
+        public static float LerpTile(WaveSnapshot previous, WaveSnapshot current, int i, float alpha)
+            => previous.RaiderTile(i) + (current.RaiderTile(i) - previous.RaiderTile(i)) * alpha;
     }
 
     /// The two retained snapshots, swapped rather than reallocated so the

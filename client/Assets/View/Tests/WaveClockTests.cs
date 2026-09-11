@@ -103,11 +103,11 @@ namespace Broodline.View.Tests
             Assert.AreEqual(3, runner.Tick);
 
             clock.RequestRally(2);
-            Assert.AreEqual(-1, runner.Record.RallyTick, "consumed before a tick boundary");
+            Assert.AreEqual(-1, runner.ReadRecord().RallyTick, "consumed before a tick boundary");
 
             clock.Advance(runner, Tick30 * 0.6, null);    // now over a boundary
-            Assert.AreEqual(3, runner.Record.RallyTick);
-            Assert.AreEqual(2, runner.Record.RallyCreature);
+            Assert.AreEqual(3, runner.ReadRecord().RallyTick);
+            Assert.AreEqual(2, runner.ReadRecord().RallyCreature);
         }
 
         [Test]

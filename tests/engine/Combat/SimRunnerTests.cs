@@ -73,6 +73,42 @@ namespace Broodline.Sim.Tests.Combat
         }
 
         [Fact]
+        public void ADeploymentOverTheCapIsRefusedBySimulationAndReplayAlike()
+        {
+            // The cap was enforced in Replay.Deserialize but not in the
+            // simulation, so Sim.Run would run six creatures to completion and
+            // write a 244-byte record it could not itself read back - the device
+            // writes the file happily and verification later calls the honest
+            // player's own run corrupt.
+            var six = new CreatureSpec[Stats.DeploymentCap + 1];
+            for (int i = 0; i < six.Length; i++)
+                six[i] = new CreatureSpec { Species = Species.Vetch, Pocket = 0, Instinct = Instinct.Vanguard };
+
+            var e = Assert.Throws<WaveCompositionException>(
+                () => new SimRunner(WaveDef.Wave6(), Lane.Defile(), six, GoldenTests.Seed));
+            Assert.Contains("cap", e.Message);
+        }
+
+        [Fact]
+        public void OutcomeBreachesIsACopyTrimmedToBreachCount()
+        {
+            // Outcome is a struct, so C# refuses `Outcome.Ticks = 5` and the
+            // type reads as immutable - but `Outcome.Breaches[0] = default`
+            // wrote straight through into the runner's live buffer, and two
+            // Outcome copies shared one array. Trimming also retires the
+            // "iterate to BreachCount, never Length" hazard: they now agree.
+            var r = new SimRunner(WaveDef.Wave6(), Lane.Defile(),
+                                  GoldenTests.DeploymentWithoutChill(), GoldenTests.Seed);
+            while (r.Step()) { }
+
+            Assert.Equal(r.Outcome.BreachCount, r.Outcome.Breaches.Length);
+
+            var type = r.Outcome.Breaches[0].Type;
+            r.Outcome.Breaches[0] = default;
+            Assert.Equal(type, r.Outcome.Breaches[0].Type);   // the runner's copy is untouched
+        }
+
+        [Fact]
         public void ReadOnlySurface_TracksTheLiveState()
         {
             var r = new SimRunner(WaveDef.Wave6(), Lane.Defile(),

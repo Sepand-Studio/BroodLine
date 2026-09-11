@@ -1,3 +1,5 @@
+using System;
+
 namespace Broodline.Sim.Combat
 {
     /// Lane geometry, precomputed at construction.
@@ -19,14 +21,29 @@ namespace Broodline.Sim.Combat
 
         public int Tiles { get; }
         public int PocketCount { get; }
-        public int[] PocketTiles { get; }
 
+        /// Which authored family this geometry came from. A replay stores it and
+        /// rebuilds the lane from it, so a Lane that does not know its own
+        /// family cannot be recorded honestly - SimRunner used to stamp
+        /// Terrain.Defile unconditionally, which meant any other geometry
+        /// recorded a lie that Validate could not catch, because both sides of
+        /// its cross-check derived from the same literal.
+        public Terrain Family { get; }
+
+        private readonly int[] _pocketTiles;
         private readonly int[] _distSq;   // [pocket * Tiles + tile]
 
-        public Lane(int tiles, int[] pocketTiles)
+        /// The tile each pocket sits beside. ReadOnlySpan rather than the array:
+        /// _distSq is baked from these once in the constructor and never
+        /// recomputed, so a write here would leave geometry and range checks
+        /// silently disagreeing. View dereferences this every frame.
+        public ReadOnlySpan<int> PocketTiles => _pocketTiles;
+
+        public Lane(Terrain family, int tiles, int[] pocketTiles)
         {
+            Family = family;
             Tiles = tiles;
-            PocketTiles = pocketTiles;
+            _pocketTiles = pocketTiles;
             PocketCount = pocketTiles.Length;
 
             _distSq = new int[PocketCount * tiles];
@@ -43,7 +60,7 @@ namespace Broodline.Sim.Combat
         /// Defile - the terrain family wave 6 runs on. 24 tiles, 5 pockets.
         /// combat_numbers section 42: pockets sit beside tiles 6-20.
         public static Lane Defile() =>
-            new Lane(Stats.LaneTiles, new[] { 6, 10, 13, 17, 20 });
+            new Lane(Terrain.Defile, Stats.LaneTiles, new[] { 6, 10, 13, 17, 20 });
 
         public int DistSq(int pocket, int tile) => _distSq[pocket * Tiles + tile];
 

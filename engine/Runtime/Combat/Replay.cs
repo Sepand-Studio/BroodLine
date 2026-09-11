@@ -64,6 +64,12 @@ namespace Broodline.Sim.Combat
         /// reason.
         public void Validate()
         {
+            // EVERY field here arrives from untrusted bytes. Sim.Replay is the
+            // server verification path, so a field that is read but not bounded
+            // is not a cosmetic gap - it is either a crash in the verifier or,
+            // worse, a forged run that validates. Both were demonstrated before
+            // this method was widened: Pocket 178956971 passed and SIMULATED,
+            // because 178956971 * 24 wraps into Lane's 120-entry distance table.
             if (Deployment == null || DeploymentHp == null ||
                 Deployment.Length != DeploymentHp.Length)
                 throw new ReplayFormatException("deployment and HP arrays disagree");
@@ -72,6 +78,16 @@ namespace Broodline.Sim.Combat
                 throw new ReplayFormatException(
                     "deployment of " + Deployment.Length + " exceeds the cap of " + Stats.DeploymentCap);
 
+            // ForId throws WaveCompositionException, which is a SIBLING of this
+            // class's exception rather than a subtype. Every other rejection
+            // here is a ReplayFormatException and callers catch that, so an
+            // unknown wave id has to be translated at this boundary or it
+            // escapes a correctly-written handler.
+            WaveDef wave;
+            try { wave = WaveDef.ForId(WaveId); }
+            catch (WaveCompositionException e)
+            { throw new ReplayFormatException("wave id " + WaveId + " is not authored: " + e.Message); }
+
             var lane = BuildLane();
             if (LaneTiles != lane.Tiles)
                 throw new ReplayFormatException(
@@ -79,16 +95,39 @@ namespace Broodline.Sim.Combat
             if (PocketCount != lane.PocketCount)
                 throw new ReplayFormatException(
                     "pocket count " + PocketCount + " disagrees with " + Terrain + "'s " + lane.PocketCount);
-            if (LaneCount != WaveDef.ForId(WaveId).LaneCount)
+            if (LaneCount != wave.LaneCount)
                 throw new ReplayFormatException("lane count disagrees with the authored wave");
 
             for (int c = 0; c < Deployment.Length; c++)
             {
-                int expected = Stats.CreatureHp(Deployment[c].Species);
+                var d = Deployment[c];
+
+                // Enum casts in Deserialize are unchecked by design - C# permits
+                // any int - so range is established here. Species first, because
+                // Stats.CreatureHp returns 0 for an unknown one, which would
+                // turn the HP cross-check below into a no-op and let a forged
+                // record delete a creature by starting it at 0 HP.
+                if ((int)d.Species < 0 || (int)d.Species >= SpeciesCount)
+                    throw new ReplayFormatException("creature " + c + " has species " + (int)d.Species);
+                if ((int)d.Instinct < 0 || (int)d.Instinct >= InstinctCount)
+                    throw new ReplayFormatException("creature " + c + " has instinct " + (int)d.Instinct);
+                if ((int)d.Trait1 < 0 || (int)d.Trait1 >= TraitCount ||
+                    (int)d.Trait2 < 0 || (int)d.Trait2 >= TraitCount)
+                    throw new ReplayFormatException("creature " + c + " carries an unknown trait");
+
+                if (d.Pocket < 0 || d.Pocket >= lane.PocketCount)
+                    throw new ReplayFormatException(
+                        "creature " + c + " is in pocket " + d.Pocket +
+                        ", outside " + Terrain + "'s 0.." + (lane.PocketCount - 1));
+
+                if (d.Tier1 < 0 || d.Tier1 > 3 || d.Tier2 < 0 || d.Tier2 > 3)
+                    throw new ReplayFormatException("creature " + c + " has a coverage tier outside 0..3");
+
+                int expected = Stats.CreatureHp(d.Species);
                 if (DeploymentHp[c] != expected)
                     throw new ReplayFormatException(
                         "creature " + c + " stores HP " + DeploymentHp[c] +
-                        " but " + Deployment[c].Species + " starts at " + expected);
+                        " but " + d.Species + " starts at " + expected);
             }
 
             if (RallyTick < -1) throw new ReplayFormatException("negative rally tick");
@@ -96,7 +135,32 @@ namespace Broodline.Sim.Combat
                 throw new ReplayFormatException("rally tick and creature disagree about being absent");
             if (RallyCreature >= Deployment.Length)
                 throw new ReplayFormatException("rally names creature " + RallyCreature + ", out of range");
+            if (RallyTick >= Stats.HardTickCap)
+                throw new ReplayFormatException(
+                    "rally at tick " + RallyTick + ", at or past the hard cap of " + Stats.HardTickCap +
+                    " - no run reaches it, so the input could never have been consumed");
+
+            // solo_execution 9.4: "a replay recorded under an earlier engine
+            // version renders its stored outcome and is not re-simulated." That
+            // rule had no implementation - the field was written and never
+            // compared - so a replay from a superseded engine re-simulated
+            // silently into a different outcome, which on the server path reads
+            // an honest player's raid as a mismatch. This is where it becomes
+            // real. Callers wanting the stored-outcome-with-a-notice behaviour
+            // catch this and render rather than re-running.
+            if (EngineVersion != SimVersion.Value)
+                throw new ReplayFormatException(
+                    "replay was recorded by engine " + EngineVersion + ", this engine is " +
+                    SimVersion.Value + " - show its stored outcome rather than re-simulating it");
         }
+
+        // Enum widths, checked by a test against the enums themselves rather
+        // than trusted here. System.Enum.IsDefined allocates and reflects, and
+        // Convert.ToInt32 boxes; the enums are contiguous from 0, so a bare int
+        // comparison is both cheaper and clearer about what it enforces.
+        private const int SpeciesCount = 6;
+        private const int InstinctCount = 6;
+        private const int TraitCount = 2;     // None, Chill
 
         public byte[] Serialize()
         {
@@ -191,6 +255,14 @@ namespace Broodline.Sim.Combat
 
             r.RallyTick     = GetI32(b, ref i);
             r.RallyCreature = GetI32(b, ref i);
+
+            // A record is fixed-layout, so anything after the last field is not
+            // part of it. Accepting the remainder silently means a truncated
+            // file padded back to length, or two records concatenated, reads as
+            // a valid first record with no complaint.
+            if (i != b.Length)
+                throw new ReplayFormatException(
+                    "record is " + i + " bytes but the buffer is " + b.Length + " - trailing data");
 
             return r;
         }

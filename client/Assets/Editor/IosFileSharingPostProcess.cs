@@ -1,4 +1,3 @@
-#if UNITY_IOS
 using UnityEditor;
 using UnityEditor.Callbacks;
 using UnityEditor.iOS.Xcode;
@@ -23,6 +22,17 @@ using UnityEngine;
 /// Both are development conveniences on a development build. They should be
 /// reconsidered before anything ships to a real player: a shipped app that
 /// exposes its Documents directory is handing the player its own save data.
+///
+/// NOT guarded by #if UNITY_IOS. That symbol follows the ACTIVE build target,
+/// not the target being built, and WaveBuilder.BuildIOS explicitly supports
+/// starting from another one - it calls SwitchActiveBuildTarget and then builds
+/// while the domain reload is still deferred, so the callback would not be
+/// registered at all. On any machine not already on iOS - a fresh clone, or one
+/// that just ran cross-runtime-diff.sh, which switches to StandaloneOSX - the
+/// plist keys would be silently absent and the build would still report
+/// Succeeded. The runtime target check below is what makes the guard correct.
+/// UnityEditor.iOS.Xcode ships with the iOS module, which verify-prereqs.sh
+/// already asserts is installed.
 public static class IosFileSharingPostProcess
 {
     [PostProcessBuild(100)]
@@ -42,4 +52,3 @@ public static class IosFileSharingPostProcess
                   "LSSupportsOpeningDocumentsInPlace -> YES in " + plistPath);
     }
 }
-#endif

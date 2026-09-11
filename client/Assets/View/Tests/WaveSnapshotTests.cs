@@ -6,6 +6,12 @@ namespace Broodline.View.Tests
 {
     public class WaveSnapshotTests
     {
+        // Every step loop below carries `&& runner.Step()`. Without it the
+        // condition spins forever once the run terminates - Step stops
+        // incrementing Tick - so a balance change that ends wave 6 early would
+        // HANG the EditMode runner with no timeout and no result rather than
+        // failing. SimRunnerTests uses the same idiom.
+
         static SimRunner Runner() => new SimRunner(
             WaveDef.Wave6(), Lane.Defile(), Deployment(), 6UL);
 
@@ -25,7 +31,7 @@ namespace Broodline.View.Tests
             var runner = Runner();
             var pair = new WavePair(runner);
 
-            while (runner.Tick < 100) { runner.Step(); pair.Advance(runner); }
+            while (runner.Tick < 100 && runner.Step()) { pair.Advance(runner); }
             float a = pair.Previous.RaiderTile(0);
 
             runner.Step(); pair.Advance(runner);
@@ -41,7 +47,7 @@ namespace Broodline.View.Tests
         {
             var runner = Runner();
             var pair = new WavePair(runner);
-            while (runner.Tick < 120) { runner.Step(); pair.Advance(runner); }
+            while (runner.Tick < 120 && runner.Step()) { pair.Advance(runner); }
 
             // The engine's own value is the authority. Fix64 carries no float
             // conversion because floats are banned there, so this pins the one
@@ -58,7 +64,7 @@ namespace Broodline.View.Tests
             // interpolation would render nothing.
             var runner = Runner();
             var pair = new WavePair(runner);
-            while (runner.Tick < 100) { runner.Step(); pair.Advance(runner); }
+            while (runner.Tick < 100 && runner.Step()) { pair.Advance(runner); }
 
             float before = pair.Previous.RaiderTile(0);
             for (int i = 0; i < 10; i++) runner.Step();

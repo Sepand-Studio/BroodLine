@@ -30,29 +30,48 @@ namespace Broodline.Sim.Tests.Combat
             var p = Path(name);
             return p != null && File.Exists(p);
         }
+
+        /// Path or a diagnosable failure. Returning null let File.ReadAllBytes
+        /// raise a bare ArgumentNullException, which points at nothing.
+        public static string Require(string name)
+        {
+            var p = Path(name);
+            Assert.True(p != null,
+                "could not locate Broodline.sln above " + AppContext.BaseDirectory +
+                " - the artifact path cannot be resolved");
+            Assert.True(File.Exists(p), "missing tracked artifact: implementation/results/" + name);
+            return p;
+        }
     }
 
-    /// Skips rather than fails when the device artifact is absent.
+    /// The artifacts are TRACKED, so absence means a committed file was
+    /// deleted, not that a contributor lacks the hardware.
     ///
-    /// The artifact cannot be produced by CI or by anyone without the physical
-    /// device, so a hard failure would leave the suite permanently red for
-    /// every other contributor and every other task. But a SILENT skip is the
-    /// worse failure mode this repo already knows about - run-unity-tests.sh
-    /// carries a comment about a stale results file printing a green summary
-    /// beside a non-zero exit, and calls a stale pass worse than a failure.
-    ///
-    /// So the skip is loud: it names what is missing and how to produce it, and
-    /// the Definition of Done requires Skipped: 0, which means "skipped" can
-    /// never be mistaken for "passed" when the phase is signed off.
-    public sealed class DeviceArtifactFactAttribute : FactAttribute
+    /// This used to be a Fact attribute that set Skip when the file was
+    /// missing, with a prose "Definition of Done requires Skipped: 0" as the
+    /// compensating control. That inverted the gate: deleting the artifact that
+    /// IS Phase 3's done-when produced "Failed: 0, Passed: 139, Skipped: 2" and
+    /// exit 0, and nothing in CI looked at the skip count. A rule this repo
+    /// cares about becomes a red test, the way EnforcementTests does it - not a
+    /// sentence someone has to remember to check.
+    public class ReplayArtifactPresenceTests
     {
-        public DeviceArtifactFactAttribute()
+        [Fact]
+        public void BothRoundTripArtifactsArePresent()
         {
-            if (!ReplayArtifact.Present(ReplayArtifact.DeviceBin))
-                Skip = "implementation/results/" + ReplayArtifact.DeviceBin + " is absent. " +
-                       "It is produced by running wave 6 on a physical device and pulling " +
-                       "the artifact - Task 10 Steps 5-6 of the Phase 3 plan. Phase 3's " +
-                       "Definition of Done requires this test to RUN, not to skip.";
+            foreach (var name in new[]
+            {
+                ReplayArtifact.DeviceBin, ReplayArtifact.DeviceOutcome,
+                ReplayArtifact.EditorBin, ReplayArtifact.EditorOutcome
+            })
+            {
+                var path = ReplayArtifact.Path(name);
+                Assert.True(path != null, "could not locate the repository root from " + AppContext.BaseDirectory);
+                Assert.True(File.Exists(path),
+                    "implementation/results/" + name + " is missing. It is tracked, so this means a " +
+                    "committed artifact was deleted rather than that you lack the device. Restore it " +
+                    "with git checkout, or re-capture it per Task 10 of the Phase 3 plan.");
+            }
         }
     }
 
@@ -67,13 +86,13 @@ namespace Broodline.Sim.Tests.Combat
     /// implies the other.
     public class DeviceReplayTests
     {
-        [DeviceArtifactFact]
+        [Fact]
         public void TheDeviceRunReSimulatesToTheSameHash()
         {
-            var record = Replay.Deserialize(File.ReadAllBytes(ReplayArtifact.Path(ReplayArtifact.DeviceBin)));
+            var record = Replay.Deserialize(File.ReadAllBytes(ReplayArtifact.Require(ReplayArtifact.DeviceBin)));
             record.Validate();
 
-            var lines = File.ReadAllLines(ReplayArtifact.Path(ReplayArtifact.DeviceOutcome));
+            var lines = File.ReadAllLines(ReplayArtifact.Require(ReplayArtifact.DeviceOutcome));
             Assert.True(lines.Length >= 4,
                 "device-replay-outcome.txt should carry hash, result, ticks and integrity on four lines");
 
@@ -94,14 +113,14 @@ namespace Broodline.Sim.Tests.Combat
             Assert.Equal(deviceIntegrity, replayed.IntegrityRemaining);
         }
 
-        [DeviceArtifactFact]
+        [Fact]
         public void TheDeviceRunWasRecordedByThisEngineVersion()
         {
             // solo_execution section 9.4: a replay from a superseded engine
             // shows its recorded outcome and is not re-simulated. If this fails,
             // the test above is comparing across a balance change and its
             // verdict means nothing.
-            var record = Replay.Deserialize(File.ReadAllBytes(ReplayArtifact.Path(ReplayArtifact.DeviceBin)));
+            var record = Replay.Deserialize(File.ReadAllBytes(ReplayArtifact.Require(ReplayArtifact.DeviceBin)));
             Assert.Equal(SimVersion.Value, record.EngineVersion);
         }
     }

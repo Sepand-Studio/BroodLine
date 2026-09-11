@@ -103,7 +103,7 @@ namespace Broodline.Game
             // The engine does no file I/O; it hands back bytes and this writes
             // them. Same split Phase 0's CorpusPlayerHarness uses.
             var dir = Application.persistentDataPath;
-            File.WriteAllBytes(Path.Combine(dir, "replay.bin"), _runner.Record.Serialize());
+            File.WriteAllBytes(Path.Combine(dir, "replay.bin"), _runner.SerializeRecord());
             File.WriteAllText(Path.Combine(dir, "replay-outcome.txt"),
                 _runner.Outcome.Hash + "\n" +
                 (int)_runner.Outcome.Result + "\n" +

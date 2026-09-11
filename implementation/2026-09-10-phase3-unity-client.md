@@ -44,8 +44,9 @@ From `specs/plans/broodline_phase3_unity_client.md`, and normative here:
 | Hard tick cap | 5,400 ticks — `Stats.HardTickCap` |
 | Stall detector | 300 ticks — `Stats.StallTicks` |
 | Corpus | 500 scenarios — `Corpus.ScenarioCount` |
-| Golden A hash | `4169973534116968225` — wave 6, no Chill, `Loss` |
-| Golden B hash | `434502781243215433` — wave 6, Chill I, `Win` |
+| | *(the golden hashes below are the POST-Rally values. Task 4 re-baselines them deliberately when `CreatureRallyUntil` joins the state vector; the pre-Rally pair was `4169973534116968225` / `434502781243215433`.)* |
+| Golden A hash | `2495532238167386945` — wave 6, no Chill, `Loss` |
+| Golden B hash | `13482666686023521257` — wave 6, Chill I, `Win` |
 
 Creature attack intervals, in ticks — needed because Task 4's arithmetic turns on them:
 

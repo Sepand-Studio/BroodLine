@@ -18,21 +18,19 @@ namespace Broodline.View
         public const float TileSize = 1f;
         public const float PocketOffset = 1f;
 
+        // SyntheticCreature.Build already adds a BoneAnimator and calls
+        // Bind(bones) on it. Adding a second one here gave every body an
+        // unbound animator whose Update ran each frame and returned at its
+        // null check - pure dispatch waste that scaled with body count.
         private static readonly SyntheticCreatureSpec BodySpec =
             new SyntheticCreatureSpec { Triangles = 7000, Bones = 24, Materials = 2 };
 
         private Transform[] _raiders;
         private Transform[] _creatures;
-        private Transform _ark;
-
-        /// Where the lane ends. The HUD anchors the breach moment to it and
-        /// the scene frames the camera on it, so it is exposed rather than
-        /// built and forgotten.
-        public Transform Ark => _ark;
 
         public void Build(SimRunner r)
         {
-            _ark = BuildMarker("Ark", new Color(0.85f, 0.78f, 0.45f),
+            BuildMarker("Ark", new Color(0.85f, 0.78f, 0.45f),
                                new Vector3(r.LaneTiles * TileSize, 0f, 0f), 1.5f);
 
             for (int t = 0; t < r.LaneTiles; t++)
@@ -44,7 +42,6 @@ namespace Broodline.View
             {
                 var body = SyntheticCreature.Build(BodySpec);
                 body.name = "creature" + c + "-" + r.CreatureSpecies[c];
-                body.AddComponent<BoneAnimator>();
                 body.transform.position = new Vector3(
                     r.Lane.PocketTiles[r.CreaturePocket[c]] * TileSize, 0f, PocketOffset);
                 _creatures[c] = body.transform;
@@ -55,7 +52,6 @@ namespace Broodline.View
             {
                 var body = SyntheticCreature.Build(BodySpec);
                 body.name = "raider" + i;
-                body.AddComponent<BoneAnimator>();
                 body.SetActive(false);
                 _raiders[i] = body.transform;
             }

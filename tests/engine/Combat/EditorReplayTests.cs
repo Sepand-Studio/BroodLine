@@ -30,7 +30,7 @@ namespace Broodline.Sim.Tests.Combat
         public EditorReplayTests(ITestOutputHelper output) { _out = output; }
 
         private static Replay Record() =>
-            Replay.Deserialize(File.ReadAllBytes(ReplayArtifact.Path(ReplayArtifact.EditorBin)));
+            Replay.Deserialize(File.ReadAllBytes(ReplayArtifact.Require(ReplayArtifact.EditorBin)));
 
         [Fact]
         public void TheEditorRunReSimulatesToTheSameHash()
@@ -51,7 +51,7 @@ namespace Broodline.Sim.Tests.Combat
             // owed in the Phase 3 plan.
             Assert.Equal(SimVersion.Value, record.EngineVersion);
 
-            var lines = File.ReadAllLines(ReplayArtifact.Path(ReplayArtifact.EditorOutcome));
+            var lines = File.ReadAllLines(ReplayArtifact.Require(ReplayArtifact.EditorOutcome));
             Assert.True(lines.Length >= 4,
                 "editor-replay-outcome.txt should carry hash, result, ticks and integrity on four lines");
 

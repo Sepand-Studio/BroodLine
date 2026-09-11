@@ -38,6 +38,15 @@ namespace Broodline.Sim.Combat
         {
             wave.Validate();
 
+            // The cap belongs here, beside the wave's own invariants. Replay
+            // rejected >5 on deserialize while the simulation accepted it, so
+            // the engine could run a wave to completion and write a record it
+            // could not itself read back - demonstrated at 6 creatures: Loss in
+            // 540 ticks, a 244-byte record, and ReplayFormatException on load.
+            if (deployment.Length > Stats.DeploymentCap)
+                throw new WaveCompositionException(
+                    "deployment of " + deployment.Length + " exceeds the cap of " + Stats.DeploymentCap);
+
             _s = new SimState(wave, lane, deployment);
             _log = new Breach[wave.Spawns.Length];
             _scratch = new int[wave.Spawns.Length];
@@ -59,7 +68,7 @@ namespace Broodline.Sim.Combat
             {
                 WaveId = wave.Id,
                 Seed = seed,
-                Terrain = Terrain.Defile,
+                Terrain = lane.Family,
                 LaneCount = wave.LaneCount,
                 PocketCount = lane.PocketCount,
                 LaneTiles = lane.Tiles,
@@ -105,9 +114,35 @@ namespace Broodline.Sim.Combat
         public ReadOnlySpan<int> CreatureNextAttackAt => _s.CreatureNextAttackAt;
         public bool RallyUsed => _rallyUsed;
 
-        /// The inputs this run consumed. Complete from construction except for
-        /// Rally, which TryRally appends when - and only when - it accepts one.
-        public Replay Record => _record;
+        /// Ticks of Rally left on a creature, 0 when it is not rallied.
+        ///
+        /// client_architecture section 11: "if the view needs a number that the
+        /// engine does not expose, the engine gains an accessor - the view never
+        /// derives it." The HUD was computing both this countdown and the
+        /// rallied predicate by subtracting CreatureRallyUntil from Tick, which
+        /// put a second copy of Attacks.IntervalTicks' own test in the renderer.
+        public int CreatureRallyRemaining(int c)
+        {
+            int left = _s.CreatureRallyUntil[c] - _s.Tick;
+            return left > 0 ? left : 0;
+        }
+
+        /// The inputs this run consumed, as bytes. Complete from construction
+        /// except for Rally, which TryRally appends when - and only when - it
+        /// accepts one.
+        ///
+        /// Bytes rather than the live Replay. Handing out the object made the
+        /// "TryRally is the only writer" claim false: its RallyTick,
+        /// RallyCreature and Deployment are public mutable fields, so a caller
+        /// could stamp a rally onto a run that never had one and serialize a
+        /// structurally valid forgery - which is precisely the "the recording
+        /// disagreed with what was consumed" bug this design says it killed.
+        public byte[] SerializeRecord() => _record.Serialize();
+
+        /// Read-only view for tests and tooling that need the fields rather
+        /// than the bytes. Round-tripping through Deserialize is what makes it
+        /// a copy - callers cannot reach _record through it.
+        public Replay ReadRecord() => Replay.Deserialize(_record.Serialize());
 
         /// Advances exactly one tick. Returns false once the wave has
         /// terminated, after which it is a harmless no-op.
@@ -169,7 +204,12 @@ namespace Broodline.Sim.Combat
             if (_done) return false;
             if (_rallyUsed) return false;
             if (creatureId < 0 || creatureId >= _s.CreatureCount) return false;
-            if (!_s.CreatureAlive(creatureId)) return false;
+            // CreatureCanAct, not CreatureAlive. A creature repositioning after
+            // Skittish has CreatureBusyUntil set and is skipped by Phases.Attack
+            // until it expires, so accepting a Rally here spends the player's
+            // one input per wave on a creature that cannot swing - and the
+            // record faithfully stores an input that did almost nothing.
+            if (!_s.CreatureCanAct(creatureId)) return false;
 
             _rallyUsed = true;
             _s.CreatureRallyUntil[creatureId] = _s.Tick + RallyTicks;
@@ -193,12 +233,26 @@ namespace Broodline.Sim.Combat
             _hash.Add((int)result);
             _hash.Add(_s.Integrity);
 
+            // A TRIMMED COPY, not _log. Outcome is a struct, so C# refuses
+            // `runner.Outcome.Ticks = 5` and the type reads as immutable - but
+            // `runner.Outcome.Breaches[0] = default` writes straight through the
+            // copied reference into the runner's live buffer, and two Outcome
+            // copies handed to different consumers share one array.
+            //
+            // Trimming to BreachCount also retires the hazard Outcome.cs warns
+            // about: the buffer is the wave's spawn capacity, so a caller
+            // iterating Breaches.Length instead of BreachCount renders zeroed
+            // trailing entries, and a zeroed Breach reads as "the trait was
+            // absent" on a cleared wave. Now the two lengths agree.
+            var breaches = new Breach[_breachCount];
+            for (int b = 0; b < _breachCount; b++) breaches[b] = _log[b];
+
             _outcome = new Outcome
             {
                 Result = result,
                 Ticks = _s.Tick,
                 IntegrityRemaining = _s.Integrity,
-                Breaches = _log,
+                Breaches = breaches,
                 BreachCount = _breachCount,
                 Hash = _hash.Value
             };

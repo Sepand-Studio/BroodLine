@@ -27,8 +27,9 @@ namespace Broodline.Sim.Combat
     /// The eight tick phases, in the normative order of combat_engine section 4.
     /// Referenced by no engine code and no test - it documents that order for
     /// readers. The actual enforcement lives in CombatEnforcementTests, which
-    /// greps Sim.cs's source text for the Phases.* calls in order, rather than
-    /// trusting this enum or a comment.
+    /// scans SimRunner.cs for those calls in order - and separately asserts no
+    /// other engine file makes them at all - rather than trusting this enum or
+    /// a comment.
     public enum Phase
     {
         Spawn = 1, State = 2, Movement = 3, Targeting = 4,
