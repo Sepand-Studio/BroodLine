@@ -20,10 +20,12 @@ namespace Broodline.Sim.Tests.Combat
     /// it runs everywhere, including CI.
     ///
     /// Captured 2026-09-11 from Assets/Scenes/Wave.unity in the Unity 6 Editor.
-    /// The tap landed at tick 78, twelve ticks before the Courser spawns, so
-    /// the Rally was spent on an empty lane - a real player input, faithfully
-    /// recorded, and a reminder that the record stores what was CONSUMED
-    /// rather than what was useful.
+    /// The tap landed at tick 78, twelve ticks before the Courser spawns - but
+    /// Rally lasts 120 ticks, so the window runs 78..197 and covers most of
+    /// creature 0's engagement (ticks 184..240). It is NOT inert, and an
+    /// earlier version of this comment said it was: "spent on an empty lane"
+    /// reasons from the tap instant rather than the window, which is the same
+    /// mistake that made the first two device captures look acceptable.
     public class EditorReplayTests
     {
         private readonly ITestOutputHelper _out;

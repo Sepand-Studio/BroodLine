@@ -114,6 +114,55 @@ namespace Broodline.Sim.Tests.Combat
         }
 
         [Fact]
+        public void TheDeviceRunsRallyActuallyChangedTheSimulation()
+        {
+            // A round-trip that reproduces the hash proves the tick index
+            // survived the device. It does NOT prove Rally's arithmetic ran,
+            // because CreatureRallyUntil is folded into the hash whether or not
+            // the halved interval ever fires.
+            //
+            // The first two captures made that concrete: taps at ticks 373 and
+            // 480 both round-tripped perfectly while being completely inert -
+            // creature 0 only holds a target during ticks 184..240, and a tap
+            // after that halves an interval nothing is using. Either capture
+            // would still have passed with `interval /= 2` deleted.
+            //
+            // So this asserts the capture is WORTH having: re-simulate with the
+            // recorded rally and without it, and require the damage landed to
+            // differ. That is Attacks.IntervalTicks having executed on device.
+            var record = Replay.Deserialize(File.ReadAllBytes(ReplayArtifact.Require(ReplayArtifact.DeviceBin)));
+            Assert.True(record.RallyTick >= 0,
+                "the device capture records no Rally at all - re-capture with a tap, per Task 10");
+
+            int withRally = HpAtBreach(record.RallyTick, record.RallyCreature);
+            int without = HpAtBreach(-1, -1);
+
+            Assert.True(withRally != without,
+                "the device capture's Rally at tick " + record.RallyTick + " changed nothing: the Courser " +
+                "reached the Ark at hp " + withRally + " either way. Re-capture with the tap while the " +
+                "Courser is still BELOW the first defender - ticks 150..207, about two seconds after it " +
+                "appears. Until then this artifact cannot detect an IL2CPP divergence in what Rally does.");
+        }
+
+        /// Courser HP on the last tick it is alive - the damage the roster
+        /// landed. Rallying a creature that is actually engaged shows up here
+        /// and nowhere else, because wave 6's breach tick is set by the
+        /// Courser's movement rather than by damage.
+        private static int HpAtBreach(int rallyTick, int rallyCreature)
+        {
+            var r = new SimRunner(WaveDef.Wave6(), Lane.Defile(),
+                                  GoldenTests.DeploymentWithoutChill(), GoldenTests.Seed);
+            int last = -1;
+            while (true)
+            {
+                if (rallyTick >= 0 && r.Tick == rallyTick) r.TryRally(rallyCreature);
+                if (!r.Step()) break;
+                if (r.RaiderCount > 0 && r.RaiderAlive[0]) last = r.RaiderHp[0];
+            }
+            return last;
+        }
+
+        [Fact]
         public void TheDeviceRunWasRecordedByThisEngineVersion()
         {
             // solo_execution section 9.4: a replay from a superseded engine
