@@ -27,6 +27,7 @@ namespace Broodline.Sim.Combat
         private int _stallTicks;
         private long _lastFingerprint = long.MinValue;
 
+        private readonly Replay _record;
         private bool _rallyUsed;
 
         private Result _result = Result.Running;
@@ -44,6 +45,27 @@ namespace Broodline.Sim.Combat
             _hash = Hash.Create();
             _hash.Add(wave.Id);
             _hash.Add(unchecked((long)seed));
+
+            // The record is produced BY the runner rather than observed from
+            // outside. That is what kills the "the recording disagreed with
+            // what was consumed" bug class structurally: TryRally is the only
+            // thing that writes the Rally fields, and it writes them at the
+            // moment it accepts the input.
+            var hp = new int[deployment.Length];
+            for (int c = 0; c < deployment.Length; c++)
+                hp[c] = Stats.CreatureHp(deployment[c].Species);
+
+            _record = new Replay
+            {
+                WaveId = wave.Id,
+                Seed = seed,
+                Terrain = Terrain.Defile,
+                LaneCount = wave.LaneCount,
+                PocketCount = lane.PocketCount,
+                LaneTiles = lane.Tiles,
+                Deployment = (CreatureSpec[])deployment.Clone(),
+                DeploymentHp = hp
+            };
         }
 
         public int Tick => _s.Tick;
@@ -82,6 +104,10 @@ namespace Broodline.Sim.Combat
         public ReadOnlySpan<int> CreatureRallyUntil => _s.CreatureRallyUntil;
         public ReadOnlySpan<int> CreatureNextAttackAt => _s.CreatureNextAttackAt;
         public bool RallyUsed => _rallyUsed;
+
+        /// The inputs this run consumed. Complete from construction except for
+        /// Rally, which TryRally appends when - and only when - it accepts one.
+        public Replay Record => _record;
 
         /// Advances exactly one tick. Returns false once the wave has
         /// terminated, after which it is a harmless no-op.
@@ -156,6 +182,8 @@ namespace Broodline.Sim.Combat
             if (remaining > 0)
                 _s.CreatureNextAttackAt[creatureId] = _s.Tick + remaining / 2;
 
+            _record.RallyTick = _s.Tick;
+            _record.RallyCreature = creatureId;
             return true;
         }
 

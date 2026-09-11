@@ -34,4 +34,12 @@ namespace Broodline.Sim.Combat
         Spawn = 1, State = 2, Movement = 3, Targeting = 4,
         Attack = 5, Death = 6, Breach = 7, Resolve = 8
     }
+
+    /// The terrain family a lane is built from. combat_engine section 3 stores
+    /// this in every replay, so the values are persisted and must never be
+    /// renumbered - adding a family appends.
+    ///
+    /// One member for now. Lane geometry is otherwise reachable only through a
+    /// static factory, which a replay cannot name.
+    public enum Terrain { Defile = 0 }
 }

@@ -18,5 +18,34 @@ namespace Broodline.Sim.Combat
             while (runner.Step()) { }
             return runner.Outcome;
         }
+
+        /// Re-runs a recorded replay. Playing and replaying are ONE code path
+        /// differing only in where Rally comes from, which is what
+        /// client_architecture section 9.1 already decided for the replay
+        /// viewer: "Wave Defense gains one flag - input enabled or not -
+        /// rather than a second renderer."
+        ///
+        /// This is also the server verification path. It is not wired to a
+        /// server here; that is Phase 5's.
+        public static Outcome Replay(Replay record)
+        {
+            record.Validate();
+
+            var runner = new SimRunner(
+                WaveDef.ForId(record.WaveId), record.BuildLane(),
+                record.Deployment, record.Seed);
+
+            while (true)
+            {
+                // Injected at the tick boundary the live run consumed it at -
+                // the same place View calls TryRally from.
+                if (record.RallyTick >= 0 && runner.Tick == record.RallyTick)
+                    runner.TryRally(record.RallyCreature);
+
+                if (!runner.Step()) break;
+            }
+
+            return runner.Outcome;
+        }
     }
 }

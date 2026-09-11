@@ -46,6 +46,16 @@ namespace Broodline.Sim.Combat
 
         /// The two composition invariants of combat_engine section 5.4,
         /// checked at load so a content author cannot ship a violation.
+        /// Replays store a wave ID rather than the wave, so there has to be a
+        /// lookup. Throwing on an unknown ID is the point: a replay naming a
+        /// wave this engine does not have must fail loudly at load rather than
+        /// re-simulate something else.
+        public static WaveDef ForId(int id)
+        {
+            if (id == 6) return Wave6();
+            throw new WaveCompositionException("no authored wave with id " + id);
+        }
+
         public void Validate()
         {
             AssertSpawnsOrdered();
