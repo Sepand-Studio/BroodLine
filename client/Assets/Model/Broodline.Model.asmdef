@@ -1,0 +1,11 @@
+{
+  "name": "Broodline.Model",
+  "rootNamespace": "Broodline.Model",
+  "references": ["Generated.Api"],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "autoReferenced": true,
+  "noEngineReferences": false
+}
