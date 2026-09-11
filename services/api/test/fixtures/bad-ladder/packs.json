@@ -1,0 +1,6 @@
+{
+  "packs": [
+    { "id": "small",  "priceUsdCents": 99,   "value": 100 },
+    { "id": "medium", "priceUsdCents": 499,  "value": 400 }
+  ]
+}
