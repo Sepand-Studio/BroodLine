@@ -620,11 +620,14 @@ engine-strict=true
     "noUncheckedIndexedAccess": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "verbatimModuleSyntax": true
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true
   },
   "include": ["src/**/*.ts", "test/**/*.ts"]
 }
 ```
+
+**`allowImportingTsExtensions` is not optional here.** Every file in this service imports its siblings with an explicit `.ts` extension, because the runtime is `node --experimental-strip-types` with no build step — Node resolves real paths, so an extensionless relative import fails at runtime even when it typechecks. TypeScript rejects the explicit extension with **TS5097** unless this flag is set, so the two requirements only meet here. It is safe alongside `noEmit`.
 
 **`noUncheckedIndexedAccess` is on deliberately.** Most of this service indexes into rows returned from the database, and the difference between `Row` and `Row | undefined` is the difference between a crash at 2am and a type error now.
 
