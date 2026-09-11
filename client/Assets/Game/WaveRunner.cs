@@ -1,5 +1,6 @@
 using System.IO;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using Broodline.Sim.Combat;
 using Broodline.View;
 
@@ -55,11 +56,34 @@ namespace Broodline.Game
             _hud.View = Camera.main;
         }
 
+        /// True on the frame a tap or click begins.
+        ///
+        /// The project runs the Input System package with legacy input disabled
+        /// (ProjectSettings activeInputHandler: 1), so UnityEngine.Input throws
+        /// rather than returning false - the failure is loud but only at
+        /// runtime, which is why it survived compilation.
+        ///
+        /// Both devices are checked and both may be absent: Mouse.current is
+        /// null on an iPhone and Touchscreen.current is null in the Editor
+        /// unless simulated, so neither can be assumed. The device that matters
+        /// for the done-when is the touchscreen; the mouse is what makes the
+        /// Editor run usable.
+        private static bool TapBegan()
+        {
+            var touch = Touchscreen.current;
+            if (touch != null && touch.primaryTouch.press.wasPressedThisFrame) return true;
+
+            var mouse = Mouse.current;
+            if (mouse != null && mouse.leftButton.wasPressedThisFrame) return true;
+
+            return false;
+        }
+
         private void Update()
         {
             // A tap anywhere Rallies creature 0. Deliberately crude: choosing a
             // creature is a deployment-UI concern and this phase has no UI.
-            if (Input.GetMouseButtonDown(0)) _clock.RequestRally(0);
+            if (TapBegan()) _clock.RequestRally(0);
 
             // Time.deltaTime, NOT a fixed value. Feeding the accumulator the
             // real frame delta is the whole point - it is what makes a stall on

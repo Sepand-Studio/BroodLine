@@ -1,7 +1,11 @@
 {
   "name": "Broodline.Game",
   "rootNamespace": "Broodline.Game",
-  "references": ["Broodline.Sim", "Broodline.View"],
+  "references": [
+    "Broodline.Sim",
+    "Broodline.View",
+    "Unity.InputSystem"
+  ],
   "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,
