@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using UnityEngine;
 using Broodline.Benchmark;
+using Broodline.View;
 
 public class WaveBenchmarkTests
 {

@@ -13,4 +13,9 @@
   <ItemGroup>
     <ProjectReference Include="../../engine/Broodline.Sim.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="corpus-baseline.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 </Project>

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Broodline.Benchmark
+namespace Broodline.View
 {
     /// Drives a synthetic rig's bones every frame.
     ///

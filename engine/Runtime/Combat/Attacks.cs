@@ -6,10 +6,19 @@ namespace Broodline.Sim.Combat
     /// interval is what the tick loop compares against.
     public static class Attacks
     {
-        /// Ticks between attacks, after Instinct modifiers.
+        /// Ticks between attacks, after Instinct modifiers and then Rally.
         ///
         /// Overwatch: -20% attack speed, so the interval grows by 5/4.
         /// Last Stand below 25% HP: +50% attack speed, so it shrinks by 2/3.
+        /// Rally: doubled attack speed, so the interval halves.
+        ///
+        /// RALLY IS APPLIED LAST AND THE ORDER IS NORMATIVE. Integer division
+        /// does not commute with the ratios above. Vetch is 45 ticks and is the
+        /// starter species: under Overwatch, halving last gives 45*5/4 = 56 ->
+        /// 28, and halving first gives 45/2 = 22 -> 27. The choice between 28
+        /// and 27 is arbitrary; fixing it is not. Instinct describes the
+        /// creature and Rally is a transient laid on top, so last is also the
+        /// reading that matches the fiction.
         public static int IntervalTicks(SimState s, int c)
         {
             int interval = Stats.CreatureIntervalTicks(s.CreatureSpecies[c]);
@@ -17,14 +26,17 @@ namespace Broodline.Sim.Combat
             switch (s.CreatureInstinct[c])
             {
                 case Instinct.Overwatch:
-                    return interval * 5 / 4;
+                    interval = interval * 5 / 4;
+                    break;
 
                 case Instinct.LastStand:
-                    return BelowFraction(s, c, 1, 4) ? interval * 2 / 3 : interval;
-
-                default:
-                    return interval;
+                    if (BelowFraction(s, c, 1, 4)) interval = interval * 2 / 3;
+                    break;
             }
+
+            if (s.Tick < s.CreatureRallyUntil[c]) interval /= 2;
+
+            return interval;
         }
 
         /// Damage per hit, after Instinct modifiers.

@@ -25,14 +25,23 @@ namespace Broodline.Sim.Combat
         public int Id { get; }
         public int Integrity { get; }
         public int LaneCount { get; }
-        public SpawnEntry[] Spawns { get; }
+
+        private readonly SpawnEntry[] _spawns;
+
+        /// The authored timeline. ReadOnlySpan over a CLONE, for the reason
+        /// Lane.PocketTiles gives: a get-only array property is only read-only
+        /// about the reference. Validate runs once at construction, so a caller
+        /// that kept its array and edited an entry afterwards moved a verified
+        /// wave out from under its own verification - mutating Spawns[0].Tick
+        /// mid-run took a 540-tick outcome to 650.
+        public ReadOnlySpan<SpawnEntry> Spawns => _spawns;
 
         public WaveDef(int id, int integrity, int laneCount, SpawnEntry[] spawns)
         {
             Id = id;
             Integrity = integrity;
             LaneCount = laneCount;
-            Spawns = spawns;
+            _spawns = (SpawnEntry[])spawns.Clone();
         }
 
         /// Wave 6, from broodline_waves_01_12.md section 3:
@@ -46,6 +55,16 @@ namespace Broodline.Sim.Combat
 
         /// The two composition invariants of combat_engine section 5.4,
         /// checked at load so a content author cannot ship a violation.
+        /// Replays store a wave ID rather than the wave, so there has to be a
+        /// lookup. Throwing on an unknown ID is the point: a replay naming a
+        /// wave this engine does not have must fail loudly at load rather than
+        /// re-simulate something else.
+        public static WaveDef ForId(int id)
+        {
+            if (id == 6) return Wave6();
+            throw new WaveCompositionException("no authored wave with id " + id);
+        }
+
         public void Validate()
         {
             AssertSpawnsOrdered();

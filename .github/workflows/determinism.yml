@@ -1,5 +1,12 @@
 name: Determinism gate
 
+# NOTE: the plain `dotnet test` half of this now ALSO runs in tests.yml on a
+# hosted Ubuntu runner. That is not duplication for its own sake - this
+# workflow never ran, because the self-hosted runner it requires was never
+# registered, and a gate that cannot execute protects nothing. tests.yml gives
+# every PR a check today; this job remains the only place the IL2CPP
+# comparison and the Unity EditMode suite can run, and remains the gate.
+
 # Proves the engine produces byte-identical results on both runtimes it
 # actually ships on: CoreCLR (server/tools) and Unity's IL2CPP (client).
 # See implementation/scripts/cross-runtime-diff.sh for how, and
@@ -71,6 +78,22 @@ on:
       # learning from CI rather than from the next person to run it locally.
       - 'client/Packages/manifest.json'
       - 'client/ProjectSettings/ProjectVersion.txt'
+      # ALL of client/Assets, not the two folders someone listed.
+      #
+      # This job is the only thing that COMPILES Unity C#, and the narrow
+      # filter created a false green: a PR touching only
+      # client/Assets/Editor/IosFileSharingPostProcess.cs triggered tests.yml
+      # alone, which produced two passing checks - one of them named "Unity
+      # settings" - without compiling a line of the changed file. That is worse
+      # than no checks at all, because a green check reads as coverage. It cost
+      # exactly that: the plist rewrite shipped a file Apple's parser refuses,
+      # and nothing in CI could have said so.
+      #
+      # It costs a full self-hosted run on an Editor-only change; that is the
+      # correct trade when the alternative is a check that lies.
+      - 'client/Assets/**'
+      # The scripts this job runs.
+      - 'implementation/scripts/run-unity-tests.sh'
   pull_request:
     paths:
       - 'engine/**'
@@ -83,6 +106,22 @@ on:
       - 'Broodline.sln'
       - 'client/Packages/manifest.json'
       - 'client/ProjectSettings/ProjectVersion.txt'
+      # ALL of client/Assets, not the two folders someone listed.
+      #
+      # This job is the only thing that COMPILES Unity C#, and the narrow
+      # filter created a false green: a PR touching only
+      # client/Assets/Editor/IosFileSharingPostProcess.cs triggered tests.yml
+      # alone, which produced two passing checks - one of them named "Unity
+      # settings" - without compiling a line of the changed file. That is worse
+      # than no checks at all, because a green check reads as coverage. It cost
+      # exactly that: the plist rewrite shipped a file Apple's parser refuses,
+      # and nothing in CI could have said so.
+      #
+      # It costs a full self-hosted run on an Editor-only change; that is the
+      # correct trade when the alternative is a check that lies.
+      - 'client/Assets/**'
+      # The scripts this job runs.
+      - 'implementation/scripts/run-unity-tests.sh'
   schedule:
     # Nightly at 09:00 UTC.
     - cron: '0 9 * * *'
@@ -98,6 +137,18 @@ jobs:
 
       - name: dotnet test
         run: dotnet test Broodline.sln
+
+      # Phase 3 added 24 EditMode tests, including the accumulator contract -
+      # a dropped frame never drops a tick, a stall past the cap runs slow
+      # rather than skipping, and a Rally between boundaries records the NEXT
+      # tick index. None of it was run by CI. It needs Unity and a licence, so
+      # this is the only job that can host it.
+      #
+      # Before the IL2CPP diff, not after: the diff switches the active build
+      # target to StandaloneOSX and back, and a test run either side of that
+      # is slower and noisier than one before it.
+      - name: Unity EditMode tests
+        run: ./implementation/scripts/run-unity-tests.sh EditMode
 
       - name: Cross-runtime determinism diff
         run: ./implementation/scripts/cross-runtime-diff.sh

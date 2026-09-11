@@ -51,10 +51,22 @@ namespace Broodline.Sim.Combat
         public readonly int[] CreatureNextAttackAt;  // tick it may next fire
         public readonly int[] CreatureBusyUntil;     // tick it may act again
         public readonly bool[] CreatureRepositioned; // Skittish fires once
+        public readonly int[] CreatureRallyUntil;    // absolute tick; 0 == never
         public readonly int CreatureCount;
 
         public SimState(WaveDef wave, Lane lane, CreatureSpec[] deployment)
         {
+            // THE door, not one of three. The shared rules used to be called
+            // from the SimRunner constructor and from Replay.Validate - the two
+            // anyone remembered - while `new SimState(...)` followed by direct
+            // Phases calls was a fully supported third route that consulted
+            // neither, and thirty-one call sites in the test suite already took
+            // it. An invariant that lives in a validator two callers must
+            // remember is a convention; enforced where the state is BUILT, it
+            // is a guarantee, because there is nowhere else to build it.
+            var problem = Deployments.Problem(deployment, lane);
+            if (problem != null) throw new WaveCompositionException(problem);
+
             Wave = wave;
             Lane = lane;
             Integrity = wave.Integrity;
@@ -82,6 +94,9 @@ namespace Broodline.Sim.Combat
             CreatureNextAttackAt = new int[CreatureCount];
             CreatureBusyUntil = new int[CreatureCount];
             CreatureRepositioned = new bool[CreatureCount];
+            // 0 already means "never rallied": Tick < 0 is false for every tick,
+            // so the per-creature loop below needs no entry for it.
+            CreatureRallyUntil = new int[CreatureCount];
 
             for (int c = 0; c < CreatureCount; c++)
             {

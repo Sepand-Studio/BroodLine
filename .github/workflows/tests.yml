@@ -1,0 +1,121 @@
+name: Tests
+
+# The engine suite and the committed-settings checks, on a GitHub-HOSTED runner.
+#
+# This exists because no check had ever run on this repository. PR #3 reached
+# review with 72 changed files and none at all: `gh run list` returns zero runs
+# and `gh pr checks` reports nothing. Three phases of work were verified by one
+# laptop.
+#
+# TWO separate causes, and the second was found only after this file was
+# written. determinism.yml requires a self-hosted macOS runner with Unity and
+# an activated licence - deliberately, for the reasons stated in that file -
+# and none was registered. But underneath that, GITHUB ACTIONS IS DISABLED FOR
+# THE REPOSITORY: `gh api repos/.../actions/permissions` returns
+# {"enabled": false}. Until someone turns it on in Settings > Actions >
+# General, no workflow runs, hosted or otherwise, and this file is inert.
+#
+# It is still the right half to split off: once Actions is enabled, this job
+# runs on every PR without waiting on hardware, while the IL2CPP comparison
+# and the Unity EditMode suite stay in determinism.yml where they need the
+# self-hosted machine.
+#
+# `dotnet test` needs no Unity, no licence and no macOS. It covers the engine,
+# the replay codec, the corpus baseline, the enforcement scans and both
+# round-trip artifacts - everything except the IL2CPP comparison and the Unity
+# EditMode tests, which genuinely cannot run here.
+#
+# WHAT IS STILL NOT COVERED HERE, stated rather than implied: the View and Game
+# assemblies are Unity C# and cannot be compiled on this runner. The client
+# paths are watched below so a client change gets the engine suite and the
+# settings checks rather than nothing at all - WaveClock, WaveHud, WaveSnapshot
+# and WaveView were all heavily edited under a filter that matched none of them
+# - but a compile error in them surfaces only in determinism.yml's EditMode
+# job, on the self-hosted machine.
+#
+# Ubuntu rather than macOS: a 1x minute multiplier against macOS's 10x, for a
+# job whose only requirement is the .NET SDK. The engine targets
+# netstandard2.1 and the tests net10.0; neither has a platform dependency, and
+# the determinism rules exist precisely so results do not vary by host.
+
+on:
+  push:
+    paths: &watched
+      - 'engine/**'
+      - 'tests/engine/**'
+      - 'Broodline.sln'
+      - '.github/workflows/tests.yml'
+      # The client. Nothing here compiles it - see above - but every check in
+      # this file is a check a client change can break.
+      - 'client/Assets/**'
+      - 'client/ProjectSettings/**'
+      - 'client/Packages/**'
+      # The scripts the gates are made of. emit-corpus-baseline.sh rewrites the
+      # file CorpusBaselineTests asserts against, and verify-unity-settings.sh
+      # is run as a job below.
+      - 'implementation/scripts/**'
+      # The tracked round-trip artifacts. EditorReplayTests and
+      # DeviceReplayTests re-simulate these on every run, so a re-capture is a
+      # change to what the suite asserts and has to be checked like one.
+      - 'implementation/results/**'
+  pull_request:
+    paths: *watched
+  workflow_dispatch: {}
+
+jobs:
+  engine-tests:
+    name: Engine suite (CoreCLR)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: dotnet test
+        # Tee'd so the summary can be asserted on below. --nologo keeps the
+        # banner out of the line the grep reads.
+        run: |
+          set -o pipefail
+          dotnet test Broodline.sln --nologo | tee /tmp/test.log
+
+      - name: No test may skip
+        # A skipped test reads as a pass in the summary and in the exit code.
+        # This branch had a Fact attribute that skipped when a TRACKED artifact
+        # was missing, so deleting the file that IS Phase 3's done-when produced
+        # "Passed: 139, Skipped: 2" and exit 0. That attribute is gone and the
+        # artifact's presence is a red test now, but the failure mode is generic
+        # and the guard costs one line - the next environment-gated test gets it
+        # for free.
+        #
+        # Two spellings, because the summary line is the test PLATFORM's and not
+        # ours: VSTest prints "Skipped: 2" and Microsoft.Testing.Platform prints
+        # "skipped 2". A guard coupled to one runner's wording fails open the
+        # day the SDK changes it, which is the failure mode it exists to catch.
+        run: |
+          if grep -qiE '(skipped:?[[:space:]]*[1-9])|([1-9][0-9]*[[:space:]]+skipped)' /tmp/test.log; then
+            echo "FAIL: the suite skipped at least one test."
+            grep -iE 'skipped' /tmp/test.log
+            echo "A skip is not a pass. Find out why it skipped before merging."
+            exit 1
+          fi
+          echo "ok: no skipped tests"
+
+  client-settings:
+    name: Unity settings (committed files only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      # No Unity, no licence: every assertion in this script reads a COMMITTED
+      # YAML or JSON file. It is the only client check that can run on a hosted
+      # runner, and it guards the file with the worst failure mode - a scripting
+      # define that appears on one platform and not the other makes
+      # cross-runtime-diff.sh compare two different compilations and report
+      # agreement. That is precisely how SENTIS_ANALYTICS_ENABLED came back:
+      # a package write, then a `git add -A` in a commit about something else.
+      - name: verify-unity-settings.sh
+        run: bash implementation/scripts/verify-unity-settings.sh

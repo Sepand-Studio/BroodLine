@@ -11,10 +11,15 @@ namespace Broodline.Sim.Tests.Combat
 
         public const ulong Seed = 6;
 
-        // Pinned 2026-09-10. A change here is a balance change or a bug -
-        // never update these to match new output without knowing which.
-        private const ulong GoldenAHash = 4169973534116968225;
-        private const ulong GoldenBHash = 434502781243215433;
+        // Pinned 2026-09-10. Re-baselined the same day when Rally joined the
+        // state vector: CreatureRallyUntil is folded every tick, so every hash
+        // moved even on runs where Rally is never used. Confirmed first that
+        // both tests still failed ONLY on their final hash assertion, with the
+        // verdict, breach count, diagnosis and integrity all passing above it.
+        // A change here is a balance change or a bug - never update these to
+        // match new output without knowing which.
+        private const ulong GoldenAHash = 2495532238167386945;
+        private const ulong GoldenBHash = 13482666686023521257;
 
         /// Golden A - wave 6 exactly as authored: five creatures, none
         /// carrying Chill, designed to be lost.

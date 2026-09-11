@@ -13,7 +13,11 @@ namespace Broodline.Sim.Tests.Combat
             Assert.Equal(6, w.Id);
             Assert.Equal(2, w.Integrity);
             Assert.Equal(1, w.LaneCount);
-            Assert.Single(w.Spawns);
+            // Spawns is a ReadOnlySpan now - a span cannot be enumerated by
+            // Assert.Single, and that is the trade: it also cannot be written
+            // through, which is what stops a caller editing an authored wave
+            // out from under the Validate that already passed on it.
+            Assert.Equal(1, w.Spawns.Length);
             Assert.Equal(RaiderType.Courser, w.Spawns[0].Type);
             Assert.Equal(90, w.Spawns[0].Tick);   // t=3s at 30Hz
         }

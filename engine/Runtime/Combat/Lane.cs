@@ -1,3 +1,5 @@
+using System;
+
 namespace Broodline.Sim.Combat
 {
     /// Lane geometry, precomputed at construction.
@@ -19,22 +21,48 @@ namespace Broodline.Sim.Combat
 
         public int Tiles { get; }
         public int PocketCount { get; }
-        public int[] PocketTiles { get; }
 
+        /// Which authored family this geometry came from. A replay stores it and
+        /// rebuilds the lane from it, so a Lane that does not know its own
+        /// family cannot be recorded honestly - SimRunner used to stamp
+        /// Terrain.Defile unconditionally, which meant any other geometry
+        /// recorded a lie that Validate could not catch, because both sides of
+        /// its cross-check derived from the same literal.
+        public Terrain Family { get; }
+
+        private readonly int[] _pocketTiles;
         private readonly int[] _distSq;   // [pocket * Tiles + tile]
 
-        public Lane(int tiles, int[] pocketTiles)
+        /// The tile each pocket sits beside. ReadOnlySpan rather than the array:
+        /// _distSq is baked from these once in the constructor and never
+        /// recomputed, so a write here would leave geometry and range checks
+        /// silently disagreeing. View dereferences this every frame.
+        public ReadOnlySpan<int> PocketTiles => _pocketTiles;
+
+        public Lane(Terrain family, int tiles, int[] pocketTiles)
         {
+            Family = family;
             Tiles = tiles;
-            PocketTiles = pocketTiles;
-            PocketCount = pocketTiles.Length;
+
+            // CLONED, not aliased. The span above cannot be written THROUGH,
+            // but storing the caller's reference left the caller holding a
+            // writable handle to the same memory - so `a[0] = 23` after
+            // construction moved PocketTiles[0] to 23 while _distSq stayed
+            // baked at tile 6, which is precisely the "geometry and range
+            // checks silently disagreeing" the property claims to prevent. At
+            // a[0] = 1000000, Phases feeds it to DistSq and the tick loop
+            // throws IndexOutOfRangeException.
+            //
+            // Once per lane, which is once per run.
+            _pocketTiles = (int[])pocketTiles.Clone();
+            PocketCount = _pocketTiles.Length;
 
             _distSq = new int[PocketCount * tiles];
             for (int p = 0; p < PocketCount; p++)
             {
                 for (int t = 0; t < tiles; t++)
                 {
-                    int along = pocketTiles[p] - t;
+                    int along = _pocketTiles[p] - t;
                     _distSq[p * tiles + t] = along * along + PerpendicularOffsetSq;
                 }
             }
@@ -43,7 +71,23 @@ namespace Broodline.Sim.Combat
         /// Defile - the terrain family wave 6 runs on. 24 tiles, 5 pockets.
         /// combat_numbers section 42: pockets sit beside tiles 6-20.
         public static Lane Defile() =>
-            new Lane(Stats.LaneTiles, new[] { 6, 10, 13, 17, 20 });
+            new Lane(Terrain.Defile, Stats.LaneTiles, new[] { 6, 10, 13, 17, 20 });
+
+        /// The authored geometry for a family, or null if there is none.
+        ///
+        /// ONE switch. A replay stores the family and rebuilds from it, and the
+        /// play path has to be able to ask the same question - otherwise a Lane
+        /// can be constructed that CLAIMS a family whose real geometry it does
+        /// not have, run a full wave, and emit a record that throws on load.
+        /// Replay.BuildLane is this, plus a throw for the caller that wants one.
+        public static Lane ForFamily(Terrain family)
+        {
+            switch (family)
+            {
+                case Terrain.Defile: return Defile();
+                default: return null;
+            }
+        }
 
         public int DistSq(int pocket, int tile) => _distSq[pocket * Tiles + tile];
 
