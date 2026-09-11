@@ -416,7 +416,7 @@ Phase 3's `DeviceReplayTests.TheDeviceRunWasRecordedByThisEngineVersion` asserts
 
 - [ ] **Step 9: Correct the test the bump invalidated**
 
-`tests/engine/Combat/DeviceReplayTests.cs` — the assertion is now backwards. Replace `TheDeviceRunWasRecordedByThisEngineVersion` with:
+`tests/engine/Combat/DeviceReplayTests.cs` — the assertion is now backwards. The test is **`ReplayArtifactPresenceTests.TheTrackedCapturesAreCurrent`**, which asserts `ReplayArtifact.AreCurrent`. (An earlier draft of this plan named it `DeviceReplayTests.TheDeviceRunWasRecordedByThisEngineVersion`, quoting the Phase 3 *plan* rather than the code — no such member exists.) Replace it with:
 
 ```csharp
         [Fact]
@@ -443,13 +443,14 @@ Phase 3's `DeviceReplayTests.TheDeviceRunWasRecordedByThisEngineVersion` asserts
 
 Do not trust a guard that has never fired.
 
-```bash
-sed -i.bak 's/public const string Value = "0.2.0";/public const string Value = "0.2.0"; \/\/ guard probe/' engine/Runtime/SimVersion.cs
-```
+**Two traps here, both found the hard way.**
 
-That changes nothing behavioural, so instead perturb the engine's output. Open `engine/Runtime/Combat/Attacks.cs` and change one damage constant by 1, then:
+**Do not perturb `Attacks.cs`'s `damage = damage * 115 / 100`.** Changing 115 to 116 provably moves no hash: integer truncation swallows it at every damage value in the game — at damage 6, `6*115/100` and `6*116/100` are both 6. A probe that changes nothing "proves" the guard fires while proving nothing at all. **Perturb `Stats.cs`'s base `CreatureDamage` instead**, which enters the arithmetic directly.
+
+**The guard reads `git show HEAD:`, so it cannot fire against an uncommitted baseline.** At this point in the task the header-bearing file is still in the working tree, so `ver_before` would be empty and the guard would correctly skip. Commit the Step 6–8 work first, then probe:
 
 ```bash
+# Perturb base CreatureDamage in engine/Runtime/Combat/Stats.cs by 1, then:
 ./implementation/scripts/emit-corpus-baseline.sh; echo "exit=$?"
 ```
 
@@ -5371,16 +5372,17 @@ and to the `results/` paragraph:
 
 Task 1 Step 9 weakened `DeviceReplayTests` to assert the tracked artifact is *superseded*, because the `SimVersion` bump moved the engine past it. **The better fix is to re-record it**, which restores Phase 3's original guard.
 
-If an iPhone is available, follow Phase 3's Task 10 procedure to capture a fresh `device-replay.bin` under `0.2.0`, then restore the original assertion:
+If an iPhone is available, follow Phase 3's Task 10 procedure to capture a fresh `device-replay.bin` under `0.2.0`, then restore the strong assertion in `ReplayArtifactPresenceTests` — the test Task 1 rewrote as `TheDeviceRunIsSupersededAndIsNotReSimulated` goes back to asserting `ReplayArtifact.AreCurrent`:
 
 ```csharp
         [Fact]
-        public void TheDeviceRunWasRecordedByThisEngineVersion()
+        public void TheTrackedCapturesAreCurrent()
         {
-            var record = Replay.Deserialize(File.ReadAllBytes(Artifact("device-replay.bin")));
-            Assert.Equal(SimVersion.Value, record.EngineVersion);
+            Assert.True(ReplayArtifact.AreCurrent);
         }
 ```
+
+**Check what the round-trip tests do once the artifact is current again.** Task 1 routed them through `ReplayArtifact.Superseded`, asserting the `ReplayFormatException` the engine throws on a superseded replay. With a freshly captured artifact they must go back to comparing hashes, which is the actual Phase 3 proof — a round-trip test that only asserts a throw proves nothing about determinism.
 
 **If no device is available, leave the weakened test and say so in the commit.** It is honest debt, and it is recorded at "Edits owed elsewhere" below rather than left silent.
 
@@ -5479,4 +5481,4 @@ Tracked here rather than made silently, because all four are normative text in d
 | `specs/plans/broodline_client_architecture.md` §2 | `ref readonly SimState` guarantees nothing — `SimState` is a sealed class whose readonly arrays hold mutable contents | **Owed since Phase 3.** Still at line 52 |
 | `specs/plans/broodline_solo_execution.md` §5.2 and §6.1 | §6.1 forbids a game rule existing in two languages on the *request* path; §5.2's validation list silently requires exactly that on the *publish* path. The rule generalises and the owning document should say so | **Owed.** Task 6 builds the resolution; the normative text does not yet record it |
 | `specs/broodline_supersession_map.md` | Re-run it. It accounts for none of `plans/` — not `solo_execution`, not `client_architecture`, not the three phase designs. `solo_execution` §9.9 asked for this and it has not happened | **Owed, and growing by one document per phase** |
-| `tests/engine/Combat/DeviceReplayTests.cs` | If Task 12 Step 6 could not re-capture the artifact on a device, the version test remains weakened to assert supersession rather than agreement | **Conditional.** Record which way it went |
+| `tests/engine/Combat/DeviceReplayTests.cs` | If Task 12 Step 6 could not re-capture the artifact on a device, `ReplayArtifactPresenceTests` remains weakened to assert supersession rather than agreement — **and the round-trip tests assert a thrown `ReplayFormatException` rather than a matching hash**, which is a strictly weaker proof than Phase 3's | **Conditional.** Record which way it went |
