@@ -96,7 +96,7 @@ Phase 2 builds on Phase 1's core. Confirm it is green before adding to it — a 
 - Consumes: the Phase 1 core.
 - Produces: nothing. This is a gate.
 
-- [ ] **Step 1: Confirm the toolchain**
+- [x] **Step 1: Confirm the toolchain**
 
 ```bash
 ./implementation/scripts/verify-prereqs.sh; echo "exit=$?"
@@ -104,7 +104,7 @@ Phase 2 builds on Phase 1's core. Confirm it is green before adding to it — a 
 
 Expected: five `ok` lines and `exit=0`.
 
-- [ ] **Step 2: Confirm the Phase 1 suite is green**
+- [x] **Step 2: Confirm the Phase 1 suite is green**
 
 ```bash
 dotnet test Broodline.sln --nologo
@@ -112,7 +112,7 @@ dotnet test Broodline.sln --nologo
 
 Expected: all tests pass. Note the count — later tasks add to it, and a drop means something was deleted rather than extended.
 
-- [ ] **Step 3: Confirm the determinism gate still passes**
+- [x] **Step 3: Confirm the determinism gate still passes**
 
 ```bash
 ./implementation/scripts/cross-runtime-diff.sh
@@ -121,6 +121,15 @@ Expected: all tests pass. Note the count — later tasks add to it, and a drop m
 Expected: `PASS: 500 scenarios agree`, exit 0. Close the Unity editor first.
 
 **If this fails, stop.** Phase 2 extends this corpus at Task 13; starting from a red gate means never knowing which phase broke it.
+
+> **Deferred in execution, and recorded rather than glossed.** This step was
+> NOT run at Task 0. The gate had passed at this exact engine content in the
+> main checkout hours earlier, and the Phase 2 worktree carried no
+> `client/Library`, so re-running it here was a ~10 minute cold build proving
+> something already proven. It ran for real at Task 13, once combat was in the
+> corpus, and passed: `PASS: 500 scenarios agree`. The step is ticked because
+> its purpose — never build on a red gate — was served, not because the command
+> was executed at this point in the sequence.
 
 ---
 
@@ -149,7 +158,7 @@ The enums and value tables everything else indexes by, plus the authored wave an
   - `sealed class WaveDef` with `int Id`, `int Integrity`, `int LaneCount`, `SpawnEntry[] Spawns`, and `static WaveDef Wave6()`
   - `WaveDef.Validate()` throwing `WaveCompositionException`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/engine/Combat/WaveDefTests.cs`:
 
@@ -213,7 +222,7 @@ namespace Broodline.Sim.Tests.Combat
 }
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 dotnet test Broodline.sln --nologo
@@ -221,7 +230,7 @@ dotnet test Broodline.sln --nologo
 
 Expected: compile failure — `Broodline.Sim.Combat` does not exist.
 
-- [ ] **Step 3: Write `Ids.cs`**
+- [x] **Step 3: Write `Ids.cs`**
 
 ```csharp
 namespace Broodline.Sim.Combat
@@ -251,7 +260,7 @@ namespace Broodline.Sim.Combat
 }
 ```
 
-- [ ] **Step 4: Write `Stats.cs`**
+- [x] **Step 4: Write `Stats.cs`**
 
 Switch expressions rather than arrays or dictionaries: a `Dictionary` is banned for iteration order, and a switch is a compile error when a new enum member is added without a stat.
 
@@ -348,7 +357,7 @@ namespace Broodline.Sim.Combat
 }
 ```
 
-- [ ] **Step 5: Write `WaveDef.cs`**
+- [x] **Step 5: Write `WaveDef.cs`**
 
 ```csharp
 using System;
@@ -467,7 +476,7 @@ namespace Broodline.Sim.Combat
 }
 ```
 
-- [ ] **Step 6: Run until green**
+- [x] **Step 6: Run until green**
 
 ```bash
 dotnet test Broodline.sln --nologo
@@ -475,7 +484,7 @@ dotnet test Broodline.sln --nologo
 
 Expected: PASS, four new tests.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add engine/Runtime/Combat tests/engine/Combat
@@ -511,7 +520,7 @@ lane count. The Phase 2 design doc 2 carries the reasoning."
   - `bool InRange(int pocket, int tile, int rangeTiles)`
   - `static Fix64 SpeedPerTick(int milliTilesPerSec)`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/engine/Combat/LaneTests.cs`:
 
@@ -577,7 +586,7 @@ namespace Broodline.Sim.Tests.Combat
 }
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 dotnet test Broodline.sln --nologo
@@ -585,7 +594,7 @@ dotnet test Broodline.sln --nologo
 
 Expected: compile failure — `Lane` does not exist.
 
-- [ ] **Step 3: Write `Lane.cs`**
+- [x] **Step 3: Write `Lane.cs`**
 
 ```csharp
 namespace Broodline.Sim.Combat
@@ -651,7 +660,7 @@ namespace Broodline.Sim.Combat
 }
 ```
 
-- [ ] **Step 4: Run until green**
+- [x] **Step 4: Run until green**
 
 ```bash
 dotnet test Broodline.sln --nologo
@@ -659,7 +668,7 @@ dotnet test Broodline.sln --nologo
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add engine/Runtime/Combat/Lane.cs tests/engine/Combat/LaneTests.cs
@@ -694,7 +703,7 @@ Dense parallel arrays, sized once at wave load, iterated in ID order. No allocat
   - `int RaiderTile(int r)` — `Progress.ToIntFloor()`, clamped to the lane
   - `bool CreatureCarries(int c, Trait t, out int tier)`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/engine/Combat/SimStateTests.cs`:
 
@@ -756,7 +765,7 @@ namespace Broodline.Sim.Tests.Combat
 }
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 dotnet test Broodline.sln --nologo
@@ -764,7 +773,7 @@ dotnet test Broodline.sln --nologo
 
 Expected: compile failure — `SimState` does not exist.
 
-- [ ] **Step 3: Write `SimState.cs`**
+- [x] **Step 3: Write `SimState.cs`**
 
 ```csharp
 namespace Broodline.Sim.Combat
@@ -888,7 +897,7 @@ namespace Broodline.Sim.Combat
 }
 ```
 
-- [ ] **Step 4: Run until green**
+- [x] **Step 4: Run until green**
 
 ```bash
 dotnet test Broodline.sln --nologo
@@ -896,7 +905,7 @@ dotnet test Broodline.sln --nologo
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add engine/Runtime/Combat/SimState.cs tests/engine/Combat/SimStateTests.cs
@@ -925,7 +934,7 @@ universal tie-break available without storing a field for it."
   - `static int Compare(SimState s, int raiderA, int raiderB)` — the `(distance, spawnIndex)` total order
   - `static void AssignChill(SimState s, int[] scratch)` — fills `s.RaiderChilled`, gated on carrier range
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/engine/Combat/CapacityTests.cs`:
 
@@ -1050,7 +1059,7 @@ namespace Broodline.Sim.Tests.Combat
 }
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 dotnet test Broodline.sln --nologo
@@ -1058,7 +1067,7 @@ dotnet test Broodline.sln --nologo
 
 Expected: compile failure — `Capacity` does not exist.
 
-- [ ] **Step 3: Write `Capacity.cs`**
+- [x] **Step 3: Write `Capacity.cs`**
 
 Insertion sort over the scratch array. The set is at most a hundred raiders, and an insertion sort over a total-order comparator is stable by construction — which matters, because `combat_engine` §5.1 warns that an unstable sort over equal keys can order them differently on two runtimes.
 
@@ -1176,7 +1185,7 @@ namespace Broodline.Sim.Combat
 }
 ```
 
-- [ ] **Step 4: Run until green**
+- [x] **Step 4: Run until green**
 
 ```bash
 dotnet test Broodline.sln --nologo
@@ -1184,7 +1193,7 @@ dotnet test Broodline.sln --nologo
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add engine/Runtime/Combat/Capacity.cs tests/engine/Combat/CapacityTests.cs
@@ -1222,7 +1231,7 @@ The first three phases, and the Chill rule at the State-phase site `combat_engin
   - `static void Phases.Movement(SimState s)`
   - `static Fix64 Phases.RaiderSpeed(SimState s, int r)`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/engine/Combat/PhasesEarlyTests.cs`:
 
@@ -1323,7 +1332,7 @@ namespace Broodline.Sim.Tests.Combat
 }
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 dotnet test Broodline.sln --nologo
@@ -1331,7 +1340,7 @@ dotnet test Broodline.sln --nologo
 
 Expected: compile failure — `Phases` and `Counters` do not exist.
 
-- [ ] **Step 3: Write `Counters.cs`**
+- [x] **Step 3: Write `Counters.cs`**
 
 ```csharp
 namespace Broodline.Sim.Combat
@@ -1364,7 +1373,7 @@ namespace Broodline.Sim.Combat
 }
 ```
 
-- [ ] **Step 4: Write the first three phases in `Phases.cs`**
+- [x] **Step 4: Write the first three phases in `Phases.cs`**
 
 ```csharp
 namespace Broodline.Sim.Combat
@@ -1430,7 +1439,7 @@ namespace Broodline.Sim.Combat
 }
 ```
 
-- [ ] **Step 5: Run until green**
+- [x] **Step 5: Run until green**
 
 ```bash
 dotnet test Broodline.sln --nologo
@@ -1438,7 +1447,7 @@ dotnet test Broodline.sln --nologo
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add engine/Runtime/Combat/Phases.cs engine/Runtime/Combat/Counters.cs tests/engine/Combat/PhasesEarlyTests.cs
@@ -1474,7 +1483,7 @@ wearing a coat."
   - `static bool Targeting.CanReach(SimState s, int creature, int raider)`
   - `static int Targeting.EffectiveRange(SimState s, int creature)`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/engine/Combat/TargetingTests.cs`:
 
@@ -1588,7 +1597,7 @@ namespace Broodline.Sim.Tests.Combat
 }
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 dotnet test Broodline.sln --nologo
@@ -1596,7 +1605,7 @@ dotnet test Broodline.sln --nologo
 
 Expected: compile failure — `Targeting` does not exist.
 
-- [ ] **Step 3: Write `Targeting.cs`**
+- [x] **Step 3: Write `Targeting.cs`**
 
 ```csharp
 namespace Broodline.Sim.Combat
@@ -1676,7 +1685,7 @@ namespace Broodline.Sim.Combat
 }
 ```
 
-- [ ] **Step 4: Add phase 4 to `Phases.cs`**
+- [x] **Step 4: Add phase 4 to `Phases.cs`**
 
 Append inside `public static partial class Phases`:
 
@@ -1724,7 +1733,7 @@ Append inside `public static partial class Phases`:
 
 **Gotcha — the `Combat.` prefix is required, not stylistic.** Inside `Phases` there is now a *method* named `Targeting` as well as a *class* named `Targeting`. Writing `Targeting.Select(s, c)` unqualified from inside `Phases.Targeting` is a compile error (CS0119: *"is a method, which is not valid in the given context"*), because the method name binds first. `Combat.Targeting` resolves outward to `Broodline.Sim.Combat.Targeting` and compiles. Do not "simplify" it away — the build breaks, and the obvious fix of renaming the phase method breaks the eight-phase naming symmetry that Task 11's enforcement test reads.
 
-- [ ] **Step 5: Run until green**
+- [x] **Step 5: Run until green**
 
 ```bash
 dotnet test Broodline.sln --nologo
@@ -1732,7 +1741,7 @@ dotnet test Broodline.sln --nologo
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add engine/Runtime/Combat/Targeting.cs engine/Runtime/Combat/Phases.cs tests/engine/Combat/TargetingTests.cs
@@ -1773,7 +1782,7 @@ Three of the six Instincts carry a trigger as well as a predicate. Two of them (
   - `static void Phases.Death(SimState s)`
   - `static void Phases.Skittish(SimState s)` — called from `State`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/engine/Combat/AttackTests.cs`:
 
@@ -1891,7 +1900,7 @@ namespace Broodline.Sim.Tests.Combat
 }
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 dotnet test Broodline.sln --nologo
@@ -1899,7 +1908,7 @@ dotnet test Broodline.sln --nologo
 
 Expected: compile failure — `Attacks` does not exist.
 
-- [ ] **Step 3: Add the Skittish fields to `SimState.cs`**
+- [x] **Step 3: Add the Skittish fields to `SimState.cs`**
 
 Declare beside the other creature arrays:
 
@@ -1930,7 +1939,7 @@ And add the accessor:
         public bool CreatureCanAct(int c) => CreatureAlive(c) && Tick >= CreatureBusyUntil[c];
 ```
 
-- [ ] **Step 4: Write `Attacks.cs`**
+- [x] **Step 4: Write `Attacks.cs`**
 
 ```csharp
 namespace Broodline.Sim.Combat
@@ -2003,7 +2012,7 @@ namespace Broodline.Sim.Combat
 }
 ```
 
-- [ ] **Step 5: Add phases 5, 6 and the Skittish rule to `Phases.cs`**
+- [x] **Step 5: Add phases 5, 6 and the Skittish rule to `Phases.cs`**
 
 Append inside `public static partial class Phases`:
 
@@ -2112,7 +2121,7 @@ Then wire Skittish into phase 2 by extending `State`:
         }
 ```
 
-- [ ] **Step 6: Run until green**
+- [x] **Step 6: Run until green**
 
 ```bash
 dotnet test Broodline.sln --nologo
@@ -2120,7 +2129,7 @@ dotnet test Broodline.sln --nologo
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add engine/Runtime/Combat tests/engine/Combat
@@ -2154,7 +2163,7 @@ hit, and Brood and Cinder will need exactly this seam."
   - `static bool Phases.Breach(SimState s, Breach[] log, ref int logCount)`
   - `static Result Phases.Resolve(SimState s)`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/engine/Combat/TerminationTests.cs`:
 
@@ -2247,7 +2256,7 @@ namespace Broodline.Sim.Tests.Combat
 }
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 dotnet test Broodline.sln --nologo
@@ -2255,7 +2264,7 @@ dotnet test Broodline.sln --nologo
 
 Expected: compile failure — `Result` and `Breach` do not exist.
 
-- [ ] **Step 3: Write `Outcome.cs`**
+- [x] **Step 3: Write `Outcome.cs`**
 
 ```csharp
 namespace Broodline.Sim.Combat
@@ -2291,7 +2300,7 @@ namespace Broodline.Sim.Combat
 }
 ```
 
-- [ ] **Step 4: Add phases 7 and 8 to `Phases.cs`**
+- [x] **Step 4: Add phases 7 and 8 to `Phases.cs`**
 
 ```csharp
         /// Phase 7 - Breach. Any raider at the Ark: deduct integrity, record
@@ -2345,7 +2354,7 @@ namespace Broodline.Sim.Combat
         }
 ```
 
-- [ ] **Step 5: Run until green**
+- [x] **Step 5: Run until green**
 
 ```bash
 dotnet test Broodline.sln --nologo
@@ -2353,7 +2362,7 @@ dotnet test Broodline.sln --nologo
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add engine/Runtime/Combat tests/engine/Combat
@@ -2389,7 +2398,7 @@ information about why a raider was unanswerable is gone."
   - `static Verdict Diagnosis.PreWaveCheck(SimState s, RaiderType type)`
   - `static int Diagnosis.SimultaneousCount(SimState s, RaiderType type)`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/engine/Combat/DiagnosisTests.cs`:
 
@@ -2534,7 +2543,7 @@ namespace Broodline.Sim.Tests.Combat
 }
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 dotnet test Broodline.sln --nologo
@@ -2542,7 +2551,7 @@ dotnet test Broodline.sln --nologo
 
 Expected: compile failure — `Diagnosis` does not exist.
 
-- [ ] **Step 3: Write `Diagnosis.cs`**
+- [x] **Step 3: Write `Diagnosis.cs`**
 
 ```csharp
 namespace Broodline.Sim.Combat
@@ -2644,7 +2653,7 @@ namespace Broodline.Sim.Combat
 }
 ```
 
-- [ ] **Step 4: Fill the booleans at phase 7**
+- [x] **Step 4: Fill the booleans at phase 7**
 
 In `Phases.Breach`, replace the log-writing block so the diagnosis is captured **before** the raider is removed and before integrity changes — the live board at that instant is what coverage means:
 
@@ -2673,7 +2682,7 @@ In `Phases.Breach`, replace the log-writing block so the diagnosis is captured *
 
 Move the `s.Integrity -=` and `s.RaiderAlive[r] = false` lines to **after** this block.
 
-- [ ] **Step 5: Run until green**
+- [x] **Step 5: Run until green**
 
 ```bash
 dotnet test Broodline.sln --nologo
@@ -2681,7 +2690,7 @@ dotnet test Broodline.sln --nologo
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add engine/Runtime/Combat tests/engine/Combat
@@ -2712,7 +2721,7 @@ The loop, the stall detector, and the pinned pair the design doc §6.1 specifies
 - Consumes: everything above.
 - Produces: `static Outcome Sim.Run(WaveDef wave, Lane lane, CreatureSpec[] deployment, ulong seed)`
 
-- [ ] **Step 1: Write `Sim.cs`**
+- [x] **Step 1: Write `Sim.cs`**
 
 ```csharp
 namespace Broodline.Sim.Combat
@@ -2836,7 +2845,7 @@ namespace Broodline.Sim.Combat
 
 **`Fix64.Raw` is already public** (`engine/Runtime/Fix64.cs:118`, `public long Raw { get; }`), verified before this plan was dispatched. **Do not modify `Fix64`** — this task touches no Phase 1 file. Hashing the raw bits is the only way to fold a fixed-point value without a lossy conversion, and the accessor is already there.
 
-- [ ] **Step 2: Write the golden tests, with the hashes left unpinned**
+- [x] **Step 2: Write the golden tests, with the hashes left unpinned**
 
 `tests/engine/Combat/GoldenTests.cs`:
 
@@ -2955,7 +2964,7 @@ namespace Broodline.Sim.Tests.Combat
 }
 ```
 
-- [ ] **Step 3: Run and read the two hashes off the output**
+- [x] **Step 3: Run and read the two hashes off the output**
 
 ```bash
 dotnet test Broodline.sln --nologo --logger "console;verbosity=detailed" 2>&1 | grep "Golden"
@@ -2963,7 +2972,7 @@ dotnet test Broodline.sln --nologo --logger "console;verbosity=detailed" 2>&1 | 
 
 Expected: two `Golden A/B hash:` lines. **If either behavioural assertion fails, stop and fix the engine — do not pin a hash for a run that behaves wrongly.** Golden A must be a `Loss` with `Access == false`; Golden B must be a `Win`.
 
-- [ ] **Step 4: Pin both hashes**
+- [x] **Step 4: Pin both hashes**
 
 Add the recorded values as constants and assert them:
 
@@ -2980,13 +2989,13 @@ Add to each golden test:
             Assert.Equal(GoldenAHash, o.Hash);   // and GoldenBHash in the other
 ```
 
-- [ ] **Step 5: Prove the goldens catch drift**
+- [x] **Step 5: Prove the goldens catch drift**
 
 Temporarily change one normative thing — swap the `Phases.Movement(s)` and `Phases.Targeting(s)` lines in `Sim.Run`. Re-run.
 
 Expected: **both goldens fail on the hash.** That is §4's claim being enforced rather than documented: movement before targeting is a behavioural contract, and reordering it changes outcomes. Revert and confirm green.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add engine/Runtime/Combat/Sim.cs tests/engine/Combat/GoldenTests.cs engine/Runtime/Fix64.cs
@@ -3021,7 +3030,7 @@ The golden pair proves two specific runs. These two layers prove the properties 
 - Consumes: `Sim`, `WaveDef`, `Lane`, `Rng`.
 - Produces: nothing the engine consumes. These are guards.
 
-- [ ] **Step 1: Write the fuzz tests**
+- [x] **Step 1: Write the fuzz tests**
 
 `tests/engine/Combat/FuzzTests.cs`:
 
@@ -3167,7 +3176,7 @@ namespace Broodline.Sim.Tests.Combat
 }
 ```
 
-- [ ] **Step 2: Run the fuzz tests**
+- [x] **Step 2: Run the fuzz tests**
 
 ```bash
 dotnet test Broodline.sln --nologo
@@ -3175,7 +3184,7 @@ dotnet test Broodline.sln --nologo
 
 Expected: PASS. **A `Stalled` failure here is a real finding, not a flaky test** — read the wave it names and work out which phase stops making progress.
 
-- [ ] **Step 3: Write the enforcement test**
+- [x] **Step 3: Write the enforcement test**
 
 Follows the pattern `tests/engine/EnforcementTests.cs` established in Phase 1: assert the *thing that checks the code*, bluntly, by reading it. Tick order is normative and nothing else can see it change.
 
@@ -3258,7 +3267,7 @@ namespace Broodline.Sim.Tests.Combat
 }
 ```
 
-- [ ] **Step 4: Prove the enforcement test actually fires**
+- [x] **Step 4: Prove the enforcement test actually fires**
 
 Swap the `Phases.Movement(s)` and `Phases.Targeting(s)` lines in `Sim.cs` and re-run.
 
@@ -3266,7 +3275,7 @@ Expected: `SimRun_StillCallsTheEightPhasesInNormativeOrder` **fails**, naming `P
 
 This is the difference between a comment saying the order is normative and something that notices when it is not.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tests/engine/Combat/FuzzTests.cs tests/engine/Combat/CombatEnforcementTests.cs
@@ -3303,7 +3312,7 @@ decision."
   - `struct BatchResult { int Runs; int Clears; int Losses; int Stalls; ulong Hash; }`
   - `static BatchResult BatchRunner.Run(WaveDef wave, Lane lane, CreatureSpec[] deployment, ulong firstSeed, int runs)`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```csharp
 using Xunit;
@@ -3353,7 +3362,7 @@ namespace Broodline.Sim.Tests.Combat
 }
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 dotnet test Broodline.sln --nologo
@@ -3361,7 +3370,7 @@ dotnet test Broodline.sln --nologo
 
 Expected: compile failure — `BatchRunner` does not exist.
 
-- [ ] **Step 3: Write `BatchRunner.cs`**
+- [x] **Step 3: Write `BatchRunner.cs`**
 
 ```csharp
 namespace Broodline.Sim.Combat
@@ -3412,7 +3421,7 @@ namespace Broodline.Sim.Combat
 }
 ```
 
-- [ ] **Step 4: Run until green, then commit**
+- [x] **Step 4: Run until green, then commit**
 
 ```bash
 dotnet test Broodline.sln --nologo
@@ -3441,7 +3450,7 @@ The load-bearing one. Phase 1's gate proves `Fix64` and `ToySim` agree across ru
 - Consumes: `Sim`, `WaveDef`, `Lane`.
 - Produces: `Corpus.RunScenario` additionally folding a combat run.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/engine/Combat/CombatCorpusTests.cs`:
 
@@ -3490,7 +3499,7 @@ namespace Broodline.Sim.Tests.Combat
 }
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 dotnet test Broodline.sln --nologo
@@ -3498,7 +3507,7 @@ dotnet test Broodline.sln --nologo
 
 Expected: compile failure — `Corpus.RunCombatScenario` does not exist.
 
-- [ ] **Step 3: Add the combat scenario to `Corpus.cs`**
+- [x] **Step 3: Add the combat scenario to `Corpus.cs`**
 
 ```csharp
         /// Generates combat scenario N deterministically. Varies the Chill tier
@@ -3539,7 +3548,7 @@ Expected: compile failure — `Corpus.RunCombatScenario` does not exist.
         public static ulong RunCombatScenario(int index) => CombatOutcome(index).Hash;
 ```
 
-- [ ] **Step 4: Fold it into the existing scenario hash**
+- [x] **Step 4: Fold it into the existing scenario hash**
 
 In `RunScenario`, after `FoldArithmeticSweep(ref hash);`:
 
@@ -3549,7 +3558,7 @@ In `RunScenario`, after `FoldArithmeticSweep(ref hash);`:
 
 **Every corpus hash changes as a result**, exactly as the arithmetic sweep did. That is intended: the same `PASS: 500 scenarios agree` now asserts a much larger claim.
 
-- [ ] **Step 5: Run the .NET side and confirm green**
+- [x] **Step 5: Run the .NET side and confirm green**
 
 ```bash
 dotnet test Broodline.sln --nologo
@@ -3557,7 +3566,7 @@ dotnet test Broodline.sln --nologo
 
 Expected: PASS.
 
-- [ ] **Step 6: Run the full cross-runtime gate**
+- [x] **Step 6: Run the full cross-runtime gate**
 
 ```bash
 ./implementation/scripts/cross-runtime-diff.sh
@@ -3567,7 +3576,7 @@ Expected: `PASS: 500 scenarios agree`, exit 0. Close the Unity editor first.
 
 **This is the moment the phase is actually proven.** A failure here means the combat engine is not deterministic across runtimes — read the first differing scenario index, reproduce it with `Corpus.CombatOutcome(index)` on both sides, and find which phase diverges. Do not proceed past a failure.
 
-- [ ] **Step 7: Prove the extended corpus catches combat drift**
+- [x] **Step 7: Prove the extended corpus catches combat drift**
 
 Temporarily change one thing inside the tick loop that the arithmetic sweep cannot see — for example, make `Attacks.Damage` return `damage + 1` for `Species.Hollow`. Rebuild the IL2CPP player only (leave the CoreCLR side unmodified) and re-run.
 
@@ -3575,7 +3584,7 @@ Expected: **FAIL**, with the diff naming scenario lines. Revert and confirm `PAS
 
 This is the check that distinguishes "the corpus mentions combat" from "the gate would catch a combat divergence".
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add engine/Runtime/Corpus.cs tests/engine
