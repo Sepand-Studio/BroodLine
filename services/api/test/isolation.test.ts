@@ -93,7 +93,7 @@ describe('the gate itself', () => {
       SELECT c.relname, c.relrowsecurity, c.relforcerowsecurity
         FROM pg_class c
         JOIN pg_namespace n ON n.oid = c.relnamespace
-       WHERE n.nspname = 'public' AND c.relkind = 'r'
+       WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')
          AND c.relname NOT IN ('servers', 'accounts', '_migrations')
        ORDER BY c.relname`)
 

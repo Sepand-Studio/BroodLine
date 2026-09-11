@@ -18,10 +18,16 @@ export class HttpError extends Error {
  * deleted_at lookup - so a deleted account's access token keeps working for
  * up to ACCESS_TTL (15m) after deletion. That is intentional, not an
  * oversight: it is what "no database read on every authenticated request"
- * costs, and jwt.ts's redeemRefreshToken is what actually ends the session,
- * by checking deleted_at on every refresh. The gap matters more from
- * Task 9 onward - once GET /v1/sync is behind this guard, a just-deleted
- * account can still read its own data for up to fifteen minutes.
+ * costs.
+ *
+ * jwt.ts's redeemRefreshToken checks deleted_at on every refresh, which is
+ * what will actually end the session - but there is no refresh endpoint yet
+ * (the route table today is only account.ts and sync.ts), so no request can
+ * reach that function and the token POST /v1/account returns is currently
+ * unredeemable. Until a refresh route lands, this fifteen-minute window is
+ * the ENTIRE lifetime of a session with no recovery path, not a residual gap
+ * on top of one. The reasoning above becomes true the day a refresh route
+ * exists.
  */
 export async function requireSession(c: Context): Promise<SessionClaims> {
   const header = c.req.header('authorization')

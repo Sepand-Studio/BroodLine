@@ -43,6 +43,30 @@ describe('validation', () => {
     const v = await validateBundle(FIX('missing-locale-key'))
     expect(v.join(' ')).toMatch(/ja\.json is missing 1 key/)
   }, 120_000)
+
+  it('catches a starter grant naming a currency outside the Postgres enum', async () => {
+    const v = await validateBundle(FIX('bad-starter-currency'))
+    expect(v.join(' ')).toMatch(/unrecognized currency 'gems'/)
+    // Not the OTHER new check - this fixture's manifest and amounts are fine.
+    expect(v.join(' ')).not.toMatch(/minimumClientVersion/)
+    expect(v.join(' ')).not.toMatch(/invalid amount/)
+  }, 120_000)
+
+  it('catches a starter grant with a negative amount', async () => {
+    const v = await validateBundle(FIX('bad-starter-amount'))
+    expect(v.join(' ')).toMatch(/invalid amount -5/)
+    // Not the OTHER new check - this fixture's currencies and manifest are fine.
+    expect(v.join(' ')).not.toMatch(/unrecognized currency/)
+    expect(v.join(' ')).not.toMatch(/minimumClientVersion/)
+  }, 120_000)
+
+  it('catches a manifest with no minimumClientVersion', async () => {
+    const v = await validateBundle(FIX('missing-minimum-client-version'))
+    expect(v.join(' ')).toMatch(/manifest\.json is missing minimumClientVersion/)
+    // Not the OTHER new check - this fixture's starter grants are fine.
+    expect(v.join(' ')).not.toMatch(/unrecognized currency/)
+    expect(v.join(' ')).not.toMatch(/invalid amount/)
+  }, 120_000)
 })
 
 describe('publish', () => {

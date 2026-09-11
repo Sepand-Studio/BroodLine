@@ -15,6 +15,21 @@ export function createPool(connectionString: string): pg.Pool {
     // pool - this is that pool.
     max: 5,
     idleTimeoutMillis: 10_000,
+    // The idempotency design (money/idempotency.ts) depends on a conflicting
+    // INSERT BLOCKING the loser until the winner's transaction resolves -
+    // that is the whole mechanism. Without a cap, a mutation stuck on a
+    // network partition (or any other hang) holds that row lock forever:
+    // every retry of the same key queues up behind it, and each blocked
+    // retry burns one of this pool's five slots. Five stuck retries is the
+    // instance's entire pool gone - a single hung query on the service's
+    // only mutation path turns into a full instance-wide deadlock. These
+    // options bound that: lock_timeout aborts a statement that waits too
+    // long for a row lock (freeing the slot with a clear error rather than
+    // hanging it), and statement_timeout is the backstop for any other
+    // runaway query, set looser since some legitimate statements (batched
+    // reads, migrations run outside this pool) may run longer than a lock
+    // wait reasonably should.
+    options: '-c lock_timeout=5000 -c statement_timeout=30000',
   })
 }
 

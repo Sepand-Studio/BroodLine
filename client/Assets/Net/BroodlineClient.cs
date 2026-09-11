@@ -21,10 +21,21 @@ namespace Broodline.Net
     /// written against the expected NSwag output - see task-10-report.md):
     /// BroodlineApiClient's constructor takes only an HttpClient - there is no
     /// (baseUrl, HttpClient) overload, and BaseUrl is a settable property that
-    /// defaults to the OpenAPI document's server URL. There is also no public
-    /// HttpClient accessor on the generated client, so the Authorization
-    /// header is set on the HttpClient this class was handed directly, not
-    /// through the generated wrapper.
+    /// defaults to the OpenAPI document's server URL.
+    ///
+    /// NOTE on auth: openapi.ts now declares a proper HTTP bearer security
+    /// scheme and applies it to SyncAsync and DeleteAccountAsync (see the
+    /// OpenAPI document's components.securitySchemes.bearerAuth, and each
+    /// operation's `security`). This is a contract gap that was fixed, not a
+    /// leftover quirk - but fixing it did not change how the C# client is
+    /// called: NSwag's openApiToCSharpClient generator (with the settings in
+    /// nswag.json) does not turn a declared security scheme into a per-call
+    /// token parameter or a SetBearerToken-style method. The only hook it
+    /// generates for this is the generic, per-request `partial void
+    /// PrepareRequest(...)` - there is no public HttpClient accessor on the
+    /// generated client either, so the Authorization header is set on the
+    /// HttpClient this class was handed directly, which is how NSwag
+    /// actually surfaces a bearer scheme for this generator.
     public sealed class BroodlineClient
     {
         private readonly BroodlineApiClient _api;

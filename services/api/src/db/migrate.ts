@@ -41,8 +41,8 @@ export async function migrate(pool: Pool): Promise<void> {
   // can both see the table absent and both attempt to create it, and one
   // loses with a duplicate-key error on a system catalog index
   // (pg_type_typname_nsp_index) rather than a clean "already exists". A
-  // session-scoped advisory lock, held only for this one statement via its
-  // own short transaction, closes that window without holding anything
+  // transaction-scoped advisory lock, held only for this one statement via
+  // its own short transaction, closes that window without holding anything
   // across the rest of the run.
   const bootstrap = await pool.connect()
   try {

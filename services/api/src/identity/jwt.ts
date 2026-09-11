@@ -62,13 +62,19 @@ export async function verifyAccessToken(token: string): Promise<SessionClaims> {
 }
 
 /**
- * Redeems a refresh token for a new pair.
+ * Verifies a refresh token and returns the session claims it carries -
+ * re-checked against the account row, not merely against the token's own
+ * signature. It mints nothing itself; there is no refresh endpoint yet to
+ * call it (see http/auth.ts and routes/account.ts), so today this function
+ * has no caller outside its own tests. When a refresh route lands, that
+ * route is what turns this into "a new pair."
  *
  * DELIBERATELY STATELESS. There is no refresh_tokens table, so an individual
  * token cannot be revoked before it expires - what CAN be revoked is the
- * account, and that is checked here on every refresh. That is enough for the
- * one thing milestone 1 must honour: the App Store's in-app deletion path
- * has to actually end the session.
+ * account, and that is checked here on every refresh. That becomes the thing
+ * milestone 1 must honour - the App Store's in-app deletion path actually
+ * ending the session - once a refresh route exists to call this function;
+ * until then, no request reaches it.
  *
  * DEFERRED, with a trigger: a refresh_tokens table with rotation and reuse
  * detection arrives when the first non-TestFlight players do. Until then the

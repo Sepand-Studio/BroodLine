@@ -3,25 +3,40 @@ import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
+import { currency as currencyEnum } from '../db/schema.ts'
 
 const run = promisify(execFile)
 
 /** The locale every other locale is checked against. */
 const REFERENCE_LOCALE = 'en'
 
+/** The Postgres enum, not a value reimplemented here - see validateStarterGrants. */
+const VALID_CURRENCIES: readonly string[] = currencyEnum.enumValues
+
+/** Matches isBelow's assumption in http/auth.ts: three dot-separated integers. */
+const VERSION_PATTERN = /^\d+\.\d+\.\d+$/
+
 /**
  * Publish-time validation. solo_execution 5.2: a bundle that fails is not
  * published, and that is the entire safety model - a bad bundle is shipped to
  * every player at once and cannot be recalled by an app update.
  *
- * Three checks, and only one of them lives here in full. The wave rules are
- * the engine's and are invoked, never copied - see tools/config-validate.
+ * Five checks now, and only one of them lives here in full. The wave rules
+ * are the engine's and are invoked, never copied - see tools/config-validate.
+ *
+ * starter.json and manifest.json carry that exact same blast radius -
+ * config/bundle.ts feeds their contents straight to routes/account.ts's
+ * credit() call and routes/sync.ts's isBelow() call with nothing between
+ * this validator and production - so both are checked here alongside waves,
+ * the pack ladder and locales.
  */
 export async function validateBundle(dir: string): Promise<string[]> {
   const violations: string[] = []
   violations.push(...(await validateWaves(dir)))
   violations.push(...(await validatePackLadder(dir)))
   violations.push(...(await validateLocales(dir)))
+  violations.push(...(await validateStarterGrants(dir)))
+  violations.push(...(await validateManifest(dir)))
   return violations
 }
 
@@ -124,4 +139,65 @@ async function validateLocales(dir: string): Promise<string[]> {
     }
   }
   return violations
+}
+
+/**
+ * config/bundle.ts hands `starter.grants` straight to routes/account.ts,
+ * which feeds `grant.currency` and `grant.amount` directly into
+ * money/ledger.ts's credit() on every single account creation. Nothing
+ * between this validator and that call site checks either field:
+ *
+ *   - a currency outside the Postgres `currency` enum fails the row's
+ *     `::currency` cast with 22P02 (invalid_text_representation) - a 500 on
+ *     every account creation, forever, until the bundle is rolled back;
+ *   - a negative or non-integer amount fails the wallet's
+ *     `CHECK (balance >= 0)` (or is simply not a whole number of currency
+ *     units) - also a 500 on every account creation.
+ */
+async function validateStarterGrants(dir: string): Promise<string[]> {
+  const raw = await readFile(join(dir, 'starter.json'), 'utf8').catch(() => null)
+  if (raw === null) return ['starter.json is missing.']
+
+  const grants = (JSON.parse(raw) as { grants: Array<{ currency: string; amount: number }> }).grants
+  const violations: string[] = []
+
+  for (const grant of grants) {
+    if (!VALID_CURRENCIES.includes(grant.currency)) {
+      violations.push(
+        `starter.json grants an unrecognized currency '${grant.currency}' ` +
+        `(must be one of ${VALID_CURRENCIES.join(', ')}).`)
+    }
+    if (!Number.isInteger(grant.amount) || grant.amount < 0) {
+      violations.push(
+        `starter.json grant for '${grant.currency}' has an invalid amount ${grant.amount} ` +
+        `(must be a non-negative integer).`)
+    }
+  }
+  return violations
+}
+
+/**
+ * config/bundle.ts reads `manifest.minimumClientVersion` and hands it
+ * straight to routes/sync.ts, which passes it as the second argument to
+ * http/auth.ts's isBelow(). A missing field arrives there as `undefined`;
+ * isBelow calls `.split('.')` on its `floor` parameter with no guard, so a
+ * missing minimumClientVersion throws a TypeError on GET /v1/sync - the ONE
+ * cold-start call every client makes, so this fails every request, not a
+ * fraction of them.
+ */
+async function validateManifest(dir: string): Promise<string[]> {
+  const raw = await readFile(join(dir, 'manifest.json'), 'utf8').catch(() => null)
+  if (raw === null) return ['manifest.json is missing.']
+
+  const manifest = JSON.parse(raw) as { minimumClientVersion?: unknown }
+  if (manifest.minimumClientVersion === undefined) {
+    return ['manifest.json is missing minimumClientVersion.']
+  }
+  if (typeof manifest.minimumClientVersion !== 'string' || !VERSION_PATTERN.test(manifest.minimumClientVersion)) {
+    return [
+      `manifest.json's minimumClientVersion '${String(manifest.minimumClientVersion)}' is not a valid ` +
+      `MAJOR.MINOR.PATCH version.`,
+    ]
+  }
+  return []
 }

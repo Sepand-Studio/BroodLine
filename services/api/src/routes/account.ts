@@ -3,7 +3,7 @@ import type { Hono } from 'hono'
 import type { Deps } from '../app.ts'
 import { loadBundle } from '../config/bundle.ts'
 import { accounts, players } from '../db/schema.ts'
-import { HttpError, requireSession } from '../http/auth.ts'
+import { requireSession } from '../http/auth.ts'
 import { fail } from '../http/errors.ts'
 import { hashRequest } from '../http/hash.ts'
 import { assignServer } from '../identity/accounts.ts'
@@ -98,6 +98,13 @@ export function registerAccountRoutes(app: Hono, deps: Deps): void {
       // Tokens are minted OUTSIDE the idempotent body and are not stored in
       // the key's response. A replayed creation should still get a usable,
       // freshly-dated session rather than one expiring on the original clock.
+      //
+      // NOTE ON refreshToken: no refresh endpoint exists yet - the route
+      // table is only account.ts and sync.ts - so this token cannot
+      // currently be redeemed by anything. It is returned now because the
+      // response shape is stable API surface, but until a refresh route
+      // lands, a session's real lifetime is the 15-minute access token (see
+      // http/auth.ts's requireSession comment), with no recovery path.
       const claims = { accountId: result.body.accountId, serverId }
       return c.json({
         ...result.body,
@@ -113,17 +120,17 @@ export function registerAccountRoutes(app: Hono, deps: Deps): void {
   })
 
   app.delete('/v1/account', async (c) => {
-    let session
-    try {
-      session = await requireSession(c)
-    } catch (err) {
-      if (err instanceof HttpError) return err.response
-      throw err
-    }
+    // requireSession throws HttpError on a failed check; app.ts's onError
+    // special-cases it and returns its response as-is, so there is no
+    // try/catch boilerplate needed here.
+    const session = await requireSession(c)
 
     // A SOFT delete plus a scheduled purge - solo_execution 6.4. The account
-    // is disabled immediately, which is what redeemRefreshToken checks, and
-    // player-visible data is removed on a timer.
+    // is disabled immediately. jwt.ts's redeemRefreshToken checks deleted_at
+    // on every refresh, which is what will actually cut the session off -
+    // but there is no refresh endpoint yet, so nothing calls it today, and
+    // ending the session in practice means waiting out the 15-minute access
+    // token (see http/auth.ts). Player-visible data is removed on a timer.
     //
     // THE LEDGER IS NOT TOUCHED. It is a financial record and store_iap's
     // refund path depends on it; 6.4 retains it pseudonymised. Creature

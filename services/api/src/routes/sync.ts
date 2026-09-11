@@ -4,7 +4,7 @@ import type { Deps } from '../app.ts'
 import { loadBundle } from '../config/bundle.ts'
 import { withServer } from '../db/client.ts'
 import { campaignProgress, players, wallets } from '../db/schema.ts'
-import { HttpError, isBelow, requireSession } from '../http/auth.ts'
+import { isBelow, requireSession } from '../http/auth.ts'
 import { fail } from '../http/errors.ts'
 
 /**
@@ -15,13 +15,10 @@ import { fail } from '../http/errors.ts'
  */
 export function registerSyncRoutes(app: Hono, deps: Deps): void {
   app.get('/v1/sync', async (c) => {
-    let session
-    try {
-      session = await requireSession(c)
-    } catch (err) {
-      if (err instanceof HttpError) return err.response
-      throw err
-    }
+    // requireSession throws HttpError on a failed check; app.ts's onError
+    // special-cases it and returns its response as-is, so there is no
+    // try/catch boilerplate needed here.
+    const session = await requireSession(c)
 
     const bundle = await loadBundle(deps.bundleStore)
 

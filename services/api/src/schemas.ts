@@ -25,6 +25,10 @@ export const CreateAccountResponse = z.object({
   balances: z.record(z.string(), z.number().int()),
 }).openapi('CreateAccountResponse')
 
+export const DeleteAccountResponse = z.object({
+  deleted: z.boolean(),
+}).openapi('DeleteAccountResponse')
+
 export const SyncResponse = z.object({
   player: z.object({
     playerId: z.string().uuid(),

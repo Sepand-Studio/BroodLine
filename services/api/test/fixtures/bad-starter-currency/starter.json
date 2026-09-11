@@ -1,0 +1,6 @@
+{
+  "grants": [
+    { "currency": "gems", "amount": 3 },
+    { "currency": "shards", "amount": 250 }
+  ]
+}
