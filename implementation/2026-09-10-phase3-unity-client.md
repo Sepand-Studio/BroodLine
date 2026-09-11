@@ -2834,7 +2834,7 @@ and building it in UI Toolkit would invite it to be kept."
 - Consumes: everything above.
 - Produces: `sealed class WaveRunner : MonoBehaviour`; a `replay.bin` artifact written to the app's Documents directory; `DeviceReplayTests` re-simulating it.
 
-- [ ] **Step 1: Write the composition root**
+- [x] **Step 1: Write the composition root**
 
 `client/Assets/Game/WaveRunner.cs`:
 
@@ -2933,7 +2933,7 @@ namespace Broodline.Game
 }
 ```
 
-- [ ] **Step 2: Write the scene builder**
+- [x] **Step 2: Write the scene builder**
 
 `client/Assets/Game/Editor/Broodline.Game.Editor.asmdef`:
 
@@ -3023,6 +3023,16 @@ PY
 
 Then in the Unity editor: **Broodline → Build Wave Scene**, and press Play.
 
+> **Partly done, 2026-09-11 — left unticked on purpose.** The `.meta` files
+> exist and the scene is generated and committed: it was built headlessly with
+> `Unity -batchmode -quit -projectPath client -executeMethod WaveSceneBuilder.Build`,
+> which reported `orthographicSize=12.96 laneLength=24` — the lane fits the tall
+> axis with margin and leaves about 11.7 units across for a 3-unit pocket strip.
+> **Nobody has pressed Play.** The rest of this step — watching the Courser
+> advance, the bars move, and the end panel read `Loss` with `access False` — has
+> not happened, and the step stays open until it does. A checkbox that quietly
+> claims something was observed when it was not is worth less than no checkbox.
+
 Expected: a lane of tiles, five bodies in pockets, one body entering at tick 90 and advancing, HP bars, and after roughly 20 seconds an end panel reading **Loss**, integrity 0, one breach with `access False`. **That is the wave working** — wave 6 is the designed loss.
 
 - [ ] **Step 4: Confirm Rally is visibly consumed**
@@ -3057,7 +3067,7 @@ ls -l implementation/results/device-replay*
 git add -f implementation/results/device-replay.bin implementation/results/device-replay-outcome.txt
 ```
 
-- [ ] **Step 7: Write the test that re-simulates it**
+- [x] **Step 7: Write the test that re-simulates it**
 
 `tests/engine/Combat/DeviceReplayTests.cs`:
 
