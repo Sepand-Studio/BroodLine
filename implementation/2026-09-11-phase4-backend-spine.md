@@ -2964,7 +2964,12 @@ export async function validateBundle(dir: string): Promise<string[]> {
 async function validateWaves(dir: string): Promise<string[]> {
   try {
     const { stdout } = await run('dotnet', [
-      'run', '--project', 'tools/config-validate', '--nologo', '--', dir,
+      // NO --nologo. It is not a `dotnet run` option here, so it is forwarded
+      // to the app, which then sees two arguments, prints its usage line to
+      // stderr and exits 2. Verified: with it, every bundle fails validation
+      // with "wave validator could not run"; without it, exit 0 and clean
+      // JSON. Fails closed either way, but for entirely the wrong reason.
+      'run', '--project', 'tools/config-validate', '--', dir,
     ], { cwd: repoRoot() })
     return (JSON.parse(lastJsonLine(stdout)) as { violations: string[] }).violations
   } catch (err) {
@@ -2979,7 +2984,13 @@ async function validateWaves(dir: string): Promise<string[]> {
   }
 }
 
-/** `dotnet run` may print build output before the JSON; take the last line that parses. */
+/**
+ * `dotnet run` prints MSBuild output before the program's own stdout on any
+ * run that rebuilds, so the JSON is not reliably the first line. Take the last
+ * line that starts with `{`. Verified against a real invocation rather than
+ * assumed — the CLI's contract is exit code plus one JSON line on stdout, with
+ * usage errors going to stderr.
+ */
 function lastJsonLine(stdout: string): string {
   const lines = stdout.trim().split('\n')
   for (let i = lines.length - 1; i >= 0; i--) {
