@@ -1,3 +1,11 @@
+---
+status: current
+folder: 01-companions
+note: >
+  The shortfall offer - the only promotion in the game, and what it may
+  know.
+---
+
 # Broodline — The Offer Engine
 
 *Design spec, when the game shows you a pack*

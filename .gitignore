@@ -31,33 +31,44 @@ node_modules/
 /.build/
 *.log
 
-# Unity (if used later)
-[Ll]ibrary/
-[Tt]emp/
-[Oo]bj/
-[Bb]uild/
-[Bb]uilds/
-[Ll]ogs/
-[Uu]ser[Ss]ettings/
-*.csproj
-*.unityproj
-*.sln
-*.suo
-*.user
-*.userprefs
-*.pidb
-*.booproj
-*.svd
-*.pdb
-*.mdb
-*.opendb
-*.VC.db
+# .NET build outputs (engine/ package — dotnet build regenerates these).
+# Named bin~/obj~ (not bin/obj) so Unity's Asset Database ignores them too —
+# see the comment in engine/Broodline.Sim.csproj.
+engine/bin~/
+engine/obj~/
 
-# Godot (if used later)
-.godot/
-.import/
-export.cfg
-export_presets.cfg
+# .NET build outputs (tests/ projects — pure .NET, no Unity import concern,
+# so these use the standard bin/obj names rather than engine/'s bin~/obj~/).
+tests/**/bin/
+tests/**/obj/
+
+# Unity generated
+client/[Ll]ibrary/
+client/[Tt]emp/
+client/[Oo]bj/
+client/[Bb]uild/
+client/[Bb]uilds/
+client/[Ll]ogs/
+client/[Uu]serSettings/
+client/[Mm]emoryCaptures/
+client/[Rr]ecordings/
+
+# Unity regenerates these; the hand-maintained solution is at the repo root
+client/*.csproj
+client/*.sln
+client/*.user
+
+# Benchmark and test output — regenerated, never a source of truth.
+# Findings are promoted into the plan document instead.
+# The trailing /* rather than / matters: git will not descend into an excluded
+# directory, so a negation inside one is never reached.
+implementation/results/*
+
+# ...except the sweep CSVs. "Regenerated" is not true of these — reproducing one
+# needs a particular physical device, off charge, for half an hour — and they are
+# the evidence behind a triangle budget that goes to an artist. 16 KB against
+# 3.5 MB of logs.
+!implementation/results/*.csv
 
 # Xcode / iOS (if used later)
 DerivedData/
@@ -78,3 +89,9 @@ local.properties
 playwright-report/
 test-results/
 coverage/
+
+# Unity Hub created a nested repo here; preserved, not tracked
+client/.git.disabled/
+
+# Claude Code worktrees - isolated workspaces, never committed
+.claude/worktrees/

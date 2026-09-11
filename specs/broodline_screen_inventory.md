@@ -1,3 +1,11 @@
+---
+status: superseded
+folder: 99-archive
+superseded-by: broodline_screen_inventory_v2.md
+note: >
+  Era-2.
+---
+
 # Broodline — Screen Inventory
 *Every screen implied by the five system specs, what each needs, and what's missing*
 

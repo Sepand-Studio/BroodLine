@@ -1,3 +1,11 @@
+---
+status: current
+folder: 03-technical
+note: >
+  Server population and its derivation, lifecycle, regional assignment,
+  the tick job.
+---
+
 # Broodline — Server Topology
 
 *Technical spec, how many players share thirty regions*

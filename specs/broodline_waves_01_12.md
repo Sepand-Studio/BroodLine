@@ -1,3 +1,10 @@
+---
+status: current
+folder: 04-content
+note: >
+  Authored waves 01-12.
+---
+
 # Broodline — Campaign Waves 1–12
 
 *Content, chapters one and two authored*

@@ -1,3 +1,10 @@
+---
+status: current
+folder: 01-companions
+note: >
+  Splice screen copy and states.
+---
+
 # Broodline — Splice Chamber & Confirmation Flow
 
 *Closes reconciliation item 0.1. Screen updated for the Part 1 decisions.*

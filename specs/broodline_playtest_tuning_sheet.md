@@ -1,3 +1,12 @@
+---
+status: current
+folder: 01-companions
+note: >
+  Every number in the design that is an assumption rather than a
+  measurement, with a starting value and the condition that says it was
+  wrong.
+---
+
 # Broodline — Playtest Tuning Sheet
 
 *Every number in the design that is an assumption rather than a measurement, in one place, with a starting value and a condition that says it was wrong.*

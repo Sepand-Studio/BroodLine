@@ -1,3 +1,10 @@
+---
+status: current
+folder: 03-technical
+note: >
+  The production plan. Phases, procurement, what playtest has to answer.
+---
+
 # Broodline — Build Order
 
 *Production plan, what to make and in what order*
@@ -12,7 +19,9 @@
 
 **The design is done.** Seventeen current documents, one bible, every mechanic specified, every constant set to a soft-launch starting value. The remaining open questions in those documents are tuning questions, and tuning questions are answered by playtest rather than by writing.
 
-**Almost none of the game is made.** Fifty-nine screens, of which nine exist and are current. Sixty campaign waves, none authored. Thirty-six character assets, none modelled. Twenty animation clips and eleven behaviour previews, none produced. Two procurement items with external lead times that nobody has started.
+**Almost none of the game is made.** Thirty-four screens, of which twenty are designed — thirteen of those needing rework — and fourteen missing, per `broodline_screen_inventory_v2.md`. Thirty-six character assets, none modelled. Twenty animation clips and eleven behaviour previews, none produced. Two procurement items with external lead times that nobody has started.
+
+**What does exist is the foundation under it.** All sixty campaign waves are authored, the region graph is complete (§4), and two implementation phases have landed. The **entity-count proof** produced the per-creature render budget the art commission is briefed with — 7000 triangles, 2 materials, bones unconstrained. The **engine foundations** produced a deterministic simulation core, compiled by both .NET and Unity from one source tree and proven bit-identical across CoreCLR and IL2CPP over 500 scenarios. Neither is game code. Both are what had to be true before game code was safe to write.
 
 That asymmetry is the whole reason for this document. The register's habit — find the missing spec, write it — has no more moves. The next move is different in kind.
 
@@ -109,7 +118,7 @@ Three tracks that do not block the critical path and are large enough to start e
 |---|---|---|
 | **Campaign waves** | **All 60 authored** across seven wave documents | Done. The engine still has to be built against them |
 | **Region adjacency graph** | 30 regions, 2–4 borders each, 8 gate pairs fixed | Nothing. It is level design against an authored roster |
-| **Character art** | 36 assets — 6 species, 12 socket-agnostic trait parts, 6 Instinct cues, 4 raider bodies, 8 variant kits | The Phase 1 rig proof, and nothing after it |
+| **Character art** | 30 assets — 6 species, 12 socket-agnostic trait parts, 4 raider bodies, 8 variant kits — **plus up to 6 Instinct cues, contingent**. Bible §10.3 budgets six and §10.4 puts Instinct on a badge and behaviour instead; the count is a playtest question, `rig_proof` §9.3 | The Phase 1 rig proof, and nothing after it |
 
 **Authoring the first twelve found four errors in the specs they were authored against** — the budget formula's base, Skirmisher pricing, Lash's introduction wave, and where session one ends. The next eight settled a fifth: the growth rate is right, and the first two chapters only looked anomalous because the budget was being read as a target rather than a ceiling. Chapter 4 found a sixth, and it is the largest — **the Wave Defeat screen collapses three different failures into one message**, and for every raider after Courser that makes the game look like it is lying to the player. Chapter 5 found a seventh: **Bulwark's shield was not a lock**, because Sprint's mechanic is Skitter's base attack rate, so a Skitter answered it without the trait. Chapter 6 found the eighth and generalised it — **three of the eight locks were written as conditions rather than as rules about damage**, and all three let ordinary damage through the side. That is the argument for authoring early rather than late, and for authoring chapter 4 before building anything that depends on the numbers.
 

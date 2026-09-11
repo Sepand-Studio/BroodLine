@@ -1,3 +1,10 @@
+---
+status: current
+folder: 01-companions
+note: >
+  The audit, four gaps, the settings list, the palette finding.
+---
+
 # Broodline — Accessibility
 
 *Design spec, who can play this*

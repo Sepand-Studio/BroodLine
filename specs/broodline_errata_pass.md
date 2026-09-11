@@ -1,3 +1,11 @@
+---
+status: decision-record
+folder: 02-decisions
+note: >
+  Consistency pass over eight documents. Fourteen findings, eleven fixed
+  in place, three escalated to the four decisions.
+---
+
 # Broodline — Errata, This Pass
 
 *Consistency pass over the eight documents produced in this session. Fourteen findings: eleven fixed in place, three need a decision.*

@@ -1,3 +1,11 @@
+---
+status: superseded
+folder: 99-archive
+superseded-by: broodline_monetization.md
+note: >
+  Era-2 monetization spec.
+---
+
 # Splice — Monetization Spec v1
 
 *A dual-path (free + paid), live-ops-driven monetization system modeled on the proven Whiteout Survival / Kingshot playbook, adapted for a tower-defense/creature-breeding core loop.*

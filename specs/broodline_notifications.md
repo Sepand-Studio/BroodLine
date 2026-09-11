@@ -1,3 +1,10 @@
+---
+status: current
+folder: 01-companions
+note: >
+  The notification budget, quiet hours, re-engagement.
+---
+
 # Broodline — Notifications
 
 *Design spec, what the game says when it is closed*

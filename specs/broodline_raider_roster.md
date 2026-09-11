@@ -1,3 +1,11 @@
+---
+status: current
+folder: 01-companions
+note: >
+  Four bodies, the art budget, recognition rules, spawn patterns, the
+  Sunder.
+---
+
 # Broodline — The Raider Roster
 
 *Design spec, what attacks and what it costs to build*

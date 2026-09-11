@@ -1,3 +1,11 @@
+---
+status: superseded
+folder: 99-archive
+superseded-by: broodline_build_order.md
+note: >
+  Era-2.
+---
+
 # Broodline — First-Time User Experience
 
 *Design spec, the first session and the first fortnight*

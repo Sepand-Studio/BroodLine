@@ -1,3 +1,11 @@
+---
+status: current
+folder: 03-technical
+note: >
+  The seven playtest questions as events, metrics and thresholds. Design
+  telemetry, not operational monitoring.
+---
+
 # Broodline — Telemetry
 
 *Technical spec, what to measure and what it would mean*

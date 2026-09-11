@@ -1,0 +1,7 @@
+{
+  "name": "com.sepandstudio.broodline.sim",
+  "version": "0.1.0",
+  "displayName": "Broodline Simulation Core",
+  "description": "Deterministic simulation core. Pure C#, no engine dependency.",
+  "unity": "6000.0"
+}

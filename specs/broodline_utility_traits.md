@@ -1,3 +1,12 @@
+---
+status: superseded
+folder: 99-archive
+superseded-by: broodline_trait_utility.md
+note: >
+  Names the trait Plating. The rename to Carapace is current; the trait
+  utility document supersedes this in full.
+---
+
 # Broodline — Utility Trait Spec
 
 *Design spec. Defines Plating, Litter, Regrow and Screen — the four traits that counter nothing.*

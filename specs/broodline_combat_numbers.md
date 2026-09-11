@@ -1,3 +1,11 @@
+---
+status: current
+folder: 01-companions
+note: >
+  Species stats, twelve traits at three tiers, eight raiders, the wave
+  budget. Owns the values the combat engine resolves.
+---
+
 # Broodline — Combat Numbers
 
 *Design spec, the values under bible §1 and §4*

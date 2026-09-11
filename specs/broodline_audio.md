@@ -1,3 +1,10 @@
+---
+status: current
+folder: 01-companions
+note: >
+  Audio direction and the 61-sound budget.
+---
+
 # Broodline — Audio Direction
 
 *Design spec, what the game sounds like*

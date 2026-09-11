@@ -1,3 +1,11 @@
+---
+status: superseded
+folder: 99-archive
+superseded-by: broodline_bible.md
+note: >
+  Era-2.
+---
+
 # Broodline — Genetics & Splicing System
 *Design spec, the core loop*
 

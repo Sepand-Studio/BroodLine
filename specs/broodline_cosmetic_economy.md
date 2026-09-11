@@ -1,3 +1,11 @@
+---
+status: current
+folder: 01-companions
+note: >
+  Sizes cosmetics as a share of income and the season catalogue against
+  it. Closes the third open item in the terminal sink.
+---
+
 # Broodline — Cosmetic Economy
 
 *Sizes cosmetics as a share of income and the season catalogue against it. Closes the third open item in `broodline_terminal_sink.md`.*

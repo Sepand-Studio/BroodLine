@@ -1,6 +1,22 @@
+---
+status: superseded
+folder: 99-archive
+note: >
+  Replaced by per-file status and folder frontmatter. Retained for
+  provenance; it is behind the current file set and disagreed with the
+  trait codex's own status.
+---
+
 # Broodline — Supersession Map
 
 *v3. The index of every document in the set, and what each one is.*
+
+> **RETIRED — replaced by per-file frontmatter.** Every document now carries its
+> own `status:` and `folder:`, which is checkable per file and cannot drift out
+> of sync with the document it describes. This map could and did: it listed
+> `broodline_trait_codex.md` as a current companion after that file had been
+> marked `status: superseded`, and it accounted for fifty-three files when the
+> set had grown to seventy. Kept for provenance.
 
 > **`broodline_bible.md` is the design.** This map exists so that anyone opening any of the fifty-two other files knows within one line whether they are reading current truth, a companion the bible defers to, authored content, or an argument that was overtaken.
 >
