@@ -51,17 +51,28 @@ export async function credit(tx: Tx, m: Mutation): Promise<number> {
 
     const row = res.rows[0] as { balance: string | number } | undefined
     if (row === undefined) {
-      // Reachable only if the policy hid the row - i.e. credit() was called
-      // outside withServer, or with a server_id the transaction is not scoped
-      // to. Both are programming errors and both must be loud.
+      // Belt-and-braces, not a reachable outcome: INSERT ... ON CONFLICT DO
+      // UPDATE ... RETURNING always inserts, updates, or raises - it cannot
+      // return zero rows for the row it just wrote or updated. The failure
+      // mode this guard used to attribute to "called outside withServer" is
+      // real but does not arrive here: RLS blocking the write raises 42501
+      // (new row violates row-level security policy) instead, in the catch
+      // block below as `err`, never as an empty result set.
       throw new Error(
         `credit() wrote no wallet row for server ${m.serverId}. ` +
         `Was it called outside withServer(), or with a mismatched server_id?`)
     }
     balanceAfter = Number(row.balance)
   } catch (err) {
-    // 23514 is check_violation - here, always balance >= 0.
-    if (typeof err === 'object' && err !== null && (err as { code?: string }).code === '23514') {
+    // Gated on the CONSTRAINT, not just the SQLSTATE (23514, check_violation)
+    // - exact today because wallets carries exactly one CHECK, but a second
+    // one landing later would otherwise surface as a false "Insufficient
+    // shards" for an unrelated violation. wallets_balance_check is the name
+    // Postgres generates for the unnamed CHECK (balance >= 0) in
+    // 0001_tables.sql - confirmed by querying pg_constraint, not assumed.
+    const e = err as { code?: string; constraint?: string } | null
+    if (typeof err === 'object' && e !== null
+      && e.code === '23514' && e.constraint === 'wallets_balance_check') {
       throw new InsufficientFundsError(m.currency)
     }
     throw err

@@ -82,4 +82,41 @@ describe('idempotency under concurrency', () => {
     const retry = await withIdempotency(t.db, S, key, 'h', async () => ({ ok: true }))
     expect(retry.status).toBe('fresh')
   })
+
+  it('propagates a foreign unique violation rather than treating it as a replay', async () => {
+    // Fix Round 1, Finding 1: isIdempotencyKeyConflict must gate on the
+    // CONSTRAINT (idempotency_keys_pkey), not just SQLSTATE 23505. No path
+    // inside credit() can raise a 23505 today, but a later task's `fn` will
+    // touch accounts.apple_sub - so this simulates that with a UNIQUE
+    // violation on a DIFFERENT constraint from inside `fn`, entirely unrelated
+    // to the idempotency key itself.
+    const key = 'grant-foreign-conflict'
+
+    const err: unknown = await withIdempotency(t.db, S, key, 'h', async (tx) => {
+      await tx.insert(accounts).values({
+        birthdateBand: 'adult', homeRegion: 'us-central1', serverId: S, appleSub: 'dup-sub',
+      })
+      // Same transaction, same apple_sub: raises 23505 on
+      // accounts_apple_sub_key, not on idempotency_keys_pkey.
+      await tx.insert(accounts).values({
+        birthdateBand: 'adult', homeRegion: 'us-central1', serverId: S, appleSub: 'dup-sub',
+      })
+      return { ok: true }
+    }).then(
+      () => { throw new Error('withIdempotency resolved; expected the foreign violation to propagate') },
+      (e: unknown) => e,
+    )
+
+    // The ORIGINAL unique-violation error, not IdempotencyMismatchError, not
+    // the "vanished" error, and not a replayed body from a request that
+    // never happened.
+    expect(err).not.toBeInstanceOf(IdempotencyMismatchError)
+    expect(err).toMatchObject({ code: '23505', constraint: 'accounts_apple_sub_key' })
+
+    // The whole transaction rolled back, key included, so an honest retry of
+    // THIS idempotency key is not blocked by someone else's constraint.
+    const rows = await withServer(t.db, S, (tx) =>
+      tx.select().from(idempotencyKeys).where(eq(idempotencyKeys.key, key)))
+    expect(rows).toEqual([])
+  })
 })
