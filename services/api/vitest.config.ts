@@ -6,5 +6,8 @@ export default defineConfig({
     // enough for the first run on a cold image cache.
     testTimeout: 60_000,
     hookTimeout: 120_000,
+    env: {
+      JWT_SECRET: 'test-secret-that-is-at-least-32-characters-long',
+    },
   },
 })
