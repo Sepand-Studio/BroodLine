@@ -1,3 +1,5 @@
+using System;
+
 namespace Broodline.Sim.Combat
 {
     /// The tick loop as an object that can be stepped, so a renderer can read
@@ -46,6 +48,35 @@ namespace Broodline.Sim.Combat
         public Result Result => _result;
         public bool Done => _done;
         public Outcome Outcome => _outcome;
+
+        // --- The read-only surface. ---
+        //
+        // client_architecture section 2 specifies "ref readonly SimState".
+        // That guarantees nothing: SimState is a sealed CLASS whose arrays are
+        // readonly REFERENCES holding mutable contents, so a readonly reference
+        // to it still permits RaiderHp[0] = 0. ReadOnlySpan<T> cannot be
+        // written through, so the rule "View renders and never derives" holds
+        // by the type system rather than by anyone remembering it.
+        //
+        // Zero-copy: the implicit T[] to ReadOnlySpan<T> conversion wraps the
+        // existing array. Nothing is allocated and nothing is copied.
+
+        public int Integrity => _s.Integrity;
+        public int RaiderCount => _s.RaiderCount;
+        public int CreatureCount => _s.CreatureCount;
+        public Lane Lane => _s.Lane;
+        public int LaneTiles => _s.Lane.Tiles;
+
+        public ReadOnlySpan<RaiderType> RaiderType => _s.RaiderType;
+        public ReadOnlySpan<int> RaiderHp => _s.RaiderHp;
+        public ReadOnlySpan<Fix64> RaiderProgress => _s.RaiderProgress;
+        public ReadOnlySpan<bool> RaiderAlive => _s.RaiderAlive;
+        public ReadOnlySpan<bool> RaiderChilled => _s.RaiderChilled;
+
+        public ReadOnlySpan<Species> CreatureSpecies => _s.CreatureSpecies;
+        public ReadOnlySpan<int> CreatureHp => _s.CreatureHp;
+        public ReadOnlySpan<int> CreaturePocket => _s.CreaturePocket;
+        public ReadOnlySpan<int> CreatureTarget => _s.CreatureTarget;
 
         /// Advances exactly one tick. Returns false once the wave has
         /// terminated, after which it is a harmless no-op.
