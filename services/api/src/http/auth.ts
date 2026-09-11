@@ -13,6 +13,16 @@ export class HttpError extends Error {
   }
 }
 
+/**
+ * ACCEPTED RESIDUAL WINDOW: this verifies signature and audience only - no
+ * deleted_at lookup - so a deleted account's access token keeps working for
+ * up to ACCESS_TTL (15m) after deletion. That is intentional, not an
+ * oversight: it is what "no database read on every authenticated request"
+ * costs, and jwt.ts's redeemRefreshToken is what actually ends the session,
+ * by checking deleted_at on every refresh. The gap matters more from
+ * Task 9 onward - once GET /v1/sync is behind this guard, a just-deleted
+ * account can still read its own data for up to fifteen minutes.
+ */
 export async function requireSession(c: Context): Promise<SessionClaims> {
   const header = c.req.header('authorization')
   if (!header?.startsWith('Bearer ')) {

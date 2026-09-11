@@ -10,7 +10,6 @@ import { publishBundle } from '../src/config/publish.ts'
 import { LocalBundleStore } from '../src/config/store.ts'
 import { withServer } from '../src/db/client.ts'
 import { accounts, ledger, players, servers, wallets } from '../src/db/schema.ts'
-import { HttpError } from '../src/http/auth.ts'
 import { redeemRefreshToken } from '../src/identity/jwt.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 
@@ -87,7 +86,7 @@ describe('POST /v1/account', () => {
     // The identical response, not a second account.
     expect(secondBody.accountId).toBe(firstBody.accountId)
 
-    const allAccounts = await t.ownerDb.select().from(accounts)
+    const allAccounts = await t.db.select().from(accounts)
       .where(eq(accounts.accountId, firstBody.accountId))
     expect(allAccounts).toHaveLength(1)
 
@@ -114,6 +113,13 @@ describe('POST /v1/account', () => {
     const playerRows = await withServer(t.db, 1, (tx) =>
       tx.select().from(players).where(eq(players.playerId, playerId)))
     expect(playerRows).toHaveLength(1)
+
+    // Balance and ledger are independent facts by design - balances are
+    // never derived from the ledger - so "exactly once" must be asserted on
+    // both, not inferred from the balance alone.
+    const ledgerRows = await withServer(t.db, 1, (tx) =>
+      tx.select().from(ledger).where(eq(ledger.playerId, playerId)))
+    expect(ledgerRows).toHaveLength(2)
   })
 
   it('returns 422 when a key is reused for a different body', async () => {
@@ -145,14 +151,17 @@ describe('DELETE /v1/account', () => {
     })
     expect(del.status).toBe(200)
 
-    const [row] = await t.ownerDb.select().from(accounts)
+    const [row] = await t.db.select().from(accounts)
       .where(eq(accounts.accountId, body.accountId))
     expect(row!.deletedAt).not.toBeNull()
 
     // The refresh path is what actually ends the session - Task 5 checks
     // deleted_at on every redemption, which is the whole reason refresh is
-    // allowed to be stateless.
-    await expect(redeemRefreshToken(t.ownerDb, body.refreshToken)).rejects.toThrow(/deleted/i)
+    // allowed to be stateless. Run through t.db (the app role), the real
+    // production path - accounts carries no RLS policy but the app role
+    // does hold SELECT on it (drizzle/0002_rls.sql), so this is a faithful
+    // check, not a superuser bypass of it.
+    await expect(redeemRefreshToken(t.db, body.refreshToken)).rejects.toThrow(/deleted/i)
   })
 
   it('keeps the ledger rows, because they are a financial record', async () => {

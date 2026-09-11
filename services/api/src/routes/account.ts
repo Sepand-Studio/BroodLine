@@ -39,6 +39,18 @@ export function registerAccountRoutes(app: Hono, deps: Deps): void {
       return fail('invalid_request', 'birthdateBand and storefrontRegion are required.')
     }
 
+    // KNOWN HOLE, not request-controlled serverId but request-controlled
+    // INPUT to assignServer: storefrontRegion comes straight from the body,
+    // and assignServer is a total function of it, so a client picks its
+    // server by picking what it sends here. Second-order: the idempotency
+    // key is scoped by (server_id, key), so the SAME key sent with two
+    // different storefrontRegion values lands in two different key-spaces
+    // and mints two accounts - and it will not 422, because storefrontRegion
+    // is inside the hashed body, so the mismatch check never sees it (it
+    // never runs; each region's withIdempotency call sees its key as fresh).
+    // Both close only when storefrontRegion is derived from a verified App
+    // Store receipt instead of trusted from the request - required before
+    // the second server opens, see identity/accounts.ts.
     let serverId: number
     try {
       serverId = await assignServer(body.storefrontRegion)

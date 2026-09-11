@@ -24,9 +24,19 @@ export interface NewAccount {
  *
  * solo_execution section 4: assignment is by storefront region at signup and
  * there are no transfers, ever. A player wanting to play elsewhere creates a
- * second unlinked account. That is also what closes the guest-reroll hole -
- * assignment is not something a client can influence, so a guest cannot
- * reroll onto a low-population server to farm its Apex Veins.
+ * second unlinked account.
+ *
+ * NOT YET the guest-reroll defense section 4 describes. `storefrontRegion`
+ * is a client-supplied request field (see routes/account.ts), and this
+ * function is a total, deterministic function of it - so today a client
+ * DOES choose its own server, simply by choosing what it sends as
+ * storefrontRegion. The "cannot reroll onto a low-population server"
+ * guarantee is not enforced by this code; it is unexploitable right now
+ * only because REGION_TO_SERVER has exactly one entry and every other
+ * region 400s. The guarantee becomes real only once storefrontRegion is
+ * derived from a verified App Store receipt/storefront value instead of
+ * trusted from the request body - out of scope for this task, required
+ * before a second server opens.
  *
  * ONE SERVER AT MILESTONE 1. The mapping is a function rather than a constant
  * so the shape is right when the second one opens; solo_execution section 4
