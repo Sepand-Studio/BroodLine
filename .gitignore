@@ -95,3 +95,17 @@ client/.git.disabled/
 
 # Claude Code worktrees - isolated workspaces, never committed
 .claude/worktrees/
+
+# Phase 4 - the TypeScript half
+services/**/dist/
+services/**/*.tsbuildinfo
+
+# Terraform
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.*
+infra/terraform/*.tfvars
+
+# Config bundle build output. The AUTHORED json under config/bundles is
+# tracked; what the publish step assembles is not.
+config/out/
