@@ -1420,7 +1420,7 @@ describe('cross-server isolation', () => {
 pnpm --filter @broodline/api test
 ```
 
-Expected: **7 passed** (2 from Task 2, 5 here... plus the gate's own 2 = 8 total). Docker must be running; the first run pulls `postgres:16-alpine`.
+Expected: **8 passed** across the package — 2 from Task 2, plus 6 here: the gate's own 2 meta-assertions and 4 isolation assertions. Docker must be running; the first run pulls `postgres:16-alpine`.
 
 **If `runs as a role that cannot bypass RLS` fails, stop and fix it before reading any other result.** Every isolation assertion below it is meaningless while it is red.
 
@@ -1434,11 +1434,21 @@ pnpm --filter @broodline/api test isolation 2>&1 | tail -20
 
 Expected while weakened: **FAIL** on `forces RLS on every server-scoped table`. That assertion is the one standing between a real gate and a suite that reports green while every policy does nothing.
 
-Restore the line and re-run to green:
+Restore the line and re-run to green.
+
+**`git checkout --` will not help here**: `0002_rls.sql` is created by this task and is untracked (or staged-only) at this point, so there is no committed version to restore from. Uncomment the line by hand, then confirm you restored it exactly:
 
 ```bash
-git checkout -- services/api/drizzle/0002_rls.sql && pnpm --filter @broodline/api test isolation
+grep -c "FORCE ROW LEVEL SECURITY" services/api/drizzle/0002_rls.sql
 ```
+
+Expected: `2` — once in the explanatory comment block at the top, once in the `EXECUTE format(...)` line.
+
+```bash
+pnpm --filter @broodline/api test isolation
+```
+
+Expected: green again.
 
 - [ ] **Step 11: Wire the test script and commit**
 
