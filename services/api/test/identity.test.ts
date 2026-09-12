@@ -1,5 +1,5 @@
 import { errors, exportJWK, exportSPKI, generateKeyPair, SignJWT, type JWK } from 'jose'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { verifyAppleToken } from '../src/identity/apple.ts'
 import { issueAccessToken, issueRefreshToken, redeemRefreshToken, verifyAccessToken } from '../src/identity/jwt.ts'
 import { assignServer, bindApple, createGuest } from '../src/identity/accounts.ts'
@@ -254,5 +254,60 @@ describe('session tokens', () => {
       .where(eq(accounts.accountId, doomed.accountId))
 
     await expect(redeemRefreshToken(t.db, refresh)).rejects.toThrow(/deleted/i)
+  })
+})
+
+describe('session token key rotation', () => {
+  const ORIGINAL_SECRET = process.env.JWT_SECRET
+
+  afterEach(() => {
+    process.env.JWT_SECRET = ORIGINAL_SECRET
+    delete process.env.JWT_SECRET_KID
+    delete process.env.JWT_SECRET_PREVIOUS
+    delete process.env.JWT_SECRET_PREVIOUS_KID
+  })
+
+  it('keeps verifying a token minted under the OLD secret through a rotation, via kid + JWT_SECRET_PREVIOUS', async () => {
+    const oldSecret = 'old-secret-that-is-at-least-32-characters-long'
+    process.env.JWT_SECRET = oldSecret
+    process.env.JWT_SECRET_KID = 'k1'
+    const mintedBeforeRotation = await issueAccessToken({ accountId: 'acc-rotate', serverId: 1 })
+
+    // The rotation itself: a new secret takes over signing under a new kid,
+    // and the old secret survives only as JWT_SECRET_PREVIOUS - trusted for
+    // verification, never used to sign again.
+    process.env.JWT_SECRET = 'new-secret-that-is-at-least-32-characters-long'
+    process.env.JWT_SECRET_KID = 'k2'
+    process.env.JWT_SECRET_PREVIOUS = oldSecret
+    process.env.JWT_SECRET_PREVIOUS_KID = 'k1'
+
+    expect(await verifyAccessToken(mintedBeforeRotation)).toMatchObject({ accountId: 'acc-rotate', serverId: 1 })
+  })
+
+  it('a token minted with no matching kid at all - neither current nor previous - is rejected, not silently accepted', async () => {
+    process.env.JWT_SECRET_KID = 'k1'
+    const mintedUnderK1 = await issueAccessToken({ accountId: 'acc-1', serverId: 1 })
+
+    // Rotate past k1 with no JWT_SECRET_PREVIOUS configured at all - the
+    // rotation window has closed.
+    process.env.JWT_SECRET_KID = 'k2'
+
+    await expect(verifyAccessToken(mintedUnderK1)).rejects.toThrow(/unknown signing key/i)
+  })
+
+  it('rejects a correctly-signed token whose iss does not match this service', async () => {
+    const key = new TextEncoder().encode(process.env.JWT_SECRET!)
+    const foreignIssuer = await new SignJWT({ serverId: 1 })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setSubject('acc-1')
+      .setIssuer('someone-elses-service')
+      .setAudience('broodline/access')
+      .setIssuedAt()
+      .setExpirationTime('15m')
+      .sign(key)
+
+    const err = await captureRejection(verifyAccessToken(foreignIssuer))
+    expect(err).toBeInstanceOf(errors.JWTClaimValidationFailed)
+    expect((err as { claim?: string }).claim).toBe('iss')
   })
 })

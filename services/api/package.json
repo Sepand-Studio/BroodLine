@@ -6,10 +6,12 @@
     "dev": "node --watch --experimental-strip-types src/index.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "openapi": "node --experimental-strip-types src/openapi.ts"
+    "openapi": "node --experimental-strip-types src/openapi.ts",
+    "migrate": "node --experimental-strip-types src/migrate-cli.ts"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^7.3.0",
+    "@google-cloud/storage": "^7.14.0",
     "@hono/node-server": "^1.13.7",
     "drizzle-orm": "^0.38.2",
     "hono": "^4.6.14",
