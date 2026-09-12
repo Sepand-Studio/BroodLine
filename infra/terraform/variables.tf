@@ -33,3 +33,37 @@ variable "deletion_protection" {
     against Testcontainers -> re-apply near soft launch with this back at true.
   EOT
 }
+
+variable "db_public_ip" {
+  type        = bool
+  default     = false
+  description = <<-EOT
+    Gives the Cloud SQL instance a public IP alongside its private one.
+    Defaults to false: the committed shape is private-IP-only, per
+    ip_configuration's comment in main.tf - a database with a public IP is
+    one password from being everyone's.
+
+    Set true ONLY for the same ephemeral verify-then-destroy cycle described
+    on deletion_protection, and only paired with db_authorized_networks
+    scoped to the one machine running the cycle. The reason: the migration
+    step and the manual done-when runbook run from a workstation outside the
+    VPC, and the Cloud SQL Auth Proxy cannot bridge a private-only instance
+    without a VPN or Interconnect into that VPC, which this stack does not
+    build. A temporary public IP plus an authorized network limited to one
+    /32 is the smallest opening that unblocks the proxy for a same-day
+    cycle; both variables must be back at their defaults before the instance
+    is meant to stay up.
+  EOT
+}
+
+variable "db_authorized_networks" {
+  type        = list(string)
+  default     = []
+  description = <<-EOT
+    CIDR blocks allowed to reach the Cloud SQL public IP directly (e.g.
+    ["203.0.113.4/32"] for one workstation). Only takes effect when
+    db_public_ip is true; leave empty otherwise, since an authorized network
+    on a private-only instance does nothing but is one more thing to forget
+    to revert.
+  EOT
+}

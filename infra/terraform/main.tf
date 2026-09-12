@@ -26,7 +26,34 @@ resource "google_compute_network" "main" {
   auto_create_subnetworks = true
 }
 
+# Private Services Access: the peering that lets Cloud SQL allocate a private
+# IP address inside this VPC at all. Required the moment ip_configuration
+# sets private_network, independent of whether ipv4_enabled is also true -
+# this is exactly the kind of fact that only an apply proves (see
+# deletion_protection in variables.tf), and the first ephemeral cycle found
+# it missing: "failed to create instance because the network doesn't have at
+# least 1 private services connection."
+resource "google_compute_global_address" "private_services" {
+  name          = "broodline-psa-range"
+  purpose       = "VPC_PEERING"
+  address_type  = "INTERNAL"
+  prefix_length = 16
+  network       = google_compute_network.main.id
+}
+
+resource "google_service_networking_connection" "private_services" {
+  network                 = google_compute_network.main.id
+  service                 = "servicenetworking.googleapis.com"
+  reserved_peering_ranges = [google_compute_global_address.private_services.name]
+}
+
 resource "google_sql_database_instance" "main" {
+  # The instance's private IP allocation depends on the peering existing
+  # first; Terraform cannot infer this from the private_network reference
+  # alone because the peering is a property of the network, not a direct
+  # input attribute of the instance.
+  depends_on = [google_service_networking_connection.private_services]
+
   name             = "broodline-main"
   database_version = "POSTGRES_16"
   region           = var.region
@@ -45,10 +72,22 @@ resource "google_sql_database_instance" "main" {
     }
 
     ip_configuration {
-      ipv4_enabled = false
       # Cloud Run reaches it over the Cloud SQL connector rather than a public
-      # IP. A database with a public IP is one password from being everyone's.
+      # IP. A database with a public IP is one password from being
+      # everyone's. db_public_ip/db_authorized_networks (variables.tf) exist
+      # ONLY for the ephemeral verify-then-destroy cycle described on
+      # deletion_protection; both default off, so this stays private-IP-only
+      # committed.
+      ipv4_enabled    = var.db_public_ip
       private_network = google_compute_network.main.id
+
+      dynamic "authorized_networks" {
+        for_each = var.db_public_ip ? var.db_authorized_networks : []
+        content {
+          name  = "ephemeral-cycle-${replace(authorized_networks.value, "/", "-")}"
+          value = authorized_networks.value
+        }
+      }
     }
   }
 
