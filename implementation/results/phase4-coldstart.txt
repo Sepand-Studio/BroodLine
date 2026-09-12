@@ -1,0 +1,17 @@
+Phase 4 ephemeral verification — 2026-09-12T17:02:01Z
+project=broodline-508416  url=https://broodline-api-cru36b5eaq-uc.a.run.app  image=us-central1-docker.pkg.dev/broodline-508416/broodline/api:2a8ed32
+
+healthz attempt 1: http=404
+healthz attempt 2: http=404
+healthz attempt 3: http=404
+healthz attempt 4: http=404
+healthz attempt 5: http=404
+healthz attempt 6: http=404
+SERVICE NEVER BECAME REACHABLE — done-when NOT proven
+=== TEARDOWN ===
+[0m[1mgoogle_project_iam_member.api_sql: Destruction complete after 7s[0m
+[31m╷[0m[0m
+[31m│[0m [0m[1m[31mError: [0m[0m[1mcannot destroy service without setting deletion_protection=false and running `terraform apply`[0m
+[31m│[0m [0m
+[31m│[0m [0m[0m
+[31m╵[0m[0m

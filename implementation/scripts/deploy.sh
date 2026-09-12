@@ -16,7 +16,11 @@ IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/broodline/api:${TAG}"
 
 # Tagged by commit, never :latest. A revision that cannot be named cannot be
 # rolled back to, and 7.0 wants the previous revision one command away.
-gcloud builds submit --tag "$IMAGE" --project "$PROJECT_ID" .
+# --config, not --tag. --tag demands a Dockerfile at the source root;
+# ours is at services/api/Dockerfile and needs the repo root as its
+# build context. See cloudbuild.yaml.
+gcloud builds submit --config cloudbuild.yaml \
+  --substitutions "_IMAGE=${IMAGE}" --project "$PROJECT_ID" .
 
 cd infra/terraform
 terraform apply -var="project_id=${PROJECT_ID}" -var="region=${REGION}" -var="image=${IMAGE}"

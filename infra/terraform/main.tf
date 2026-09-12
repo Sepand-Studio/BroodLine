@@ -166,6 +166,12 @@ resource "google_cloud_run_v2_service" "api" {
   location = var.region
   ingress  = "INGRESS_TRAFFIC_ALL"
 
+  # Cloud Run v2 carries its OWN deletion_protection, separate from Cloud
+  # SQL's and defaulting to true. Wiring only the database to the variable
+  # left `terraform destroy` refusing to remove the service - discovered
+  # mid-teardown, with the stack still standing.
+  deletion_protection = var.deletion_protection
+
   template {
     service_account = google_service_account.api.email
 
