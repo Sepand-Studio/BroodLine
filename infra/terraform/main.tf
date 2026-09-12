@@ -54,7 +54,11 @@ resource "google_sql_database_instance" "main" {
 
   # HA is DEFERRED behind its section 10 trigger: the first non-TestFlight
   # players. Turning it on is a settings block, not a migration.
-  deletion_protection = true
+  #
+  # deletion_protection is a VARIABLE defaulting to true, not a literal, so an
+  # ephemeral verify-then-destroy cycle is a flag rather than an edit. See
+  # variables.tf for why that cycle is worth running at all.
+  deletion_protection = var.deletion_protection
 }
 
 resource "google_sql_database" "app" {
