@@ -1,0 +1,12 @@
+{
+  "name": "Generated.Api",
+  "rootNamespace": "Broodline.Api",
+  "references": ["Unity.Plastic.Newtonsoft.Json"],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": true,
+  "precompiledReferences": ["Newtonsoft.Json.dll"],
+  "autoReferenced": false,
+  "noEngineReferences": false
+}

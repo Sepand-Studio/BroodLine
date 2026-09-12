@@ -1,0 +1,338 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Broodline API",
+    "version": "1"
+  },
+  "servers": [
+    {
+      "url": "https://api.broodline.example"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "CreateAccountResponse": {
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "playerId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "serverId": {
+            "type": "integer"
+          },
+          "accessToken": {
+            "type": "string"
+          },
+          "refreshToken": {
+            "type": "string"
+          },
+          "balances": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer"
+            }
+          }
+        },
+        "required": [
+          "accountId",
+          "playerId",
+          "serverId",
+          "accessToken",
+          "refreshToken",
+          "balances"
+        ]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "details": {}
+        },
+        "required": [
+          "code",
+          "message"
+        ]
+      },
+      "CreateAccountRequest": {
+        "type": "object",
+        "properties": {
+          "birthdateBand": {
+            "type": "string",
+            "example": "adult"
+          },
+          "storefrontRegion": {
+            "type": "string",
+            "example": "us-central1"
+          }
+        },
+        "required": [
+          "birthdateBand",
+          "storefrontRegion"
+        ]
+      },
+      "SyncResponse": {
+        "type": "object",
+        "properties": {
+          "player": {
+            "type": "object",
+            "properties": {
+              "playerId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "serverId": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "playerId",
+              "serverId"
+            ]
+          },
+          "balances": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer"
+            }
+          },
+          "campaign": {
+            "type": "object",
+            "properties": {
+              "highestWaveCleared": {
+                "type": "integer"
+              },
+              "milestonesClaimed": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "highestWaveCleared",
+              "milestonesClaimed"
+            ]
+          },
+          "timers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string"
+                },
+                "completesAt": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "completesAt"
+              ]
+            }
+          },
+          "config": {
+            "type": "object",
+            "properties": {
+              "bundleVersion": {
+                "type": "string"
+              },
+              "minimumClientVersion": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "bundleVersion",
+              "minimumClientVersion"
+            ]
+          }
+        },
+        "required": [
+          "player",
+          "balances",
+          "campaign",
+          "timers",
+          "config"
+        ]
+      },
+      "DeleteAccountResponse": {
+        "type": "object",
+        "properties": {
+          "deleted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "deleted"
+        ]
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/v1/account": {
+      "post": {
+        "operationId": "createAccount",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Generated when the action is taken, not when it is sent."
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAccountRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Created, or replayed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateAccountResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteAccount",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteAccountResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sync": {
+      "get": {
+        "operationId": "sync",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Client-Version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The cold-start snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {}
+}

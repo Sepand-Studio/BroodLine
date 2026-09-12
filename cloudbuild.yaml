@@ -1,0 +1,21 @@
+# Build config for the api container.
+#
+# `gcloud builds submit --tag` cannot express this build: it requires a
+# Dockerfile at the ROOT of the uploaded source, and ours lives at
+# services/api/Dockerfile while its context must be the repo root (it copies
+# the workspace manifests, the pnpm lockfile, services/api and config/).
+# Those two requirements are irreconcilable with --tag, so the build is
+# described here instead.
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - services/api/Dockerfile
+      - -t
+      - ${_IMAGE}
+      - .
+images:
+  - ${_IMAGE}
+options:
+  logging: CLOUD_LOGGING_ONLY

@@ -124,23 +124,43 @@ namespace Broodline.Sim.Tests.Combat
         }
 
         [Fact]
-        public void TheTrackedCapturesAreCurrent()
+        public void TheDeviceRunIsSupersededAndIsNotReSimulated()
         {
-            // THE loud one, and the only test that fails on a SimVersion bump.
+            // Recorded under 0.1.0, before Task 1 bumped the engine to 0.2.0
+            // for Phase 3's own unbumped behaviour change. solo_execution 9.4:
+            // a replay from a superseded engine shows its stored outcome and
+            // is never re-simulated.
             //
-            // The tests that re-simulate a capture branch on AreCurrent and go
-            // green when it is false - deliberately, because four red tests
-            // repairable only with an iPhone is what made "never bump
-            // SimVersion" the rational choice and left solo_execution 9.4
-            // inert. But green must never mean "proving nothing", and it did:
-            // bumping SimVersion alone left 162/162 passing with zero skips,
-            // and nothing in the suite or in CI said the done-when had stopped
-            // being proven. tests.yml greps the summary for SKIPS, and an early
-            // return produces none.
+            // This test used to be TheTrackedCapturesAreCurrent, asserting
+            // ReplayArtifact.AreCurrent - that the artifact and the running
+            // engine agreed. That was Phase 3's guard against comparing a
+            // hash across an unrelated balance change, and it is genuinely
+            // gone now that the engine has moved past the artifact. The
+            // honest options are to re-capture the artifact on a device under
+            // 0.2.0, or to pin the exact version it was recorded under, which
+            // is what this does. Re-capturing needs the physical device and
+            // is the better answer - do it at Task 12 if the device is to
+            // hand, and restore the strong assertion then.
             //
-            // So the cost of a bump is now exactly one red test that says what
-            // to do about it - not four that do not, and not silence.
-            Assert.True(ReplayArtifact.AreCurrent, ReplayArtifact.ReCaptureOwed);
+            // The round-trip tests above do NOT still prove the round-trip.
+            // ReplayArtifact.Superseded opens with `if (AreCurrent) return
+            // false;`, and AreCurrent is now false, so both
+            // TheDeviceRunReSimulatesToTheSameHash and
+            // TheDeviceRunsRallyActuallyChangedTheSimulation hit their
+            // `if (ReplayArtifact.Superseded(...)) return;` guard and bail
+            // before their own asserts ever run. All Superseded proves at
+            // that point is that Sim.Replay THROWS on a superseded record -
+            // the artifact being refused, not re-simulated.
+            //
+            // So Phase 3's done-when - a device wave re-simulating to the
+            // same hash - is NOT being proven by this suite right now, and
+            // `dotnet test` going green does not cover it. That is exactly
+            // the "sentence someone has to remember to check" the deleted
+            // TheTrackedCapturesAreCurrent warned about, stated outright
+            // rather than softened: re-capturing the device artifact under
+            // 0.2.0 at Task 12 is what restores real coverage.
+            Assert.NotEqual(SimVersion.Value, ReplayArtifact.CapturedUnder);
+            Assert.Equal("0.1.0", ReplayArtifact.CapturedUnder);
         }
     }
 

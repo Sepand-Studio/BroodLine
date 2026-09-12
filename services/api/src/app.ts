@@ -1,0 +1,39 @@
+import { Hono } from 'hono'
+import type { BundleStore } from './config/store.ts'
+import type { Db } from './db/client.ts'
+import { HttpError } from './http/auth.ts'
+import { fail } from './http/errors.ts'
+import { registerAccountRoutes } from './routes/account.ts'
+import { registerSyncRoutes } from './routes/sync.ts'
+
+export interface Deps {
+  db: Db
+  bundleStore: BundleStore
+}
+
+/**
+ * Dependencies are passed in rather than imported, so a test drives the real
+ * app against a real Postgres and a real bundle store without a module mock.
+ * Nothing in this service reaches for a singleton connection.
+ */
+export function createApp(deps: Deps): Hono {
+  const app = new Hono()
+
+  app.get('/healthz', (c) => c.json({ ok: true }))
+
+  registerAccountRoutes(app, deps)
+  registerSyncRoutes(app, deps)
+
+  app.notFound(() => fail('not_found', 'No such route.'))
+  app.onError((err) => {
+    // HttpError is thrown deliberately (see http/auth.ts) precisely so a
+    // failed check can't be ignored - it is not a bug, and treating it as an
+    // unhandled 500 (plus a spurious console.error) would defeat its whole
+    // point. Its own response is already the correct one to send.
+    if (err instanceof HttpError) return err.response
+    console.error('unhandled', err)
+    return fail('internal', 'Something went wrong.')
+  })
+
+  return app
+}

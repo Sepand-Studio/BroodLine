@@ -1,0 +1,13 @@
+{
+  "name": "broodline",
+  "private": true,
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "packageManager": "pnpm@9.12.0",
+  "scripts": {
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "openapi": "pnpm --filter @broodline/api openapi"
+  }
+}

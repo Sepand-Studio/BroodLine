@@ -1,0 +1,2 @@
+[ { "id": 6, "integrity": 2, "laneCount": 1,
+    "spawns": [ { "tick": 120, "type": "Courser" }, { "tick": 90, "type": "Courser" } ] } ]

@@ -1,0 +1,23 @@
+{
+  "runtime": "Net90",
+  "documentGenerator": {
+    "fromDocument": { "url": "openapi/broodline.json" }
+  },
+  "codeGenerators": {
+    "openApiToCSharpClient": {
+      "className": "BroodlineApiClient",
+      "namespace": "Broodline.Api",
+      "generateClientInterfaces": true,
+      "generateDtoTypes": true,
+      "generateExceptionClasses": true,
+      "exceptionClass": "BroodlineApiException",
+      "useBaseUrl": true,
+      "injectHttpClient": true,
+      "disposeHttpClient": false,
+      "generateOptionalParameters": true,
+      "generateDataAnnotations": false,
+      "jsonLibrary": "NewtonsoftJson",
+      "output": "client/Assets/Generated/Api/BroodlineApiClient.cs"
+    }
+  }
+}
