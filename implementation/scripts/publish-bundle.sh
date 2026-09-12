@@ -19,7 +19,17 @@ cd "$(dirname "$0")/../.."
 VERSION="${1:?usage: publish-bundle.sh <version> [--activate]}"
 : "${CONFIG_BUCKET:?set CONFIG_BUCKET (terraform output config_bucket)}"
 
-node --experimental-strip-types - "$VERSION" "${2:-}" <<'JS'
+# Written to a REAL FILE rather than piped to `node -`. Node's type stripping
+# does not apply to stdin: a heredoc'd TypeScript program fails with
+# ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX the moment it hits an import of a .ts
+# module. Found by running this against a real bucket; it had never been
+# executed before.
+# In the REPO ROOT, not $TMPDIR: the program below imports ./services/... by
+# relative path, and those resolve against the RUNNER's own directory. A
+# runner in /tmp looks for /tmp/services and fails.
+RUNNER="./.publish-bundle-$$.mts"
+trap 'rm -f "$RUNNER"' EXIT
+cat > "$RUNNER" <<'JS'
 import { publishBundle } from './services/api/src/config/publish.ts'
 import { GcsBundleStore } from './services/api/src/config/gcs-store.ts'
 
@@ -36,3 +46,5 @@ if (flag === '--activate') {
   console.log(`  CONFIG_BUCKET=${process.env.CONFIG_BUCKET} ./implementation/scripts/publish-bundle.sh ${version} --activate`)
 }
 JS
+
+node --experimental-strip-types "$RUNNER" "$VERSION" "${2:-}"

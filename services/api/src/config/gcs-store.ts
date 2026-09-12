@@ -12,7 +12,18 @@ import type { BundleStore } from './store.ts'
 export class GcsBundleStore implements BundleStore {
   private readonly storage = new Storage()
 
-  constructor(private readonly bucketName: string) {}
+  // Explicit field, NOT a constructor parameter property. Node's
+  // --experimental-strip-types cannot compile `constructor(readonly x: T)`
+  // - it is strip-only and a parameter property requires emitting an
+  // assignment. The whole service runs under that flag in the container,
+  // so a parameter property anywhere in index.ts's import graph crashes on
+  // boot. Vitest uses esbuild, which DOES support them, which is why the
+  // suite stayed green.
+  private readonly bucketName: string
+
+  constructor(bucketName: string) {
+    this.bucketName = bucketName
+  }
 
   private get bucket() { return this.storage.bucket(this.bucketName) }
   private key(version: string, name: string) { return `bundles/${version}/${name}` }

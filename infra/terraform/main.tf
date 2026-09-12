@@ -61,7 +61,17 @@ resource "google_sql_database_instance" "main" {
   settings {
     # Smallest tier. solo_execution section 3: the Postgres instance is the
     # only always-on component and the whole bill is $25-50/month pre-players.
-    tier = "db-f1-micro"
+    # ENTERPRISE, pinned explicitly. The provider now defaults new instances
+    # to ENTERPRISE_PLUS, on which the shared-core tiers are rejected outright
+    # ("Invalid Tier (db-f1-micro) for (ENTERPRISE_PLUS) Edition") and the
+    # cheapest alternative is a db-perf-optimized-N-* machine costing many
+    # times more. Pre-launch this instance is the only always-on cost in the
+    # stack, so the edition is a cost decision, not a formality.
+    #
+    # Found by applying. terraform plan accepted db-f1-micro without complaint
+    # - edition compatibility is enforced by the API, not the schema.
+    edition = "ENTERPRISE"
+    tier    = "db-f1-micro"
 
     backup_configuration {
       # From day one. With the ledger intact, economy state is reconstructible

@@ -8,8 +8,18 @@ export interface Idempotent<T> {
 }
 
 export class IdempotencyMismatchError extends Error {
-  constructor(readonly key: string) {
+  // Explicit field, NOT a constructor parameter property. Node's
+  // --experimental-strip-types cannot compile `constructor(readonly x: T)`
+  // - it is strip-only and a parameter property requires emitting an
+  // assignment. The whole service runs under that flag in the container,
+  // so a parameter property anywhere in index.ts's import graph crashes on
+  // boot. Vitest uses esbuild, which DOES support them, which is why the
+  // suite stayed green.
+  readonly key: string
+
+  constructor(key: string) {
     super('This idempotency key was used for a different request.')
+    this.key = key
     this.name = 'IdempotencyMismatchError'
   }
 }

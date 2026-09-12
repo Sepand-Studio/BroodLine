@@ -17,8 +17,18 @@ export interface Mutation {
 }
 
 export class InsufficientFundsError extends Error {
-  constructor(readonly currency: Currency) {
+  // Explicit field, NOT a constructor parameter property. Node's
+  // --experimental-strip-types cannot compile `constructor(readonly x: T)`
+  // - it is strip-only and a parameter property requires emitting an
+  // assignment. The whole service runs under that flag in the container,
+  // so a parameter property anywhere in index.ts's import graph crashes on
+  // boot. Vitest uses esbuild, which DOES support them, which is why the
+  // suite stayed green.
+  readonly currency: Currency
+
+  constructor(currency: Currency) {
     super(`Insufficient ${currency}.`)
+    this.currency = currency
     this.name = 'InsufficientFundsError'
   }
 }
