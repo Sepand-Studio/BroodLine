@@ -22,6 +22,119 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
+# --- The dotnet-build lock. This script's Direction 2 build (below) and
+# services/api/test/wave-submit.test.ts / replays.test.ts each build
+# services/sim/Broodline.Sim.Service.csproj independently for their own sim
+# instance. MSBuild's -o/--output overrides OutputPath but never
+# BaseIntermediateOutputPath, so all three share services/sim/obj/
+# regardless of where -o points, and two concurrent builds racing there
+# intermittently fail with "the process cannot access the file
+# ...rjsmrazor.dswa.cache.json". This bash copy cannot import
+# wave-helpers.ts's withDotnetBuildLock() (that is the shared definition
+# for the two TS callers, same reasoning as every other helper in that
+# file) so it re-implements the identical protocol by hand - the path
+# construction, staleness threshold and reclaim logic below MUST be kept in
+# sync with that file's lockDir()/isStale()/acquireOnce(); a path or
+# timeout edit applied to only one side yields two locks, no exclusion, and
+# a flake indistinguishable from the one this exists to close.
+#
+# Ownership is a pid file written inside the lock dir right after mkdir
+# claims it. A hard kill or Ctrl-C runs neither this script's own trap NOR
+# node's try/finally in the TS copy, so without staleness detection a
+# single interrupted run would leave the lock stuck and poison every later
+# run - all three call sites, indefinitely, until a human manually removes
+# a /tmp path. (An earlier version of this comment claimed a crash "never
+# leaves the lock stuck," which was false - see wave-helpers.ts's comment
+# on the same point.) Reclaim: on contention, if the owner pid is
+# confirmed dead (or unconfirmable, via the age fallback below), remove the
+# lock and let the NEXT mkdir decide who actually gets it - removal itself
+# grants no ownership, so two waiters racing to reclaim cannot both end up
+# believing they hold it.
+#
+# Must match wave-helpers.ts's repoRoot()+lockDir() byte-for-byte (both
+# hash the repo root with no trailing slash/newline) so this script and the
+# two TS callers converge on the exact same lock path.
+if command -v shasum >/dev/null 2>&1; then
+  REPO_HASH="$(printf '%s' "$(pwd)" | shasum -a 256 | cut -c1-10)"
+else
+  REPO_HASH="$(printf '%s' "$(pwd)" | sha256sum | cut -c1-10)"
+fi
+# Namespaced by OS user (so two developers/CI identities sharing one /tmp
+# never contend or block each other - load-bearing, since /tmp's sticky bit
+# means one user cannot remove another user's stale lock directory at all)
+# and by REPO_HASH (so two clones of this repo do not share a lock either -
+# lower stakes, since sharing one there would only over-serialize two
+# otherwise-independent clones, not produce a correctness bug).
+BUILD_LOCK="${TMPDIR:-/tmp}/broodline-sim-dotnet-build-$(id -u)-${REPO_HASH}.lock"
+BUILD_LOCK_OWNER_FILE="$BUILD_LOCK/owner.pid"
+BUILD_LOCK_STALE_SECONDS=300   # critical section is ~1-2s; minutes is a generous margin
+BUILD_LOCK_TIMEOUT_TENTHS=600  # 60s, in 0.1s polling ticks
+
+# Whether $BUILD_LOCK is abandoned and safe to reclaim. Mirrors
+# wave-helpers.ts's isStale(): a missing/unreadable owner file falls back
+# to the lock dir's own mtime rather than being treated as stale outright,
+# which protects the brief window between mkdir succeeding and the owner
+# file being written.
+build_lock_is_stale() {
+  local pid=""
+  [ -f "$BUILD_LOCK_OWNER_FILE" ] && pid="$(cat "$BUILD_LOCK_OWNER_FILE" 2>/dev/null)"
+
+  if [ -n "$pid" ] && [ "$pid" -eq "$pid" ] 2>/dev/null; then
+    if kill -0 "$pid" 2>/dev/null; then
+      return 1 # owner is alive - never stale, regardless of age
+    fi
+    # kill -0 failed: this shell cannot reliably distinguish "no such
+    # process" (owner gone) from "not permitted" (owned by another user,
+    # still alive) by exit code alone, so fall through to the age check
+    # below rather than guess - same conservative handling the TS side
+    # applies to EPERM.
+  fi
+
+  [ -d "$BUILD_LOCK" ] || return 1  # already gone; the next mkdir will just succeed
+  local mtime now age
+  mtime="$(stat -f %m "$BUILD_LOCK" 2>/dev/null || stat -c %Y "$BUILD_LOCK")"
+  now="$(date +%s)"
+  age=$((now - mtime))
+  [ "$age" -gt "$BUILD_LOCK_STALE_SECONDS" ]
+}
+
+acquire_build_lock() {
+  local waited=0
+  while true; do
+    local mkdir_err=""
+    if mkdir_err="$(mkdir "$BUILD_LOCK" 2>&1)"; then
+      echo "$$" > "$BUILD_LOCK_OWNER_FILE"
+      return 0
+    fi
+    if [ ! -d "$BUILD_LOCK" ]; then
+      # mkdir failed for a reason OTHER than contention (permission denied,
+      # ENOSPC, an invalid path) - report it immediately rather than
+      # spinning the full 60s and reporting a misleading "timed out."
+      echo "dotnet build lock: mkdir failed: $mkdir_err" >&2
+      exit 1
+    fi
+    if build_lock_is_stale; then
+      rm -rf "$BUILD_LOCK" 2>/dev/null || true
+      continue  # try mkdir again now, immediately - see the reclaim note above
+    fi
+    sleep 0.1
+    waited=$((waited + 1))
+    if [ "$waited" -gt "$BUILD_LOCK_TIMEOUT_TENTHS" ]; then
+      echo "timed out waiting for the dotnet build lock at $BUILD_LOCK" >&2
+      exit 1
+    fi
+  done
+}
+
+release_build_lock() {
+  # Only remove the lock if it is still OURS - never a blind rm. Safe to
+  # call unconditionally (cleanup() below does, on every exit path): a
+  # no-op if this process never acquired the lock or already released it.
+  if [ -f "$BUILD_LOCK_OWNER_FILE" ] && [ "$(cat "$BUILD_LOCK_OWNER_FILE" 2>/dev/null)" = "$$" ]; then
+    rm -rf "$BUILD_LOCK" 2>/dev/null || true
+  fi
+}
+
 # Both generators write to a scratch directory first and are moved into place
 # together only once BOTH have succeeded. Without this, `pnpm openapi`
 # writing openapi/broodline.json and THEN `dotnet nswag` failing leaves the
@@ -39,20 +152,18 @@ WORK="$(mktemp -d)"
 # script fails with a misleading "address already in use" bind error that
 # has nothing to do with what actually broke.
 SIM_PID=""
-# Held only across the `dotnet build` call below (see the comment there);
-# tracked here so cleanup() can release it on ANY exit path, including a
-# `set -e` failure mid-build, without which a crashed run would leave the
-# lock stuck and every subsequent run - this script's and both
-# wave-submit.test.ts's/replays.test.ts's - would hang until their own
-# 60s timeout.
-BUILD_LOCK_HELD=""
 cleanup() {
   if [ -n "$SIM_PID" ]; then
     kill "$SIM_PID" 2>/dev/null || true
   fi
-  if [ -n "$BUILD_LOCK_HELD" ]; then
-    rmdir "$BUILD_LOCK" 2>/dev/null || true
-  fi
+  # release_build_lock is ownership-checked and safe to call unconditionally
+  # on every exit path, including a `set -e` failure mid-build: a no-op if
+  # this process never acquired the lock, or already released it. No
+  # separate "did we hold it" flag is needed (an earlier version tracked
+  # one in BUILD_LOCK_HELD, which had its own race between mkdir succeeding
+  # and the flag being set/cleared - see wave-helpers.ts's releaseOnce()
+  # for why ownership-checking replaces that instead of patching around it).
+  release_build_lock
   rm -rf "$WORK"
 }
 trap cleanup EXIT
@@ -181,32 +292,17 @@ mv "$CLIENT_TMP" "$CLIENT_OUT"
 # mean changing services/sim/Broodline.Sim.Service.csproj's own item globs,
 # a much larger and riskier change than is warranted here.
 #
-# So the fix is a lock around JUST this step instead: `flock` isn't
-# installed on macOS by default, but `mkdir` is atomic on POSIX filesystems
-# (fails with "File exists" if the directory is already there), which is
-# enough for a simple retry-based mutex. Shared with
-# services/api/test/wave-submit.test.ts's and replays.test.ts's
-# withDotnetBuildLock() via the same fixed /tmp path - the critical section
-# is ~1-2s, so worst-case three-way contention adds a few seconds, not the
-# tens of seconds --no-file-parallelism would cost by serializing all 17
-# test files instead of just this one shared resource.
-BUILD_LOCK="/tmp/broodline-sim-dotnet-build.lock"
-WAITED=0
-while ! mkdir "$BUILD_LOCK" 2>/dev/null; do
-  sleep 0.1
-  WAITED=$((WAITED + 1))
-  if [ "$WAITED" -gt 600 ]; then
-    echo "timed out waiting for the dotnet build lock at $BUILD_LOCK" >&2
-    exit 1
-  fi
-done
-BUILD_LOCK_HELD=1
+# So the fix is a lock around JUST this step instead (acquire_build_lock /
+# release_build_lock, defined near the top of this script alongside
+# BUILD_LOCK - see that block's comment for the full protocol, including
+# staleness reclaim, and why it must stay in sync with wave-helpers.ts's
+# withDotnetBuildLock()).
+acquire_build_lock
 
 dotnet build services/sim/Broodline.Sim.Service.csproj -c Debug \
   -o "$WORK/sim-build" --nologo
 
-rmdir "$BUILD_LOCK"
-BUILD_LOCK_HELD=""
+release_build_lock
 dotnet "$WORK/sim-build/Broodline.Sim.Service.dll" \
   --urls http://127.0.0.1:5199 &
 SIM_PID=$!

@@ -1,5 +1,5 @@
 import { type ChildProcess, execFileSync, spawn } from 'node:child_process'
-import { mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -14,6 +14,7 @@ import { SimClient } from '../src/sim/client.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 import {
   balance, buildLosingReplay, buildWinningReplay, setupPlayer, startWave, submit, submitInit,
+  withDotnetBuildLock,
 } from './wave-helpers.ts'
 
 // fileURLToPath, not .pathname - a path containing a space would arrive
@@ -25,38 +26,10 @@ const SERVER_ID = 1
 const SIM_PORT = 5399 // distinct from contract.test.ts's 5199 and wave-submit.test.ts's 5299
 const SIM_URL = `http://127.0.0.1:${SIM_PORT}`
 
-// A cross-process mutex around JUST the `dotnet build` step below. See
-// wave-submit.test.ts's startSim() for the full account of why: the obvious
-// root-cause fix (redirecting BaseIntermediateOutputPath/BaseOutputPath per
-// call site) reproducibly breaks this specific project's build with CS0579
-// duplicate-attribute errors, independent of relative/absolute paths, `-o`,
-// or isolating the engine ProjectReference - so a narrow lock around the
-// shared resource (services/sim/obj/) is the safe fix, not a project-file
-// change whose full blast radius isn't verifiable here. Mirrors
-// wave-submit.test.ts's withDotnetBuildLock() exactly, including the fixed
-// /tmp lock path shared with generate-contract.sh's Direction 2.
-const BUILD_LOCK = '/tmp/broodline-sim-dotnet-build.lock'
-
-async function withDotnetBuildLock<T>(fn: () => T): Promise<T> {
-  const deadline = Date.now() + 60_000
-  for (;;) {
-    try {
-      await mkdir(BUILD_LOCK)
-      break
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err
-      if (Date.now() > deadline) {
-        throw new Error(`timed out waiting for the dotnet build lock at ${BUILD_LOCK}`)
-      }
-      await new Promise((r) => setTimeout(r, 100))
-    }
-  }
-  try {
-    return fn()
-  } finally {
-    await rm(BUILD_LOCK, { recursive: true, force: true })
-  }
-}
+// withDotnetBuildLock is imported from wave-helpers.ts - see that file's
+// comment above it for the full account of why a lock exists here at all
+// and why it is mkdir-based with pid-owned staleness reclaim rather than a
+// plain directory-exists mutex. Mirrors wave-submit.test.ts's usage exactly.
 
 /**
  * Starts the REAL sim service as a child process, once for this file.

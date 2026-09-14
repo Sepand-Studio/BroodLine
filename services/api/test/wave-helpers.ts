@@ -1,4 +1,8 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
+import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { and, eq, isNull } from 'drizzle-orm'
 import type { Deps } from '../src/app.ts'
 import { createApp } from '../src/app.ts'
@@ -12,6 +16,200 @@ import { settle } from '../src/wave/issuance.ts'
  * POST /v1/wave/submit). A helper redefined in four test files drifts in
  * four directions - this is the one definition.
  */
+
+// --- The dotnet-build lock. wave-submit.test.ts and replays.test.ts both
+// build services/sim/Broodline.Sim.Service.csproj for their own sim
+// instance, and implementation/scripts/generate-contract.sh's Direction 2
+// builds the SAME project independently for its own. MSBuild's -o/--output
+// overrides OutputPath but never BaseIntermediateOutputPath, so all three
+// share services/sim/obj/ regardless of where -o points, and two
+// concurrent builds racing there intermittently fail with "the process
+// cannot access the file ...rjsmrazor.dswa.cache.json". This is the ONE
+// definition for the two TS callers, for the same reason the rest of this
+// file is one definition; generate-contract.sh cannot import it and keeps
+// its own bash implementation, hand-kept in sync (see that script's
+// comment, which names this file back) - a path or timeout edit applied to
+// only one side yields two locks, no exclusion, and a flake indistinguishable
+// from the one this exists to close.
+
+const LOCK_STALE_MS = 5 * 60 * 1000 // the critical section is ~1-2s; minutes is a generous margin
+const LOCK_ACQUIRE_TIMEOUT_MS = 60_000
+const LOCK_POLL_MS = 100
+
+/**
+ * The repo root, trailing slash stripped so this hashes to the exact same
+ * bytes generate-contract.sh's `pwd` (after its own `cd .../../..`)
+ * produces - a mismatch here would silently give the two sides different
+ * lock paths.
+ */
+function repoRoot(): string {
+  return fileURLToPath(new URL('../../../', import.meta.url)).replace(/\/+$/, '')
+}
+
+/**
+ * Namespaced by OS user (so two developers or two CI identities sharing one
+ * /tmp never contend or block each other - load-bearing, since /tmp's
+ * sticky bit means one user literally cannot remove another user's stale
+ * lock directory) and by a hash of the repo root (so two clones of this
+ * repo do not share a lock either - lower stakes, since sharing one there
+ * would only over-serialize two otherwise-independent clones, not produce
+ * a correctness bug).
+ */
+function productionLockDir(): string {
+  const uid = typeof process.getuid === 'function' ? process.getuid() : 0
+  const hash = createHash('sha256').update(repoRoot()).digest('hex').slice(0, 10)
+  return join(tmpdir(), `broodline-sim-dotnet-build-${uid}-${hash}.lock`)
+}
+
+interface DotnetBuildLock {
+  withLock<T>(fn: () => T | Promise<T>): Promise<T>
+}
+
+/**
+ * Builds one instance of the mkdir-based mutex protocol, parameterized by
+ * directory and thresholds so the SAME logic backs both the real,
+ * process-wide `withDotnetBuildLock` below (bound to the shared production
+ * path every real caller must use) and dotnet-build-lock.test.ts's
+ * isolated instances (each pointed at its own throwaway temp dir, so
+ * testing reclaim/contention can never race the real thing a concurrent
+ * wave-submit.test.ts/replays.test.ts run might be doing against the
+ * production path at the same time).
+ *
+ * Ownership is a pid file written INSIDE the lock dir immediately after
+ * mkdir claims it. There is a small window between mkdir succeeding and
+ * that write landing where a waiter can see an empty lock dir with no
+ * owner file yet - that is deliberately NOT treated as stale: a
+ * missing/unreadable owner file falls through to the lock dir's own mtime
+ * (isStale below), and that window is microseconds against the staleness
+ * threshold, so a waiter who hits it just keeps polling rather than
+ * misreading "not written yet" as "abandoned."
+ */
+function createDotnetBuildLock(dir: string, opts: {
+  staleMs?: number
+  timeoutMs?: number
+  pollMs?: number
+} = {}): DotnetBuildLock {
+  const staleMs = opts.staleMs ?? LOCK_STALE_MS
+  const timeoutMs = opts.timeoutMs ?? LOCK_ACQUIRE_TIMEOUT_MS
+  const pollMs = opts.pollMs ?? LOCK_POLL_MS
+  const ownerFile = join(dir, 'owner.pid')
+
+  async function isStale(): Promise<boolean> {
+    const raw = await readFile(ownerFile, 'utf8').catch(() => undefined)
+    const pid = raw === undefined ? NaN : Number(raw)
+
+    if (Number.isInteger(pid)) {
+      try {
+        // Signal 0 sends nothing; it only probes whether the pid exists
+        // and is signalable, which is exactly "is the owner still
+        // running."
+        process.kill(pid, 0)
+        return false // owner is alive - never stale, regardless of age
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ESRCH') return true // confirmed gone
+        // EPERM (alive, owned by someone else) or anything else: liveness
+        // is unconfirmable, not disproven - fall through to the age check
+        // below rather than guess either way.
+      }
+    }
+
+    const st = await stat(dir).catch(() => undefined)
+    if (st === undefined) return false // already gone; the next mkdir attempt will just succeed
+    return Date.now() - st.mtimeMs > staleMs
+  }
+
+  async function acquireOnce(): Promise<boolean> {
+    try {
+      await mkdir(dir)
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err
+      if (await isStale()) {
+        // Reclaiming is just "remove it and let the NEXT mkdir decide who
+        // actually gets it" - the removal itself grants no ownership, so
+        // two waiters independently reaching this branch at the same
+        // moment cannot both end up believing they hold the lock: at most
+        // one subsequent mkdir call (the caller's next loop iteration)
+        // wins; the other sees EEXIST again and re-evaluates staleness
+        // against whatever is there now.
+        await rm(dir, { recursive: true, force: true }).catch(() => {})
+      }
+      return false
+    }
+    await writeFile(ownerFile, String(process.pid), 'utf8')
+    return true
+  }
+
+  async function releaseOnce(): Promise<void> {
+    // Only remove the lock if it is still OURS - never a blind rm. The
+    // staleness threshold is minutes against a ~1-2s critical section, so
+    // this should never fire in practice, but if a build somehow ran long
+    // enough to be reclaimed out from under it, blind-removing here would
+    // delete whoever holds it NOW and reopen the exact race this file
+    // exists to close.
+    const raw = await readFile(ownerFile, 'utf8').catch(() => undefined)
+    if (raw !== undefined && Number(raw) === process.pid) {
+      await rm(dir, { recursive: true, force: true }).catch(() => {})
+    }
+  }
+
+  return {
+    async withLock<T>(fn: () => T | Promise<T>): Promise<T> {
+      const deadline = Date.now() + timeoutMs
+      for (;;) {
+        if (await acquireOnce()) break
+        if (Date.now() > deadline) {
+          throw new Error(`timed out waiting for the dotnet build lock at ${dir}`)
+        }
+        await new Promise((r) => setTimeout(r, pollMs))
+      }
+      try {
+        // Awaited INSIDE the try block (`return await fn()`, not
+        // `return fn()`) specifically so that if a future caller passes an
+        // async fn (today's two callers pass synchronous execFileSync),
+        // the finally block's release still runs AFTER fn's promise
+        // settles rather than the instant it is created - the reverse
+        // ordering would silently drop all mutual exclusion the moment
+        // either caller moved to execFile/spawn.
+        return await fn()
+      } finally {
+        await releaseOnce()
+      }
+    },
+  }
+}
+
+/**
+ * Cross-process mutex around the `dotnet build` step in startSim() (see
+ * wave-submit.test.ts and replays.test.ts), scoped to ONLY that step, not
+ * the whole file or the whole suite - the critical section is ~1-2s, so
+ * worst-case three-way contention adds a few seconds, nowhere near what
+ * `--no-file-parallelism` would cost serializing all 17 test files for a
+ * problem confined to 3.
+ *
+ * `flock` isn't installed on macOS by default; mkdir's atomicity (EEXIST if
+ * the directory already exists) is the portable substitute. A hard kill
+ * (SIGKILL, or Ctrl-C during execFileSync, which terminates the process
+ * under SIGINT's default disposition before any try/finally can run) does
+ * NOT run this function's own cleanup - that is exactly why the lock
+ * carries its owner's pid and reclaims an abandoned one (see
+ * createDotnetBuildLock's isStale/acquireOnce above) instead of assuming a
+ * held lock is always a live one. An earlier version of this comment
+ * claimed a crash "never leaves the lock stuck," which was false; a stale
+ * lock is now recoverable rather than prevented - see
+ * dotnet-build-lock.test.ts for the regression tests that prove reclaim
+ * actually fires (and that a live lock is never stolen).
+ */
+export const withDotnetBuildLock: DotnetBuildLock['withLock'] =
+  createDotnetBuildLock(productionLockDir()).withLock
+
+// Exported ONLY for dotnet-build-lock.test.ts, which needs an isolated lock
+// instance (its own throwaway directory) to test reclaim/contention without
+// racing whatever wave-submit.test.ts/replays.test.ts may be doing against
+// the real production lock at the same moment under vitest's parallel file
+// execution. The two real callers above must always go through
+// withDotnetBuildLock, never this, so every acquirer converges on the one
+// shared production path.
+export const __createDotnetBuildLockForTest = createDotnetBuildLock
 
 export interface ReplayOpts { engineVersion?: string; trait?: string; tier?: number }
 
