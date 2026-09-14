@@ -1,5 +1,5 @@
 import { type ChildProcess, execFileSync, spawn } from 'node:child_process'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -31,6 +31,66 @@ const SERVER_ID = 1
 const SIM_PORT = 5299 // distinct from generate-contract.sh's 5199, so this file can run alongside contract.test.ts
 const SIM_URL = `http://127.0.0.1:${SIM_PORT}`
 
+// A cross-process mutex around JUST the `dotnet build` step below, shared
+// with replays.test.ts and generate-contract.sh's Direction 2 (all three
+// build this SAME project independently, for their own sim instance). Root
+// cause: MSBuild's -o/--output overrides OutputPath but NEVER
+// BaseIntermediateOutputPath - the obj/ tree is computed from the latter
+// regardless of -o, so all three were writing intermediate files into the
+// one shared services/sim/obj/, racing there under vitest's parallel file
+// execution and intermittently failing with "the process cannot access the
+// file ...rjsmrazor.dswa.cache.json".
+//
+// Redirecting BaseIntermediateOutputPath/BaseOutputPath per call site (the
+// obvious root-cause fix, and the first one tried here) does NOT work for
+// this specific project: overriding either property - relative or
+// absolute, with or without -o, with or without also isolating the engine
+// ProjectReference via GlobalPropertiesToRemove - reproducibly makes MSBuild
+// emit Broodline.Sim.Service's OWN generated files (AssemblyInfo.cs, the
+// TargetFrameworkAttribute file, MvcApplicationPartsAssemblyInfo.cs) TWICE
+// into the SAME csc invocation, failing every build with CS0579 duplicate
+// attribute errors - confirmed by direct reproduction, independent of
+// staleness, independent of the engine cross-project collision (a separate,
+// real issue that IS fixable, but moot once this one blocks every build).
+// This looks like a genuine SDK/MSBuild quirk specific to
+// Microsoft.NET.Sdk.Web's generated-file item groups not being fixed here,
+// since diagnosing it further risks a much larger, riskier change to
+// services/sim/Broodline.Sim.Service.csproj's own item globs for a benefit
+// (removing a lock) that isn't worth that risk.
+//
+// A lock scoped to only the build step (not the whole file, not the whole
+// suite) is the safe, narrow fix instead: `flock` isn't installed on macOS
+// by default, but `mkdir` is atomic on POSIX filesystems (EEXIST when it
+// already exists), which is enough for a simple retry-based mutex. The
+// critical section is ~1-2s, so worst-case 3-way contention adds a few
+// seconds, not the tens of seconds `--no-file-parallelism` would cost by
+// serializing all 17 files instead of just this shared resource.
+const BUILD_LOCK = '/tmp/broodline-sim-dotnet-build.lock'
+
+async function withDotnetBuildLock<T>(fn: () => T): Promise<T> {
+  const deadline = Date.now() + 60_000
+  for (;;) {
+    try {
+      await mkdir(BUILD_LOCK)
+      break
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err
+      if (Date.now() > deadline) {
+        throw new Error(`timed out waiting for the dotnet build lock at ${BUILD_LOCK}`)
+      }
+      await new Promise((r) => setTimeout(r, 100))
+    }
+  }
+  try {
+    return fn()
+  } finally {
+    // rm, not rmdir: force+recursive tolerates a lock directory that
+    // another process already cleaned up between our try block exiting and
+    // this running, which a bare rmdir would throw ENOENT on.
+    await rm(BUILD_LOCK, { recursive: true, force: true })
+  }
+}
+
 /**
  * Starts the REAL sim service as a child process, once for this file.
  *
@@ -43,9 +103,9 @@ const SIM_URL = `http://127.0.0.1:${SIM_PORT}`
  */
 async function startSim(): Promise<{ proc: ChildProcess; stop: () => Promise<void> }> {
   const work = await mkdtemp(join(tmpdir(), 'broodline-sim-build-'))
-  execFileSync('dotnet', [
+  await withDotnetBuildLock(() => execFileSync('dotnet', [
     'build', 'services/sim/Broodline.Sim.Service.csproj', '-c', 'Debug', '-o', work, '--nologo',
-  ], { cwd: REPO, stdio: 'inherit' })
+  ], { cwd: REPO, stdio: 'inherit' }))
 
   const proc = spawn('dotnet', [join(work, 'Broodline.Sim.Service.dll'), '--urls', SIM_URL], {
     cwd: REPO,

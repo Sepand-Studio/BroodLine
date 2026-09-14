@@ -39,9 +39,19 @@ WORK="$(mktemp -d)"
 # script fails with a misleading "address already in use" bind error that
 # has nothing to do with what actually broke.
 SIM_PID=""
+# Held only across the `dotnet build` call below (see the comment there);
+# tracked here so cleanup() can release it on ANY exit path, including a
+# `set -e` failure mid-build, without which a crashed run would leave the
+# lock stuck and every subsequent run - this script's and both
+# wave-submit.test.ts's/replays.test.ts's - would hang until their own
+# 60s timeout.
+BUILD_LOCK_HELD=""
 cleanup() {
   if [ -n "$SIM_PID" ]; then
     kill "$SIM_PID" 2>/dev/null || true
+  fi
+  if [ -n "$BUILD_LOCK_HELD" ]; then
+    rmdir "$BUILD_LOCK" 2>/dev/null || true
   fi
   rm -rf "$WORK"
 }
@@ -149,8 +159,54 @@ mv "$CLIENT_TMP" "$CLIENT_OUT"
 # in-process under the long-lived `dotnet` binary instead of executing a
 # freshly-built native executable. The two-step form below is the same
 # effective operation (build, then run the host) without whatever that was.
+# -o/--output overrides OutputPath, but NEVER BaseIntermediateOutputPath -
+# the obj/ tree is computed from the latter regardless of -o, so this build
+# and services/api/test/wave-submit.test.ts's and replays.test.ts's (each
+# building this SAME project independently, for their own sim instance)
+# were all writing intermediate files into the one shared services/sim/obj/,
+# racing there whenever vitest ran those files in parallel with this
+# script's own contract.test.ts.
+#
+# The obvious fix - redirecting BaseIntermediateOutputPath/BaseOutputPath
+# per call site - does NOT work for this project: confirmed by direct
+# reproduction, overriding either property (relative or absolute path, with
+# or without -o, with or without isolating the engine ProjectReference via
+# GlobalPropertiesToRemove) reproducibly makes MSBuild emit this project's
+# own generated files (AssemblyInfo.cs, the TargetFrameworkAttribute file,
+# MvcApplicationPartsAssemblyInfo.cs) TWICE into the same csc invocation,
+# failing every build with CS0579 duplicate-attribute errors - independent
+# of staleness, independent of the separate engine cross-project collision.
+# This looks like a genuine SDK/MSBuild quirk in how Microsoft.NET.Sdk.Web
+# computes its generated-file item groups; fixing it at that level would
+# mean changing services/sim/Broodline.Sim.Service.csproj's own item globs,
+# a much larger and riskier change than is warranted here.
+#
+# So the fix is a lock around JUST this step instead: `flock` isn't
+# installed on macOS by default, but `mkdir` is atomic on POSIX filesystems
+# (fails with "File exists" if the directory is already there), which is
+# enough for a simple retry-based mutex. Shared with
+# services/api/test/wave-submit.test.ts's and replays.test.ts's
+# withDotnetBuildLock() via the same fixed /tmp path - the critical section
+# is ~1-2s, so worst-case three-way contention adds a few seconds, not the
+# tens of seconds --no-file-parallelism would cost by serializing all 17
+# test files instead of just this one shared resource.
+BUILD_LOCK="/tmp/broodline-sim-dotnet-build.lock"
+WAITED=0
+while ! mkdir "$BUILD_LOCK" 2>/dev/null; do
+  sleep 0.1
+  WAITED=$((WAITED + 1))
+  if [ "$WAITED" -gt 600 ]; then
+    echo "timed out waiting for the dotnet build lock at $BUILD_LOCK" >&2
+    exit 1
+  fi
+done
+BUILD_LOCK_HELD=1
+
 dotnet build services/sim/Broodline.Sim.Service.csproj -c Debug \
   -o "$WORK/sim-build" --nologo
+
+rmdir "$BUILD_LOCK"
+BUILD_LOCK_HELD=""
 dotnet "$WORK/sim-build/Broodline.Sim.Service.dll" \
   --urls http://127.0.0.1:5199 &
 SIM_PID=$!
