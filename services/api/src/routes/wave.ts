@@ -193,6 +193,14 @@ export function registerWaveRoutes(app: Hono, deps: Deps): void {
 
     const bundle = await loadBundle(deps.bundleStore)
 
+    // Set inside withIdempotency's callback, ONLY when that callback
+    // actually runs - i.e. on a fresh call, never on a replayed one (see
+    // withIdempotency: a replay reads the stored response and never calls
+    // fn again). That makes it double as the write-replay gate below: a
+    // replayed response leaves this undefined, which is correct - the
+    // object was already written the first time.
+    let playerIdForReplay: string | undefined
+
     let result: { body: SubmitOutcome }
     try {
       result = await withIdempotency(
@@ -200,6 +208,7 @@ export function registerWaveRoutes(app: Hono, deps: Deps): void {
         async (tx): Promise<SubmitOutcome> => {
           const playerId = await loadPlayerId(tx, session.accountId)
           if (playerId === undefined) return { refused: 'issuance_invalid' }
+          playerIdForReplay = playerId
 
           // 2. Absent, expired or already consumed are one answer -
           // issuance_invalid - so this endpoint never tells a caller
@@ -270,6 +279,27 @@ export function registerWaveRoutes(app: Hono, deps: Deps): void {
     const outcome = result.body
     if ('refused' in outcome) {
       return fail(outcome.refused, refusalMessage(outcome.refused))
+    }
+
+    // Written OUTSIDE the money transaction and only on this, the verified
+    // path - design 5.2. playerIdForReplay is defined here exactly when
+    // this call's withIdempotency callback ran AND produced a non-refused
+    // outcome, which is "verified" in the sense that matters: sim accepted
+    // the bytes, they proved to be of the issued wave, and settle()
+    // actually consumed the issuance. A rejected submission returns above
+    // and never reaches this line, so it leaves no object.
+    //
+    // try/catch that logs and swallows, deliberately: a GCS failure here
+    // must not roll back a payment that already committed inside
+    // withIdempotency. A missing replay is a degraded viewer, not a ledger
+    // defect - it must never become one by being folded into the
+    // transaction above.
+    if (playerIdForReplay !== undefined) {
+      try {
+        await deps.replayStore.put(session.serverId, playerIdForReplay, body.issuanceId, body.replay)
+      } catch (err) {
+        console.error('replay store write failed', err)
+      }
     }
 
     return c.json({

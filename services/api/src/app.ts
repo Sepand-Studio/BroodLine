@@ -3,6 +3,7 @@ import type { BundleStore } from './config/store.ts'
 import type { Db } from './db/client.ts'
 import { HttpError } from './http/auth.ts'
 import { fail } from './http/errors.ts'
+import type { ReplayStore } from './replays/store.ts'
 import { registerAccountRoutes } from './routes/account.ts'
 import { registerSyncRoutes } from './routes/sync.ts'
 import { registerWaveRoutes } from './routes/wave.ts'
@@ -12,6 +13,7 @@ export interface Deps {
   db: Db
   bundleStore: BundleStore
   simClient: SimClient
+  replayStore: ReplayStore
 }
 
 /**

@@ -11,6 +11,7 @@ import { LocalBundleStore } from '../src/config/store.ts'
 import { withServer } from '../src/db/client.ts'
 import { accounts, ledger, players, servers, wallets } from '../src/db/schema.ts'
 import { redeemRefreshToken } from '../src/identity/jwt.ts'
+import { LocalReplayStore } from '../src/replays/store.ts'
 import { SimClient } from '../src/sim/client.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 
@@ -38,7 +39,13 @@ beforeAll(async () => {
   await store.setPointer('0.1.1')
   clearBundleCache()
 
-  app = createApp({ db: t.db, bundleStore: store, simClient: new SimClient('http://127.0.0.1:1') })
+  app = createApp({
+    db: t.db, bundleStore: store, simClient: new SimClient('http://127.0.0.1:1'),
+    // This file never submits a wave, so a replay store that shares the
+    // bundle's temp root (a disjoint 'replays/' subtree - see
+    // LocalReplayStore) is only ever asked to exist, never written to.
+    replayStore: new LocalReplayStore(bundleRoot),
+  })
 }, 240_000)
 
 afterAll(async () => {

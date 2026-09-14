@@ -11,6 +11,7 @@ import { publishBundle } from '../src/config/publish.ts'
 import { LocalBundleStore } from '../src/config/store.ts'
 import { withServer } from '../src/db/client.ts'
 import { servers } from '../src/db/schema.ts'
+import { LocalReplayStore } from '../src/replays/store.ts'
 import { SimClient } from '../src/sim/client.ts'
 import { settle } from '../src/wave/issuance.ts'
 import { startTestDb, type TestDb } from './harness.ts'
@@ -94,7 +95,7 @@ beforeAll(async () => {
   await store.setPointer('0.1.1')
   clearBundleCache()
 
-  deps = { db: t.db, bundleStore: store, simClient: new SimClient(SIM_URL) }
+  deps = { db: t.db, bundleStore: store, simClient: new SimClient(SIM_URL), replayStore: new LocalReplayStore(bundleRoot) }
 
   await setupPlayer(deps)
 }, 240_000)
