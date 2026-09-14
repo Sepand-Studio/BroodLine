@@ -100,3 +100,19 @@ export const campaignProgress = pgTable('campaign_progress', {
 }, (t) => ({
   pk: primaryKey({ columns: [t.serverId, t.playerId] }),
 }))
+
+export const waveIssuances = pgTable('wave_issuances', {
+  serverId: integer('server_id').notNull(),
+  issuanceId: uuid('issuance_id').notNull(),
+  playerId: uuid('player_id').notNull(),
+  waveId: integer('wave_id').notNull(),
+  // bigint as a STRING. seed is a ulong in the engine and a JS number loses
+  // precision above 2^53; the same reason Task 2 sends the hash as a decimal
+  // string. Drizzle's mode:'number' would silently reintroduce it.
+  seed: bigint('seed', { mode: 'string' }).notNull(),
+  issuedAt: timestamp('issued_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  consumedAt: timestamp('consumed_at', { withTimezone: true }),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.serverId, t.issuanceId] }),
+}))
