@@ -17,6 +17,7 @@ import {
   type Issuance, type IssuanceRefusal, issueWave, REPLAY_CAP_PER_DAY,
 } from '../src/wave/issuance.ts'
 import { rewardForWave } from '../src/wave/rewards.ts'
+import { reapOnExit } from './child-reaper.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 import {
   balance, buildLosingReplay, buildWinningReplay, clearThrough, liveIssuance,
@@ -74,6 +75,9 @@ async function startSim(): Promise<{ proc: ChildProcess; stop: () => Promise<voi
     cwd: REPO,
     stdio: 'ignore',
   })
+  // Reaped if this worker is signalled rather than torn down cleanly, so an
+  // interrupted run does not orphan this host on 5499 - see child-reaper.ts.
+  const unreap = reapOnExit(proc)
 
   let ready = false
   for (let i = 0; i < 80; i++) {
@@ -87,6 +91,7 @@ async function startSim(): Promise<{ proc: ChildProcess; stop: () => Promise<voi
   }
   if (!ready) {
     proc.kill()
+    unreap()
     await rm(work, { recursive: true, force: true })
     throw new Error(`sim host never became ready on ${SIM_URL}`)
   }
@@ -95,6 +100,7 @@ async function startSim(): Promise<{ proc: ChildProcess; stop: () => Promise<voi
     proc,
     stop: async () => {
       proc.kill()
+      unreap()
       await rm(work, { recursive: true, force: true })
     },
   }
@@ -124,7 +130,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await t?.stop()
   await sim?.stop()
-  await rm(bundleRoot, { recursive: true, force: true })
+  if (bundleRoot) await rm(bundleRoot, { recursive: true, force: true })
 })
 
 describe('adversarial: what a modified client cannot do', () => {

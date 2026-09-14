@@ -10,14 +10,35 @@ import { afterEach, describe, expect, it } from 'vitest'
  * a `dotnet Broodline.Sim.Service.dll --urls http://127.0.0.1:5299` left
  * over from an earlier wave-submit.test.ts run still holding the port.
  *
- * Both tests drive the SAME fixture, differing only in whether it installs
- * the guard - so the second test IS the mutation for the first, running on
- * every suite run rather than once by hand. If reapOnExit stopped working,
- * test one fails; if the fixture's grandchild started dying on its own for
- * some unrelated reason (making test one pass vacuously), test two fails.
+ * ALL FOUR ROUTES, not one. reapOnExit registers on 'exit', SIGTERM, SIGINT
+ * and SIGHUP, and an earlier version of this file exercised only SIGTERM -
+ * so trimming `handlers` down to `['SIGTERM']` left the suite green while
+ * an interrupted run went back to orphaning 5299 and 5399, which is the
+ * exact leak the module was written to stop. Each route is now driven
+ * separately.
+ *
+ * Both halves for every route: guarded must reap, UNGUARDED MUST LEAK. The
+ * second is not decoration - without it, a route where the grandchild
+ * happened to die for some unrelated reason (a signal reaching the process
+ * group, say) would pass the guarded test having proven nothing about the
+ * guard. Every unguarded case below was confirmed to actually leak.
  */
 
 const FIXTURE = fileURLToPath(new URL('./fixtures/reaper-fixture.ts', import.meta.url))
+
+/**
+ * The four ways the worker can go away. 'exit' is the ordinary-exit route
+ * and reaches reapOnExit's 'exit' listener; the other three reach one
+ * signal handler each.
+ *
+ * Node resets every spawned child's signal dispositions to SIG_DFL (libuv
+ * does it in the child before exec - verified directly), so these arrive at
+ * the fixture with default behaviour no matter how this test runner was
+ * itself launched. That is NOT true down a chain of shells, where a process
+ * started with `&` by a non-interactive shell inherits SIGINT as ignored.
+ */
+const ROUTES = ['exit', 'SIGTERM', 'SIGINT', 'SIGHUP'] as const
+type Route = (typeof ROUTES)[number]
 
 let started: ChildProcess[] = []
 let orphans: number[] = []
@@ -46,14 +67,16 @@ function alive(pid: number): boolean {
 }
 
 /**
- * Runs the fixture, waits for it to report its grandchild's pid, SIGTERMs
- * it, and returns whether the grandchild survived.
+ * Runs the fixture, waits for it to report its grandchild's pid, makes it go
+ * away by `route`, and returns whether the grandchild survived.
  */
-async function grandchildSurvivesSigterm(mode: 'guarded' | 'unguarded'): Promise<{ survived: boolean; pid: number }> {
-  const proc = spawn(process.execPath, ['--experimental-strip-types', FIXTURE, mode], {
-    stdio: ['ignore', 'pipe', 'ignore'],
-  })
+async function grandchildSurvives(mode: 'guarded' | 'unguarded', route: Route): Promise<boolean> {
+  const proc = spawn(process.execPath, [
+    '--experimental-strip-types', FIXTURE, mode, route === 'exit' ? 'exit' : 'signal',
+  ], { stdio: ['ignore', 'pipe', 'ignore'] })
   started.push(proc)
+
+  const exited = new Promise<void>((resolve) => proc.on('exit', () => resolve()))
 
   const pid = await new Promise<number>((resolve, reject) => {
     let buffered = ''
@@ -66,14 +89,21 @@ async function grandchildSurvivesSigterm(mode: 'guarded' | 'unguarded'): Promise
         resolve(Number(match[1]))
       }
     })
-    proc.on('exit', () => { clearTimeout(timer); reject(new Error(`fixture exited early: ${buffered}`)) })
+    // No early-exit rejection here: on the 'exit' route the fixture is
+    // SUPPOSED to exit, and it may do so before this promise settles.
+    proc.on('exit', () => {
+      if (!buffered.includes('GRANDCHILD')) {
+        clearTimeout(timer)
+        reject(new Error(`fixture exited without reporting a grandchild: ${buffered}`))
+      }
+    })
   })
   orphans.push(pid)
 
-  expect(alive(pid), 'the grandchild must be running before the fixture is signalled').toBe(true)
+  expect(alive(pid), 'the grandchild must be running before the fixture goes away').toBe(true)
 
-  const exited = new Promise<void>((resolve) => proc.on('exit', () => resolve()))
-  proc.kill('SIGTERM')
+  // 'exit' needs no push - the fixture is already on its way out.
+  if (route !== 'exit') proc.kill(route)
   await exited
 
   // The signal has been delivered by the time the fixture is gone, but the
@@ -84,24 +114,19 @@ async function grandchildSurvivesSigterm(mode: 'guarded' | 'unguarded'): Promise
     await new Promise((r) => setTimeout(r, 50))
   }
 
-  return { survived: alive(pid), pid }
+  return alive(pid)
 }
 
 describe('reapOnExit', () => {
-  it('kills the spawned host when its own process is signalled', async () => {
-    const { survived } = await grandchildSurvivesSigterm('guarded')
-    expect(survived).toBe(false)
+  it.each(ROUTES)('kills the spawned host when its own process goes away via %s', async (route) => {
+    expect(await grandchildSurvives('guarded', route)).toBe(false)
   }, 60_000)
 
   /**
-   * The mutation, kept runnable. Without this, test one could pass for a
-   * reason that has nothing to do with the guard - a grandchild that exits
-   * on its own, a fixture that never really spawned one - and nobody would
-   * know. This asserts the leak is real when the guard is absent, which is
-   * the only thing that makes test one's result mean anything.
+   * The mutation, kept runnable, once per route. Without these, the tests
+   * above could pass for reasons that have nothing to do with the guard.
    */
-  it('is what stops it: without the guard the host outlives its parent', async () => {
-    const { survived } = await grandchildSurvivesSigterm('unguarded')
-    expect(survived).toBe(true)
+  it.each(ROUTES)('is what stops it: without the guard, %s leaves the host behind', async (route) => {
+    expect(await grandchildSurvives('unguarded', route)).toBe(true)
   }, 60_000)
 })

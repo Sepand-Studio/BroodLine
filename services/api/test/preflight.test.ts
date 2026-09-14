@@ -26,19 +26,20 @@ afterEach(async () => {
   opened = []
 })
 
-/** A PATH with nothing on it, plus a directory we control at the front. */
-async function fakeBinDir(script: string): Promise<string> {
+/** A directory holding a stub `dotnet`, to put at the front of PATH. */
+async function fakeBinDir(script: string, mode = 0o755): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), 'broodline-preflight-'))
   const bin = join(dir, 'dotnet')
   await writeFile(bin, script, 'utf8')
-  await chmod(bin, 0o755)
+  await chmod(bin, mode)
   return dir
 }
 
 describe('preflight: dotnet is absent', () => {
   /**
-   * Branch: checkDotnet's catch. Mutating ONLY that catch to `return
-   * undefined` makes this test - and no other - fail.
+   * Branch: checkDotnet's ENOENT arm. Mutating ONLY that arm - dropping the
+   * `code === 'ENOENT'` test so everything falls through to 'dotnet-broken'
+   * - makes this test, and no other, fail.
    *
    * A PATH pointing at nothing is the honest simulation of the condition:
    * node resolves a spawned command through options.env.PATH, so this is
@@ -59,6 +60,60 @@ describe('preflight: dotnet is absent', () => {
     // Vacuity guard: without this, the test above would pass identically
     // against a checkDotnet that reported "missing" unconditionally.
     expect(checkDotnet()).toBeUndefined()
+  })
+})
+
+describe('preflight: dotnet is present but cannot run', () => {
+  /**
+   * Branch: checkDotnet's non-ENOENT arm. Collapsing the two arms back into
+   * one - the shape this file shipped with in 4dd50f8 - makes this test,
+   * and no other, fail.
+   *
+   * WHY IT IS ITS OWN BRANCH. `dotnet` exits non-zero while sitting right
+   * there on PATH for several ordinary reasons, and the first one below is
+   * the most common of them. Reporting those as "`dotnet` is not on PATH"
+   * tells the reader to install an SDK they already have and throws away
+   * the one line that says what is actually wrong - which is the precise
+   * defect this whole preflight exists to stop, reproduced inside it.
+   */
+  const brokenSdk = [
+    '#!/bin/sh',
+    'echo "A compatible .NET SDK was not found. Requested SDK version 9.0.100 from global.json" >&2',
+    'exit 1',
+  ].join('\n')
+
+  it('reports it as broken, not as missing, and forwards what dotnet actually said', async () => {
+    const dir = await fakeBinDir(brokenSdk)
+    const failure = checkDotnet({ ...process.env, PATH: `${dir}${delimiter}${process.env.PATH ?? ''}` })
+
+    expect(failure?.kind).toBe('dotnet-broken')
+    // The real cause, carried through verbatim. This is the assertion that
+    // fails if the two arms are ever collapsed again.
+    expect(failure?.message).toContain('Requested SDK version 9.0.100 from global.json')
+    expect(failure?.message).toContain('global.json')
+    // And it must NOT send the reader off to install what they already have.
+    expect(failure?.message).not.toContain('is not on PATH')
+    expect(failure?.message).not.toContain('brew install')
+  })
+
+  /**
+   * The other non-ENOENT shape: a `dotnet` that cannot even be executed, so
+   * there is no stderr to forward. The message must still say something
+   * true rather than print an empty quotation - EACCES is what node reports
+   * here, verified.
+   */
+  it('still says something true when the spawn fails with no output at all', async () => {
+    const dir = await fakeBinDir('#!/bin/sh\nexit 0\n', 0o644) // present, not executable
+    // ONLY this directory on PATH. An unexecutable file is SKIPPED by the
+    // PATH search rather than being an error, so leaving the real PATH
+    // appended would simply find the working dotnet further along and this
+    // test would pass having exercised nothing - checked, it did exactly
+    // that on the first run.
+    const failure = checkDotnet({ PATH: dir })
+
+    expect(failure?.kind).toBe('dotnet-broken')
+    expect(failure?.message).toContain('EACCES')
+    expect(failure?.message).not.toContain('It said:')
   })
 })
 

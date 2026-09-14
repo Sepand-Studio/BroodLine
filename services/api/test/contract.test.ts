@@ -41,13 +41,23 @@ describe('the generated contract', () => {
    *    to be undefined`. Only the second names the defect - the first says
    *    a file changed and leaves the reader to work out which key and why.
    *    That difference is this test's entire justification.
-   *  - Block RE-ADDED TO THE COMMITTED DOCUMENT by hand: the gate above
-   *    fails (`MM openapi/sim.json`). This one does NOT, and cannot: the
-   *    gate regenerates sim.json before this test reads it, so by the time
-   *    it runs the hand-added block is already gone. Stated rather than
-   *    implied, because the reverse is the obvious thing to assume about an
-   *    assertion on a committed file, and assuming it would make this test
-   *    look like cover it does not provide.
+   *  - Block RE-ADDED BY HAND and STAGED OR COMMITTED: the gate above
+   *    fails (`MM`/` M openapi/sim.json`). This one does NOT, and cannot:
+   *    the gate regenerates sim.json before this test reads it, so by the
+   *    time it runs the hand-added block is already gone.
+   *  - Block RE-ADDED BY HAND and left UNSTAGED: NOTHING fails. The
+   *    regeneration rewrites the file before `git status` is consulted, so
+   *    the edit is erased and the tree is clean. That case is not covered by
+   *    anything here, and saying so is the point - an unstaged edit to a
+   *    generated file is undone rather than caught, which is the correct
+   *    behaviour for a regenerating gate but is NOT the same claim as
+   *    "a hand-re-added block fails the build".
+   *
+   * All three measured, not reasoned about. The middle one is stated
+   * explicitly because "an assertion on the committed document catches a
+   * hand edit" is the obvious thing to assume and is false; the third
+   * because an earlier version of this comment claimed coverage it does not
+   * have.
    *
    * No regeneration of its own on purpose: it reads whatever is on disk,
    * which costs nothing and is the same bytes the gate just vouched for.
@@ -82,13 +92,19 @@ describe('the generated contract', () => {
    * line makes this test fail (the script exits 0, having ignored the
    * signal and finished the run), while the gate above stays green.
    *
-   * python3 is a trampoline, not decoration. A process started
-   * asynchronously by a non-interactive shell has SIGINT set to IGNORED,
-   * and that disposition is inherited through exec - bash cannot reset a
-   * signal that was ignored on entry, so spawning the script directly makes
-   * this test's result depend on how the test runner itself was launched.
-   * Restoring SIG_DFL before exec removes that dependency. python3 rather
-   * than perl because generate-contract.sh already requires python3.
+   * THE python3 TRAMPOLINE IS BELT-AND-BRACES, and an earlier version of
+   * this comment overstated it as necessary. The hazard is real but does
+   * not reach here: a process started asynchronously by a non-interactive
+   * shell has SIGINT set to IGNORED, that disposition survives exec, and
+   * bash cannot reset a signal ignored on entry - which is exactly what
+   * silently invalidated the first hand probes of this behaviour, run from
+   * a shell. It does NOT apply to a child of node: libuv resets every
+   * signal to SIG_DFL in the child before exec, verified directly, so
+   * spawning the script straight from here would get a default SIGINT no
+   * matter how the runner was launched. The trampoline is kept because it
+   * makes the requirement explicit at the one place that depends on it and
+   * costs nothing - generate-contract.sh already requires python3 - not
+   * because the test would otherwise be environment-dependent.
    */
   it('frees port 5199 when interrupted, instead of leaving the sim host behind', async () => {
     const child = spawn('python3', [

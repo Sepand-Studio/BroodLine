@@ -609,15 +609,23 @@ CLIENT2_TMP="$WORK/sim.ts"
 # openapi/sim.json: that file is generated, and anything done to it by hand
 # is undone by the next regeneration.
 #
-# Enforcement is contract.test.ts, and it was weakened two ways to find out
-# what it actually enforces. Delete this pop and BOTH of that file's
-# contract assertions fail - the diff gate on a dirty tree, and the
-# `servers` assertion on the key itself. Re-add the block to the COMMITTED
-# document by hand and only the diff gate fails, because it regenerates the
-# file before the other assertion reads it. Either way the strip cannot be
-# quietly undone, which is the property that matters; the second case is
-# recorded because "an assertion on the committed document catches a hand
-# edit" is the natural thing to assume here, and it is not true.
+# Enforcement is contract.test.ts, and it was weakened three ways to find
+# out what it actually enforces:
+#
+#   - Delete this pop: BOTH of that file's contract assertions fail - the
+#     diff gate on a dirty tree, and the `servers` assertion on the key.
+#     This is the case that matters, and it is covered twice.
+#   - Re-add the block by hand and STAGE OR COMMIT it: only the diff gate
+#     fails. It regenerates the file before the other assertion reads it, so
+#     that one never sees the edit.
+#   - Re-add the block by hand and leave it UNSTAGED: nothing fails. The
+#     regeneration erases the edit before `git status` is consulted.
+#
+# So the strip cannot be quietly REMOVED, which is the property worth
+# having. It is not the same claim as "a hand-re-added block always fails
+# the build" - an unstaged edit to a generated file is undone rather than
+# caught. Both of the last two are recorded rather than glossed, because
+# each is the natural thing to assume here and neither is true.
 #
 # The document is written to $WORK exactly as before - the curl output lands
 # in its own scratch file first only because the normaliser is fed to python

@@ -39,35 +39,88 @@ const REPO = fileURLToPath(new URL('../../../', import.meta.url))
 
 export interface PreflightFailure {
   /** Short machine-ish tag, so tests can assert on the BRANCH, not the prose. */
-  kind: 'dotnet-missing' | 'tool-restore-failed' | 'port-in-use'
+  kind: 'dotnet-missing' | 'dotnet-broken' | 'tool-restore-failed' | 'port-in-use'
   message: string
 }
 
+/** Whatever a failed execFileSync managed to print, as one trimmed string. */
+function outputOf(err: unknown): string {
+  const e = err as { stdout?: Buffer; stderr?: Buffer }
+  return `${e.stdout?.toString() ?? ''}${e.stderr?.toString() ?? ''}`.trim()
+}
+
+/** Indents a tool's own output so it reads as a quotation rather than as ours. */
+function quoted(output: string): string[] {
+  return output ? ['', `  It said:\n${output.split('\n').map((l) => `    ${l}`).join('\n')}`] : []
+}
+
 /**
- * Branch one: no .NET SDK at all.
+ * Branch one: no .NET SDK at all - AND, separately, branch one-and-a-half:
+ * an SDK that is there but cannot run.
  *
- * `env` is a parameter so preflight.test.ts can drive this branch with a
- * PATH that contains no dotnet - node resolves the command through
- * options.env.PATH, verified, so this needs no other seam.
+ * THE SPLIT IS THE POINT. An earlier version of this treated any non-zero
+ * `dotnet --version` as "not on PATH", which reproduced inside this file
+ * the exact defect the file exists to fix. `dotnet` exits 1 while sitting
+ * right there on PATH for at least three ordinary reasons - a global.json
+ * pinning an SDK version that is not installed, a corrupt install, and an
+ * architecture mismatch (the `Bad CPU type` shape this repo already hits on
+ * its node binary). In every one of those, `dotnet --version` prints the
+ * one line that says what is actually wrong, and "install the .NET SDK"
+ * both discards that line and tells the reader to install something they
+ * already have.
+ *
+ * ENOENT - and only ENOENT - means the command could not be found. Verified
+ * against node rather than assumed: an absent binary throws with
+ * `code: 'ENOENT'` and `status: null`; a binary that runs and exits 1
+ * throws with `code: undefined`, `status: 1` and a populated `stderr`; a
+ * present-but-unexecutable file throws `code: 'EACCES'`. So the first is
+ * "missing" and everything else is "broken", with the tool's own output
+ * forwarded the way checkToolRestore already forwards it.
+ *
+ * `env` is a parameter so preflight.test.ts can drive these branches with a
+ * PATH that contains no dotnet, or one containing a stub that fails - node
+ * resolves the command through options.env.PATH, verified, so this needs no
+ * other seam.
  */
 export function checkDotnet(env: NodeJS.ProcessEnv = process.env): PreflightFailure | undefined {
   try {
     execFileSync('dotnet', ['--version'], { env, stdio: 'pipe' })
     return undefined
-  } catch {
+  } catch (err) {
+    if ((err as { code?: string }).code === 'ENOENT') {
+      return {
+        kind: 'dotnet-missing',
+        message: [
+          'preflight: `dotnet` is not on PATH.',
+          '',
+          "  This package's tests run the REAL sim service (a .NET project) as a child",
+          '  process, and regenerate the api -> sim contract from it. That is deliberate and',
+          '  cannot be worked around by faking the sim - see services/api/README.md.',
+          '',
+          '  Install the .NET SDK (10.x):',
+          '    macOS:  brew install --cask dotnet-sdk',
+          '    other:  https://dotnet.microsoft.com/download',
+          '  then make sure `dotnet --version` works in this shell and re-run.',
+        ].join('\n'),
+      }
+    }
+
+    const output = outputOf(err)
+    const errno = (err as { code?: string }).code
     return {
-      kind: 'dotnet-missing',
+      kind: 'dotnet-broken',
       message: [
-        'preflight: `dotnet` is not on PATH.',
+        'preflight: `dotnet` is on PATH but `dotnet --version` failed.',
         '',
-        "  This package's tests run the REAL sim service (a .NET project) as a child",
-        '  process, and regenerate the api -> sim contract from it. That is deliberate and',
-        '  cannot be worked around by faking the sim - see services/api/README.md.',
+        '  The SDK is installed; something about this machine stops it running. Common',
+        '  causes: a global.json pinning an SDK version that is not installed, a',
+        '  half-finished or corrupt install, or a binary built for another architecture.',
         '',
-        '  Install the .NET SDK (10.x):',
-        '    macOS:  brew install --cask dotnet-sdk',
-        '    other:  https://dotnet.microsoft.com/download',
-        '  then make sure `dotnet --version` works in this shell and re-run.',
+        '  Do NOT reinstall blind - the output below says which. Reproduce it with:',
+        '    dotnet --version',
+        ...(output
+          ? quoted(output)
+          : ['', `  It printed nothing; the spawn itself failed with ${errno ?? 'an unknown error'}.`]),
       ].join('\n'),
     }
   }
@@ -82,8 +135,7 @@ export function checkToolRestore(env: NodeJS.ProcessEnv = process.env): Prefligh
     execFileSync('dotnet', ['tool', 'restore'], { cwd: REPO, env, stdio: 'pipe' })
     return undefined
   } catch (err) {
-    const detail = (err as { stderr?: Buffer; stdout?: Buffer })
-    const output = `${detail.stdout?.toString() ?? ''}${detail.stderr?.toString() ?? ''}`.trim()
+    const output = outputOf(err)
     return {
       kind: 'tool-restore-failed',
       message: [
@@ -96,7 +148,7 @@ export function checkToolRestore(env: NodeJS.ProcessEnv = process.env): Prefligh
         '  configuring, or a feed blocked by policy.',
         '',
         '  Reproduce it directly with:  dotnet tool restore',
-        ...(output ? ['', `  It said:\n${output.split('\n').map((l) => `    ${l}`).join('\n')}`] : []),
+        ...quoted(output),
       ].join('\n'),
     }
   }
@@ -131,15 +183,16 @@ export function checkPort(port: number, owner: string): Promise<PreflightFailure
 }
 
 /**
- * All three branches, in dependency order: there is no point reporting a
- * failed restore on a machine with no dotnet, so that one short-circuits.
- * Ports are independent of both and are always reported.
+ * Every branch, in dependency order: there is no point reporting a failed
+ * restore on a machine whose `dotnet` is missing OR unrunnable - the restore
+ * would fail for that same reason and add a second, derived message on top
+ * of the real one. Ports are independent of both and are always reported.
  */
 export async function preflight(env: NodeJS.ProcessEnv = process.env): Promise<PreflightFailure[]> {
   const failures: PreflightFailure[] = []
 
-  const missing = checkDotnet(env)
-  if (missing) failures.push(missing)
+  const sdk = checkDotnet(env)
+  if (sdk) failures.push(sdk)
   else {
     const restore = checkToolRestore(env)
     if (restore) failures.push(restore)

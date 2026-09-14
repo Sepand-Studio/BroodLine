@@ -27,7 +27,12 @@ beforeEach(async () => {
   store = new LocalBundleStore(root)
   clearBundleCache()
 })
-afterEach(async () => { await rm(root, { recursive: true, force: true }) })
+// Guarded: `root` is assigned by beforeEach's first statement, so an
+// mkdtemp that fails left this removing `undefined` and throwing
+// ERR_INVALID_ARG_TYPE on top of the real error. A one-statement window,
+// but the same shape removed from six files this round - see
+// wave-submit.test.ts's afterAll and masked-teardown.test.ts.
+afterEach(async () => { if (root) await rm(root, { recursive: true, force: true }) })
 
 describe('validation', () => {
   it('passes the authored seed bundle', async () => {
