@@ -6,13 +6,16 @@ import { fileURLToPath } from 'node:url'
 import { sql } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import type { Deps } from '../src/app.ts'
-import { type Bundle, clearBundleCache } from '../src/config/bundle.ts'
+import { type Bundle, clearBundleCache, loadBundle } from '../src/config/bundle.ts'
 import { publishBundle } from '../src/config/publish.ts'
 import { LocalBundleStore } from '../src/config/store.ts'
+import { withServer } from '../src/db/client.ts'
 import { servers, waveIssuances } from '../src/db/schema.ts'
 import { LocalReplayStore } from '../src/replays/store.ts'
 import { SimClient } from '../src/sim/client.ts'
-import { REPLAY_CAP_PER_DAY } from '../src/wave/issuance.ts'
+import {
+  type Issuance, type IssuanceRefusal, issueWave, REPLAY_CAP_PER_DAY,
+} from '../src/wave/issuance.ts'
 import { rewardForWave } from '../src/wave/rewards.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 import {
@@ -270,11 +273,23 @@ describe('adversarial: what a modified client cannot do', () => {
       // COMMIT, and `t.pool` is the APP pool the handlers themselves draw
       // from. pg-pool issues no ROLLBACK of its own on release, so a
       // throwing assertion would hand back a connection still inside an
-      // open transaction, still holding a row lock on wave_issuances -
-      // turning one clear one-line failure into a cascade of 60s timeouts
-      // in the file where diagnosability matters most. Swallowed because
-      // after a successful COMMIT this is a harmless no-op warning, and a
-      // failure here must never mask the real assertion failure above.
+      // open transaction, still holding a row lock on wave_issuances.
+      //
+      // MEASURED CONSEQUENCE, not a guessed one - an earlier version of
+      // this comment claimed a cascade of 60s timeouts, and the round-2
+      // reviewer tried to produce one and could not: with the ROLLBACK
+      // deleted and the deadline forced, the run was 1 failed / 13 passed
+      // in 4.8s. createPool's `max: 5` and `lock_timeout=5000` bound it,
+      // and later tests use fresh players and different rows. So the real
+      // cost is two consumed pool slots and an idle-in-transaction backend
+      // for the rest of the file, not a cascade. The ROLLBACK stays because
+      // it is correct and free; the claim about it is now the one that was
+      // observed. Overstating a hazard in the gate file's own documentation
+      // costs the same credibility as understating one.
+      //
+      // Swallowed because after a successful COMMIT this is a harmless
+      // no-op, and a failure here must never mask the real assertion
+      // failure above.
       await client.query('ROLLBACK').catch(() => {})
       client.release()
     }
@@ -455,6 +470,29 @@ describe('adversarial: what a modified client cannot do', () => {
       expect(res.rowCount).toBe(1)
     }
 
+    // THE BOUNDARY MUST NOT HAVE MOVED under us. clearThrough plus three
+    // start/submit round trips take ~1-2s, and if UTC midnight falls inside
+    // that window the captured boundary is now YESTERDAY's - the probe
+    // would sit a day back, stop counting, and half one would read 200: a
+    // spurious RED, roughly 2 seconds in every day. The failure direction
+    // is safe (never a false green), but a gate that reddens for reasons
+    // unrelated to what it tests is a gate people learn to re-run, which is
+    // the same disease this file exists to treat. Re-read and compare
+    // rather than assume.
+    const [nowMsRow] = (await t.ownerDb.execute(sql`
+      SELECT (extract(epoch from date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') * 1000)::bigint AS ms`))
+      .rows as { ms: string | number }[]
+    if (nowMsRow === undefined || Number(nowMsRow.ms) !== dayStartMs) {
+      // Deliberately a hard failure with a self-explaining message rather
+      // than a silent skip: a skip that fires once a year is a test nobody
+      // notices has stopped running. Re-run it; it cannot recur.
+      throw new Error(
+        'UTC midnight crossed during this test\'s setup, so the captured day '
+        + 'boundary is stale and the assertions below would be meaningless. '
+        + 'This is a ~2-second-per-day race in the TEST, not a defect in the '
+        + 'replay cap - re-run.')
+    }
+
     // HALF ONE: exactly AT the boundary. Still today, so it counts, so all
     // three count, so the cap binds. A window too narrow to reach midnight
     // (weakening 7's three hours, at any hour of the day) drops it and
@@ -476,6 +514,78 @@ describe('adversarial: what a modified client cannot do', () => {
     // the success side, so the equivalent is that a real issuance came back
     // rather than merely a non-429.
     expect(typeof ((await free.json()) as { issuanceId?: unknown }).issuanceId).toBe('string')
+  })
+
+  it('counts against midnight UTC even when the session TimeZone is not UTC', async () => {
+    // THE GUARD FOR A REAL PRODUCT BUG THIS FILE EXPOSED, in Task 5's code
+    // rather than in this phase's: issuance.ts's replay-cap count compared
+    // the timestamptz issued_at column against
+    // `date_trunc('day', now() AT TIME ZONE 'UTC')`, which is a `timestamp`
+    // WITHOUT time zone. That comparison silently re-converts it through
+    // the SESSION's TimeZone GUC, so the boundary landed on the session's
+    // LOCAL midnight - under America/New_York, 04:00 UTC instead of 00:00
+    // UTC, and every player's replay cap reset four hours late. The inner
+    // `AT TIME ZONE 'UTC'` was written to remove exactly that dependence
+    // and the implicit cast put it straight back.
+    //
+    // It was correct in production only because the GUC defaults to UTC on
+    // postgres:16-alpine and Cloud SQL - so no existing test could see it,
+    // because every existing test runs on that default.
+    //
+    // SET LOCAL inside the transaction, driving the REAL issueWave rather
+    // than a copy of its SQL: a duplicated query here could drift from the
+    // one that ships, which would make this gate guard nothing. The setting
+    // is transaction-scoped and reverts on commit, so it cannot leak into
+    // any other test or into the pooled connection.
+    const { playerId } = await setupPlayer(deps)
+    await clearThrough(6)
+
+    for (let i = 0; i < REPLAY_CAP_PER_DAY; i++) {
+      const started = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+      expect((await submit(started.issuanceId, buildWinningReplay(6, BigInt(started.seed)), `adv-tz-${i}`)).status).toBe(200)
+    }
+
+    const bundle = await loadBundle(deps.bundleStore)
+    const countUnder = async (tz: string): Promise<Issuance | IssuanceRefusal> =>
+      withServer(deps.db, SERVER_ID, async (tx) => {
+        // set_config(..., true) is SET LOCAL: parameterised, so the zone
+        // name is bound rather than interpolated into SQL text.
+        await tx.execute(sql`SELECT set_config('TimeZone', ${tz}, true)`)
+        return issueWave(tx, SERVER_ID, playerId, 6, bundle)
+      })
+
+    // Put all three consumed rows EXACTLY on midnight UTC. Under the fixed
+    // query that instant is inside today (the comparison is `>=`), so all
+    // three count and the cap binds. Under the broken one the boundary is
+    // the session's local midnight - LATER than midnight UTC in any zone
+    // west of it - so all three fall outside and nothing counts.
+    //
+    // Pinning the boundary itself rather than an offset from it is what
+    // makes this hold at every hour of the day: the broken boundary is
+    // always the same calendar date read in the session's zone, so it is
+    // always displaced from midnight UTC by that zone's offset, never
+    // coincidentally equal.
+    const onBoundary = await t.ownerDb.execute(sql`
+      UPDATE wave_issuances
+      SET issued_at = date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
+      WHERE player_id = ${playerId}::uuid AND settlement = 'consumed'`)
+    expect(onBoundary.rowCount).toBe(REPLAY_CAP_PER_DAY)
+
+    expect(await countUnder('America/New_York')).toEqual({ refused: 'replay_cap_reached' })
+
+    // WRONG-REASON CHECK. Without this, a query that counted NOTHING under
+    // a non-UTC session - or one that counted EVERYTHING regardless of date
+    // - would be indistinguishable from a correct one above. One second
+    // earlier is yesterday in UTC and must not count, under the same
+    // hostile session.
+    const beforeBoundary = await t.ownerDb.execute(sql`
+      UPDATE wave_issuances
+      SET issued_at = (date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') - interval '1 second'
+      WHERE player_id = ${playerId}::uuid AND settlement = 'consumed'`)
+    expect(beforeBoundary.rowCount).toBe(REPLAY_CAP_PER_DAY)
+
+    const free = await countUnder('America/New_York')
+    expect('refused' in free).toBe(false)
   })
 
   it('cannot spend a replay it never took by abandoning a wave', async () => {

@@ -13,7 +13,7 @@ finding, not smoothed over — three rows did, and three new tests exist because
 of it.
 
 Every run is `pnpm --filter @broodline/api test adversarial` against the file
-as it ships (**14 tests**), on branch `phase_5`, with file parallelism on.
+as it ships (**15 tests**), on branch `phase_5`, with file parallelism on.
 After each run the weakening was reverted (`git checkout`) and the suite
 re-run to green.
 
@@ -23,15 +23,16 @@ re-run to green.
 
 | # | Weakened | Where | Result | Test(s) that went red |
 |---|---|---|---|---|
-| 1 | The seed comparison at submit step 5 deleted | `routes/wave.ts` `matchesIssuance` | **RED — discriminating (1/14)** | `cannot submit against a self-chosen seed` |
-| 2 | `wave_issuances_one_live` dropped | `drizzle/0003_wave_issuances.sql` | **RED — not discriminating (11/14)** | named test red, but so is nearly the whole file — see below |
-| 3 | `settle()` moved outside the credit's transaction and the credit un-gated on it | `routes/wave.ts` submit handler | **RED — discriminating (1/14)**, *after a new test was written* | `cannot replay a winning submission twice under a genuinely concurrent second attempt` |
-| 4 | The settlement write-once trigger not created | `drizzle/0003_wave_issuances.sql` | **GREEN — 14/14. FINDING.** | none — see below |
-| 4b | The abandoned row settled `'consumed'` rather than `'expired'` | `wave/issuance.ts` `issueWave` check 4 | **RED — discriminating (1/14)**, *after a new test was written* | `cannot spend a replay it never took by abandoning a wave` |
+| 1 | The seed comparison at submit step 5 deleted | `routes/wave.ts` `matchesIssuance` | **RED — discriminating (1/15)** | `cannot submit against a self-chosen seed` |
+| 2 | `wave_issuances_one_live` dropped | `drizzle/0003_wave_issuances.sql` | **RED — not discriminating (12/15)** | named test red, but so is nearly the whole file — see below |
+| 3 | `settle()` moved outside the credit's transaction and the credit un-gated on it | `routes/wave.ts` submit handler | **RED — discriminating (1/15)**, *after a new test was written* | `cannot replay a winning submission twice under a genuinely concurrent second attempt` |
+| 4 | The settlement write-once trigger not created | `drizzle/0003_wave_issuances.sql` | **GREEN — 15/15. FINDING.** | none — see below |
+| 4b | The abandoned row settled `'consumed'` rather than `'expired'` | `wave/issuance.ts` `issueWave` check 4 | **RED — discriminating (1/15)**, *after a new test was written* | `cannot spend a replay it never took by abandoning a wave` |
 | 5 | ~~Read the reward from `verdict.echo.waveId`~~ | — | **STRUCK. NOT CLOSED.** | see "Row 5" below |
-| 6 | Issuance check 2 (the replay cap) deleted | `wave/issuance.ts` `issueWave` | **RED (2/14)** | `cannot farm a cleared wave past the daily cap`, `counts a consumed issuance against the UTC day boundary, to the second` |
-| 7 | `'consumed'` issuances aged out at 3 hours rather than the UTC day boundary | `wave/issuance.ts` check 2's count window | **RED — discriminating (1/14)**, *after a new test was written, then rewritten* | `counts a consumed issuance against the UTC day boundary, to the second` |
-| 8 | `sim`'s rejection returned as a `5xx` instead of a `200` verdict | `services/sim/Program.cs` | **RED — discriminating (1/14)** | `cannot submit forged bytes` |
+| 6 | Issuance check 2 (the replay cap) deleted | `wave/issuance.ts` `issueWave` | **RED (3/15)** | `cannot farm a cleared wave past the daily cap`, `counts a consumed issuance against the UTC day boundary, to the second`, `counts against midnight UTC even when the session TimeZone is not UTC` |
+| 7 | `'consumed'` issuances aged out at 3 hours rather than the UTC day boundary | `wave/issuance.ts` check 2's count window | **RED (2/15)**, *after a new test was written, then rewritten* — **but the row is NOT closed: see the OWED ruling below** | `counts a consumed issuance against the UTC day boundary, to the second`, `counts against midnight UTC even when the session TimeZone is not UTC` |
+| 8 | `sim`'s rejection returned as a `5xx` instead of a `200` verdict | `services/sim/Program.cs` | **RED — discriminating (1/15)** | `cannot submit forged bytes` |
+| 9 | The trailing `AT TIME ZONE 'UTC'` dropped from check 2's day boundary | `wave/issuance.ts` check 2 | **RED — discriminating (1/15)** | `counts against midnight UTC even when the session TimeZone is not UTC` |
 
 `services/sim/` is not `engine/`; row 8 touches the service host, and no row
 here touches `engine/`.
@@ -41,7 +42,7 @@ here touches `engine/`.
 ## Row 2 — the index cannot be weakened in isolation
 
 Dropping `wave_issuances_one_live` does redden the named test, but it reddens
-**eleven of fourteen**, and for a reason that has nothing to do with replaying
+**eleven of fifteen**, and for a reason that has nothing to do with replaying
 a submission. `claimIssuance` infers its `ON CONFLICT (server_id, player_id)
 WHERE settled_at IS NULL ... DO NOTHING` against exactly that index, so with
 the index gone Postgres raises
@@ -71,7 +72,7 @@ proving nothing — in the file written to stop that happening.
 
 ## Row 4 — GREEN, and the row is mis-specified rather than the guard missing
 
-Dropping the write-once trigger leaves all fourteen tests green, and **no
+Dropping the write-once trigger leaves all fifteen tests green, and **no
 adversarial test can reach it**. `settle()` carries `AND settled_at IS NULL`
 in its `WHERE`, so a second settlement of the same row matches nothing and the
 `BEFORE UPDATE` trigger never fires. There is no sequence of HTTP requests that
@@ -129,6 +130,55 @@ and must be run. Do not let this row be quietly dropped at Phase 6.
 
 ---
 
+## Row 9 — a weakening that found a REAL PRODUCT BUG, not a test gap
+
+Row 9 is not from the brief. It exists because rewriting row 7's gate to pin
+the UTC day boundary exposed a live defect in **Task 5's** shipped code — this
+is the case where the gate did the thing gates are for.
+
+`issuance.ts` check 2 compared the `timestamptz` `issued_at` column against
+
+```sql
+date_trunc('day', now() AT TIME ZONE 'UTC')        -- timestamp WITHOUT time zone
+```
+
+That expression's type is `timestamp without time zone`, so the comparison
+**silently re-converts it through the session's `TimeZone` GUC** — putting back
+the exact dependence the inner `AT TIME ZONE 'UTC'` was written to remove, and
+which the line's own comment claimed to have removed. Verified against a real
+`postgres:16-alpine` under `SET TimeZone='America/New_York'`:
+
+| Expression | Value |
+|---|---|
+| shipped | `2026-09-14 00:00:00` (a bare timestamp, read as midnight **New York** = 04:00 UTC) |
+| fixed | `2026-09-13 20:00:00-04` (= midnight **UTC**) |
+
+**Player impact:** the replay cap would reset on the session's local midnight
+rather than the UTC one — four hours late in that zone. It was correct in
+production only because the GUC defaults to UTC on both `postgres:16-alpine`
+and Cloud SQL, which is precisely the default the comment said it had stopped
+relying on. No existing test could see it, because every test runs on that
+default.
+
+**Fix:** append the trailing `AT TIME ZONE 'UTC'`, converting back to
+`timestamptz` so both sides are absolute instants.
+
+**Guard:** `counts against midnight UTC even when the session TimeZone is not
+UTC` drives the **real** `issueWave` — not a copy of its SQL, which could drift
+from the shipping query — inside a transaction that has done
+`set_config('TimeZone', 'America/New_York', true)`. It places all three
+consumed rows exactly on midnight UTC (which the fixed query counts and the
+broken one does not, at every hour of the day, since the broken boundary is
+always displaced by the zone's offset) and then re-places them one second
+earlier as a wrong-reason check, so a query that counted nothing — or
+everything — under a non-UTC session could not pass.
+
+Dropping the trailing conversion reddens exactly that test, 1/15, with
+`expected { serverId: 1, … } to deeply equal { refused: 'replay_cap_reached' }`
+— the cap failing to bind because the boundary moved.
+
+---
+
 ## The three tests that exist because a weakening stayed green
 
 | Row | What stayed green | Test written |
@@ -159,11 +209,20 @@ Demonstrated rather than argued, by forcing the deadline path (deadline set to
 The same review also found the test **leaked an open transaction on failure**:
 every assertion sits between that connection's `BEGIN` and `COMMIT`, `t.pool`
 is the *app* pool the handlers themselves draw from, and `pg-pool` issues no
-`ROLLBACK` of its own on release. A throwing assertion would have handed back a
-connection still inside a transaction holding a row lock on `wave_issuances`,
-turning one clear one-line failure into a cascade of 60s timeouts in the gate
-file. Now `await client.query('ROLLBACK').catch(() => {})` precedes
-`release()`.
+`ROLLBACK` of its own on release. A throwing assertion hands back a connection
+still inside a transaction holding a row lock on `wave_issuances`. Now
+`await client.query('ROLLBACK').catch(() => {})` precedes `release()`.
+
+**The blast radius, corrected to what was measured.** This document first
+claimed the leak would cause "a cascade of 60s timeouts". Round 2's reviewer
+tried to produce that cascade and **could not**: with the `ROLLBACK` deleted
+and the deadline forced, the run was **1 failed / 13 passed in 4.8s**.
+`createPool` sets `max: 5` and `lock_timeout=5000`, and later tests use fresh
+players and different rows, so the actual cost is two consumed pool slots and
+an idle-in-transaction backend for the rest of the file. The fix is kept
+because it is correct and free — but the claim is now the observed one.
+Overstating a hazard in this file costs exactly as much credibility as
+understating one, and credibility is the only thing this file has.
 
 Row 7 is the one the brief predicted, and it was the worst: **nothing anywhere
 in the repository failed when design §4.3's retention/day-boundary split
@@ -237,7 +296,7 @@ Apply the change named in the table, then:
 ```bash
 pnpm --filter @broodline/api test adversarial   # record the failing test name
 git checkout -- services/api/src services/api/drizzle services/sim
-pnpm --filter @broodline/api test adversarial   # back to 14 passed
+pnpm --filter @broodline/api test adversarial   # back to 15 passed
 ```
 
 Do **not** add `--no-file-parallelism` or set `fileParallelism` to run these.

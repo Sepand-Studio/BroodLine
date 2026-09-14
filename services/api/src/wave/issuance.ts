@@ -62,12 +62,36 @@ export async function issueWave(
         eq(waveIssuances.playerId, playerId),
         eq(waveIssuances.waveId, waveId),
         eq(waveIssuances.settlement, 'consumed'),
-        // AT TIME ZONE 'UTC', explicit: date_trunc('day', timestamptz)
-        // alone truncates in the SESSION's TimeZone GUC, which createPool
-        // never pins. Correct today only because both postgres:16-alpine
-        // and Cloud SQL default that GUC to UTC - this makes the boundary
-        // explicit rather than depending on that default holding.
-        sql`${waveIssuances.issuedAt} >= date_trunc('day', now() AT TIME ZONE 'UTC')`))
+        // AT TIME ZONE 'UTC' TWICE, and BOTH are load-bearing. The inner one
+        // takes the truncation into UTC; the outer one takes the result BACK
+        // to timestamptz, so the comparison against this timestamptz column
+        // is between two absolute instants.
+        //
+        // The outer conversion was missing, and its absence was a real bug
+        // rather than a tidiness issue - found when
+        // test/adversarial.test.ts's day-boundary gate was rewritten to pin
+        // the boundary. WITHOUT it, date_trunc(...) returns `timestamp`
+        // WITHOUT time zone, and comparing that against a timestamptz column
+        // silently re-converts it through the SESSION's TimeZone GUC -
+        // reintroducing the exact dependence the inner conversion exists to
+        // remove. Verified against a real postgres:16-alpine under
+        // `SET TimeZone='America/New_York'`:
+        //
+        //   without the outer cast -> 2026-09-14 00:00:00     (a bare
+        //     timestamp, which the comparison then reads as midnight NEW
+        //     YORK, i.e. 04:00 UTC)
+        //   with it                -> 2026-09-13 20:00:00-04  (= midnight UTC)
+        //
+        // i.e. every player's replay cap would reset on the session's local
+        // midnight - four hours late in that zone. Correct in production only
+        // because the GUC happens to default to UTC on both
+        // postgres:16-alpine and Cloud SQL, which is precisely the dependence
+        // this line claimed to have removed and had not.
+        // test/adversarial.test.ts's "counts against midnight UTC even when
+        // the session TimeZone is not UTC" runs this exact query under a
+        // deliberately non-UTC session and fails if the outer cast is
+        // dropped again.
+        sql`${waveIssuances.issuedAt} >= date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`))
     if (row!.used >= REPLAY_CAP_PER_DAY) return { refused: 'replay_cap_reached' }
 
     // 3. Still has to be authored - a wave a later bundle stopped carrying
