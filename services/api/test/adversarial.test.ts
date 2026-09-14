@@ -23,13 +23,16 @@ import {
 /**
  * DESIGN §7, AND THE PHASE GATE. One test per row of design §4.4's table.
  *
- * What makes this file the gate is not that it passes - it is that every
- * assertion in it has been WATCHED TO FAIL against a deliberately weakened
- * guard. See `weakenings.md` alongside this file for the seven weakenings,
- * each with the named test that reddened under it. Phase 4's recorded
- * lesson, twice over, and Phase 5's six times over, is that a suite can be
- * green while proving nothing; a test nobody has seen fail is a test nobody
- * has shown to test anything.
+ * What makes this file the gate is not that it passes - it is that its
+ * guards have been WATCHED TO FAIL when deliberately weakened. See
+ * `weakenings.md` alongside this file for all EIGHT weakenings applied
+ * (rows 1, 2, 3, 4, 4b, 6, 7, 8) and what each one actually did. Six
+ * reddened a named test; row 2 reddens the file wholesale rather than
+ * discriminatingly, and row 4 reddens nothing here at all - both recorded
+ * as findings rather than smoothed over. Phase 4's recorded lesson, twice
+ * over, and Phase 5's six times over, is that a suite can be green while
+ * proving nothing; a test nobody has seen fail is a test nobody has shown
+ * to test anything.
  *
  * A REAL `sim` child process, never a stub - the api/sim boundary is the
  * exact thing this phase exists to make authoritative, and a stub standing
@@ -115,24 +118,6 @@ beforeAll(async () => {
   deps = { db: t.db, bundleStore: store, simClient: new SimClient(SIM_URL), replayStore: new LocalReplayStore(bundleRoot) }
 }, 240_000)
 
-/**
- * A FRESH PLAYER PER TEST, and this is load-bearing rather than tidiness.
- *
- * DEVIATION FROM THE BRIEF, reported rather than worked around silently:
- * the brief's snippet shares one player across all eight cases, and that
- * suite cannot pass. Tests 1-3 leave three CONSUMED wave-6 issuances behind
- * (a loss, a rejection and a win all settle 'consumed'), and test 3's win
- * advances campaign progress to 6 - so test 4's `startWave(6)` takes design
- * §4.1's REPLAY branch, finds the day's count already at
- * REPLAY_CAP_PER_DAY, and answers 429 with no issuance id at all. Test 4
- * would then submit `undefined` and fail on a 400, never reaching the guard
- * it names. wave-submit.test.ts re-seeds per test for the same reason; this
- * hoists that into a hook instead of repeating the call eight times.
- */
-beforeEach(async () => {
-  await setupPlayer(deps)
-})
-
 afterAll(async () => {
   await t?.stop()
   await sim?.stop()
@@ -140,6 +125,29 @@ afterAll(async () => {
 })
 
 describe('adversarial: what a modified client cannot do', () => {
+  /**
+   * A FRESH PLAYER PER TEST, and this is load-bearing rather than tidiness.
+   *
+   * DEVIATION FROM THE BRIEF, reported rather than worked around silently:
+   * the brief's snippet shares one player across all eight cases, and that
+   * suite cannot pass. Tests 1-3 leave three CONSUMED wave-6 issuances behind
+   * (a loss, a rejection and a win all settle 'consumed'), and test 3's win
+   * advances campaign progress to 6 - so test 4's `startWave(6)` takes design
+   * §4.1's REPLAY branch, finds the day's count already at
+   * REPLAY_CAP_PER_DAY, and answers 429 with no issuance id at all. Test 4
+   * would then submit `undefined` and fail on a 400, never reaching the guard
+   * it names. wave-submit.test.ts re-seeds per test for the same reason; this
+   * hoists that into a hook instead of repeating the call eight times.
+   *
+   * SCOPED TO THIS DESCRIBE, not the file - review finding. At file level it
+   * also ran before the pure-unit `reward's source of truth` block below,
+   * creating an account and doing a database round trip for two synchronous
+   * assertions that touch neither.
+   */
+  beforeEach(async () => {
+    await setupPlayer(deps)
+  })
+
   it('cannot claim a win that did not happen', async () => {
     // The client claims Win; sim says Loss. api pays what sim returns and
     // never what the client claims - which is why the submission body
@@ -218,20 +226,34 @@ describe('adversarial: what a modified client cannot do', () => {
       const pending = submit(issuanceId, replay, 'adv-3c')
 
       // Wait for a REAL synchronization point - the handler's backend
-      // actually blocked - not a sleep. Bounded, and the absence of a
-      // waiter is itself part of what this test catches (a handler that
-      // settles outside the credit's transaction never contends here at
-      // all), so the deadline falls through rather than hanging.
+      // actually blocked - not a sleep.
+      //
+      // sawWaiter IS AN ASSERTION, NOT A DIAGNOSTIC. Review finding: an
+      // earlier version of this loop simply fell out of the deadline
+      // branch and carried on. If the sync point is ever missed - a sim
+      // call slower than the deadline, or a future handler that settles
+      // earlier - T_ext commits before the handler's transaction even
+      // opens, loadLiveIssuance returns undefined, and the 409 +
+      // issuance_invalid below is observed ANYWAY. The test would pass
+      // having silently collapsed back into the sequential double-submit
+      // above, which is the very case it exists because that case proves
+      // too little. Unasserted, this file's flagship new test was one slow
+      // sim call away from being the seventh green-but-proving-nothing
+      // assertion of the phase.
+      let sawWaiter = false
       const deadlineAt = Date.now() + 3_000
-      for (;;) {
+      while (Date.now() < deadlineAt) {
         const [row] = (await t.ownerDb.execute(sql`
           SELECT count(*)::int AS n FROM pg_stat_activity
           WHERE wait_event_type = 'Lock' AND query ILIKE '%wave_issuances%'
             AND pid <> pg_backend_pid()`)).rows as { n: number }[]
-        if ((row?.n ?? 0) > 0) break
-        if (Date.now() >= deadlineAt) break
+        if ((row?.n ?? 0) > 0) { sawWaiter = true; break }
         await new Promise((r) => setTimeout(r, 25))
       }
+      // The handler's backend was observed BLOCKED on this row. Everything
+      // below is about what happens when that block is released; without
+      // this, none of it is about contention at all.
+      expect(sawWaiter).toBe(true)
 
       await client.query('COMMIT')
       const res = await pending
@@ -243,6 +265,17 @@ describe('adversarial: what a modified client cannot do', () => {
       expect(res.status).toBe(409)
       expect(await res.json()).toMatchObject({ code: 'issuance_invalid' })
     } finally {
+      // ROLLBACK BEFORE RELEASE, and the order matters. Review finding:
+      // every assertion above sits BETWEEN this connection's BEGIN and its
+      // COMMIT, and `t.pool` is the APP pool the handlers themselves draw
+      // from. pg-pool issues no ROLLBACK of its own on release, so a
+      // throwing assertion would hand back a connection still inside an
+      // open transaction, still holding a row lock on wave_issuances -
+      // turning one clear one-line failure into a cascade of 60s timeouts
+      // in the file where diagnosability matters most. Swallowed because
+      // after a successful COMMIT this is a harmless no-op warning, and a
+      // failure here must never mask the real assertion failure above.
+      await client.query('ROLLBACK').catch(() => {})
       client.release()
     }
 
@@ -354,42 +387,95 @@ describe('adversarial: what a modified client cannot do', () => {
     expect(await balance('shards')).toBe(before)
   })
 
-  it('still counts a consumed issuance from earlier today against the cap', async () => {
-    // WRITTEN BECAUSE WEAKENING 7 LEFT THE CAP TEST GREEN. Design §4.3
-    // splits retention precisely so the replay count can still see a
-    // consumed row from earlier in the UTC day: 'expired' rows age out
-    // three hours after issuance, 'consumed' rows survive 48 hours BECAUSE
-    // THEY ARE THE COUNTER. Every row the cap test creates is seconds old,
-    // so a count that only looked back three hours would satisfy it
-    // identically - and nothing else in the phase reads the split.
+  it('counts a consumed issuance against the UTC day boundary, to the second', async () => {
+    // WRITTEN BECAUSE WEAKENING 7 LEFT THE CAP TEST GREEN, THEN REWRITTEN
+    // BECAUSE THE FIRST VERSION OF IT WAS INERT FOR THREE HOURS A DAY.
     //
-    // Back-dated within the current UTC day, never blindly by N hours: at
-    // 02:00 UTC a three-hour back-date lands in YESTERDAY, where the row
-    // correctly stops counting and this test would fail for a reason that
-    // has nothing to do with its subject. `greatest(day start, now - 3h)`
-    // is the oldest instant that is both still today and old enough for a
-    // three-hour window to have dropped it; when the day is younger than
-    // three hours the row simply stays where it is and the test degrades to
-    // a weaker but still-correct assertion rather than a false alarm.
+    // Design §4.3: the replay cap counts consumed issuances since the UTC
+    // DAY BOUNDARY, and 'consumed' rows are retained 48 hours rather than
+    // three BECAUSE THEY ARE THE COUNTER. Every row the cap test above
+    // creates is seconds old, so a count looking back only three hours
+    // satisfies it identically.
+    //
+    // THE FIRST FIX PINNED A DISTANCE AND THAT WAS NOT ENOUGH - review
+    // finding, with two demonstrations. Back-dating to
+    // `greatest(day_start, now() - 3h)` only discriminates against windows
+    // NARROWER than the distance it happened to travel, so (a) replacing
+    // the day boundary with a ROLLING 24-HOUR window left the whole suite
+    // green at 141/141 - a real player-visible regression, "three per UTC
+    // day" silently becoming "three per rolling 24h", locking out a player
+    // who took three at 23:50 until 23:50 the next day - and (b) between
+    // 00:00 and 03:00 UTC the back-date resolves to less than three hours
+    // and the three-hour weakening passed 14/14. A gate that is inert for
+    // an eighth of every day, against the likelier of the two regressions,
+    // is not a gate.
+    //
+    // SO PIN THE BOUNDARY, NOT A DISTANCE. One row exactly AT the boundary
+    // must count; one row ONE SECOND BEFORE it must not. That pair is
+    // independent of the time of day and of how wide any replacement
+    // window is: a rolling window of ANY width that reaches back past
+    // midnight fails the second half, and a window too narrow to reach
+    // midnight fails the first.
     await clearThrough(6)
-    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
-    expect((await submit(issuanceId, buildWinningReplay(6, BigInt(seed)), 'adv-7c')).status).toBe(200)
 
-    await t.ownerDb.execute(sql`
-      UPDATE wave_issuances
-      SET issued_at = greatest(
-        date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC',
-        now() - interval '3 hours')
-      WHERE issuance_id = ${issuanceId}`)
+    // Captured ONCE and reused as a literal, so both halves pin the same
+    // instant even though now() moves between them.
+    //
+    // As epoch MILLISECONDS rather than as a timestamp column: node-postgres
+    // hands a timestamptz back as a string here, not a Date, so a
+    // `dayStart.getTime()` on the raw row throws at runtime while
+    // type-checking clean against an asserted row type. Caught by running
+    // it. An integer needs no parser agreement between the driver and this
+    // file.
+    const [msRow] = (await t.ownerDb.execute(sql`
+      SELECT (extract(epoch from date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') * 1000)::bigint AS ms`))
+      .rows as { ms: string | number }[]
+    if (msRow === undefined) throw new Error('could not read the UTC day boundary')
+    const dayStartMs = Number(msRow.ms)
+    expect(Number.isFinite(dayStartMs)).toBe(true)
 
-    // Two more, and then the cap must bind - which it only can if the
-    // back-dated row is still being counted.
-    for (let i = 0; i < REPLAY_CAP_PER_DAY - 1; i++) {
+    // Three real consumed issuances. Two stay where they are; the third is
+    // the probe that gets moved across the boundary.
+    const ids: string[] = []
+    for (let i = 0; i < REPLAY_CAP_PER_DAY; i++) {
       const started = await (await startWave(6)).json() as { issuanceId: string; seed: string }
-      expect((await submit(started.issuanceId, buildWinningReplay(6, BigInt(started.seed)), `adv-7d-${i}`)).status).toBe(200)
+      expect((await submit(started.issuanceId, buildWinningReplay(6, BigInt(started.seed)), `adv-7c-${i}`)).status).toBe(200)
+      ids.push(started.issuanceId)
+    }
+    const probe = ids[REPLAY_CAP_PER_DAY - 1]!
+
+    // Moving issued_at is not a settlement rewrite, so the write-once
+    // trigger does not fire: it raises only when settled_at/settlement
+    // themselves change on an already-settled row.
+    const moveProbe = async (at: Date): Promise<void> => {
+      const res = await t.ownerDb.execute(sql`
+        UPDATE wave_issuances SET issued_at = ${at} WHERE issuance_id = ${probe}`)
+      // Without this the two halves below could both be satisfied by an
+      // UPDATE that silently matched nothing.
+      expect(res.rowCount).toBe(1)
     }
 
-    expect((await startWave(6)).status).toBe(429)
+    // HALF ONE: exactly AT the boundary. Still today, so it counts, so all
+    // three count, so the cap binds. A window too narrow to reach midnight
+    // (weakening 7's three hours, at any hour of the day) drops it and
+    // this reads 200.
+    await moveProbe(new Date(dayStartMs))
+    const bound = await startWave(6)
+    expect(bound.status).toBe(429)
+    expect(await bound.json()).toMatchObject({ code: 'replay_cap_reached' })
+
+    // HALF TWO: one second BEFORE the boundary. Yesterday, so it must NOT
+    // count, so only two do, so the cap must not bind. ANY rolling window
+    // wide enough to reach back past midnight still counts it and this
+    // reads 429 - which is what kills the rolling-24h mutation the first
+    // version of this test could not see.
+    await moveProbe(new Date(dayStartMs - 1_000))
+    const free = await startWave(6)
+    expect(free.status).toBe(200)
+    // The file asserts the CODE beside the status everywhere else; this is
+    // the success side, so the equivalent is that a real issuance came back
+    // rather than merely a non-429.
+    expect(typeof ((await free.json()) as { issuanceId?: unknown }).issuanceId).toBe('string')
   })
 
   it('cannot spend a replay it never took by abandoning a wave', async () => {

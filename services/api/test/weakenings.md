@@ -29,8 +29,8 @@ re-run to green.
 | 4 | The settlement write-once trigger not created | `drizzle/0003_wave_issuances.sql` | **GREEN — 14/14. FINDING.** | none — see below |
 | 4b | The abandoned row settled `'consumed'` rather than `'expired'` | `wave/issuance.ts` `issueWave` check 4 | **RED — discriminating (1/14)**, *after a new test was written* | `cannot spend a replay it never took by abandoning a wave` |
 | 5 | ~~Read the reward from `verdict.echo.waveId`~~ | — | **STRUCK. NOT CLOSED.** | see "Row 5" below |
-| 6 | Issuance check 2 (the replay cap) deleted | `wave/issuance.ts` `issueWave` | **RED (2/14)** | `cannot farm a cleared wave past the daily cap`, `still counts a consumed issuance from earlier today against the cap` |
-| 7 | `'consumed'` issuances aged out at 3 hours rather than the UTC day boundary | `wave/issuance.ts` check 2's count window | **RED — discriminating (1/14)**, *after a new test was written* | `still counts a consumed issuance from earlier today against the cap` |
+| 6 | Issuance check 2 (the replay cap) deleted | `wave/issuance.ts` `issueWave` | **RED (2/14)** | `cannot farm a cleared wave past the daily cap`, `counts a consumed issuance against the UTC day boundary, to the second` |
+| 7 | `'consumed'` issuances aged out at 3 hours rather than the UTC day boundary | `wave/issuance.ts` check 2's count window | **RED — discriminating (1/14)**, *after a new test was written, then rewritten* | `counts a consumed issuance against the UTC day boundary, to the second` |
 | 8 | `sim`'s rejection returned as a `5xx` instead of a `200` verdict | `services/sim/Program.cs` | **RED — discriminating (1/14)** | `cannot submit forged bytes` |
 
 `services/sim/` is not `engine/`; row 8 touches the service host, and no row
@@ -135,20 +135,86 @@ and must be run. Do not let this row be quietly dropped at Phase 6.
 |---|---|---|
 | 3 | `cannot replay a winning submission twice` — the sequential double-submit finishes request one entirely before request two starts, so the guard could live anywhere in the handler | `cannot replay a winning submission twice under a genuinely concurrent second attempt` — an external transaction takes the row lock, so the handler's `settle()` blocks on a **real** Postgres lock instead of on timing that does not cooperate |
 | 4b | `cannot farm a cleared wave past the daily cap` — it consumes every issuance it starts, so `wave/start`'s abandoned-wave path is never reached | `cannot spend a replay it never took by abandoning a wave` — back-dates `expires_at`, then takes all three replays and asserts the abandoned row settled `'expired'` |
-| 7 | **The entire api suite: 137/137 green.** Every row the cap test creates is seconds old, so a count looking back only three hours satisfies it identically | `still counts a consumed issuance from earlier today against the cap` — back-dates `issued_at` to `greatest(day start, now − 3h)`, so the row is old enough for a three-hour window to drop it and still inside today |
+| 7 | **The entire api suite: 137/137 green.** Every row the cap test creates is seconds old, so a count looking back only three hours satisfies it identically | `counts a consumed issuance against the UTC day boundary, to the second` — pins the BOUNDARY: one consumed row exactly at `date_trunc('day', now() AT TIME ZONE 'UTC')` that must count, one a second earlier that must not |
+
+### The row-3 test had to be stopped from becoming the test it replaced
+
+Round 1 review, and the same vacuity shape again. The poll loop that waits for
+the handler's backend to block on the row lock fell out of its deadline branch
+**without asserting a waiter was ever seen**. If the sync point were missed — a
+`sim` call slower than the 3s deadline, or a future handler that settles
+earlier — `T_ext` would commit before the handler's transaction opened,
+`loadLiveIssuance` would return `undefined`, and the test would observe `409 +
+issuance_invalid` and **pass anyway**, having silently collapsed back into the
+sequential case it exists because that case proves too little.
+
+Demonstrated rather than argued, by forcing the deadline path (deadline set to
+`Date.now() + 0`) under otherwise identical conditions:
+
+| Loop | Forced deadline path |
+|---|---|
+| As first written (fall-through, no assertion) | **GREEN 14/14** — the vacuity |
+| As shipped (`expect(sawWaiter).toBe(true)`) | **RED** — `expected false to be true` |
+
+The same review also found the test **leaked an open transaction on failure**:
+every assertion sits between that connection's `BEGIN` and `COMMIT`, `t.pool`
+is the *app* pool the handlers themselves draw from, and `pg-pool` issues no
+`ROLLBACK` of its own on release. A throwing assertion would have handed back a
+connection still inside a transaction holding a row lock on `wave_issuances`,
+turning one clear one-line failure into a cascade of 60s timeouts in the gate
+file. Now `await client.query('ROLLBACK').catch(() => {})` precedes
+`release()`.
 
 Row 7 is the one the brief predicted, and it was the worst: **nothing anywhere
-in the repository failed when the retention/day-boundary split stopped being
-honoured.** Design §4.3 splits retention (`'expired'` rows out at three hours,
-`'consumed'` rows kept 48 hours *because they are the replay counter*) and
-until this test nothing read it.
+in the repository failed when design §4.3's retention/day-boundary split
+stopped being honoured.**
 
-The back-date is `greatest(date_trunc('day', now() AT TIME ZONE 'UTC'), now()
-- interval '3 hours')` and never a blind three hours: before 03:00 UTC a blind
-back-date lands in *yesterday*, where the row correctly stops counting and the
-test would fail for a reason unrelated to its subject. When the day is younger
-than three hours the row stays put and the test degrades to a weaker but still
-correct assertion rather than a false alarm.
+### The first fix pinned a distance, and that was not enough
+
+Round 1 review caught the replacement test being **inert for three hours a
+day, and blind to the likelier regression.** It back-dated to
+`greatest(day_start, now() - 3h)`, which only discriminates against windows
+*narrower than the distance it happened to travel*. Two demonstrations, both
+re-run here:
+
+| Mutation | Against the first fix | Against the shipped test |
+|---|---|---|
+| Day boundary → **rolling 24-hour window** (`now() - interval '24 hours'`) | **GREEN, full suite 141/141** | **RED** (`expected 429 to be 200`) |
+| 3-hour window, at a **simulated 00:30 UTC** run | **GREEN 14/14** | **RED** (`expected 429 to be 200`) |
+
+The rolling-24h case is a real, player-visible behaviour change — "three per
+UTC day, resets at midnight" silently becoming "three per rolling 24h", so a
+player who takes three replays at 23:50 UTC is locked out until 23:50 the
+*next* day — and nothing in the repository noticed. The file's own comment
+described this as degrading to "a weaker but still-correct assertion", which
+turned a gate hole into a non-issue; that framing is gone.
+
+**The shipped test pins the boundary, not a distance.** One consumed row
+exactly at `date_trunc('day', now() AT TIME ZONE 'UTC')` must count; one row
+**one second earlier** must not. That pair is independent of both the time of
+day and the width of any replacement window: a rolling window of any width
+that reaches back past midnight fails the second half, and a window too narrow
+to reach midnight fails the first. The boundary is captured once, as epoch
+milliseconds, so both halves pin the same instant.
+
+### CONTROLLER RULING — row 7 is OWED against Task 12, not covered
+
+**Do not read the improved test as closing row 7.** It guards the **UTC day
+boundary the replay cap counts against**, to the second, and that is all it
+guards.
+
+**Design §4.3's 3h/48h retention split still has no test and is owed.** The
+retention sweep does not exist yet — `0003_wave_issuances.sql:95` records that
+Task 12 owns it — so there is no code to weaken: `'expired'` rows aged out one
+hour past `expires_at`, and `'consumed'` rows retained 48 hours *because they
+are the replay counter*, are both unguarded. Row 7's weakening was therefore
+applied to the nearest shipped equivalent, check 2's count **window**, which
+is the split's consumer rather than the split itself. When the sweep lands it
+needs its own direct test, including the 48-vs-24 hour argument (a row written
+at 23:50 must still be countable at 00:10, which a 24-hour sweep deletes while
+it is still needed).
+
+**Booked as owed against Task 12.**
 
 ---
 
