@@ -13,7 +13,7 @@ import { LocalReplayStore } from '../src/replays/store.ts'
 import { SimClient } from '../src/sim/client.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 import {
-  balance, buildWinningReplay, setupPlayer, startWave, submit, submitInit,
+  balance, buildLosingReplay, buildWinningReplay, setupPlayer, startWave, submit, submitInit,
 } from './wave-helpers.ts'
 
 // fileURLToPath, not .pathname - a path containing a space would arrive
@@ -136,6 +136,28 @@ describe('replay storage', () => {
     }
   })
 
+  it('writes the replay after a verified LOSS, not only a win', async () => {
+    // design 5.2's clause is "written after sim verifies", not "written on
+    // a win" - a Loss is exactly as verified as a Win (it passes sim,
+    // matchesIssuance and settle() identically; only reward computation
+    // differs, and a Loss never reaches that code at all). Proven here the
+    // same way the Win case is proven above, not left to code inspection.
+    const { store, cleanup } = await freshReplayStore()
+    try {
+      const testDeps = { ...deps, replayStore: store }
+      const { playerId } = await setupPlayer(testDeps)
+
+      const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+      const res = await submit(issuanceId, buildLosingReplay(6, BigInt(seed)), 'r-4')
+      expect(res.status).toBe(200)
+      expect(await res.json()).toMatchObject({ result: 'Loss' })
+
+      expect(await store.list()).toEqual([`replays/${SERVER_ID}/${playerId}/${issuanceId}.bin`])
+    } finally {
+      await cleanup()
+    }
+  })
+
   it('writes nothing for a rejected submission', async () => {
     const { store, cleanup } = await freshReplayStore()
     try {
@@ -166,7 +188,7 @@ describe('replay storage', () => {
     // uses it, only through app2 below.
     await setupPlayer(deps)
 
-    const failing = { put: async () => { throw new Error('gcs down') }, list: async () => [] }
+    const failing = { put: async () => { throw new Error('gcs down') } }
     const app2 = createApp({ ...deps, replayStore: failing })
     const before = await balance('shards')
 

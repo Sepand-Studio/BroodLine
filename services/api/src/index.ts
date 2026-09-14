@@ -12,7 +12,20 @@ if (!url) throw new Error('DATABASE_URL must be set.')
 const bucket = process.env.CONFIG_BUCKET
 if (!bucket) throw new Error('CONFIG_BUCKET must be set.')
 // Design 5.1: the player-visible replay collection, a separate bucket from
-// CONFIG_BUCKET with its own 30-day lifecycle rule (Task 11's Terraform).
+// CONFIG_BUCKET with its own 30-day lifecycle rule. The bucket itself is
+// provisioned by Task 11's Terraform, not this task - so deploying THIS
+// revision before Task 11 lands has no bucket to point at, and the
+// service crash-loops on boot. That is deliberate, not an oversight:
+// design 5.2 treats a RUNTIME replay-store failure as non-critical (a
+// missing replay is a degraded viewer, one lost object, logged and
+// swallowed - see routes/wave.ts's write-after-withIdempotency), but a
+// missing BUCKET means every replay would be silently lost, forever, for
+// as long as the misconfiguration stands. A loud crash-loop caught in
+// seconds with a one-command rollback beats a quiet deploy that looks
+// healthy and drops every replay until someone opens a viewer that does
+// not exist yet and finds it empty. Fail hard here on purpose - do not
+// make this optional. Sequence deploys accordingly: Task 11 (or later
+// infra) before this revision ships.
 const replayBucket = process.env.REPLAY_BUCKET
 if (!replayBucket) throw new Error('REPLAY_BUCKET must be set.')
 // solo_execution 3.1: sim is a second Cloud Run service, internal ingress

@@ -34,8 +34,9 @@ export class GcsReplayStore implements ReplayStore {
     })
   }
 
-  async list(): Promise<string[]> {
-    const [files] = await this.bucket.getFiles({ prefix: 'replays/' })
-    return files.map((f) => f.name)
-  }
+  // No list() here - review finding. It is not on the ReplayStore
+  // interface (see store.ts's LocalReplayStore for why: the one caller is
+  // a test, which holds a concrete LocalReplayStore already), and nothing
+  // in production needs to enumerate this bucket, so this class carries no
+  // unpaginated bucket.getFiles() surface it has no caller for.
 }

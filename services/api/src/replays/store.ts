@@ -17,17 +17,6 @@ import { dirname, join, relative, sep } from 'node:path'
  */
 export interface ReplayStore {
   put(serverId: number, playerId: string, issuanceId: string, bytes: string): Promise<void>
-  /**
-   * Full object keys, e.g. `replays/1/<playerId>/<issuanceId>.bin`.
-   *
-   * Not part of design 5's interface - the brief's own test snippet calls
-   * it and it does not exist anywhere in the pattern being mirrored
-   * (config/store.ts's BundleStore has no enumeration method at all).
-   * Added here because the tests need SOME way to observe what got
-   * written; test-only surface, nothing in production code enumerates the
-   * corpus.
-   */
-  list(): Promise<string[]>
 }
 
 export class LocalReplayStore implements ReplayStore {
@@ -51,6 +40,18 @@ export class LocalReplayStore implements ReplayStore {
     await writeFile(path, bytes, 'utf8')
   }
 
+  /**
+   * Full object keys, e.g. `replays/1/<playerId>/<issuanceId>.bin`.
+   *
+   * Deliberately NOT on the `ReplayStore` interface - review finding.
+   * `Deps.replayStore` is typed against the interface, so a method there
+   * ships to production on `GcsReplayStore` whether or not anything calls
+   * it; this has exactly one caller, `replays.test.ts`, which already
+   * holds a concrete `LocalReplayStore` (see `freshReplayStore()`), so
+   * typing against the concrete class costs nothing and keeps
+   * `bucket.getFiles({ prefix: 'replays/' })` out of the production
+   * surface entirely.
+   */
   async list(): Promise<string[]> {
     const root = join(this.root, 'replays')
     if (!existsSync(root)) return []
