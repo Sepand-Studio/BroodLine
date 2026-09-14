@@ -2,9 +2,13 @@
 
 Design §7, Task 10 Step 3. **A suite whose tests have never been seen to fail
 is a suite that has not been shown to test anything.** That is Phase 4's
-recorded lesson twice over, and Phase 5 has since found *six* assertions that
-were green while proving nothing — every one caught by weakening the guard and
-watching the test stay green, never by reading the test.
+recorded lesson twice over, and Phase 5's ledger has since reached *nine*
+assertions that were green while proving nothing — caught by weakening the
+guard and watching the test stay green, never by reading the test. One of the
+nine was caught in this very file's own newest test (row 2 below); one was
+caught at remediation Task 3, where a test passed on its first run having
+exercised nothing at all, because the unexecutable stub it was meant to
+exercise was skipped by the PATH search rather than run.
 
 So each row below was **actually applied to the real source**, the suite
 actually run, and the failing test's name actually recorded. Nothing here is
@@ -29,7 +33,7 @@ re-run to green.
 | 1 | The seed comparison at submit step 5 deleted | `routes/wave.ts` `matchesIssuance` | **RED — discriminating (1/15)** | `cannot submit against a self-chosen seed` |
 | 2 | `wave_issuances_one_live` dropped | `drizzle/0003_wave_issuances.sql` | **RED — not discriminating (12/15)** | named test red, but so is nearly the whole file — see below |
 | 3 | `settle()` moved outside the credit's transaction and the credit un-gated on it | `routes/wave.ts` submit handler | **RED — discriminating (1/15)**, *after a new test was written* | `cannot replay a winning submission twice under a genuinely concurrent second attempt` |
-| 4 | The settlement write-once trigger not created | `drizzle/0003_wave_issuances.sql` | **GREEN — 15/15. FINDING.** | none — see below |
+| 4 | The settlement write-once trigger not created | `drizzle/0004_trigger_scope_and_bounds.sql` — **not `0003`**, see below | **GREEN — 15/15. FINDING.** | none in this file — see below |
 | 4b | The abandoned row settled `'consumed'` rather than `'expired'` | `wave/issuance.ts` `issueWave` check 4 | **RED — discriminating (1/15)**, *after a new test was written* | `cannot spend a replay it never took by abandoning a wave` |
 | 5 | ~~Read the reward from `verdict.echo.waveId`~~ | — | **STRUCK. NOT CLOSED.** | see "Row 5" below |
 | 6 | Issuance check 2 (the replay cap) deleted | `wave/issuance.ts` `issueWave` | **RED (3/15)** | `cannot farm a cleared wave past the daily cap`, `counts a consumed issuance against the UTC day boundary, to the second`, `counts against midnight UTC even when the session TimeZone is not UTC` |
@@ -46,7 +50,10 @@ here touches `engine/`.
 ## Row 2 — the index cannot be weakened in isolation
 
 Dropping `wave_issuances_one_live` does redden the named test, but it reddens
-**eleven of fifteen**, and for a reason that has nothing to do with replaying
+**twelve of fifteen** (the table row above is the measured figure; the
+"eleven" this sentence used to carry was taken before the fifteenth test
+landed and was never updated), and for a reason that has nothing to do with
+replaying
 a submission. `claimIssuance` infers its `ON CONFLICT (server_id, player_id)
 WHERE settled_at IS NULL ... DO NOTHING` against exactly that index, so with
 the index gone Postgres raises
@@ -76,21 +83,66 @@ proving nothing — in the file written to stop that happening.
 
 ## Row 4 — GREEN, and the row is mis-specified rather than the guard missing
 
-Dropping the write-once trigger leaves all fifteen tests green, and **no
-adversarial test can reach it**. `settle()` carries `AND settled_at IS NULL`
-in its `WHERE`, so a second settlement of the same row matches nothing and the
-`BEFORE UPDATE` trigger never fires. There is no sequence of HTTP requests that
-causes a settlement *rewrite*, which is the only thing the trigger rejects — it
-is defence in depth against a future writer that is not the request path, and
-it belongs to a schema test rather than to a behavioural one.
+> **RE-MEASURED at the final-review fix round, and the `Where` moved.** This
+> row was first recorded against `drizzle/0003_wave_issuances.sql`, and
+> **applying it there today weakens nothing at all**: remediation Task 4 added
+> `drizzle/0004_trigger_scope_and_bounds.sql`, which `DROP`s the trigger and
+> re-creates it narrowed to `BEFORE UPDATE OF settled_at, settlement`. 0004
+> runs after 0003, so commenting 0003's `CREATE TRIGGER` out leaves the guard
+> fully in place — measured: **176/176 green, `issuance-schema.test.ts` 9/9**.
+> Anyone reproducing this row from the old `Where` would get a green suite and
+> conclude the row was a false record. **0004 is the live definition**; to
+> weaken the trigger you must remove *its* `CREATE TRIGGER`.
 
-It is not untested. Under this weakening the full suite reddens exactly one
-test:
+Dropping the write-once trigger leaves all fifteen adversarial tests green,
+and **no adversarial test can reach it**. `settle()` carries `AND settled_at
+IS NULL` in its `WHERE`, so a second settlement of the same row matches
+nothing and the `BEFORE UPDATE OF settled_at, settlement` trigger never fires.
+There is no sequence of HTTP requests that causes a settlement *rewrite*,
+which is the only thing the trigger rejects — it is defence in depth against a
+future writer that is not the request path, and it belongs to a schema test
+rather than to a behavioural one.
+
+It is not untested, and **the row's substance is stronger than first
+recorded**, not weaker. The original note said the full suite "reddens exactly
+one test". Measured again with the trigger created nowhere (both `CREATE
+TRIGGER` statements removed), the full suite reports
 
 ```
+Test Files  1 failed | 22 passed (23)
+     Tests  1 failed | 172 passed | 3 skipped (176)
+
 FAIL test/issuance-schema.test.ts > wave_issuances > refuses to rewrite settlement once set
-  → promise resolved "Result{ command: 'UPDATE', …}" instead of rejecting
+  → promise resolved "Result{ command: 'UPDATE', …(9) }" instead of rejecting
+
+FAIL test/issuance-schema.test.ts > wave_issuances > the write-once trigger, narrowed to the settlement columns
 ```
+
+— one failing assertion **plus a whole `describe` block aborted, taking 3
+tests with it as skipped**. That block is remediation Task 4's
+`the write-once trigger, narrowed to the settlement columns`, which did not
+exist when this row was first measured.
+
+**The abort is a cascade, and the cascade is the interesting part.** The block
+does not fail for want of a trigger; it fails in its own `beforeAll` with
+
+```
+error: duplicate key value violates unique constraint "wave_issuances_one_live"
+  ❱ test/issuance-schema.test.ts:143  await issue(t.db, 6, SETTLED)
+```
+
+because the assertion that failed just above it *succeeded at the database*.
+`UPDATE wave_issuances SET settled_at = NULL, settlement = NULL` is exactly
+what the trigger exists to refuse; with the trigger gone it commits, which
+puts issuance `…005` **back into the one-live partial index**, and the next
+block's attempt to issue a fresh wave for that player then collides. So the
+weakening does not merely redden an assertion — it reverts a settled issuance
+to live and corrupts the table underneath everything after it. That is a
+stronger demonstration of what the guard is for than "reddens exactly one
+test" conveyed.
+
+`adversarial.test.ts` stayed **15/15** throughout, so the row's actual finding
+— that this gate cannot see the guard — is unchanged.
 
 **No new test was written for this row**, deliberately: an adversarial test
 that could only reach the trigger by reaching around the API into raw SQL
@@ -104,8 +156,13 @@ brief's three-layer argument was re-derived against the code rather than taken
 on trust:
 
 1. **Step 5 subsumes it.** `matchesIssuance` rejects an echo/issuance wave-id
-   mismatch at `routes/wave.ts:223`, *before* the reward is computed at
-   `:257` — both line numbers verified in the shipped file. By the time the
+   mismatch at its call site in submit step 5 — `routes/wave.ts:372` — *before*
+   `rewardForWave` is reached in step 6, at `:417`. **The function names are
+   the anchors; the line numbers are not.** The `:223`/`:257` this sentence
+   used to cite rotted when Task 5 reordered the handler, and a reader who
+   checked them landed in the middle of the enumeration-oracle comment.
+   `:372`/`:417` were re-read out of the shipped file at the final-review fix
+   round. By the time the
    lookup runs `echo.waveId === issuance.waveId` is guaranteed, so reading
    either source is behaviourally identical.
 2. **A combined weakening needs a second authored wave** with a *different*
@@ -352,8 +409,11 @@ The row with no test in the brief's eight is **"Seed-shop for a favourable
 run — Caught. One live issuance."** `cannot seed-shop for a favourable run`
 was added for it. Its guard is row 2's index, which cannot be weakened in
 isolation (above), so its discriminating gate remains
-`wave-start.test.ts:203`, which drives `claimIssuance` directly against a real
-conflict. Recorded so a reader does not have to notice the missing row for
+`wave-start.test.ts`'s **`a conflicting insert on wave_issuances_one_live
+resolves with the existing row rather than aborting the transaction`** — at
+`:207` today, but the test NAME is the anchor; the `:203` this sentence used
+to cite rotted as that file grew. It drives `claimIssuance` directly against a
+real conflict. Recorded so a reader does not have to notice the missing row for
 themselves.
 
 ---

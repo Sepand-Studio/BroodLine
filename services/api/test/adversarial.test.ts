@@ -29,14 +29,31 @@ import {
  *
  * What makes this file the gate is not that it passes - it is that its
  * guards have been WATCHED TO FAIL when deliberately weakened. See
- * `weakenings.md` alongside this file for all EIGHT weakenings applied
- * (rows 1, 2, 3, 4, 4b, 6, 7, 8) and what each one actually did. Six
- * reddened a named test; row 2 reddens the file wholesale rather than
- * discriminatingly, and row 4 reddens nothing here at all - both recorded
- * as findings rather than smoothed over. Phase 4's recorded lesson, twice
- * over, and Phase 5's six times over, is that a suite can be green while
- * proving nothing; a test nobody has seen fail is a test nobody has shown
- * to test anything.
+ * `weakenings.md` alongside this file for all TEN weakenings applied
+ * (rows 1, 2, 3, 4, 4b, 6, 7, 8, 9, 10 - row 5 is struck and says why in
+ * its own section) and what each one actually did. SEVEN reddened a named
+ * test here (1, 3, 4b, 6, 7, 8, 9); row 2 reddens the file wholesale
+ * rather than discriminatingly; and TWO - rows 4 and 10 - reddened nothing
+ * in this file at all, both recorded as findings rather than smoothed over.
+ *
+ * ROW 10 IS A RECORDED HOLE IN THIS GATE, AND IT IS LEFT OPEN DELIBERATELY.
+ * Making submit's step-2 liveness read refuse DIRECTLY, instead of only
+ * gating the `sim` call, leaves this file 15/15 GREEN while answering a
+ * retrying client 409 for a wave it was in fact paid for - the phase's
+ * central claim ("pays exactly once under retry") failing in the direction
+ * a player notices. What catches it is `returns the stored response on a
+ * resend with the SAME key`, in `wave-submit.test.ts`, not anything here.
+ * That split is a controller ruling, not an oversight: closing it here
+ * would put a non-adversarial property in the adversarial suite. So do NOT
+ * read this file's 15/15 as covering it. weakenings.md row 10 carries the
+ * reasoning; that test carries a do-not-delete note pointing back.
+ *
+ * Phase 4's recorded lesson, twice over, and Phase 5's NINE times over, is
+ * that a suite can be green while proving nothing; a test nobody has seen
+ * fail is a test nobody has shown to test anything. One of those nine was
+ * caught in THIS file: under weakening 2 both `wave/start` calls 500, both
+ * `issuanceId`s read `undefined`, and `undefined === undefined` was a green
+ * assertion - see weakenings.md row 2.
  *
  * A REAL `sim` child process, never a stub - the api/sim boundary is the
  * exact thing this phase exists to make authoritative, and a stub standing
@@ -348,7 +365,10 @@ describe('adversarial: what a modified client cannot do', () => {
     // deleting issueWave's check 4 redden it: the insert then simply
     // conflicts and claimIssuance returns the existing row, which is the
     // index doing the work check 4 only optimises. The nearest thing to a
-    // discriminating gate is wave-start.test.ts:203, which drives
+    // discriminating gate is wave-start.test.ts's `a conflicting insert on
+    // wave_issuances_one_live resolves with the existing row rather than
+    // aborting the transaction` - :207 today, but the NAME is the stable
+    // anchor; the old :203 citation rotted when that file grew. It drives
     // claimIssuance directly against a real conflict.
     const firstRes = await startWave(6)
     const secondRes = await startWave(6)
@@ -663,10 +683,14 @@ describe('adversarial: what a modified client cannot do', () => {
  * stands in its place. The reasoning was re-derived against the code rather
  * than taken on trust:
  *
- * 1. `matchesIssuance` rejects an echo/issuance wave-id mismatch at
- *    routes/wave.ts:223, BEFORE the reward is computed at :257. By the time
- *    the lookup runs, `echo.waveId === issuance.waveId` is guaranteed, so
- *    reading either is behaviourally identical - the weakening is a no-op.
+ * 1. `matchesIssuance` rejects an echo/issuance wave-id mismatch at its
+ *    call site in submit step 5 (routes/wave.ts:372), BEFORE `rewardForWave`
+ *    is reached in step 6 (:417). The FUNCTION NAMES are the stable anchors:
+ *    the old :223/:257 citations rotted when Task 5 reordered the handler,
+ *    and :372/:417 were re-read out of the shipped file at this round. By
+ *    the time the lookup runs, `echo.waveId === issuance.waveId` is
+ *    guaranteed, so reading either is behaviourally identical - the
+ *    weakening is a no-op.
  * 2. Deleting step 5 as well would let wave B's reward be paid for a wave A
  *    issuance - but only if two waves with DIFFERENT rewards exist.
  * 3. The engine authors exactly one. `WaveDef.ForId` returns wave 6 and

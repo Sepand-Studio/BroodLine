@@ -305,6 +305,38 @@ Five checks, in this order, all inside `withServer()`:
 mid-wave loses nothing; short enough that a stockpile is not a strategy. It is a
 starting value and belongs on the playtest list, not in this document.
 
+> **Amended — "the next wave" is the next *authored* wave, not `cleared + 1`.**
+> Check 1 above is not the rule that ships, and taken literally it refuses
+> **every** `wave/start` in the product. What ships: `waveId` must equal the
+> **smallest wave id authored in the bundle that is greater than**
+> `campaign_progress.highest_wave_cleared` — or a wave already cleared, which
+> is unchanged. Implemented in `wave/issuance.ts` `issueWave`.
+>
+> **`cleared + 1` assumes wave ids are dense and 1-indexed. They are not.**
+> The only wave this bundle — or any bundle to date — authors carries id **6**
+> (`engine/Runtime/Combat/WaveDef.cs` `Wave6()`, and `waves.json` in both
+> `config/bundles/0.1.0` and `0.1.1`). So for a fresh player, whose
+> `highest_wave_cleared` is 0, the literal rule computes "next" as 1 and
+> answers `wave_locked` to `start(6)` — the only wave that exists. There is no
+> `waveId` check 1 as written would accept for a new account, and the
+> endpoint's own first integration case contradicts it:
+> `test/wave-start.test.ts`'s `issues a seed for the next uncleared wave`
+> calls `start(6)` on a fresh player and expects 200.
+>
+> **This folds check 3 into the forward branch; check 3 still runs explicitly
+> on the replay branch.** An unauthored id can never be the smallest authored
+> id past `cleared`, so forward progress gets "the wave is authored in the
+> bundle" for free. The replay branch keeps check 3 as its own statement,
+> because an id can be `<= cleared` while no longer being in the bundle — a
+> later bundle could retire a wave — and a stale "already cleared" record must
+> not revive one.
+>
+> **Why this amendment exists at all.** The deviation was found against the
+> implementation brief and documented thoroughly *there* and in `issuance.ts`.
+> Briefs are git-ignored scratch, deleted at phase close; this document is the
+> spec of record. A Phase 6 implementer reading check 1 on its own builds the
+> version that refuses everything.
+
 ### 4.2 `POST /v1/wave/submit` — one verification, one credit
 
 ```
@@ -634,7 +666,7 @@ strength, and one is new because nothing existing proves it.
 to fail.** Phase 4's lesson, recorded in its own review notes, is that a suite
 can pass while proving nothing — auth tests that passed against a broken guard,
 a concurrency gate that only proved anything once the insert was deliberately
-weakened to `onConflictDoNothing`. Three weakenings are named in advance:
+weakened to `onConflictDoNothing`. Four weakenings are named in advance:
 
 | Weaken | Must break |
 |---|---|
