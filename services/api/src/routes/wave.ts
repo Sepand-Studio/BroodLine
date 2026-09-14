@@ -200,20 +200,118 @@ export function registerWaveRoutes(app: Hono, deps: Deps): void {
     const body = parseSubmit(raw)
     if (body === null) return fail('invalid_request', 'issuanceId and replay are required.')
 
-    // sim is a network call, called BEFORE any transaction opens. Holding a
-    // Postgres connection and an open transaction across it is how a 20ms
-    // simulation exhausts the pool that solo_execution §5.7 names as the
-    // real ceiling.
-    const verdict = await deps.simClient.simulate(body.replay)
+    // 2. LIVENESS FIRST - design §4.2's own step 2, restored to the position
+    // that table specifies ("The sequence, and the order matters"). This
+    // handler shipped with steps 2 and 3 transposed, so a fabricated or
+    // already-settled issuanceId bought a full re-simulation before being
+    // refused.
+    //
+    // WHY THE TRANSPOSITION HAPPENED, and why undoing it is safe. The
+    // constraint the original order was honouring is the one restated
+    // below: do not hold a Postgres connection across the sim call. That is
+    // NOT the same constraint as "do not touch the database before the sim
+    // call", and collapsing the two is what moved this check. The read
+    // below opens its own transaction and COMMITS IT before `simulate` is
+    // reached, so the connection is back in the pool for the whole duration
+    // of the network call. Do not fold this into the withIdempotency
+    // transaction below, and do not hoist that transaction up here - either
+    // reintroduces exactly the pool exhaustion solo_execution §5.7 names.
+    //
+    // THIS IS NOT AN ENUMERATION ORACLE, which is the reason that would
+    // have made the transposed order load-bearing and does not apply.
+    // `loadLiveIssuance` is scoped by serverId AND playerId AND issuanceId
+    // together, and serverId/accountId come from the VERIFIED claim, so the
+    // only rows this can ever answer about are the caller's own. There is
+    // nothing to enumerate: a caller learns whether an issuance they were
+    // themselves handed is still live. Contrast /v1/session/refresh
+    // (routes/session.ts), which DOES collapse every failure into one
+    // indistinguishable 401 - there the caller is unauthenticated and the
+    // token IS the credential being guessed, so distinguishing a bad
+    // signature from an unknown account is an account-enumeration oracle.
+    // Here the caller is already authenticated as the only player whose
+    // issuances this query can return. The distinction is also not new:
+    // consumeAndRefuse below has always answered `submission_rejected` for
+    // a live issuance and `issuance_invalid` for a dead one, in a single
+    // request, on the sim-rejected branch.
+    //
+    // ADVISORY, NOT AUTHORITATIVE, AND IT GATES ONLY THE SIM CALL. The
+    // binding check is still the one inside the withIdempotency
+    // transaction, where it sits under the same row lock as settle() - this
+    // read is outside any transaction that matters and cannot be trusted
+    // for the credit decision. It is safe to skip sim on, and only to skip
+    // sim on, because the transition is ONE-WAY: settled_at is write-once
+    // and expires_at is fixed at issue, so an issuance that reads dead here
+    // can never be live by the time the transaction opens. A false skip is
+    // therefore impossible; only a false PROCEED is, and that is what the
+    // in-transaction check catches.
+    //
+    // IT MUST NOT SHORT-CIRCUIT THE RESPONSE, and this is the part that
+    // bit. Returning `issuance_invalid` from here directly - the obvious
+    // shape, and the one written first - BREAKS design §4.2's guard one:
+    // the idempotency key protects the RESPONSE, so a client resending a
+    // request that already succeeded must get its stored 200 back. By the
+    // time it resends, the issuance it paid for is settled, so a refusal
+    // taken here would answer a retrying client 409 for a wave it was in
+    // fact paid for. That is the phase's central claim ("pays exactly once
+    // under retry") failing in the direction the player notices. Caught by
+    // `returns the stored response on a resend with the SAME key`, which
+    // went red the moment the early return went in. So a dead issuance
+    // skips sim and then falls through to withIdempotency exactly as a live
+    // one does, and the refusal - when it is a refusal - is produced there.
+    //
+    // A PLAIN SELECT, never SELECT ... FOR UPDATE. Under READ COMMITTED a
+    // plain read does not block on a concurrent uncommitted UPDATE of this
+    // row, so a submission racing another consumer still reads it live
+    // here, proceeds, and blocks where it is supposed to - on settle()'s
+    // own UPDATE inside the money transaction. adversarial.test.ts's
+    // `cannot replay a winning submission twice under a genuinely
+    // concurrent second attempt` asserts that block is observed
+    // (`sawWaiter`), and a locking read here would move it.
+    //
+    // TWO DEAD-PATH ANSWERS CHANGE, and both are recorded rather than
+    // smoothed over (see specs/plans/broodline_phase5_validation.md §4.2's
+    // amendment). For a DEAD issuance only: a too-old engine now answers
+    // `issuance_invalid` (409) rather than `engine_too_old` (426), and a
+    // sim outage answers `issuance_invalid` (409) rather than
+    // `sim_unavailable` (503). Neither is reachable without first calling
+    // sim, which is the cost this reorder exists to avoid. Design §2.3's
+    // invariant is untouched - engine_too_old must LEAVE THE ISSUANCE LIVE,
+    // and nothing here settles anything - and a client with a superseded
+    // engine still learns so on its next submission against a live
+    // issuance, which is the only submission that could ever have
+    // succeeded. The outage case is strictly more honest: a retryable 503
+    // for an issuance that can never succeed invites a retry loop that
+    // cannot terminate. For a LIVE issuance every answer is unchanged, and
+    // for a dead one under a key that ALREADY HAS a stored response the
+    // answer is that stored response, exactly as before.
+    const issuanceIsLive = await withServer(deps.db, session.serverId, async (tx) => {
+      const playerId = await loadPlayerId(tx, session.accountId)
+      if (playerId === undefined) return false
+      return (await loadLiveIssuance(tx, session.serverId, playerId, body.issuanceId)) !== undefined
+    })
 
-    if (verdict.kind === 'unavailable') {
+    // 3. sim is a network call, called BEFORE any transaction opens. Holding
+    // a Postgres connection and an open transaction across it is how a 20ms
+    // simulation exhausts the pool that solo_execution §5.7 names as the
+    // real ceiling. The step-2 read above has already committed and
+    // released its connection by this line.
+    //
+    // `null` is "not asked", not "no answer": there is nothing a
+    // verification of these bytes could pay for, because the issuance they
+    // name is not live. Every branch below that consumes a verdict is
+    // therefore guarded on it, and the withIdempotency callback turns the
+    // null into the same `issuance_invalid` its own step-2 check would have
+    // produced had sim been called and come back verified.
+    const verdict = issuanceIsLive ? await deps.simClient.simulate(body.replay) : null
+
+    if (verdict?.kind === 'unavailable') {
       // An outage leaves the issuance untouched - design §8: no optimistic
       // grant, no clawback. A retryable 503 is honest only because nothing
       // was consumed.
       return fail('sim_unavailable', 'Verification is temporarily unavailable. Retry.')
     }
 
-    if (verdict.kind === 'rejected') {
+    if (verdict?.kind === 'rejected') {
       // engine_too_old is player-visible and does NOT consume the issuance
       // - design §2.3, the client is told to update and can retry the same
       // issuance once it has. Every other rejection reason IS a spent
@@ -229,21 +327,39 @@ export function registerWaveRoutes(app: Hono, deps: Deps): void {
     // Set inside withIdempotency's callback, ONLY when that callback
     // actually runs - i.e. on a fresh call, never on a replayed one (see
     // withIdempotency: a replay reads the stored response and never calls
-    // fn again). That makes it double as the write-replay gate below: a
-    // replayed response leaves this undefined, which is correct - the
-    // object was already written the first time.
-    let playerIdForReplay: string | undefined
+    // fn again) - AND only once that call has VERIFIED the submission. That
+    // makes it double as the write-replay gate below: a replayed response
+    // leaves this undefined, which is correct - the object was already
+    // written the first time.
+    //
+    // Assigned at the one point where all three halves of "verified" hold
+    // (see its assignment below), NOT on entry to the callback. It was
+    // assigned on entry before, which was harmless only because the write
+    // also sat behind the non-refused branch; now that the write follows
+    // verification rather than response status, this variable IS the
+    // verification predicate and has to be set where that predicate
+    // becomes true.
+    let verifiedPlayerId: string | undefined
 
     let result: { body: SubmitOutcome }
     try {
       result = await withIdempotency(
         deps.db, session.serverId, key, hashRequest(body),
         async (tx): Promise<SubmitOutcome> => {
+          // The step-2 read found the issuance dead, so sim was never
+          // called. Same refusal the check below would have produced -
+          // reached without a re-simulation, and still stored under this
+          // key the way every other outcome of this callback is.
+          if (verdict === null) return { refused: 'issuance_invalid' }
+
           const playerId = await loadPlayerId(tx, session.accountId)
           if (playerId === undefined) return { refused: 'issuance_invalid' }
-          playerIdForReplay = playerId
 
-          // 2. Absent, expired or already consumed are one answer -
+          // 2, AUTHORITATIVE. The pre-sim read above is advisory and racy
+          // by construction; this one runs inside the money transaction and
+          // is the check the credit actually rests on. Keep both: deleting
+          // this one would let an issuance settled between the two reads be
+          // paid. Absent, expired or already consumed are one answer -
           // issuance_invalid - so this endpoint never tells a caller
           // anything about an issuance that is not live for them.
           const issuance = await loadLiveIssuance(tx, session.serverId, playerId, body.issuanceId)
@@ -265,6 +381,17 @@ export function registerWaveRoutes(app: Hono, deps: Deps): void {
           // observe "settled" and both pay.
           const settled = await settle(tx, issuance, 'consumed')
           if (!settled) return { refused: 'issuance_invalid' }
+
+          // THE VERIFICATION POINT - design §5.2's amendment. All three
+          // halves of "verified" now hold and none of them can be undone by
+          // anything below: sim accepted the bytes (this is the `verified`
+          // branch), they proved to be of the ISSUED wave (matchesIssuance,
+          // above), and THIS call actually consumed the issuance (settle
+          // returned true). Everything past this line decides what the
+          // player is TOLD, not whether the attempt was real - so this is
+          // where the replay becomes owed, and the write below is gated on
+          // this variable rather than on the response status.
+          verifiedPlayerId = playerId
 
           const result = verdict.outcome.result
           const integrityRemaining = toInt(verdict.outcome.integrityRemaining)
@@ -306,33 +433,47 @@ export function registerWaveRoutes(app: Hono, deps: Deps): void {
       throw err
     }
 
+    // Written OUTSIDE the money transaction, on the VERIFIED path - which
+    // is not the same set as the SUCCESSFUL path, and design §5.2's
+    // amendment is the ruling that they differ. This sits ABOVE the refusal
+    // branch below deliberately: a `wave_locked` submission is a verified,
+    // settled Win that is nonetheless answered 409, and it is exactly the
+    // refusal a player cannot appeal without the stored replay.
+    //
+    // WHAT IS AND IS NOT WRITTEN. verifiedPlayerId is defined here exactly
+    // when this call's callback ran (never a replayed response - the object
+    // was written the first time) AND reached the verification point: sim
+    // accepted the bytes, they proved to be of the issued wave, and settle()
+    // consumed the issuance. That covers 200 and `wave_locked` 409. It does
+    // NOT cover the two refusals that also settle the issuance, and both
+    // exclusions are load-bearing for §5.2's "storage is not an attacker's
+    // write primitive": a sim REJECTION (consumeAndRefuse - sim never
+    // verified anything) and a seed/wave MISMATCH (matchesIssuance failed -
+    // sim verified some replay, but not one of the issued wave, so the
+    // bytes are attacker-chosen). Both return before the assignment.
+    // replays.test.ts pins the mismatch case.
+    //
+    // try/catch that logs and swallows, deliberately, and now for TWO
+    // reasons. A GCS failure must not roll back a payment that already
+    // committed inside withIdempotency - a missing replay is a degraded
+    // viewer, not a ledger defect. And on the `wave_locked` path there is
+    // no payment to protect but there is still a response: a storage error
+    // must not turn that 409 into a 500, which is what an unhandled throw
+    // here would do via app.ts's onError.
+    if (verifiedPlayerId !== undefined) {
+      try {
+        await deps.replayStore.put(session.serverId, verifiedPlayerId, body.issuanceId, body.replay)
+      } catch (err) {
+        console.error('replay store write failed', err)
+      }
+    }
+
     // withIdempotency returns { status: 'fresh' | 'replayed', body }. BOTH
     // map to the same response here - that is the entire point of the
     // wrapper - so status is never branched on, only the refusal inside body.
     const outcome = result.body
     if ('refused' in outcome) {
       return fail(outcome.refused, refusalMessage(outcome.refused))
-    }
-
-    // Written OUTSIDE the money transaction and only on this, the verified
-    // path - design 5.2. playerIdForReplay is defined here exactly when
-    // this call's withIdempotency callback ran AND produced a non-refused
-    // outcome, which is "verified" in the sense that matters: sim accepted
-    // the bytes, they proved to be of the issued wave, and settle()
-    // actually consumed the issuance. A rejected submission returns above
-    // and never reaches this line, so it leaves no object.
-    //
-    // try/catch that logs and swallows, deliberately: a GCS failure here
-    // must not roll back a payment that already committed inside
-    // withIdempotency. A missing replay is a degraded viewer, not a ledger
-    // defect - it must never become one by being folded into the
-    // transaction above.
-    if (playerIdForReplay !== undefined) {
-      try {
-        await deps.replayStore.put(session.serverId, playerIdForReplay, body.issuanceId, body.replay)
-      } catch (err) {
-        console.error('replay store write failed', err)
-      }
     }
 
     return c.json({

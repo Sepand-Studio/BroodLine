@@ -1,4 +1,5 @@
 import { type ChildProcess, execFileSync, spawn } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -443,5 +444,79 @@ describe('POST /v1/wave/submit', () => {
     // combat_engine 7's three booleans, forwarded for the Wave Defeat
     // screen. api stores none of them and interprets none of them.
     expect(body.breaches[0]).toHaveProperty('access')
+  })
+
+  it('refuses a dead issuance without paying for a re-simulation, indistinguishably from before', async () => {
+    // Design §4.2's step 2 runs BEFORE its step 3. This handler shipped
+    // with the two transposed, so a fabricated or already-settled
+    // issuanceId bought a full re-simulation before being refused - an
+    // abuse surface and a cost, not a correctness bug.
+    //
+    // ASSERTED ON A CALL COUNTER, NOT ON LATENCY. A timing assertion for
+    // "sim was not reached" is a flake against a sim host whose response
+    // time varies by an order of magnitude between a warm and a cold
+    // process; the counter is exact and cannot be satisfied by a fast run.
+    await setupPlayer(deps)
+
+    let calls = 0
+    const counting = {
+      simulate: async (r: string) => { calls += 1; return deps.simClient.simulate(r) },
+    } as typeof deps.simClient
+    const app2 = createApp({ ...deps, simClient: counting })
+
+    // CONTROL, AND IT IS NOT DECORATION. Without it every assertion below
+    // is satisfied identically by a handler that never calls sim at all -
+    // including a broken one - and by a counter wired to nothing. This
+    // pins that the live path DOES reach sim, exactly once, through this
+    // very counter, before anything claims the dead path does not.
+    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+    const replay = buildWinningReplay(6, BigInt(seed))
+    const paid = await app2.request('/v1/wave/submit', submitInit(issuanceId, replay, 'key-count-live'))
+    expect(paid.status).toBe(200)
+    expect(calls).toBe(1)
+
+    // The SAME issuance, now settled by the call above - the
+    // "already-settled" half. Under the shipped order this costs one DB
+    // read; under the transposed order it costs a re-simulation.
+    const settledAgain = await app2.request('/v1/wave/submit', submitInit(issuanceId, replay, 'key-count-settled'))
+    expect(settledAgain.status).toBe(409)
+    expect(calls).toBe(1)
+
+    // The "fabricated" half: an issuance id that never existed.
+    const fabricated = await app2.request(
+      '/v1/wave/submit', submitInit(randomUUID(), replay, 'key-count-fabricated'))
+    expect(fabricated.status).toBe(409)
+    expect(calls).toBe(1)
+
+    // GUARD ONE SURVIVES THE REORDER, and this is here because it did not
+    // at first. A client retrying across a network failure resends the
+    // SAME key - and by then the issuance it paid for is settled, so it is
+    // "dead" to the step-2 read exactly like the two requests above. It
+    // must still get its stored 200 receipt back, never a 409 for a wave
+    // it was in fact paid for. The first draft of the reorder refused
+    // straight from the step-2 read and broke precisely this; the dead
+    // path now skips sim and still falls through to withIdempotency.
+    //
+    // `calls` unchanged is the other half: the stored response is replayed
+    // WITHOUT a re-simulation, which is what the resend was costing before.
+    const receipt = await app2.request('/v1/wave/submit', submitInit(issuanceId, replay, 'key-count-live'))
+    expect(receipt.status).toBe(200)
+    expect(await receipt.json()).toMatchObject({ result: 'Win', reward: { currency: 'shards', amount: 40 } })
+    expect(calls).toBe(1)
+
+    // A CLIENT CANNOT DETECT THE REORDER. The refusal for a dead issuance
+    // is `issuance_invalid` with the same message it carried before the
+    // steps were swapped, and a fabricated id is answered byte-identically
+    // to a real-but-settled one - so the reorder leaks nothing about which
+    // issuance ids ever existed, which is the property that would have
+    // made the transposed order load-bearing. Compared as whole bodies
+    // rather than as codes: a future change that added a `details` field
+    // on one branch and not the other would pass a code-only assertion.
+    const settledBody = await settledAgain.json()
+    const fabricatedBody = await fabricated.json()
+    expect(settledBody).toEqual({
+      code: 'issuance_invalid', message: 'That issuance is not live for this player.',
+    })
+    expect(fabricatedBody).toEqual(settledBody)
   })
 })

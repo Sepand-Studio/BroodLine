@@ -22,6 +22,21 @@ import {
 // percent-encoded (wave-submit.test.ts's own comment, carried forward).
 const REPO = fileURLToPath(new URL('../../../', import.meta.url))
 const SEED = join(REPO, 'config/bundles/0.1.1')
+/**
+ * The PREVIOUS published bundle, and the reason `wave_locked` is reachable
+ * from the submit path at all.
+ *
+ * 0.1.0's waves.json authors wave 6 with NO `reward` field
+ * (config/bundles/0.1.0/waves.json) - the field did not exist when it was
+ * published - so `rewardForWave(bundle, 6)` returns null against it and the
+ * handler's step-6 reward lookup refuses `wave_locked`. Pointing at it is
+ * not a contrivance: config/store.ts's `setPointer` exists precisely so a
+ * rollback is "a config change, not a deploy", and it does NOT re-validate
+ * the bundle it names - only `publishBundle` validates. So an operator
+ * rolling back to 0.1.0 while a player holds a live wave-6 issuance is the
+ * real, supported operation that produces this state.
+ */
+const SEED_010 = join(REPO, 'config/bundles/0.1.0')
 // serverId is always 1 in this file - the one server beforeAll creates.
 const SERVER_ID = 1
 const SIM_PORT = 5399 // distinct from contract.test.ts's 5199 and wave-submit.test.ts's 5299
@@ -87,6 +102,9 @@ async function startSim(): Promise<{ proc: ChildProcess; stop: () => Promise<voi
 let t: TestDb
 let deps: Deps
 let bundleRoot: string
+// Module-scoped so the wave_locked test can move the POINTER mid-test the
+// way a rollback does, then put it back.
+let bundleStore: LocalBundleStore
 let sim: { proc: ChildProcess; stop: () => Promise<void> }
 
 beforeAll(async () => {
@@ -97,8 +115,21 @@ beforeAll(async () => {
   })
 
   bundleRoot = await mkdtemp(join(tmpdir(), 'broodline-replays-bundle-'))
-  const bundleStore = new LocalBundleStore(bundleRoot)
+  bundleStore = new LocalBundleStore(bundleRoot)
   await publishBundle(bundleStore, SEED, '0.1.1')
+
+  // `putBundle` DIRECTLY, not `publishBundle`, and the difference is the
+  // whole point rather than a shortcut around a slow validator. 0.1.0
+  // CANNOT be published today: Task 7 added `validateWaveRewards`
+  // (src/config/validate.ts), which rejects any authored wave carrying no
+  // reward, and 0.1.0's wave 6 carries none. It is nevertheless already
+  // published - it predates that check, and config/bundle.ts records that
+  // it "is already published to GCS and is never edited in place". So the
+  // state this file needs is reached the same way production reaches it:
+  // an immutable bundle that was published before the rule existed, still
+  // sitting there, one `setPointer` away from being live again.
+  await bundleStore.putBundle('0.1.0', SEED_010)
+
   await bundleStore.setPointer('0.1.1')
   clearBundleCache()
 
@@ -223,5 +254,81 @@ describe('replay storage', () => {
     // catch.
     expect(res.status).toBe(200)
     expect(await balance('shards')).toBe(before + 40)
+  })
+
+  it('writes the replay for a wave_locked refusal - a verified, settled Win answered 409', async () => {
+    // DESIGN §5.2's AMENDMENT. The replay follows VERIFICATION, not the
+    // response status. This is the one path where those differ: sim
+    // verifies the bytes, they prove to be of the issued wave, settle()
+    // consumes the issuance - and then the reward lookup comes back null
+    // because the bundle moved under the issuance's two-hour TTL, so the
+    // player is answered 409 for an attempt that was real and is now
+    // spent. It is precisely the refusal a player cannot appeal without
+    // the stored replay, which is why it is the one that most needs it.
+    //
+    // Note the campaign is NOT advanced here - routes/wave.ts checks the
+    // reward BEFORE advanceCampaign for its own reasons (task-6-report
+    // §8.3.1). The issuance settling is what makes this a spent attempt.
+    const { store, cleanup } = await freshReplayStore()
+    try {
+      const testDeps = { ...deps, replayStore: store }
+      const { playerId } = await setupPlayer(testDeps)
+
+      // Issued under 0.1.1, where wave 6 pays 40 shards.
+      const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+
+      // THE ROLLBACK, mid-TTL. try/finally because bundleRoot and the
+      // bundle-module cache are shared by every test in this file and
+      // vitest runs them in declaration order in one worker - a pointer
+      // left at 0.1.0 by a failing assertion would silently change what
+      // every later test is running against.
+      await bundleStore.setPointer('0.1.0')
+      clearBundleCache()
+      try {
+        const res = await submit(issuanceId, buildWinningReplay(6, BigInt(seed)), 'r-5')
+
+        // A Win, refused. Asserting the CODE and not only the 409: three
+        // different refusals on this route return 409, and the two others
+        // (issuance_invalid, submission_rejected) must NOT write a replay -
+        // so a status-only assertion would stay green against a handler
+        // that had stopped reaching the reward check at all.
+        expect(res.status).toBe(409)
+        expect(await res.json()).toMatchObject({ code: 'wave_locked' })
+
+        expect(await store.list()).toEqual([`replays/${SERVER_ID}/${playerId}/${issuanceId}.bin`])
+      } finally {
+        await bundleStore.setPointer('0.1.1')
+        clearBundleCache()
+      }
+    } finally {
+      await cleanup()
+    }
+  })
+
+  it('still answers 409 when the replay write fails on a wave_locked refusal', async () => {
+    // The write moved ABOVE the refusal branch, so it now runs on a path
+    // that has no payment to protect - and a throw there would escape to
+    // app.ts's onError and turn this 409 into a 500. The swallow is what
+    // stops that. Same shape as 'still pays when the replay write fails'
+    // above, for the other half of the write's new reach.
+    await setupPlayer(deps)
+
+    const failing = { put: async () => { throw new Error('gcs down') } }
+    const app2 = createApp({ ...deps, replayStore: failing })
+
+    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+
+    await bundleStore.setPointer('0.1.0')
+    clearBundleCache()
+    try {
+      const res = await app2.request(
+        '/v1/wave/submit', submitInit(issuanceId, buildWinningReplay(6, BigInt(seed)), 'r-6'))
+
+      expect(res.status).toBe(409)
+      expect(await res.json()).toMatchObject({ code: 'wave_locked' })
+    } finally {
+      await bundleStore.setPointer('0.1.1')
+      clearBundleCache()
+    }
   })
 })

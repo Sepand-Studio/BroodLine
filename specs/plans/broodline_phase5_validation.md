@@ -328,6 +328,43 @@ proves *this player was given a wave*; the seed comparison proves *this replay i
 of that wave*. Dropping the second lets a player start wave 7, simulate wave 3
 locally against an old seed, and submit it against the wave 7 issuance.
 
+> **Amended — step 2 runs before step 3, and step 2 does not answer.** The
+> handler shipped with steps 2 and 3 transposed: `sim` was called first, so a
+> fabricated or already-settled `issuanceId` bought a full re-simulation before
+> being refused. The transposition was honouring a real constraint — *do not
+> hold a Postgres connection across the `sim` call* (`solo_execution` §5.7) —
+> but collapsed it into the stronger *do not touch the database before `sim`*.
+> Step 2 now runs in its own transaction, which commits and releases its
+> connection before `simulate` is reached.
+>
+> **The order is not protecting an enumeration oracle.** `loadLiveIssuance` is
+> scoped by `server_id` **and** `player_id` **and** `issuance_id`, and the first
+> two come from the verified claim, so the only rows it can ever answer about
+> are the caller's own. §6's deliberately indistinguishable 401 is the
+> *contrasting* case: there the caller is unauthenticated and the token is the
+> credential being guessed. Nor is the distinction new — `consumeAndRefuse` has
+> always answered `submission_rejected` for a live issuance and
+> `issuance_invalid` for a dead one in a single request.
+>
+> **What step 2 gates is the `sim` call, not the response.** Refusing directly
+> from step 2 breaks guard one below: a client retrying across a network failure
+> resends the same key *after* the issuance it paid for is settled, so a refusal
+> taken at step 2 answers a retrying client `409` for a wave it was in fact paid
+> for. A dead issuance therefore skips `sim` and still falls through to
+> `withIdempotency`, which replays the stored response if there is one and
+> produces `issuance_invalid` if there is not.
+>
+> **Two dead-path answers change, and only for a dead issuance.** A too-old
+> engine and a `sim` outage are both now answered `issuance_invalid` (409)
+> rather than `engine_too_old` (426) / `sim_unavailable` (503), because neither
+> is knowable without the call this reorder exists to skip. §2.3's invariant is
+> untouched — `engine_too_old` must *leave the issuance live*, and nothing on
+> this path settles anything — and a superseded client still learns so on its
+> next submission against a live issuance, the only one that could have
+> succeeded. The outage case is strictly more honest: a retryable 503 for an
+> issuance that can never succeed invites a retry loop that cannot terminate.
+> For a live issuance every answer is unchanged.
+
 **"Pays exactly once under retry" has two independent guards, and they fail
 differently.**
 
@@ -484,6 +521,43 @@ Three things follow from writing it only on the verified path:
 - **The write is not in the money transaction.** A GCS failure after a
   successful credit must not roll back a payment. It is logged and the object is
   lost; a missing replay is a degraded viewer, not a ledger defect.
+
+> **Amended — the replay follows *verification*, not the response status.**
+> This section said "the verified path" and the handler read it as "the
+> successful path". Those differ in exactly one place, and the design did not
+> address it.
+>
+> **The reachability condition.** The bundle can be republished — or, more
+> realistically, the pointer *rolled back* — during an issuance's two-hour TTL,
+> dropping the reward for a wave that carried one when the issuance was
+> granted. `config/bundles/0.1.0` is the live example: its wave 6 carries no
+> `reward` field, because the field did not exist when it was published, and
+> `setPointer` does not re-validate the bundle it names (only `publishBundle`
+> validates, and Task 7's reward check would refuse 0.1.0 today). So a player
+> holding a live wave-6 issuance across such a rollback submits a **winning**
+> replay; `sim` verifies it, it proves to be of the issued wave, the issuance
+> settles `'consumed'` — and then the reward lookup returns `null` and they are
+> answered `wave_locked`, 409. The attempt was real and is now spent. *(The
+> campaign is **not** advanced: §4.2 step 6 checks the reward before
+> `advanceCampaign` precisely so a 409 cannot coincide with a silent clear.)*
+>
+> **The ruling: the replay is written.** §5's principle is that every spent,
+> verified attempt is reconstructible, and a refusal the player cannot appeal is
+> exactly when the stored replay matters most.
+>
+> **"Verified" is a three-part conjunction, and all three parts are required:**
+> `sim` accepted the bytes, **and** they proved to be of the *issued* wave
+> (§4.2 step 5), **and** this call actually consumed the issuance. That covers
+> `200` and `wave_locked`. It deliberately does **not** cover the two other
+> refusals that also settle the issuance — a `sim` rejection (nothing was
+> verified) and a seed/wave mismatch (something was verified, but not the issued
+> wave, so the bytes are attacker-chosen). Both exclusions are what keep the
+> first bullet above true: **storage is not an attacker's write primitive.**
+>
+> **The write must not be able to fail the request.** It was already outside the
+> money transaction; it is now also on a path that has no payment to protect but
+> still has a response, so the swallow additionally stops a storage error
+> turning a `409` into a `500`.
 
 ---
 
