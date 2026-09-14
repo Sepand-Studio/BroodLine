@@ -108,3 +108,16 @@ export const ErrorResponse = z.object({
   message: z.string(),
   details: z.unknown().optional(),
 }).openapi('ErrorResponse')
+
+// Phase 5, Task 9. POST /v1/account has returned a refreshToken since Phase
+// 4 with no route able to redeem it - this is the route.
+export const RefreshRequest = z.object({
+  refreshToken: z.string(),
+}).openapi('RefreshRequest')
+
+export const RefreshResponse = z.object({
+  accessToken: z.string(),
+  // Rotation is deferred to the first non-TestFlight players (solo_execution
+  // 6.4) - this is the SAME token the caller sent, not a freshly minted one.
+  refreshToken: z.string(),
+}).openapi('RefreshResponse')
