@@ -12,6 +12,7 @@
  * from this file would silently produce a materially weaker schema - no
  * constraints, no RLS - with no warning that anything was lost.
  */
+import { sql } from 'drizzle-orm'
 import {
   bigint, index, integer, jsonb, pgEnum, pgTable, primaryKey,
   smallint, text, timestamp, uniqueIndex, uuid,
@@ -108,11 +109,29 @@ export const waveIssuances = pgTable('wave_issuances', {
   waveId: integer('wave_id').notNull(),
   // bigint as a STRING. seed is a ulong in the engine and a JS number loses
   // precision above 2^53; the same reason Task 2 sends the hash as a decimal
-  // string. Drizzle's mode:'number' would silently reintroduce it.
+  // string. Drizzle's mode:'number' would silently reintroduce it. (SQL adds
+  // CHECK (seed >= 0) - bigint is signed and the engine's seed is not.)
   seed: bigint('seed', { mode: 'string' }).notNull(),
   issuedAt: timestamp('issued_at', { withTimezone: true }).notNull().defaultNow(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-  consumedAt: timestamp('consumed_at', { withTimezone: true }),
+  // NULL while live. Set once, by trigger-enforced write-once, to the moment
+  // the row stopped being live - never by the clock. design 4.3, amended
+  // after review: a single consumed_at column and an index keyed on it being
+  // NULL locked a player out on the abandoned-wave path, because expiry
+  // cannot appear in a partial index's predicate (IMMUTABLE required, now()
+  // is STABLE). settled_at/settlement together are the one terminal state
+  // both the index and the handler's liveness check now share.
+  settledAt: timestamp('settled_at', { withTimezone: true }),
+  settlement: text('settlement'),
 }, (t) => ({
   pk: primaryKey({ columns: [t.serverId, t.issuanceId] }),
+  // design 4.3: the one-live-issuance-per-player rule, enforced by Postgres.
+  // Mirrors 0003's wave_issuances_one_live exactly - keyed on settled_at,
+  // not expiry.
+  oneLive: uniqueIndex('wave_issuances_one_live').on(t.serverId, t.playerId)
+    .where(sql`${t.settledAt} IS NULL`),
+  // Mirrors 0003's wave_issuances_replay_count. Only 'consumed' rows count -
+  // an 'expired' row was never played.
+  replayCount: index('wave_issuances_replay_count').on(t.serverId, t.playerId, t.waveId, t.issuedAt)
+    .where(sql`${t.settlement} = 'consumed'`),
 }))
