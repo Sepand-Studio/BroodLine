@@ -62,7 +62,12 @@ export async function issueWave(
         eq(waveIssuances.playerId, playerId),
         eq(waveIssuances.waveId, waveId),
         eq(waveIssuances.settlement, 'consumed'),
-        sql`${waveIssuances.issuedAt} >= date_trunc('day', now())`))
+        // AT TIME ZONE 'UTC', explicit: date_trunc('day', timestamptz)
+        // alone truncates in the SESSION's TimeZone GUC, which createPool
+        // never pins. Correct today only because both postgres:16-alpine
+        // and Cloud SQL default that GUC to UTC - this makes the boundary
+        // explicit rather than depending on that default holding.
+        sql`${waveIssuances.issuedAt} >= date_trunc('day', now() AT TIME ZONE 'UTC')`))
     if (row!.used >= REPLAY_CAP_PER_DAY) return { refused: 'replay_cap_reached' }
 
     // 3. Still has to be authored - a wave a later bundle stopped carrying
@@ -109,41 +114,83 @@ export async function issueWave(
   //    on an honest submission. One bit is nothing to a PRNG stream selector.
   const seed = crypto.getRandomValues(new BigUint64Array(1))[0]! & 0x7fff_ffff_ffff_ffffn
 
-  // On check 4 versus the unique index. The select-then-insert above is a
-  // race: two concurrent wave/start calls can both find no live row (or,
-  // on the abandoned-wave path, can both find and settle the SAME expired
-  // row - the loser's settle() below simply affects 0 rows, which is not an
-  // error). The partial unique index (wave_issuances_one_live) is what
-  // makes that safe: the loser of the INSERT gets 23505, not a second seed.
-  // Do NOT "fix" the race by removing the index - see task-5-brief.md.
-  try {
-    const [row] = await tx.insert(waveIssuances).values({
-      serverId, issuanceId: randomUUID(), playerId, waveId,
-      seed: seed.toString(),
-      expiresAt: new Date(Date.now() + ISSUANCE_TTL_MS),
-    }).returning()
-    return row!
-  } catch (err) {
-    // Gated on the CONSTRAINT, not just the SQLSTATE, for the same reason
-    // money/ledger.ts's credit() gates on wallets_balance_check - 23505 is
-    // reachable from more than one unique constraint in principle, and only
-    // THIS one means "a live issuance already exists, read it back".
-    const e = err as { code?: string; constraint?: string } | null
-    if (typeof err === 'object' && e !== null
-      && e.code === '23505' && e.constraint === 'wave_issuances_one_live') {
-      const [row] = await tx.select().from(waveIssuances)
-        .where(and(
-          eq(waveIssuances.serverId, serverId),
-          eq(waveIssuances.playerId, playerId),
-          isNull(waveIssuances.settledAt)))
-      // The concurrent winner's transaction has committed by the time this
-      // INSERT could observe the conflict at all - READ COMMITTED promotes
-      // to a fresh snapshot only after the blocking write resolves - so the
-      // row it wrote is visible here without a retry loop.
-      if (row !== undefined) return row
-    }
-    throw err
-  }
+  return claimIssuance(tx, serverId, playerId, waveId, seed)
+}
+
+/**
+ * Inserts a fresh issuance, or returns the row a conflicting caller already
+ * holds.
+ *
+ * On check 4 versus the unique index: the select-then-insert above is a
+ * race. Two concurrent wave/start calls can both find no live row (or, on
+ * the abandoned-wave path, both find and settle() the SAME expired row -
+ * the loser's settle() there simply affects 0 rows, which is not an error).
+ * The partial unique index (wave_issuances_one_live) is what makes that
+ * safe. Do NOT "fix" the race by removing the index - see task-5-brief.md.
+ *
+ * `ON CONFLICT ... DO NOTHING`, NOT a try/catch around a plain insert -
+ * that was this function's first shape, and a CRITICAL finding on review
+ * caught it as broken: `withServer` opens exactly one real
+ * `BEGIN`/`COMMIT` on one connection (`db.transaction(...)`), and
+ * `issueWave` never opens a nested `tx.transaction()` to get a SAVEPOINT.
+ * A statement error - a unique violation included - therefore ABORTS THE
+ * WHOLE ENCLOSING TRANSACTION, and every later statement on that same `tx`
+ * fails with `25P02` ("current transaction is aborted") rather than
+ * running. A caught 23505 followed by a recovery SELECT on the same `tx`
+ * (the old shape) could not ever recover: the SELECT itself would throw
+ * 25P02, escape `issueWave` and `withServer` uncaught, and surface at
+ * `app.ts`'s `onError` as a 500 - the exact outcome the carried-forward
+ * Task 4 concurrency note told this task to prevent. Verified against a
+ * real conflict by
+ * `test/wave-start.test.ts`'s dedicated `claimIssuance` test, which calls
+ * this function twice in separate transactions for the same
+ * (server_id, player_id) and asserts the second call resolves (not
+ * rejects) with the FIRST call's row, and that its transaction is still
+ * usable afterwards.
+ *
+ * `ON CONFLICT ... DO NOTHING` does not have this failure mode: Postgres
+ * evaluates the conflict against the index (waiting, if necessary, for a
+ * still-open conflicting inserter to commit or abort) and simply skips the
+ * insert - no error is raised, so the transaction is never poisoned. The
+ * skipped-insert case is then indistinguishable from "someone else already
+ * has the slot", which is exactly the state the recovery SELECT below
+ * reads.
+ */
+export async function claimIssuance(
+  tx: Tx, serverId: number, playerId: string, waveId: number, seed: bigint,
+): Promise<Issuance> {
+  const [row] = await tx.insert(waveIssuances).values({
+    serverId, issuanceId: randomUUID(), playerId, waveId,
+    seed: seed.toString(),
+    expiresAt: new Date(Date.now() + ISSUANCE_TTL_MS),
+  }).onConflictDoNothing({
+    // Must match wave_issuances_one_live's target list AND predicate
+    // exactly (drizzle/0003_wave_issuances.sql) - Postgres only matches an
+    // ON CONFLICT clause against a PARTIAL index when the clause repeats
+    // that index's predicate verbatim.
+    target: [waveIssuances.serverId, waveIssuances.playerId],
+    where: sql`${waveIssuances.settledAt} IS NULL`,
+  }).returning()
+  if (row !== undefined) return row
+
+  // Skipped: a live row already exists. By the time this INSERT could even
+  // be evaluated against the index, any transaction that was still
+  // inserting a conflicting row has necessarily committed or aborted -
+  // Postgres's conflict checking blocks on an in-flight inserter rather
+  // than racing it - so a plain read (no retry loop) is enough.
+  const [winner] = await tx.select().from(waveIssuances)
+    .where(and(
+      eq(waveIssuances.serverId, serverId),
+      eq(waveIssuances.playerId, playerId),
+      isNull(waveIssuances.settledAt)))
+  if (winner !== undefined) return winner
+
+  // Not reachable in practice: DO NOTHING only skips when the predicate
+  // matched an existing row, so that row must be selectable in this same
+  // scope. A clear error beats returning undefined silently if it ever is.
+  throw new Error(
+    `issueWave: INSERT into wave_issuances was skipped by ON CONFLICT for ` +
+    `server ${serverId} player ${playerId}, but no live row was found afterwards.`)
 }
 
 /**
@@ -158,14 +205,25 @@ export async function issueWave(
  * NEVER FIRES - the loser gets rowCount 0, not an exception. Without the
  * `AND settled_at IS NULL` guard the loser's UPDATE WOULD still match the
  * row (by issuance_id alone) and the trigger would raise a loud unhandled
- * Postgres exception instead. rowCount 0 here is not an error: it means
- * "already settled by a concurrent request", and the caller proceeds
- * exactly as if it had won.
+ * Postgres exception instead.
+ *
+ * RETURNS whether THIS CALL performed the settlement (rowCount > 0), not
+ * void. For the 'expired' path (issueWave's check 4) rowCount 0 simply
+ * means "already settled by a concurrent request, proceed to insert" and
+ * the caller does not need the distinction. It is NOT optional for the
+ * 'consumed' path design §4.2 assigns to Task 6: there, rowCount 0 means
+ * *a different submission already consumed this issuance*, and whether
+ * `credit()` runs must depend on that. A `void` return (this function's
+ * first shape, and what the brief itself specified - flagged here as my
+ * error, not a brief deviation) lets two concurrent submits carrying
+ * different Idempotency-Keys both observe "settle ran, no exception" and
+ * both credit the reward, because neither could tell it had lost the race.
  */
-export async function settle(tx: Tx, issuance: Issuance, settlement: 'consumed' | 'expired'): Promise<void> {
-  await tx.execute(sql`
+export async function settle(tx: Tx, issuance: Issuance, settlement: 'consumed' | 'expired'): Promise<boolean> {
+  const res = await tx.execute(sql`
     UPDATE wave_issuances SET settled_at = now(), settlement = ${settlement}
     WHERE server_id = ${issuance.serverId}
       AND issuance_id = ${issuance.issuanceId}
       AND settled_at IS NULL`)
+  return (res.rowCount ?? 0) > 0
 }
