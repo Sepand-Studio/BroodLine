@@ -14,11 +14,28 @@
  */
 import { sql } from 'drizzle-orm'
 import {
-  bigint, index, integer, jsonb, pgEnum, pgTable, primaryKey,
+  bigint, customType, index, integer, jsonb, pgEnum, pgTable, primaryKey,
   smallint, text, timestamp, uniqueIndex, uuid,
 } from 'drizzle-orm/pg-core'
 
 export const currency = pgEnum('currency', ['shards', 'splice_charges', 'marks', 'premium'])
+
+/**
+ * int8 presented as a decimal string, both directions.
+ *
+ * drizzle-orm 0.38 offers no 'string' bigint mode - only 'number' (the
+ * precision cliff above 2^53 this column exists to avoid) and 'bigint'
+ * (exact, but a JS BigInt is what JSON.stringify throws on - and the seed
+ * is serialised into a response body by both wave/start and wave/submit,
+ * Tasks 5 and 6). A string is exact AND JSON-safe, and node-postgres
+ * already hands int8 back as a string, so fromDriver is a normalisation
+ * rather than a conversion.
+ */
+const int8String = customType<{ data: string; driverData: string }>({
+  dataType: () => 'bigint',
+  fromDriver: (v) => String(v),
+  toDriver: (v) => v,
+})
 
 export const servers = pgTable('servers', {
   serverId: integer('server_id').primaryKey(),
@@ -107,11 +124,14 @@ export const waveIssuances = pgTable('wave_issuances', {
   issuanceId: uuid('issuance_id').notNull(),
   playerId: uuid('player_id').notNull(),
   waveId: integer('wave_id').notNull(),
-  // bigint as a STRING. seed is a ulong in the engine and a JS number loses
-  // precision above 2^53; the same reason Task 2 sends the hash as a decimal
-  // string. Drizzle's mode:'number' would silently reintroduce it. (SQL adds
+  // int8 as a STRING via int8String, not bigint()'s built-in modes. seed is
+  // a ulong in the engine and a JS number loses precision above 2^53 - the
+  // same reason Task 2 sends the hash as a decimal string - which rules out
+  // mode:'number'. mode:'bigint' is exact but returns a JS BigInt, which
+  // JSON.stringify throws on, and this column is serialised into a response
+  // body by both wave/start and wave/submit (Tasks 5, 6). (SQL adds
   // CHECK (seed >= 0) - bigint is signed and the engine's seed is not.)
-  seed: bigint('seed', { mode: 'string' }).notNull(),
+  seed: int8String('seed').notNull(),
   issuedAt: timestamp('issued_at', { withTimezone: true }).notNull().defaultNow(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   // NULL while live. Set once, by trigger-enforced write-once, to the moment

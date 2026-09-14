@@ -149,11 +149,11 @@ describe('cross-server isolation', () => {
     expect(seen.wallets.some((w) => w.balance === 999)).toBe(false)
     expect(seen.idempotencyKeys.some((k) => k.key === 'fixture-b')).toBe(false)
     expect(seen.campaignProgress.some((c) => c.highestWaveCleared === 9)).toBe(false)
-    // String(...), not === '2': drizzle's bigint mode for this column
-    // materialises reads as a native JS bigint (see the typecheck finding in
-    // the Task 4 report), so a bare === against a string literal would be
-    // vacuously false regardless of which server's rows leaked through.
-    expect(seen.waveIssuances.some((w) => String(w.seed) === '2')).toBe(false)
+    // seed is a genuine string end-to-end (schema.ts's int8String custom
+    // type), so this is a real comparison, not the vacuous bigint-vs-string
+    // one it would have been against drizzle-orm's built-in bigint modes -
+    // see the Task 4 report's typecheck finding for why that mattered.
+    expect(seen.waveIssuances.some((w) => w.seed === '2')).toBe(false)
   })
 
   it('returns ZERO rows when nothing scoped the query, rather than everything', async () => {
