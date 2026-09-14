@@ -238,7 +238,14 @@ describe('replay storage', () => {
     // uses it, only through app2 below.
     await setupPlayer(deps)
 
-    const failing = { put: async () => { throw new Error('gcs down') } }
+    // COUNTED, not merely thrown from - review finding. A failing store
+    // that is never CALLED also never throws, so without this counter the
+    // assertions below cannot tell "the swallow works" from "the write is
+    // not reached on this path at all", and a future change that re-gated
+    // the write away from here would leave this test green while the
+    // property it is named for went unguarded.
+    let puts = 0
+    const failing = { put: async () => { puts += 1; throw new Error('gcs down') } }
     const app2 = createApp({ ...deps, replayStore: failing })
     const before = await balance('shards')
 
@@ -252,6 +259,7 @@ describe('replay storage', () => {
     // the throw above would abort the transaction and roll the credit
     // back with it, which is exactly the regression this test exists to
     // catch.
+    expect(puts).toBe(1)
     expect(res.status).toBe(200)
     expect(await balance('shards')).toBe(before + 40)
   })
@@ -313,7 +321,16 @@ describe('replay storage', () => {
     // above, for the other half of the write's new reach.
     await setupPlayer(deps)
 
-    const failing = { put: async () => { throw new Error('gcs down') } }
+    // COUNTED, and this test is the reason the counter exists in both.
+    // REVIEW FINDING, demonstrated rather than predicted: under the
+    // write-moved-back-under-the-success-path mutation, its neighbour
+    // `writes the replay for a wave_locked refusal` went RED and THIS TEST
+    // PASSED - the failing store was simply never invoked, nothing threw,
+    // and the handler returned its natural 409. It was proving only that a
+    // 409 is a 409, rescued entirely by the neighbour. `puts` is what makes
+    // it prove that the swallow is what produced the 409.
+    let puts = 0
+    const failing = { put: async () => { puts += 1; throw new Error('gcs down') } }
     const app2 = createApp({ ...deps, replayStore: failing })
 
     const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
@@ -324,6 +341,10 @@ describe('replay storage', () => {
       const res = await app2.request(
         '/v1/wave/submit', submitInit(issuanceId, buildWinningReplay(6, BigInt(seed)), 'r-6'))
 
+      // ORDER MATTERS: assert the write was ATTEMPTED before asserting what
+      // the response was, so a failure reads as "the write never happened"
+      // rather than as a status mismatch two lines further down.
+      expect(puts).toBe(1)
       expect(res.status).toBe(409)
       expect(await res.json()).toMatchObject({ code: 'wave_locked' })
     } finally {

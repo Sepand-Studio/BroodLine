@@ -321,7 +321,7 @@ The sequence, and the order matters:
 | 3 | Call `sim`. A `5xx` here leaves the issuance live and returns retryably | `sim_unavailable`, 503 |
 | 4 | `sim` returns `rejected` — forged, superseded, rule-violating | `submission_rejected` / `engine_too_old` |
 | 5 | The replay's `seed` and `waveId` disagree with the issuance | `submission_rejected` |
-| 6 | Inside one transaction: consume the issuance, advance campaign progress, `credit()` the reward | — |
+| 6 | Inside one transaction: consume the issuance, look up the reward, advance campaign progress, `credit()` it | `wave_locked` |
 
 **Steps 5 and 2 are two different checks and both are needed.** The issuance
 proves *this player was given a wave*; the seed comparison proves *this replay is
@@ -364,6 +364,18 @@ locally against an old seed, and submit it against the wave 7 issuance.
 > succeeded. The outage case is strictly more honest: a retryable 503 for an
 > issuance that can never succeed invites a retry loop that cannot terminate.
 > For a live issuance every answer is unchanged.
+
+> **Amended — step 6 can refuse, and the reward lookup sits before the
+> advance.** The row read "consume the issuance, advance campaign progress,
+> `credit()` the reward" with nothing in the Fails-as column. Both halves were
+> stale. The reward is looked up from the bundle *between* the consume and the
+> advance, and it can come back `null` — see §5.2's amendment for when — so
+> step 6 refuses `wave_locked`, 409. The order is deliberate and predates this
+> amendment: advancing `campaign_progress` and only *then* refusing would
+> commit the clear under an error response, and the player's next
+> `wave/start` would treat a wave they were never told they cleared as
+> already cleared. The issuance settles `'consumed'` either way — they did win
+> it; this is a spent attempt, the same as a `Loss`.
 
 **"Pays exactly once under retry" has two independent guards, and they fail
 differently.**
@@ -533,12 +545,24 @@ Three things follow from writing it only on the verified path:
 > granted. `config/bundles/0.1.0` is the live example: its wave 6 carries no
 > `reward` field, because the field did not exist when it was published, and
 > `setPointer` does not re-validate the bundle it names (only `publishBundle`
-> validates, and Task 7's reward check would refuse 0.1.0 today). So a player
-> holding a live wave-6 issuance across such a rollback submits a **winning**
-> replay; `sim` verifies it, it proves to be of the issued wave, the issuance
-> settles `'consumed'` — and then the reward lookup returns `null` and they are
-> answered `wave_locked`, 409. The attempt was real and is now spent. *(The
-> campaign is **not** advanced: §4.2 step 6 checks the reward before
+> validates, and Task 7's reward check would refuse 0.1.0 today).
+>
+> **Three things must coincide; the rollback alone is not enough.**
+> `loadBundle` caches the bundle *per process* and nothing in production ever
+> clears it — `clearBundleCache` is tests-only — so an instance that was already
+> running keeps serving 0.1.1 until it dies. The condition is: a pointer
+> rollback, **and** an instance that started or restarted after it, **and** an
+> issuance granted before it that is still inside its two-hour TTL. Ordinary
+> rather than exotic on Cloud Run — `config/bundle.ts`'s own comment gives
+> "instances are short-lived" as the reason the cache is acceptable at all, and
+> a rollback is usually accompanied by a deploy — but it is three conditions,
+> not one.
+>
+> When they coincide, a player holding a live wave-6 issuance submits a
+> **winning** replay; `sim` verifies it, it proves to be of the issued wave, the
+> issuance settles `'consumed'` — and then the reward lookup returns `null` and
+> they are answered `wave_locked`, 409. The attempt was real and is now spent.
+> *(The campaign is **not** advanced: §4.2 step 6 checks the reward before
 > `advanceCampaign` precisely so a 409 cannot coincide with a silent clear.)*
 >
 > **The ruling: the replay is written.** §5's principle is that every spent,

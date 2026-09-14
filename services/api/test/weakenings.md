@@ -9,8 +9,11 @@ watching the test stay green, never by reading the test.
 So each row below was **actually applied to the real source**, the suite
 actually run, and the failing test's name actually recorded. Nothing here is
 predicted. Where a weakening left the suite green that is written down as a
-finding, not smoothed over — three rows did, and three new tests exist because
-of it.
+finding, not smoothed over — **five rows did**. Three produced a new test
+(rows 3, 4b and 7). Two did not, and both say why in their own section: row 4
+is a guard no sequence of HTTP requests can reach, and row 10 is a genuine
+hole in this gate that a controller ruling deliberately leaves open, because
+closing it here would put a non-adversarial property in the adversarial suite.
 
 Every run is `pnpm --filter @broodline/api test adversarial` against the file
 as it ships (**15 tests**), on branch `phase_5`, with file parallelism on.
@@ -33,6 +36,7 @@ re-run to green.
 | 7 | `'consumed'` issuances aged out at 3 hours rather than the UTC day boundary | `wave/issuance.ts` check 2's count window | **RED (2/15)**, *after a new test was written, then rewritten* — **but the row is NOT closed: see the OWED ruling below** | `counts a consumed issuance against the UTC day boundary, to the second`, `counts against midnight UTC even when the session TimeZone is not UTC` |
 | 8 | `sim`'s rejection returned as a `5xx` instead of a `200` verdict | `services/sim/Program.cs` | **RED — discriminating (1/15)** | `cannot submit forged bytes` |
 | 9 | The trailing `AT TIME ZONE 'UTC'` dropped from check 2's day boundary | `wave/issuance.ts` check 2 | **RED — discriminating (1/15)** | `counts against midnight UTC even when the session TimeZone is not UTC` |
+| 10 | Submit's step-2 liveness check made to refuse directly, instead of only gating the `sim` call | `routes/wave.ts` submit handler | **GREEN — 15/15. FINDING.** | none in this file — see below |
 
 `services/sim/` is not `engine/`; row 8 touches the service host, and no row
 here touches `engine/`.
@@ -176,6 +180,71 @@ everything — under a non-UTC session could not pass.
 Dropping the trailing conversion reddens exactly that test, 1/15, with
 `expected { serverId: 1, … } to deeply equal { refused: 'replay_cap_reached' }`
 — the cap failing to bind because the boundary moved.
+
+---
+
+## Row 10 — GREEN, and it is a REAL HOLE IN THIS GATE, deliberately left open
+
+Row 10 is not from any brief. It comes from the Phase 5 remediation task that
+reordered submit's step 2 ahead of step 3 (`routes/wave.ts`; design §4.2's
+amendment). The reorder's first, obvious shape refused straight from the
+step-2 read:
+
+```ts
+if (!issuanceIsLive) return fail('issuance_invalid', refusalMessage('issuance_invalid'))
+```
+
+**That breaks design §4.2's guard one** — the idempotency key protects the
+*response*. A client retrying across a network failure resends the **same**
+key, and by then the issuance it was paid for is settled, so it reads "dead"
+exactly like a fabricated id. The refusal is taken before `withIdempotency` is
+ever reached, and the retrying client is answered **409 for a wave it was in
+fact paid for**: "pays exactly once under retry" — this phase's central claim,
+and this file's own subject — failing in the direction the player notices,
+since they see a refusal and conclude they were not paid.
+
+**This suite does not notice. 15/15 green.** Run directly against the
+weakening, not predicted.
+
+**Why it cannot see it.** Every double-submit test here uses a **different**
+idempotency key, and deliberately so — `cannot replay a winning submission
+twice` says it outright: "§6.3's key is client-supplied and a modified client
+simply mints a new one, so the idempotency layer is not the guard under test
+here. The issuance is." The same-key path is therefore never exercised in this
+file at all, and guard one has **no adversarial coverage**.
+
+**What does catch it**, 2/12 in its own file:
+
+```
+FAIL test/wave-submit.test.ts > returns the stored response on a resend with the SAME key
+  → expected 409 to be 200
+FAIL test/wave-submit.test.ts > refuses a dead issuance without paying for a
+     re-simulation, indistinguishably from before
+  → expected 409 to be 200
+```
+
+The first is Task 6's; the second was written by the remediation task
+specifically so the property is pinned by a test that sits *next to* the
+reorder a future change would be editing.
+
+### CONTROLLER RULING — the hole stays open, and that is a decision
+
+**Do not close this row by adding a same-key test to `adversarial.test.ts`.**
+The two replay shapes are different properties and belong in different files:
+
+| | |
+|---|---|
+| **Different-key** replay | The **attack**. A modified client mints a new key; idempotency cannot save you, and the issuance settlement must. This file's subject. |
+| **Same-key** replay | The **honest retry**. A correctness property about not lying to a client that did nothing wrong. `wave-submit.test.ts`'s subject. |
+
+The property *is* covered, in the file where it belongs, by two tests that are
+shown red above. Duplicating it here would paper over the gate hole rather than
+record it, and would put a non-adversarial property in the adversarial suite.
+
+**Recorded, not fixed, on purpose** — the same disposition as row 4, and for
+the same reason: the gate row is mis-specified, not the guard unproven. A later
+reader who notices this file has no same-key coverage should read this section
+before "fixing" it.
 
 ---
 
