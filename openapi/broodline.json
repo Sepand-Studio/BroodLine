@@ -179,6 +179,129 @@
         "required": [
           "deleted"
         ]
+      },
+      "WaveStartResponse": {
+        "type": "object",
+        "properties": {
+          "issuanceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "seed": {
+            "type": "string"
+          },
+          "waveId": {
+            "type": "integer"
+          },
+          "expiresAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "issuanceId",
+          "seed",
+          "waveId",
+          "expiresAt"
+        ]
+      },
+      "WaveStartRequest": {
+        "type": "object",
+        "properties": {
+          "waveId": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "waveId"
+        ]
+      },
+      "BreachDto": {
+        "type": "object",
+        "properties": {
+          "tick": {
+            "type": "integer"
+          },
+          "raider": {
+            "type": "integer"
+          },
+          "lane": {
+            "type": "integer"
+          },
+          "type": {
+            "type": "string"
+          },
+          "access": {
+            "type": "boolean"
+          },
+          "coverage": {
+            "type": "boolean"
+          },
+          "placement": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "tick",
+          "raider",
+          "lane",
+          "type",
+          "access",
+          "coverage",
+          "placement"
+        ]
+      },
+      "WaveSubmitResponse": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          },
+          "integrityRemaining": {
+            "type": "integer"
+          },
+          "breaches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BreachDto"
+            }
+          },
+          "reward": {
+            "type": "object",
+            "properties": {
+              "currency": {
+                "type": "string"
+              },
+              "amount": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "currency",
+              "amount"
+            ]
+          }
+        },
+        "required": [
+          "result",
+          "integrityRemaining",
+          "breaches"
+        ]
+      },
+      "WaveSubmitRequest": {
+        "type": "object",
+        "properties": {
+          "issuanceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "replay": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "issuanceId",
+          "replay"
+        ]
       }
     },
     "parameters": {}
@@ -321,6 +444,179 @@
             }
           },
           "426": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/wave/start": {
+      "post": {
+        "operationId": "startWave",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WaveStartRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The live issuance for this wave",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaveStartResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/wave/submit": {
+      "post": {
+        "operationId": "submitWave",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Generated when the action is taken, not when it is sent."
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WaveSubmitRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The verified outcome, paid at most once",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaveSubmitResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
             "description": "Error",
             "content": {
               "application/json": {

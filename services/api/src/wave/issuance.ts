@@ -227,3 +227,52 @@ export async function settle(tx: Tx, issuance: Issuance, settlement: 'consumed' 
       AND settled_at IS NULL`)
   return (res.rowCount ?? 0) > 0
 }
+
+/**
+ * design §4.2 step 2: "Load the issuance for this player. Absent, expired
+ * or already consumed" are ONE answer, issuance_invalid - the caller does
+ * not get to distinguish them, which is what stops this endpoint telling an
+ * attacker anything about issuances that are not theirs.
+ *
+ * Scoped by issuanceId AND playerId AND serverId together, not issuanceId
+ * alone - a UUID is unguessable but this is the row that gates a credit, so
+ * it is checked the same defensively as everything else on this path.
+ *
+ * Deliberately does NOT settle an expired-but-live row the way issueWave's
+ * check 4 does - that behaviour belongs to wave/start (the abandoned-wave
+ * path makes room for a NEW issuance), and a submission against an expired
+ * one is simply invalid, nothing to make room for.
+ */
+export async function loadLiveIssuance(
+  tx: Tx, serverId: number, playerId: string, issuanceId: string,
+): Promise<Issuance | undefined> {
+  const [row] = await tx.select().from(waveIssuances)
+    .where(and(
+      eq(waveIssuances.serverId, serverId),
+      eq(waveIssuances.playerId, playerId),
+      eq(waveIssuances.issuanceId, issuanceId),
+      isNull(waveIssuances.settledAt)))
+  if (row === undefined) return undefined
+  if (row.expiresAt <= new Date()) return undefined
+  return row
+}
+
+/**
+ * Advances campaign_progress to at least `waveId`. Never regresses it: a
+ * replay of an already-cleared wave (design §4.1's replay branch) must not
+ * move the high-water mark backwards, and a winning replay of the SAME
+ * wave the player already cleared is a no-op update here by construction
+ * (Math.max leaves it unchanged).
+ */
+export async function advanceCampaign(tx: Tx, serverId: number, playerId: string, waveId: number): Promise<void> {
+  const [progress] = await tx.select().from(campaignProgress)
+    .where(and(eq(campaignProgress.serverId, serverId), eq(campaignProgress.playerId, playerId)))
+  const highestWaveCleared = Math.max(progress?.highestWaveCleared ?? 0, waveId)
+
+  if (progress === undefined) {
+    await tx.insert(campaignProgress).values({ serverId, playerId, highestWaveCleared })
+  } else if (highestWaveCleared !== progress.highestWaveCleared) {
+    await tx.update(campaignProgress).set({ highestWaveCleared, updatedAt: new Date() })
+      .where(and(eq(campaignProgress.serverId, serverId), eq(campaignProgress.playerId, playerId)))
+  }
+}

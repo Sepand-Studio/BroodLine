@@ -10,6 +10,7 @@ import { publishBundle } from '../src/config/publish.ts'
 import { LocalBundleStore } from '../src/config/store.ts'
 import { withServer } from '../src/db/client.ts'
 import { servers, waveIssuances } from '../src/db/schema.ts'
+import { SimClient } from '../src/sim/client.ts'
 import { claimIssuance } from '../src/wave/issuance.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 import {
@@ -45,7 +46,9 @@ beforeAll(async () => {
   await store.setPointer('0.1.1')
   clearBundleCache()
 
-  deps = { db: t.db, bundleStore: store }
+  // wave/start never calls sim - Task 5's route makes no use of simClient -
+  // so this points nowhere reachable rather than standing up a real host.
+  deps = { db: t.db, bundleStore: store, simClient: new SimClient('http://127.0.0.1:1') }
   app = createApp(deps)
 
   await setupPlayer(deps)

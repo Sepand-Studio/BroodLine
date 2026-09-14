@@ -49,12 +49,9 @@ export const SyncResponse = z.object({
   }),
 }).openapi('SyncResponse')
 
-// Phase 5, Task 5. Not yet wired into openapi.ts's registry - that
-// generates openapi/broodline.json, which is checked byte-for-byte by
-// test/contract.test.ts against a regeneration requiring the NSwag/.NET
-// toolchain this task was told not to invoke. Registering the path is left
-// to whichever task next touches the generated contract (POST
-// /v1/wave/submit does not exist yet either - Task 6).
+// Phase 5, Task 5, registered into openapi.ts's registry by Task 6 - see
+// that file's header comment for why both wave routes were still absent
+// from the generated contract until now.
 export const WaveStartRequest = z.object({
   waveId: z.number().int(),
 }).openapi('WaveStartRequest')
@@ -68,6 +65,43 @@ export const WaveStartResponse = z.object({
   waveId: z.number().int(),
   expiresAt: z.string(),
 }).openapi('WaveStartResponse')
+
+// Phase 5, Task 6.
+export const WaveSubmitRequest = z.object({
+  issuanceId: z.string().uuid(),
+  // Base64, the serialized Replay bytes verbatim - api never parses a
+  // replay, never learns what a trait does, never reimplements a rule
+  // (design §3.2). This is a plain string rather than z.string().base64()
+  // deliberately: the latter constrains ALPHABET, not that the decoded
+  // bytes form a valid Replay, and the only real validator for that is
+  // sim's own Replay.Deserialize on the other side of this boundary.
+  replay: z.string(),
+}).openapi('WaveSubmitRequest')
+
+const BreachDto = z.object({
+  tick: z.number().int(),
+  raider: z.number().int(),
+  lane: z.number().int(),
+  type: z.string(),
+  // combat_engine §7's three-boolean diagnosis, forwarded for the Wave
+  // Defeat screen. api stores none of them and interprets none of them.
+  access: z.boolean(),
+  coverage: z.boolean(),
+  placement: z.boolean(),
+}).openapi('BreachDto')
+
+export const WaveSubmitResponse = z.object({
+  result: z.string(),
+  integrityRemaining: z.number().int(),
+  breaches: z.array(BreachDto),
+  // Absent rather than null on a loss, so a client cannot render a zero -
+  // design §4.2's response shape, `{ result, integrityRemaining, breaches[],
+  // reward? }`.
+  reward: z.object({
+    currency: z.string(),
+    amount: z.number().int(),
+  }).optional(),
+}).openapi('WaveSubmitResponse')
 
 export const ErrorResponse = z.object({
   code: z.string(),

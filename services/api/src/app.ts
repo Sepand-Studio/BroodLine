@@ -6,10 +6,12 @@ import { fail } from './http/errors.ts'
 import { registerAccountRoutes } from './routes/account.ts'
 import { registerSyncRoutes } from './routes/sync.ts'
 import { registerWaveRoutes } from './routes/wave.ts'
+import type { SimClient } from './sim/client.ts'
 
 export interface Deps {
   db: Db
   bundleStore: BundleStore
+  simClient: SimClient
 }
 
 /**

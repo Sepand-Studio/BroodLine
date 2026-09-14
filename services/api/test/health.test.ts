@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { createApp } from '../src/app.ts'
 import type { Db } from '../src/db/client.ts'
 import type { BundleStore } from '../src/config/store.ts'
+import type { SimClient } from '../src/sim/client.ts'
 
-const deps = { db: {} as Db, bundleStore: {} as BundleStore }
+const deps = { db: {} as Db, bundleStore: {} as BundleStore, simClient: {} as SimClient }
 
 describe('the app', () => {
   it('answers the health check Cloud Run probes', async () => {

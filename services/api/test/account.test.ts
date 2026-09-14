@@ -11,6 +11,7 @@ import { LocalBundleStore } from '../src/config/store.ts'
 import { withServer } from '../src/db/client.ts'
 import { accounts, ledger, players, servers, wallets } from '../src/db/schema.ts'
 import { redeemRefreshToken } from '../src/identity/jwt.ts'
+import { SimClient } from '../src/sim/client.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 
 // fileURLToPath, not .pathname - a path containing a space would arrive
@@ -34,7 +35,7 @@ beforeAll(async () => {
   await store.setPointer('0.1.0')
   clearBundleCache()
 
-  app = createApp({ db: t.db, bundleStore: store })
+  app = createApp({ db: t.db, bundleStore: store, simClient: new SimClient('http://127.0.0.1:1') })
 }, 240_000)
 
 afterAll(async () => {

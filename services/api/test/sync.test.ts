@@ -8,6 +8,7 @@ import { clearBundleCache } from '../src/config/bundle.ts'
 import { publishBundle } from '../src/config/publish.ts'
 import { LocalBundleStore } from '../src/config/store.ts'
 import { servers } from '../src/db/schema.ts'
+import { SimClient } from '../src/sim/client.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 
 // fileURLToPath, not .pathname - a path containing a space would arrive
@@ -33,7 +34,7 @@ beforeAll(async () => {
   await store.setPointer('0.1.0')
   clearBundleCache()
 
-  app = createApp({ db: t.db, bundleStore: store })
+  app = createApp({ db: t.db, bundleStore: store, simClient: new SimClient('http://127.0.0.1:1') })
 
   // Create a real player through the real route, so sync reads what the
   // grant actually wrote rather than a fixture shaped like it.
