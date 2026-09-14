@@ -149,9 +149,20 @@ describe("extractClaims' own guard (jwt.ts) - the highest-value gap the phase 4 
     await expect(verifyAccessToken(malformed)).rejects.toThrow(/serverId/i)
   })
 
-  it('rejects a validly-signed access token whose serverId claim is not an integer', async () => {
+  it('rejects a validly-signed access token whose serverId claim is a non-integer number', async () => {
     const key = new TextEncoder().encode(process.env.JWT_SECRET!)
-    const malformed = await new SignJWT({ serverId: 'one' })
+    // 1.5, not a string and not NaN. A string claim fails extractClaims'
+    // `typeof payload.serverId !== 'number'` half and short-circuits before
+    // Number.isInteger ever runs, so it cannot isolate that half - it is
+    // redundant with the "missing claim" case above, not complementary to
+    // it. NaN looks like the obvious pick for "a number that isn't an
+    // integer," but JSON.stringify(NaN) serializes to `null`, so it would
+    // round-trip through the JWT payload as null and land back in the same
+    // typeof-failure branch. 1.5 survives JSON round-tripping as a real
+    // `number`, so this is the only payload that actually reaches
+    // Number.isInteger and exercises the half jwt.ts's own comment on
+    // extractClaims calls out by name.
+    const malformed = await new SignJWT({ serverId: 1.5 })
       .setProtectedHeader({ alg: 'HS256' })
       .setSubject('11111111-1111-1111-1111-111111111111')
       .setIssuer('broodline-api')
