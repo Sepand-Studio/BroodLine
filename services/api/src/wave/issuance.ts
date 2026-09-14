@@ -261,18 +261,31 @@ export async function loadLiveIssuance(
  * Advances campaign_progress to at least `waveId`. Never regresses it: a
  * replay of an already-cleared wave (design §4.1's replay branch) must not
  * move the high-water mark backwards, and a winning replay of the SAME
- * wave the player already cleared is a no-op update here by construction
- * (Math.max leaves it unchanged).
+ * wave the player already cleared is a no-op write here by construction
+ * (Math.max leaves the SET value unchanged).
+ *
+ * `ON CONFLICT ... DO UPDATE`, not a separate SELECT-then-insert-or-update -
+ * review finding: the previous shape's plain INSERT had no conflict
+ * handling at all, so two transactions racing a player's FIRST-ever
+ * completion (no campaign_progress row yet) would both attempt to INSERT
+ * the same (server_id, player_id) primary key, and the loser would throw a
+ * raw 23505 that escapes uncaught as a 500. In the SHIPPED handler that
+ * race cannot happen - routes/wave.ts's settle() gate means only one
+ * transaction per issuance ever reaches this call - so this was never
+ * reachable in production. It is fixed anyway: campaign_progress's safety
+ * should not rest on a caller in a DIFFERENT module checking settle()'s
+ * return correctly. ON CONFLICT DO UPDATE makes the insert-or-update
+ * atomic and race-safe on its own terms, independent of that guard.
  */
 export async function advanceCampaign(tx: Tx, serverId: number, playerId: string, waveId: number): Promise<void> {
   const [progress] = await tx.select().from(campaignProgress)
     .where(and(eq(campaignProgress.serverId, serverId), eq(campaignProgress.playerId, playerId)))
   const highestWaveCleared = Math.max(progress?.highestWaveCleared ?? 0, waveId)
 
-  if (progress === undefined) {
-    await tx.insert(campaignProgress).values({ serverId, playerId, highestWaveCleared })
-  } else if (highestWaveCleared !== progress.highestWaveCleared) {
-    await tx.update(campaignProgress).set({ highestWaveCleared, updatedAt: new Date() })
-      .where(and(eq(campaignProgress.serverId, serverId), eq(campaignProgress.playerId, playerId)))
-  }
+  await tx.insert(campaignProgress)
+    .values({ serverId, playerId, highestWaveCleared })
+    .onConflictDoUpdate({
+      target: [campaignProgress.serverId, campaignProgress.playerId],
+      set: { highestWaveCleared, updatedAt: new Date() },
+    })
 }

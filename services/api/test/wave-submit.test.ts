@@ -3,13 +3,16 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { sql } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createApp, type Deps } from '../src/app.ts'
 import { clearBundleCache } from '../src/config/bundle.ts'
 import { publishBundle } from '../src/config/publish.ts'
 import { LocalBundleStore } from '../src/config/store.ts'
+import { withServer } from '../src/db/client.ts'
 import { servers } from '../src/db/schema.ts'
 import { SimClient } from '../src/sim/client.ts'
+import { settle } from '../src/wave/issuance.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 import {
   balance, buildLosingReplay, buildWinningReplay, ledgerRowCount, liveIssuance,
@@ -21,6 +24,9 @@ import {
 // own comment, carried forward - both files resolve the same repo root).
 const REPO = fileURLToPath(new URL('../../../', import.meta.url))
 const SEED = join(REPO, 'config/bundles/0.1.1')
+// serverId is always 1 in this file - the one server beforeAll creates
+// (wave-start.test.ts's own convention, carried forward).
+const SERVER_ID = 1
 const SIM_PORT = 5299 // distinct from generate-contract.sh's 5199, so this file can run alongside contract.test.ts
 const SIM_URL = `http://127.0.0.1:${SIM_PORT}`
 
@@ -201,9 +207,23 @@ describe('POST /v1/wave/submit', () => {
     const appA = createApp({ ...deps, simClient: barrierClient(deps.simClient) })
     const appB = createApp({ ...deps, simClient: barrierClient(deps.simClient) })
 
-    const [a, b] = await Promise.all([
-      appA.request('/v1/wave/submit', submitInit(issuanceId, replay, 'key-race-a')),
-      appB.request('/v1/wave/submit', submitInit(issuanceId, replay, 'key-race-b')),
+    // Robustness fix, review finding: if EITHER request fails before ever
+    // calling simulate() (a bug earlier in the handler - session, parsing -
+    // rather than anything this test is about), `arrived` never reaches 2,
+    // `release()` is never called, and both requests would otherwise hang
+    // until vitest's own 60s test timeout with no indication why. A bounded
+    // race with a clear message turns that into an immediate, diagnosable
+    // failure instead.
+    const [a, b] = await Promise.race([
+      Promise.all([
+        appA.request('/v1/wave/submit', submitInit(issuanceId, replay, 'key-race-a')),
+        appB.request('/v1/wave/submit', submitInit(issuanceId, replay, 'key-race-b')),
+      ]),
+      new Promise<never>((_resolve, reject) => setTimeout(() => reject(new Error(
+        'barrier never released within 5s - one request likely failed before '
+        + 'reaching simulate() (arrived never reached 2), not a real hang in '
+        + 'the handler under test.',
+      )), 5_000)),
     ])
 
     // Exactly one request wins (200, paid) and the other finds nothing left
@@ -212,6 +232,112 @@ describe('POST /v1/wave/submit', () => {
     const statuses = [a.status, b.status].sort()
     expect(statuses).toEqual([200, 409])
     expect(await balance('shards')).toBe(before + 40)
+  })
+
+  it('settle() returns false on a second call - nothing today asserted this in isolation', async () => {
+    // Cheap, and currently untested: wave-helpers.ts's consumeLiveIssuance
+    // and clearWave both discard settle()'s return value, so nothing in the
+    // suite pinned the contract routes/wave.ts's guard two depends on.
+    //
+    // NOTE: this does NOT close design §7's named weakening on its own -
+    // weakening (b) modifies routes/wave.ts (moves settle() out of the
+    // credit's transaction, stops checking its return), not wave/issuance.ts
+    // itself, so this unit test on settle() stays green even under that
+    // weakening: settle() itself is untouched, still returns false
+    // correctly, routes/wave.ts is simply the one that stops listening.
+    // Necessary, not sufficient - see the next test for what actually
+    // closes the gate.
+    await setupPlayer(deps)
+    await startWave(6)
+    const live = await liveIssuance()
+    expect(live).toBeDefined()
+
+    const first = await withServer(deps.db, SERVER_ID, (tx) => settle(tx, live!, 'consumed'))
+    expect(first).toBe(true)
+
+    const second = await withServer(deps.db, SERVER_ID, (tx) => settle(tx, live!, 'consumed'))
+    expect(second).toBe(false)
+  })
+
+  it('closes design §7\'s named weakening: a settle forced to block on a real row lock refuses rather than double-pays', async () => {
+    // THE TEST THAT CLOSES THE GATE. §7 names "settle the issuance outside
+    // the credit's transaction" as a required weakening the double-submit
+    // test must be shown to fail against. Neither the sequential test above
+    // nor the barrier-based one can do it (see both tests' own comments,
+    // and task-6-report.md §2/§8): the critical section is too short
+    // (~1-2ms) relative to ordinary connection-acquisition jitter for a
+    // bare race to reliably land inside it.
+    //
+    // This forces the SAME race deterministically instead of hoping timing
+    // cooperates, by taking the row lock directly rather than racing for
+    // it - Task 5's instinct (claimIssuance's own conflicting-insert test)
+    // applied one level up, to an UPDATE's row lock instead of an INSERT's
+    // unique-index conflict.
+    //
+    // T_ext: a SEPARATE raw connection (this pool's max is 5, so it does
+    // not starve the handler's own transaction), its own manually-managed
+    // transaction - Drizzle's db.transaction() auto-commits on callback
+    // return, which cannot hold a lock open across the await below - runs
+    // the SAME settling UPDATE settle() itself would run, and does NOT
+    // commit. This simulates "another submission (or a future sweep) is in
+    // the middle of consuming this issuance right now."
+    await setupPlayer(deps)
+    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+    const replay = buildWinningReplay(6, BigInt(seed))
+    const before = await balance('shards')
+
+    const client = await t.pool.connect()
+    try {
+      await client.query('BEGIN')
+      await client.query(`SELECT set_config('app.server_id', $1, true)`, [String(SERVER_ID)])
+      const locked = await client.query(
+        `UPDATE wave_issuances SET settled_at = now(), settlement = 'consumed'
+         WHERE server_id = $1 AND issuance_id = $2 AND settled_at IS NULL`,
+        [SERVER_ID, issuanceId],
+      )
+      // Sanity: T_ext genuinely took the row. If this is not 1, nothing
+      // below proves anything and the test would otherwise pass vacuously.
+      expect(locked.rowCount).toBe(1)
+
+      // Fire the submit WITHOUT awaiting - it must now contend with T_ext
+      // for the SAME row. Under the shipped (gated) handler, its own
+      // settle() call blocks here, on a REAL Postgres row lock, not on
+      // anything this test schedules or times.
+      const pending = submit(issuanceId, replay, 'key-lock-race')
+
+      // Wait for a REAL synchronization point - the handler's backend
+      // actually blocked - rather than a sleep. Bounded, with a fallback:
+      // if the waiter never appears (which is exactly what the WEAKENED
+      // handler looks like - nothing inside its transaction touches this
+      // row until after it has already committed a credit), that absence
+      // is itself part of the failure this test exists to catch, not a
+      // reason to hang. Comfortably inside pool.ts's lock_timeout=5000, so
+      // a genuinely blocked backend is never killed out from under us.
+      const deadlineAt = Date.now() + 3_000
+      for (;;) {
+        const [row] = (await t.ownerDb.execute(sql`
+          SELECT count(*)::int AS n FROM pg_stat_activity
+          WHERE wait_event_type = 'Lock' AND query ILIKE '%wave_issuances%'
+            AND pid <> pg_backend_pid()`)).rows as { n: number }[]
+        if ((row?.n ?? 0) > 0) break
+        if (Date.now() >= deadlineAt) break
+        await new Promise((r) => setTimeout(r, 25))
+      }
+
+      await client.query('COMMIT')
+      const res = await pending
+
+      // Against the shipped code: T_ext's commit makes settled_at no
+      // longer NULL, the handler's blocked UPDATE re-evaluates its WHERE
+      // under READ COMMITTED, matches nothing, settle() returns false, and
+      // the gate refuses BEFORE advanceCampaign/credit ever run.
+      expect(res.status).toBe(409)
+      expect(await res.json()).toMatchObject({ code: 'issuance_invalid' })
+    } finally {
+      client.release()
+    }
+
+    expect(await balance('shards')).toBe(before)
   })
 
   it('refuses a replay whose seed is not the issued one', async () => {
@@ -225,9 +351,20 @@ describe('POST /v1/wave/submit', () => {
     expect(await liveIssuance()).toBeUndefined() // consumed, not re-usable
   })
 
-  it('refuses a replay of a different wave against this issuance', async () => {
-    // Step 5 and step 2 are DIFFERENT checks. The issuance proves the player
-    // was given a wave; the seed proves this replay is of THAT wave.
+  it('refuses a replay carrying a second, different seed against this issuance', async () => {
+    // NAMED FOR WHAT IT ACTUALLY TESTS - review finding. This is a SECOND
+    // seed mismatch case (waveId 6, same as the issued wave; seed 1n, not
+    // the one issued), not a different-WAVE case: with one authored wave
+    // (config/bundles/0.1.1/waves.json carries only id 6) there is no real
+    // wave-7 replay to build. Step 5 and step 2 are DIFFERENT checks - the
+    // issuance proves the player was given a wave; the seed proves this
+    // replay is of THAT wave - and weakening (a) (§3 of task-6-report.md)
+    // confirms this test and 'refuses a replay whose seed is not the issued
+    // one' above flip TOGETHER when the seed comparison is deleted, because
+    // both exercise the same half of matchesIssuance. The wave-id half of
+    // that same check is covered separately and directly, without needing
+    // a second authored wave, by sim-client.test.ts's 'refuses a genuine
+    // mismatch regardless of which branch the type took'.
     await setupPlayer(deps)
     const { issuanceId } = await (await startWave(6)).json() as { issuanceId: string }
 

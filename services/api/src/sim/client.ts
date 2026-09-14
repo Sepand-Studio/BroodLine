@@ -78,6 +78,19 @@ export class SimClient {
     }
 
     if (body.verdict === 'rejected') return { kind: 'rejected', reason: body.reason ?? 'unknown' }
-    return { kind: 'verified', echo: body.echo!, outcome: body.outcome! }
+
+    // Fail CLOSED rather than open. `sim` emits only 'verified' and
+    // 'rejected' today, so this branch is unreached in practice - but the
+    // previous shape assumed 'verified' as the default for ANY value this
+    // union does not name (a typo'd verdict string, a future sim emitting a
+    // third kind, `echo`/`outcome` genuinely absent on a verdict claiming
+    // 'verified') and forced them past the type system with `!`. That is
+    // exactly the wrong default across the boundary this phase exists to
+    // harden: an unrecognised response should read as an outage (retryable,
+    // issuance stays live), never as a verified win.
+    if (body.verdict === 'verified' && body.echo != null && body.outcome != null) {
+      return { kind: 'verified', echo: body.echo, outcome: body.outcome }
+    }
+    return { kind: 'unavailable' }
   }
 }

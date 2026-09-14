@@ -230,14 +230,25 @@ export function registerWaveRoutes(app: Hono, deps: Deps): void {
 
           if (result !== 'Win') return { paid: null, result, integrityRemaining, breaches }
 
-          await advanceCampaign(tx, session.serverId, playerId, issuance.waveId)
-
           // The reward comes from the ISSUANCE's wave id - design §2.2 -
           // never from verdict.echo, which is the client's bytes echoed
           // back. A modified client can win a wave it would otherwise
           // lose; it cannot choose what that wave pays.
+          //
+          // Computed and checked BEFORE advanceCampaign, not after - review
+          // finding: the bundle can be republished during the issuance's
+          // two-hour TTL, dropping a wave's reward after wave/start's check
+          // 3 already passed. Advancing campaign_progress and only THEN
+          // refusing would commit the advance under an error response - the
+          // player is told 409 while the server silently records the clear,
+          // and their NEXT wave/start call would treat the wave as already
+          // cleared even though they never received a success response for
+          // it. The issuance still settles 'consumed' either way (above) -
+          // they did win the wave; this is a spent attempt, same as a Loss.
           const reward = rewardForWave(bundle, issuance.waveId)
           if (reward === null) return { refused: 'wave_locked' }
+
+          await advanceCampaign(tx, session.serverId, playerId, issuance.waveId)
 
           await credit(tx, {
             serverId: session.serverId, playerId,

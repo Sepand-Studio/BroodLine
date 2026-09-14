@@ -72,7 +72,7 @@ registry.registerPath({
   request: { body: { content: { 'application/json': { schema: WaveStartRequest } } } },
   responses: {
     200: { description: 'The live issuance for this wave', content: { 'application/json': { schema: WaveStartResponse } } },
-    ...errors([401, 404, 409, 429]),
+    ...errors([400, 401, 404, 409, 429]),
   },
 })
 
