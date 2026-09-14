@@ -67,35 +67,95 @@ fi
 # otherwise-independent clones, not produce a correctness bug).
 BUILD_LOCK="${TMPDIR:-/tmp}/broodline-sim-dotnet-build-$(id -u)-${REPO_HASH}.lock"
 BUILD_LOCK_OWNER_FILE="$BUILD_LOCK/owner.pid"
-BUILD_LOCK_STALE_SECONDS=300   # critical section is ~1-2s; minutes is a generous margin
-BUILD_LOCK_TIMEOUT_TENTHS=600  # 60s, in 0.1s polling ticks
+BUILD_LOCK_STALE_SECONDS=300            # critical section is ~1-2s; minutes is a generous margin
+# A SEPARATE, much longer ceiling from the above - deliberately not folded
+# into one OR, and deliberately not a heartbeat (disproportionate here).
+# BUILD_LOCK_STALE_SECONDS governs the "liveness unconfirmable" case, where
+# a short margin is safe because the critical section is short.
+# BUILD_LOCK_ABSOLUTE_CEILING_SECONDS governs the "liveness CONFIRMED alive"
+# case instead, which the short margin cannot: if the OS recycles a
+# SIGKILLed owner's pid onto some unrelated, still-running process,
+# build_lock_is_stale's liveness check reports "alive" forever, and a stuck
+# lock is not bounded by a short critical section - it is abandoned, and
+# sits for as long as nobody clears it. Set far above any plausible
+# legitimate build so it can never steal from one. Mirrors
+# wave-helpers.ts's LOCK_ABSOLUTE_CEILING_MS.
+BUILD_LOCK_ABSOLUTE_CEILING_SECONDS=1800  # 30 minutes
+BUILD_LOCK_TIMEOUT_TENTHS=600            # 60s, in 0.1s polling ticks
 
 # Whether $BUILD_LOCK is abandoned and safe to reclaim. Mirrors
 # wave-helpers.ts's isStale(): a missing/unreadable owner file falls back
 # to the lock dir's own mtime rather than being treated as stale outright,
 # which protects the brief window between mkdir succeeding and the owner
-# file being written.
+# file being written; a CONFIRMED-alive owner is checked against the
+# absolute ceiling rather than trusted forever, guarding pid reuse.
 build_lock_is_stale() {
-  local pid=""
-  [ -f "$BUILD_LOCK_OWNER_FILE" ] && pid="$(cat "$BUILD_LOCK_OWNER_FILE" 2>/dev/null)"
-
-  if [ -n "$pid" ] && [ "$pid" -eq "$pid" ] 2>/dev/null; then
-    if kill -0 "$pid" 2>/dev/null; then
-      return 1 # owner is alive - never stale, regardless of age
-    fi
-    # kill -0 failed: this shell cannot reliably distinguish "no such
-    # process" (owner gone) from "not permitted" (owned by another user,
-    # still alive) by exit code alone, so fall through to the age check
-    # below rather than guess - same conservative handling the TS side
-    # applies to EPERM.
-  fi
+  local pid="$1"
 
   [ -d "$BUILD_LOCK" ] || return 1  # already gone; the next mkdir will just succeed
   local mtime now age
   mtime="$(stat -f %m "$BUILD_LOCK" 2>/dev/null || stat -c %Y "$BUILD_LOCK")"
   now="$(date +%s)"
   age=$((now - mtime))
+
+  if [ -n "$pid" ] && [ "$pid" -eq "$pid" ] 2>/dev/null; then
+    if kill -0 "$pid" 2>/dev/null; then
+      # Confirmed alive per the OS - but NOT unconditionally trusted: see
+      # BUILD_LOCK_ABSOLUTE_CEILING_SECONDS's comment above for why a
+      # recycled pid must not pin this lock stuck forever.
+      [ "$age" -gt "$BUILD_LOCK_ABSOLUTE_CEILING_SECONDS" ]
+      return $?
+    fi
+    # kill -0 failed: this shell cannot reliably distinguish "no such
+    # process" (owner gone) from "not permitted" (owned by another user,
+    # still alive) by exit code alone, so fall through to the shorter age
+    # check below rather than guess - same conservative handling the TS
+    # side applies to EPERM.
+  fi
+
   [ "$age" -gt "$BUILD_LOCK_STALE_SECONDS" ]
+}
+
+# Re-verify, THEN detach-then-destroy - two layers, because either one
+# ALONE is insufficient (both confirmed by direct reproduction fixing round
+# 3's finding 1):
+#
+# Atomicity alone (mv, a rename(2), instead of a blind rm) stops two
+# SIMULTANEOUS reclaimers from both destroying what they each independently
+# judged stale - only one racing mv can win against the same source path,
+# the other fails (source already gone) and does nothing. But mv, like rm,
+# still acts on "whatever is at $BUILD_LOCK right now" - it has no notion
+# of WHICH GENERATION of lock that is. If a reclaimer pauses between
+# deciding $BUILD_LOCK held a dead pid and acting on that decision, and in
+# that gap a DIFFERENT reclaimer has already reclaimed the same dead lock
+# AND a fresh owner has already acquired a brand new, live one at that same
+# path, the paused reclaimer's mv does not know that - it atomically
+# detaches whichever generation is currently there, which is now the live
+# one, and destroys it. Confirmed by reproduction (see
+# wave-helpers.ts's reclaim() for the TS side of the same fix and the
+# signal-gated test that caught this).
+#
+# The re-read below closes that gap: called with the EXACT pid
+# build_lock_is_stale judged (`$1`, not re-derived), it re-reads the
+# CURRENT owner file immediately before touching anything and compares. A
+# mismatch - even to a value this function cannot itself interpret - means
+# some OTHER, legitimate acquirer has claimed this path since the decision
+# was made, and reclaim aborts rather than destroying work that is not its
+# to destroy.
+build_lock_reclaim() {
+  local observed_pid="$1"
+  local still_there=""
+  [ -f "$BUILD_LOCK_OWNER_FILE" ] && still_there="$(cat "$BUILD_LOCK_OWNER_FILE" 2>/dev/null)"
+  [ "$still_there" = "$observed_pid" ] || return 0  # changed since the decision - not ours to reclaim
+
+  local detached="${BUILD_LOCK}.reclaim-$$-${RANDOM}${RANDOM}"
+  if mv "$BUILD_LOCK" "$detached" 2>/dev/null; then
+    rm -rf "$detached" 2>/dev/null || true
+  fi
+  # mv failing means someone else already reclaimed or replaced it (or, in
+  # principle, a real filesystem error) - either way there is nothing safe
+  # for THIS call to remove, so it does nothing further; the caller's
+  # normal poll/retry re-evaluates the situation on the next iteration.
 }
 
 acquire_build_lock() {
@@ -107,15 +167,34 @@ acquire_build_lock() {
       return 0
     fi
     if [ ! -d "$BUILD_LOCK" ]; then
-      # mkdir failed for a reason OTHER than contention (permission denied,
-      # ENOSPC, an invalid path) - report it immediately rather than
-      # spinning the full 60s and reporting a misleading "timed out."
-      echo "dotnet build lock: mkdir failed: $mkdir_err" >&2
-      exit 1
+      # mkdir failed and the directory still does not exist a moment
+      # later - could be a real error (permission denied, ENOSPC, a bad
+      # path), OR ordinary contention where the holder released between
+      # the failed mkdir and this check (a real, if sub-millisecond,
+      # window). Retry mkdir once immediately before concluding it is a
+      # real error: contention resolves on the retry; a genuine error
+      # fails identically and IS reported, rather than spinning the full
+      # 60s toward a misleading "timed out."
+      local retry_err=""
+      if retry_err="$(mkdir "$BUILD_LOCK" 2>&1)"; then
+        echo "$$" > "$BUILD_LOCK_OWNER_FILE"
+        return 0
+      fi
+      if [ ! -d "$BUILD_LOCK" ]; then
+        echo "dotnet build lock: mkdir failed: $retry_err" >&2
+        exit 1
+      fi
+      # else: contention again (someone else won the retry too) - fall
+      # through to the normal staleness check / poll below.
     fi
-    if build_lock_is_stale; then
-      rm -rf "$BUILD_LOCK" 2>/dev/null || true
-      continue  # try mkdir again now, immediately - see the reclaim note above
+    # Read ONCE, feed the same observed value to both the staleness
+    # decision and reclaim's later re-check - reading twice here would
+    # just move the ABA window rather than close it.
+    local observed_pid=""
+    [ -f "$BUILD_LOCK_OWNER_FILE" ] && observed_pid="$(cat "$BUILD_LOCK_OWNER_FILE" 2>/dev/null)"
+    if build_lock_is_stale "$observed_pid"; then
+      build_lock_reclaim "$observed_pid"
+      continue  # try mkdir again now, immediately - see build_lock_reclaim's comment
     fi
     sleep 0.1
     waited=$((waited + 1))

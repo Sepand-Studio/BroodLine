@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -33,6 +33,17 @@ import { settle } from '../src/wave/issuance.ts'
 // from the one this exists to close.
 
 const LOCK_STALE_MS = 5 * 60 * 1000 // the critical section is ~1-2s; minutes is a generous margin
+// A SEPARATE, much longer ceiling from LOCK_STALE_MS above - deliberately
+// not folded into one OR, and deliberately not a heartbeat (disproportionate
+// here). LOCK_STALE_MS governs the "liveness unconfirmable" case, where a
+// short margin is safe because the critical section is short. This ceiling
+// governs the "liveness CONFIRMED alive" case instead, which the short
+// margin cannot: if the OS recycles a SIGKILLed owner's pid onto some
+// unrelated, still-running process, isStale()'s liveness check reports
+// "alive" forever, and a stuck lock is not bounded by a short critical
+// section - it is abandoned, and sits for as long as nobody clears it. Set
+// far above any plausible legitimate build so it can never steal from one.
+const LOCK_ABSOLUTE_CEILING_MS = 30 * 60 * 1000
 const LOCK_ACQUIRE_TIMEOUT_MS = 60_000
 const LOCK_POLL_MS = 100
 
@@ -86,17 +97,36 @@ interface DotnetBuildLock {
  */
 function createDotnetBuildLock(dir: string, opts: {
   staleMs?: number
+  absoluteCeilingMs?: number
   timeoutMs?: number
   pollMs?: number
+  /**
+   * TEST-ONLY. Awaited between isStale() deciding a lock is reclaimable
+   * and the atomic detach that acts on that decision - the exact window
+   * round 3's review demonstrated exploitably: two reclaimers can both
+   * decide "stale" against the SAME lock instance before either has
+   * removed anything. A no-op (the default, and the only behavior any
+   * real caller sees) has no effect on the code path; only
+   * dotnet-build-lock.test.ts's ABA regression test sets it, to a hook
+   * that waits for a SIGNAL (another instance's critical section actually
+   * starting) rather than a guessed delay - so the reproduction is
+   * deterministic, not "probably wide enough on this machine today."
+   */
+  testBeforeReclaim?: () => void | Promise<void>
 } = {}): DotnetBuildLock {
   const staleMs = opts.staleMs ?? LOCK_STALE_MS
+  const absoluteCeilingMs = opts.absoluteCeilingMs ?? LOCK_ABSOLUTE_CEILING_MS
   const timeoutMs = opts.timeoutMs ?? LOCK_ACQUIRE_TIMEOUT_MS
   const pollMs = opts.pollMs ?? LOCK_POLL_MS
+  const testBeforeReclaim = opts.testBeforeReclaim
   const ownerFile = join(dir, 'owner.pid')
 
-  async function isStale(): Promise<boolean> {
-    const raw = await readFile(ownerFile, 'utf8').catch(() => undefined)
+  async function isStale(raw: string | undefined): Promise<boolean> {
     const pid = raw === undefined ? NaN : Number(raw)
+
+    const st = await stat(dir).catch(() => undefined)
+    if (st === undefined) return false // already gone; the next mkdir attempt will just succeed
+    const age = Date.now() - st.mtimeMs
 
     if (Number.isInteger(pid)) {
       try {
@@ -104,18 +134,76 @@ function createDotnetBuildLock(dir: string, opts: {
         // and is signalable, which is exactly "is the owner still
         // running."
         process.kill(pid, 0)
-        return false // owner is alive - never stale, regardless of age
+        // Confirmed alive per the OS - but NOT unconditionally trusted:
+        // if this pid was recycled onto an unrelated process after a
+        // SIGKILLed owner died, this is a false positive that would
+        // otherwise pin the lock stuck forever, since nothing else in
+        // this check would ever revisit it. absoluteCeilingMs is the
+        // guaranteed eventual recovery for exactly that case - see this
+        // function's outer comment for why it is a separate, much larger
+        // threshold rather than folded into staleMs.
+        return age > absoluteCeilingMs
       } catch (err) {
         if ((err as NodeJS.ErrnoException).code === 'ESRCH') return true // confirmed gone
         // EPERM (alive, owned by someone else) or anything else: liveness
-        // is unconfirmable, not disproven - fall through to the age check
-        // below rather than guess either way.
+        // is unconfirmable, not disproven - fall through to the shorter
+        // age check below rather than guess either way.
       }
     }
 
-    const st = await stat(dir).catch(() => undefined)
-    if (st === undefined) return false // already gone; the next mkdir attempt will just succeed
-    return Date.now() - st.mtimeMs > staleMs
+    return age > staleMs
+  }
+
+  /**
+   * Re-verify, THEN detach-then-destroy - two layers, because either one
+   * ALONE is insufficient, both confirmed by direct reproduction while
+   * fixing round 3's finding 1:
+   *
+   * Atomicity alone (rename instead of a blind rm) stops two SIMULTANEOUS
+   * reclaimers from both destroying what they each independently judged
+   * stale - only one racing `rename` can win against the same source path,
+   * the other fails ENOENT and does nothing. But rename, like rm, still
+   * acts on "whatever is at `dir` right now" - it has no notion of WHICH
+   * GENERATION of lock that is. If reclaimer A pauses (a slow tick, a
+   * long GC, or here, a testBeforeReclaim hook) between deciding `dir`
+   * held a dead pid and acting on that decision, and in that gap a
+   * DIFFERENT reclaimer (B) has ALREADY reclaimed the same dead lock AND a
+   * fresh owner has ALREADY acquired a brand new, live one at that same
+   * path, A's rename does not know that - it atomically detaches
+   * whichever generation is currently there, which is now B's live one,
+   * and destroys it. Confirmed by reproduction: a signal-gated version of
+   * this exact scenario (A held back until B is confirmed inside its
+   * critical section, no guessed delay) reliably destroyed B's live lock
+   * under rename-only reclaim, identical in shape to the original blind-rm
+   * bug just with the atomicity box checked.
+   *
+   * The re-read below closes that gap: reclaim is handed the EXACT owner
+   * value isStale() judged (raw, not the whole boolean verdict), and
+   * before touching anything it re-reads the CURRENT owner value and
+   * compares. A mismatch - even to a value this function cannot itself
+   * interpret - means some OTHER, legitimate acquirer has claimed this
+   * path since the decision was made, and reclaim aborts rather than
+   * destroying work that is not its to destroy. This narrows the
+   * decision-to-action window from "however long the caller happened to
+   * be paused" down to "one more filesystem read, immediately before the
+   * atomic step" - not a mathematical impossibility, but the same order of
+   * magnitude of residual risk every other atomicity boundary in this file
+   * (mkdir's EEXIST, rename's ENOENT) already accepts as negligible.
+   */
+  async function reclaim(observedRaw: string | undefined): Promise<void> {
+    if (testBeforeReclaim) await testBeforeReclaim()
+
+    const stillThere = await readFile(ownerFile, 'utf8').catch(() => undefined)
+    if (stillThere !== observedRaw) return // changed since the decision - not ours to reclaim
+
+    const detached = `${dir}.reclaim-${process.pid}-${randomUUID()}`
+    try {
+      await rename(dir, detached)
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return // someone else already reclaimed/replaced it
+      throw err
+    }
+    await rm(detached, { recursive: true, force: true })
   }
 
   async function acquireOnce(): Promise<boolean> {
@@ -123,16 +211,11 @@ function createDotnetBuildLock(dir: string, opts: {
       await mkdir(dir)
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err
-      if (await isStale()) {
-        // Reclaiming is just "remove it and let the NEXT mkdir decide who
-        // actually gets it" - the removal itself grants no ownership, so
-        // two waiters independently reaching this branch at the same
-        // moment cannot both end up believing they hold the lock: at most
-        // one subsequent mkdir call (the caller's next loop iteration)
-        // wins; the other sees EEXIST again and re-evaluates staleness
-        // against whatever is there now.
-        await rm(dir, { recursive: true, force: true }).catch(() => {})
-      }
+      // Read ONCE, feed the same observed value to both isStale()'s
+      // verdict and reclaim()'s later re-check - reading twice here would
+      // just move the ABA window rather than close it.
+      const observedRaw = await readFile(ownerFile, 'utf8').catch(() => undefined)
+      if (await isStale(observedRaw)) await reclaim(observedRaw)
       return false
     }
     await writeFile(ownerFile, String(process.pid), 'utf8')
