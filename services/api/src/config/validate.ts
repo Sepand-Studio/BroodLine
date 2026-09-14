@@ -21,19 +21,25 @@ const VERSION_PATTERN = /^\d+\.\d+\.\d+$/
  * published, and that is the entire safety model - a bad bundle is shipped to
  * every player at once and cannot be recalled by an app update.
  *
- * Five checks now, and only one of them lives here in full. The wave rules
- * are the engine's and are invoked, never copied - see tools/config-validate.
+ * Six checks now. Wave *shape* rules are the engine's and are invoked, never
+ * copied - see tools/config-validate. Reward completeness is different: Design
+ * 2.2 pays a wave's reward by looking it up from the bundle (see
+ * routes/wave/submit.ts), so a wave with no reward - or a reward of zero or
+ * less - is a payout path that would fail at claim time instead of at publish
+ * time. That is a completeness check on authored content, not a game rule, so
+ * it lives here rather than in the C# CLI.
  *
  * starter.json and manifest.json carry that exact same blast radius -
  * config/bundle.ts feeds their contents straight to routes/account.ts's
  * credit() call and routes/sync.ts's isBelow() call with nothing between
  * this validator and production - so both are checked here alongside waves,
- * the pack ladder and locales.
+ * the pack ladder, wave rewards and locales.
  */
 export async function validateBundle(dir: string): Promise<string[]> {
   const violations: string[] = []
   violations.push(...(await validateWaves(dir)))
   violations.push(...(await validatePackLadder(dir)))
+  violations.push(...(await validateWaveRewards(dir)))
   violations.push(...(await validateLocales(dir)))
   violations.push(...(await validateStarterGrants(dir)))
   violations.push(...(await validateManifest(dir)))
@@ -83,6 +89,35 @@ function repoRoot(): string {
   return fileURLToPath(new URL('../../../../', import.meta.url))
 }
 
+interface WaveReward { currency: string; amount: number }
+interface AuthoredWave { id: number; reward?: WaveReward }
+
+/**
+ * Task 5 gave wave 6 a `reward` (services/api/src/config/bundle.ts) because
+ * Design 2.2 pays a wave's reward by looking it up from the bundle at claim
+ * time. This is what makes it mandatory: an authored wave with no reward, or
+ * a reward of zero or less, is not a content oversight - it is a payout path
+ * that 500s the first time a player clears it. See validateBundle's doc
+ * comment for why this check lives here and not in tools/config-validate.
+ */
+async function validateWaveRewards(dir: string): Promise<string[]> {
+  const raw = await readFile(join(dir, 'waves.json'), 'utf8').catch(() => null)
+  if (raw === null) return ['waves.json is missing.']
+
+  const waves = JSON.parse(raw) as AuthoredWave[]
+  const violations: string[] = []
+
+  for (const wave of waves) {
+    if (wave.reward === undefined) {
+      violations.push(`Wave ${wave.id} has no reward.`)
+    } else if (!Number.isFinite(wave.reward.amount) || wave.reward.amount <= 0) {
+      violations.push(
+        `Wave ${wave.id} has a reward of ${wave.reward.amount}, which must be a positive amount.`)
+    }
+  }
+  return violations
+}
+
 interface Pack { id: string; priceUsdCents: number; value: number }
 
 /**
@@ -98,9 +133,22 @@ async function validatePackLadder(dir: string): Promise<string[]> {
   if (raw === null) return ['packs.json is missing.']
 
   const packs = (JSON.parse(raw) as { packs: Pack[] }).packs
-  const ladder = [...packs].sort((a, b) => a.priceUsdCents - b.priceUsdCents)
 
   const violations: string[] = []
+  for (const pack of packs) {
+    // A non-positive price breaks the rate arithmetic below in two different
+    // ways depending on `value` (see Program.cs's followups and task-7-brief),
+    // and a free pack is a store concept the ladder has no opinion about - so
+    // it is guarded out of the rate comparison entirely rather than ranked
+    // within it. `<= 0`, not `< 0`: zero is the case that breaks the division.
+    if (!Number.isFinite(pack.priceUsdCents) || pack.priceUsdCents <= 0) {
+      violations.push(
+        `Pack '${pack.id}' has a non-positive priceUsdCents; the ladder is undefined for it.`)
+    }
+  }
+  if (violations.length > 0) return violations
+
+  const ladder = [...packs].sort((a, b) => a.priceUsdCents - b.priceUsdCents)
   for (let i = 1; i < ladder.length; i++) {
     const prev = ladder[i - 1]!
     const curr = ladder[i]!

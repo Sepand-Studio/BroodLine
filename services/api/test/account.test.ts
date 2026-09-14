@@ -17,7 +17,10 @@ import { startTestDb, type TestDb } from './harness.ts'
 // fileURLToPath, not .pathname - a path containing a space would arrive
 // percent-encoded and every join below would miss.
 const REPO = fileURLToPath(new URL('../../../', import.meta.url))
-const SEED = join(REPO, 'config/bundles/0.1.0')
+// 0.1.1, not 0.1.0: wave 6 carries no reward in 0.1.0, and Task 7 makes a
+// missing reward a publish-time validation failure - 0.1.0 is already
+// published to GCS and must stay byte-identical to what shipped in Phase 4.
+const SEED = join(REPO, 'config/bundles/0.1.1')
 
 let t: TestDb
 let app: ReturnType<typeof createApp>
@@ -31,8 +34,8 @@ beforeAll(async () => {
 
   bundleRoot = await mkdtemp(join(tmpdir(), 'broodline-acct-'))
   const store = new LocalBundleStore(bundleRoot)
-  await publishBundle(store, SEED, '0.1.0')
-  await store.setPointer('0.1.0')
+  await publishBundle(store, SEED, '0.1.1')
+  await store.setPointer('0.1.1')
   clearBundleCache()
 
   app = createApp({ db: t.db, bundleStore: store, simClient: new SimClient('http://127.0.0.1:1') })
