@@ -11,6 +11,13 @@ export type ErrorCode =
   | 'conflict'
   | 'client_too_old'
   | 'internal'
+  // Phase 5
+  | 'wave_locked'
+  | 'replay_cap_reached'
+  | 'issuance_invalid'
+  | 'submission_rejected'
+  | 'engine_too_old'
+  | 'sim_unavailable'
 
 export interface ErrorBody {
   code: ErrorCode
@@ -29,6 +36,16 @@ const STATUS: Record<ErrorCode, number> = {
   idempotency_key_reused: 422,
   client_too_old: 426,
   internal: 500,
+  wave_locked: 409,
+  replay_cap_reached: 429,
+  issuance_invalid: 409,
+  submission_rejected: 409,
+  // 426, the same status client_too_old uses. A client whose ENGINE is
+  // superseded and one whose BUILD is below the floor both need the same
+  // thing from the player, and the codes stay distinct so the client can
+  // say which - design 2.3.
+  engine_too_old: 426,
+  sim_unavailable: 503,
 }
 
 export function fail(code: ErrorCode, message: string, details?: unknown): Response {

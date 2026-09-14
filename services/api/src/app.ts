@@ -5,6 +5,7 @@ import { HttpError } from './http/auth.ts'
 import { fail } from './http/errors.ts'
 import { registerAccountRoutes } from './routes/account.ts'
 import { registerSyncRoutes } from './routes/sync.ts'
+import { registerWaveRoutes } from './routes/wave.ts'
 
 export interface Deps {
   db: Db
@@ -23,6 +24,7 @@ export function createApp(deps: Deps): Hono {
 
   registerAccountRoutes(app, deps)
   registerSyncRoutes(app, deps)
+  registerWaveRoutes(app, deps)
 
   app.notFound(() => fail('not_found', 'No such route.'))
   app.onError((err) => {

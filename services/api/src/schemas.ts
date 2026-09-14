@@ -49,6 +49,26 @@ export const SyncResponse = z.object({
   }),
 }).openapi('SyncResponse')
 
+// Phase 5, Task 5. Not yet wired into openapi.ts's registry - that
+// generates openapi/broodline.json, which is checked byte-for-byte by
+// test/contract.test.ts against a regeneration requiring the NSwag/.NET
+// toolchain this task was told not to invoke. Registering the path is left
+// to whichever task next touches the generated contract (POST
+// /v1/wave/submit does not exist yet either - Task 6).
+export const WaveStartRequest = z.object({
+  waveId: z.number().int(),
+}).openapi('WaveStartRequest')
+
+export const WaveStartResponse = z.object({
+  issuanceId: z.string().uuid(),
+  // A decimal string, not a number - the seed is a ulong and a JSON number
+  // loses precision above 2^53. See services/api/src/db/schema.ts's
+  // int8String customType.
+  seed: z.string(),
+  waveId: z.number().int(),
+  expiresAt: z.string(),
+}).openapi('WaveStartResponse')
+
 export const ErrorResponse = z.object({
   code: z.string(),
   message: z.string(),
