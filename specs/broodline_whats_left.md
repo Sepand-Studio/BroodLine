@@ -26,7 +26,7 @@ note: >
 
 | Kind | Count | Closes when |
 |---|---|---|
-| **Decisions** | 0 | All taken — §2 |
+| **Decisions** | 1 | §2 closed all twenty-two, then the 2026-09-14 device-floor change opened one: **hard-gate A13 devices, or let them install and run below target?** It needs an install-base number nobody has yet. `client_architecture` §12 |
 | **Procurement and commissioning** | 8 | Something external is bought or briefed |
 | **Bench tests** | 12 | A build exists, no players needed |
 | **Playtest** | 64 | Players play |
@@ -38,9 +38,9 @@ note: >
 
 ## 2. Decisions — all taken
 
-**Twenty-two, all taken, all applied in their home documents.** Veto any and it reverses.
+**Twenty-three, all taken, all applied in their home documents.** Veto any and it reverses.
 
-Six changed how something behaves rather than settling a number, and those are worth knowing:
+Seven changed how something behaves rather than settling a number, and those are worth knowing:
 
 | | |
 |---|---|
@@ -50,6 +50,7 @@ Six changed how something behaves rather than settling a number, and those are w
 | **The game is silent 22:00–08:00**, alerts included | An unanswered raid alert auto-resolves identically, so waking a player buys nothing |
 | **Skittish repositions deterministically** | Nearest free pocket away from the threat. Reduces the engine's whole RNG surface to two tie-breaks |
 | **Screen readers: menus properly, combat honestly** | Full support on every static list; combat placement does not claim it |
+| **The device floor is A14 / 4 GB, not A13 / 3 GB** | Taken 2026-09-14. No A13 device was available to measure on, and a budget measured on the floor beats one extrapolated to it. **It drops the iPhone 11, the SE (2020) and the iPad 9th gen from the performance target — a revenue decision, taken knowingly**, and `client_architecture` §3 keeps the objection rather than retiring it. It raised the per-body triangle budget from 7000 to the measured 10000 by withdrawing a margin that existed only to cross the A14→A13 gap. It is a **budget floor, not an enforced compatibility gate**: nothing in the build refuses an A13 device, and whether to add that refusal is newly open in `client_architecture` §12 |
 
 The other sixteen, in one line each: telemetry raw events expire at 90 days · the rig proof runs three weeks · a server merge clears all territory and re-opens claims at the next tick · region names are transliterated · coverage values freeze before a Codex is translated · no cross-promotion of other titles including your own · Convoy Rigs are visible as Rigs with contributor count · under-13 accounts have no chat at all · moderation is automated-first with human escalation · chat logs retain 30 days · superseded replays show their recorded outcome and never re-simulate · no retirement cooldown until playtest shows the exploit is real · the Transit Board bands cargo value rather than stating it · the Pale grant fires on defeat · the Inner Reach is never claimable in any season.
 
@@ -63,7 +64,7 @@ External lead times. **The first two should already be in motion.**
 |---|---|---|
 | 1 | **Moderation filter, English** — from a vendor covering the full language list | `localization` §7, `build_order` §2 |
 | 2 | **CJK font substitutes**, weight-matched, tabular figures verified — for Japanese, the first language added, not for launch | `localization` §8 |
-| 3 | The rig proof commission — two bodies, twelve socket-agnostic parts, forty-eight renders | `rig_proof` §8 |
+| 3 | The rig proof commission — two bodies, twelve socket-agnostic parts, forty-eight renders. **Phase 0's remaining half**: moved to the art track on 2026-09-14 so it stopped gating engineering, and it still gates the twenty-four-asset budget, every production species, and the real-mesh re-run of the entity-count harness | `rig_proof` §8, §8.3; `solo_execution` §8.1–8.2 |
 | 4 | Species palette fix — widen lightness separation on two collapsing pairs | `accessibility` §4 |
 | 5 | Eleven behaviour previews, costed | `trait_codex` §10.1 |
 | 6 | Twenty raider animation clips, quoted rather than estimated | `raider_roster` §10.4 |
@@ -78,14 +79,14 @@ Answerable with a build and no players. **All of these belong in Phase 1.**
 
 | # | Test | Where | Invalidates if wrong |
 |---|---|---|---|
-| 1 | **Wave 44 at ~100 entities** on bottom-quartile devices | `telemetry` §8, four wave docs | Five authored waves cannot ship |
+| 1 | **Wave 44 at ~100 entities** on bottom-quartile devices | `telemetry` §8, four wave docs | Five authored waves cannot ship. **Partly answered 2026-09-14** — Phase 0 measured 104 entities at 60 fps on the A14 floor with *synthetic* meshes. What is still owed is the same run on real delivered meshes, `rig_proof` §8.3 |
 | 2 | **All eight locks pass the rule test** — breach rate near 100% without the answer | `telemetry` §4 | A lock has a hole. Free — the engine computes it |
 | 3 | Socket-agnostic parts read in both positions across two bodies | `rig_proof` §4 | The 24-asset budget |
 | 3a | **A socket on a deforming parent** — what the transform does when the surface under it articulates. A dummy, not a third body | `rig_proof` §4 item 10 | The socket standard on Loam, Skitter and Hollow |
 | 4 | Growth as a proportion curve, not separate assets | `rig_proof` §6 | The 3D decision |
 | 5 | Silhouettes distinct at 40px with parts attached | `rig_proof` §4 | The art direction |
 | 6 | Hauler carries plate and shield simultaneously | `rig_proof` §3.2 | The Sunder becomes one combined kit |
-| 7 | Four-pocket Delta terrain against 44pt targets on the smallest device | `accessibility` §8.4 | Delta terrain, or the target size |
+| 7 | Four-pocket Delta terrain against 44pt targets on the smallest device | `accessibility` §8.4 | Delta terrain, or the target size. **Unaffected by the 2026-09-14 floor change in the dimension that binds**: the smallest device becomes the iPhone 12 mini rather than the SE (2020), and both are **375 pt wide**. Height grows 667 → 812 pt, which only adds room |
 | 8 | Pack ladder monotonic in every storefront | `store_iap` §8 | Build fails, correctly |
 | 9 | Skirmisher and Courser distinguishable at a glance | `raider_roster` §10.2 | Scale is the lever |
 | 10 | The Slow and Fast wave shapes | `seasonal` §10.4 | Two of the most distinctive seasonal shapes |

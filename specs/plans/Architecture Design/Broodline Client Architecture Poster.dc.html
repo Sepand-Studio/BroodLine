@@ -379,7 +379,7 @@ a:hover{color:var(--color-accent-600)}
 <div style="font:600 17px/1 var(--font-heading);letter-spacing:.16em;text-transform:uppercase;color:var(--color-accent-700)">&sect;3&ndash;6 &middot; Budgets</div>
 <h2 style="margin:8px 0 0;font:600 52px/1.02 var(--font-heading);letter-spacing:-.012em">The floor is set by the cheap devices</h2>
 </div>
-<p style="margin:0;font:400 19px/1.45 var(--font-body);color:var(--color-neutral-800)">Reference device: <strong>A13 with 3&nbsp;GB</strong> &mdash; iPhone&nbsp;11, iPhone&nbsp;SE (2020), iPad 9th gen. The consequential gap against the A14 band is memory, not GPU.</p>
+<p style="margin:0;font:400 19px/1.45 var(--font-body);color:var(--color-neutral-800)">Reference device: <strong>A14 with 4&nbsp;GB</strong> &mdash; iPhone&nbsp;12 and its variants, iPad&nbsp;Air&nbsp;4, iPad 10th gen. Changed from A13 / 3&nbsp;GB on 2026-09-14: no A13 hardware was available to measure on. Dropping that band is a revenue decision, taken knowingly.</p>
 </div>
 
 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-8)">
@@ -444,9 +444,9 @@ Remaining regions and terrain families &middot; <strong>Skitter and Loam</strong
 <div>
 <div style="background:var(--color-neutral-200);padding:24px;box-shadow:var(--shadow-sm)">
 <div style="font:600 16px/1 var(--font-heading);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-2-700);margin-bottom:12px">&sect;4 &middot; Phase 0 gate</div>
-<div style="font:600 32px/1.08 var(--font-heading);margin-bottom:12px">Wave 44, on a real A13, with real meshes</div>
+<div style="font:600 32px/1.08 var(--font-heading);margin-bottom:12px">Wave 44, on a real A14 &mdash; real meshes still owed</div>
 <p style="margin:0 0 14px;font:400 17px/1.45 var(--font-body)">Wave 44 and five of chapter 8's waves put close to <strong>a hundred entities</strong> on the board &mdash; sixty Skirmishers, three Broods becoming thirty-nine, five creatures. Measured at both 60 and 30&nbsp;fps and against the 600&nbsp;MB ceiling.</p>
-<p style="margin:0 0 14px;font:400 17px/1.45 var(--font-body);color:var(--color-neutral-800)">It runs in Phase 1 alongside the rig proof, and for the same reason: <strong>it can invalidate an assumption everything downstream is built on.</strong> If a hundred skinned meshes cannot hold 60&nbsp;fps the answer is a rendering-strategy change &mdash; impostors, baked vertex animation, fewer unique bodies &mdash; and that changes the art budget.</p>
+<p style="margin:0 0 14px;font:400 17px/1.45 var(--font-body);color:var(--color-neutral-800)">It was scheduled in Phase 1 alongside the rig proof, and for the same reason &mdash; though the two were split on 2026-09-14, this proof delivered and the rig proof moved to the art track: <strong>it can invalidate an assumption everything downstream is built on.</strong> If a hundred skinned meshes cannot hold 60&nbsp;fps the answer is a rendering-strategy change &mdash; impostors, baked vertex animation, fewer unique bodies &mdash; and that changes the art budget.</p>
 <p style="margin:0;font:400 17px/1.45 var(--font-body);color:var(--color-neutral-800)">Two things the engine must supply: <strong>identical entities instanced, not individually animated</strong>, and a <strong>per-tick entity count</strong>, so the render layer degrades <em>before</em> it drops frames.</p>
 </div>
 

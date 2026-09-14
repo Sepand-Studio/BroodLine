@@ -3,7 +3,14 @@
 Task plans and their outputs. Design and architecture live in `specs/`.
 
 - `2026-09-08-phase0-entity-count-proof.md` — the render-budget proof that
-  briefs the rig proof commission.
+  briefs the rig proof commission. **Signed off 2026-09-14**, by changing the
+  reference device from A13 / 3 GB to **A14 / 4 GB** rather than by obtaining an
+  A13: none was available. The margin that covered the gap was withdrawn with
+  it, so the budget is the measured **10000 triangles**, not 7000. Two things
+  survive the sign-off and are not waived — the re-run of this harness against
+  real delivered meshes, and the rig proof itself, which moved to the art track
+  because it is blocked on a commission rather than on engineering. Both now
+  live in `specs/broodline_rig_proof.md` §8.3 and gate production species.
 - `2026-09-09-phase1-engine-foundations.md` — the deterministic simulation core.
 - `2026-09-10-phase2-combat-engine.md` — the combat engine vertical slice.
 - `2026-09-10-phase3-unity-client.md` — the renderer, Rally, and the replay

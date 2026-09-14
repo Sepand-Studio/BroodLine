@@ -462,11 +462,14 @@ Two deliberate deviations:
 
 **Two proofs run first, not in parallel with anything.** `broodline_build_order.md` calls it a gate rather than a milestone: if two dissimilar bodies cannot carry the same twelve trait parts in either socket at acceptable quality, the twenty-four-asset budget is wrong and the art plan changes before money is spent. One developer cannot run it in parallel with engine work, and a failed gate discovered late is more expensive than a serialised one.
 
+> **Amended 2026-09-14 — the two proofs were split, and only one of them ran.** The entity-count proof is delivered. The rig proof was never commissioned, and the argument above quietly assumed it would be: serialising a gate ahead of engine work only buys something if the gate can actually be run. This one is blocked on **procurement**, not on developer time, so holding Phases 1–5 behind it would have bought nothing and cost five phases. It moved to the art track, where it keeps its full force over the twenty-four-asset budget and over every production species — **it is deferred, not weakened.** What this costs is real and worth stating plainly: the twenty-four-asset budget is now unproven at the point where Phases 1–5 are already built against it, which is exactly the lateness the original argument was written to avoid. The trade was accepted because the alternative was stopping.
+
 ### 8.2 Order
 
 | Phase | What lands | Done when |
 |---|---|---|
-| **0. Two proofs** | `broodline_rig_proof.md` — Vetch and Pale, twelve parts, both sockets. **And the entity-count proof** — wave 44's ~100 entities on an A13 / 3 GB reference device at both 60 and 30 fps, per `broodline_client_architecture.md` §4 | Both pass/fail recorded against their documents' criteria. Either failure changes the art budget or the renderer, and both are cheaper to find now |
+| **0. The entity-count proof** — **DONE 2026-09-14** | Wave 44's ~100 entities on an **A14 / 4 GB** reference device at both 60 and 30 fps, per `broodline_client_architecture.md` §4 | **PASS at 10000 triangles per body**, 12.58 ms GPU p95 of 16.667, 394 MB of 600. `implementation/2026-09-08-phase0-entity-count-proof.md` |
+| ~~0b. The rig proof~~ — **moved to the art track** | `broodline_rig_proof.md` — Vetch and Pale, twelve parts, both sockets | **Not commissioned.** It is blocked on procurement rather than on engineering, so it no longer gates this phase — see the note below. It keeps its gate over **production species** and over the real-mesh re-run of the entity-count harness (`rig_proof` §8.3) |
 | **1. Foundations** | Repo, LFS, Unity settings, `engine` project, banned-API analyzer, Cecil scan, xUnit harness, self-hosted CI | A toy sim passes golden and fuzz on CoreCLR and IL2CPP |
 | **2. Combat engine** | One lane, one raider, five pockets, the counter check, tick order, termination, replay format, batch runner | A 90-second wave simulates identically twice; corpus test runs |
 | **3. Unity client** | Renderer for `SimState`, interpolation, input capture, placeholder art, Codex bottom sheet | A wave played on device replays bit-identically in xUnit |
@@ -475,13 +478,16 @@ Two deliberate deviations:
 | **6. The loop** | Region, nodes, lazy accrual, claim, server-rolled splice, splice confirmation per `broodline_splice_confirm_spec.md` | Harvest → splice → fight → reward closes without leaving the app |
 | **7. Slice polish** | One species of real art, FTUE beats from `broodline_build_order.md` Phase 2, `minimumClientVersion`, offline retry queue | TestFlight build in someone else's hands |
 
+**The note referred to above.** Phase 0 was written as "two proofs" and closed as one. The entity-count proof is signed off on an **A14 / 4 GB** floor — changed from A13 / 3 GB on 2026-09-14 because no A13 hardware could be obtained to measure on, a revenue decision recorded in `broodline_client_architecture.md` §3 and §12. The rig proof moved to the art track for the reason in §8.1's amendment. **Two obligations survive the move and neither is waived:** the twelve-part / two-socket gate over the twenty-four-asset budget, and the re-run of the entity-count harness against real delivered meshes rather than synthetic ones — both in `broodline_rig_proof.md` §8.3, both gating production species.
+
 Nothing before Phase 4 requires GCP to exist. The cloud bill is zero for the first half of the project.
 
 ### 8.3 Timing
 
 | Phase | Full-time | Nights & weekends |
 |---|---|---|
-| 0. Two proofs | 3–4 weeks | 8 weeks |
+| 0. Entity-count proof — *done* | 3–4 weeks | 8 weeks |
+| 0b. Rig proof — *moved to the art track* | 3 weeks once commissioned | 3 weeks once commissioned |
 | 1. Foundations | 2 weeks | 5 weeks |
 | 2. Combat engine | 6–8 weeks | 4–5 months |
 | 3. Unity client | 6–8 weeks | 4–5 months |
