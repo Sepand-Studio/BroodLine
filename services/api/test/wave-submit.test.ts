@@ -115,7 +115,7 @@ beforeAll(async () => {
   await store.setPointer('0.1.1')
   clearBundleCache()
 
-  deps = { db: t.db, bundleStore: store, simClient: new SimClient(SIM_URL), replayStore: new LocalReplayStore(bundleRoot) }
+  deps = { db: t.db, bundleStore: store, simClient: new SimClient(SIM_URL, SimClient.noAuth('local sim host on 127.0.0.1: no Cloud Run in front of it, so no invoker check to satisfy')), replayStore: new LocalReplayStore(bundleRoot) }
 
   await setupPlayer(deps)
 }, 240_000)
@@ -440,7 +440,7 @@ describe('POST /v1/wave/submit', () => {
     await setupPlayer(deps)
     const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
 
-    const broken = createApp({ ...deps, simClient: new SimClient('http://127.0.0.1:1') })
+    const broken = createApp({ ...deps, simClient: new SimClient('http://127.0.0.1:1', SimClient.noAuth('a deliberately dead address - no route under test here calls sim')) })
     const res = await broken.request(
       '/v1/wave/submit', submitInit(issuanceId, buildWinningReplay(6, BigInt(seed)), 'key-8'))
 

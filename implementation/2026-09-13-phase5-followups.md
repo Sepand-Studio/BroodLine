@@ -276,18 +276,21 @@ unbuilt.** So every row except the first rests on a plan that was actually
 run, while the bundle-rollback row remains what it was: unrun, and unrunnable
 without an apply.
 
-The plan now stands at **19 to add, 0 to change, 0 to destroy** (15 before the
-two deploy-stopping gaps below were closed). The three networking resources
-that do exist — `google_compute_network.main` and the two private-services-
-access resources — refresh successfully and appear in the plan as nothing but
-a refresh. Nothing is destroyed, replaced or changed.
+The plan now stands at **1 to import, 22 to add, 1 to change, 0 to destroy**
+(19/0/0 before the `sim` reachability work below; 15 before the two
+deploy-stopping gaps). The three networking resources that do exist —
+`google_compute_network.main` and the two private-services-access resources —
+refresh successfully and appear in the plan as nothing but a refresh. **Nothing
+is destroyed and nothing is replaced.** The single import is the auto-mode
+us-central1 subnet and the single change is one boolean on it
+(`private_ip_google_access = false -> true`).
 
-**One blocker is deliberately still open and is not in this table's gift:**
-`api` cannot mint an OIDC ID token for `sim`, so even once `sim` is reachable
-every call returns 403. The choice between adding `google-auth-library` to the
-api and granting `allUsers` the invoker role is with the human. Nothing in
-this round touched the invoker binding, `SimClient`, or the api's
-dependencies.
+**That blocker is now closed, by human ruling, in the direction the design
+asked for: OIDC *and* internal ingress, two independent gates.** `api` mints a
+Google-signed OIDC ID token for `sim` (`services/api/src/sim/oidc.ts`,
+`google-auth-library`), and `sim` stays `INGRESS_TRAFFIC_INTERNAL_ONLY` with
+the api reaching it over Direct VPC egress. `allUsers` was never granted and
+the invoker binding is unchanged. See "Both gates now exist" below.
 
 | | What | Where it stands |
 |---|---|---|
@@ -296,7 +299,8 @@ dependencies.
 | **Design §5.1's 30-day replay lifecycle rule** | It ships *now* precisely because it "cannot be retrofitted onto objects already deleted", with the 20-pin exemption unimplemented. When this row was written it did **not** exist in `infra/terraform` even as unapplied HCL — `main.tf` defined the `config` bucket, no replay bucket, and no `lifecycle_rule` anywhere in the directory | **Written, unapplied.** `google_storage_bucket.replays` now carries an `age = 30` / `Delete` `lifecycle_rule` in `main.tf`, and the plan shows it creating. It has still never run against a real object |
 | **No `google_sql_user` created the role `DATABASE_URL` names** | Pre-existing and deploy-stopping: the connection string authenticates as `broodline_app` and nothing anywhere created that role. A green apply and a green revision, then a failure on the first query that touches the database — `/healthz` returns `{ok:true}` without consulting Postgres, so the startup probe passes either way | **Fixed, unapplied.** `google_sql_user.app` plus a Secret Manager secret, version and IAM binding for its password. The api receives it as `PGPASSWORD`, which node-postgres reads as the fallback when the connection string omits a password (`pg/lib/connection-parameters.js`), so `DATABASE_URL` is unchanged and **no application code moved** |
 | **`JWT_SECRET` resolves `version = "latest"` against a secret with zero versions** | Pre-existing: `google_secret_manager_secret.jwt` is created, no `google_secret_manager_secret_version` ever was, and the revision therefore fails to start. Cloud Run reports it as a generic container-failed-to-start, which reads like an application crash | **Documented, not papered over.** The value stays out of Terraform on purpose. `deploy.sh` now *refuses to deploy* until an enabled version exists and prints the exact `gcloud secrets versions add` command; the check lists versions and never reads one. A fresh project is a **two-pass bootstrap** (apply → add version → deploy) and that is now written down rather than discovered |
-| **`sim`'s internal ingress is unreachable from `api`** | Carried here from the Task 11 plan report as "my understanding… I am not certain". **Now settled against the documentation, and the hedge was right** — see below the table | **Diagnosed, deliberately unfixed.** The remedy has an open cost question and is not this round's to choose |
+| **`sim`'s internal ingress is unreachable from `api`** | Carried here from the Task 11 plan report as "my understanding… I am not certain". **Now settled against the documentation, and the hedge was right** — see below the table | **Fixed, unapplied.** Direct VPC egress at `PRIVATE_RANGES_ONLY`, Private Google Access on the imported us-central1 subnet, and a private Cloud DNS zone resolving `*.run.app` to `199.36.153.8/30`. ~$0.20/month, no Cloud NAT. Plan: 0 destroyed, 0 replaced |
+| **`api` cannot authenticate to `sim`** | Pre-existing and fatal independently of reachability: `SimClient` sent `content-type` and nothing else, and `sim` grants `roles/run.invoker` to exactly one member, so every call would have been a 403 that no plan can surface | **Fixed, unapplied.** `SimClient` takes a **required** `SimAuth`; `src/index.ts` wires `googleIdTokenAuth()`. Omitting it is a compile error *and* a throw — never a silent no-op |
 
 ### `sim` is unreachable from `api`, and this is now a citation rather than a hunch
 
@@ -352,6 +356,129 @@ the bill:
 Choosing between them is a cost decision taken while the stack's whole fixed
 cost is being weighed, and it is entangled with nothing else here. **Left
 open deliberately, with the diagnosis now firm enough to decide on.**
+
+### Both gates now exist — OIDC *and* internal ingress
+
+**Human ruling, taken after the research above:** keep `sim` on internal
+ingress *and* require the invoker token. Design §3.1's table asks for exactly
+that; it was previously unimplementable because the api had no way to
+authenticate. Two independent gates, each of which fails closed on its own.
+
+**Gate 1 — the token (`services/api`).** `SimClient`'s constructor now takes a
+**required** `SimAuth`, and `src/index.ts` wires the real one
+(`src/sim/oidc.ts`, `google-auth-library` 11.0.2 against the instance metadata
+server, audience = sim's URL).
+
+The shape matters more than the mechanism, because the mechanism is four
+lines. **There is no default and no unconfigured fallback.** A token provider
+that quietly degrades to a no-op would put the test path and the production
+path on different branches of the same code, and a production wiring that lost
+its provider would look exactly like a green suite — §8 of this file is a list
+of eleven assertions that already failed in that shape. So:
+
+- `new SimClient(url)` is **error TS2554**. `pnpm --filter @broodline/api
+  typecheck` is the thing that enforces it, and `test/sim-auth.test.ts` pins
+  the arity with a `@ts-expect-error`, so relaxing the signature fails the
+  build the other way round (**TS2578: Unused '@ts-expect-error' directive** —
+  verified by giving the parameter a default and watching typecheck go red).
+- The constructor **also throws**, because types are erased and a JS caller or
+  an `as any` never meets `tsc`.
+- The opt-out has to be written out by name *with a reason*:
+  `SimClient.noAuth('local sim host on 127.0.0.1…')`. Every test that spawns a
+  local `Broodline.Sim.Service` now says so at its own call site.
+
+**A token that fails or hangs degrades to the existing `unavailable`
+verdict** — not a 500, and not an unauthenticated retry. The mint happens
+inside `simulate`'s existing `try`, so a rejection becomes `{kind:
+'unavailable'}` and `routes/wave.ts` answers a retryable 503 having consumed
+nothing; `this.fetchImpl` is never called, so no request goes out without the
+header. A hang is bounded by the **same** 5s budget as the fetch (one
+`AbortSignal.timeout` shared by both halves, raced against the mint, which
+takes no signal of its own) rather than each half getting its own.
+
+**The token is not minted per request, and this was read out of the installed
+library rather than assumed.** `IdTokenClient.getRequestMetadataAsync` caches
+and refetches only inside the eager-refresh window; `GoogleAuth.
+getIdTokenClient` does **not** cache and builds a fresh client with empty
+credentials on every call. So the *client* is memoised per audience and the
+*token* is left to the library. A rejected client promise is evicted, or one
+transient metadata blip at startup would make that instance answer
+`sim_unavailable` for its entire life and never retry.
+
+**Gate 2 — the network (`infra/terraform`).** Route B of the research:
+Direct VPC egress at `PRIVATE_RANGES_ONLY` on `api`, Private Google Access on
+the us-central1 subnet, and a private Cloud DNS zone resolving `run.app` (A at
+the apex, CNAME wildcard) to `199.36.153.8/30`. About **$0.20/month**, no
+Cloud NAT, and `appleid.apple.com` keeps exactly the egress path it uses
+today.
+
+### The auto-mode subnet: imported, because custom mode destroys the VPC
+
+The research flagged this as on the critical path and did not design it:
+Private Google Access is per-subnet, and `google_compute_network.main` is
+auto-mode, so the subnet was not a Terraform resource. Two candidate fixes.
+**The choice was made by measuring, not by preference.**
+
+Switching the network to custom mode (`auto_create_subnetworks = false`) was
+planned and the result is disqualifying:
+
+```
+google_compute_network.main must be replaced
+  ~ auto_create_subnetworks = true -> false # forces replacement
+
+Plan: 22 to add, 0 to change, 3 to destroy.
+```
+
+The replacement **cascades to all three existing networking resources** —
+`google_compute_global_address.private_services` and
+`google_service_networking_connection.private_services` both go with it,
+because their `network` becomes known-after-apply. That deletes the VPC and
+the Private Services Access peering Cloud SQL's private IP depends on. The GCP
+API does have an in-place `switchToCustomMode`; **provider 6.50.0 does not
+model it**, and what Terraform would execute is a destroy-and-recreate. Not
+taken.
+
+**Importing the auto-created subnet was taken instead.** It touches none of
+the three existing resources and flips one boolean:
+
+```
+google_compute_subnetwork.main will be updated in-place
+  (imported from "projects/broodline-508416/regions/us-central1/subnetworks/broodline")
+  ~ private_ip_google_access = false -> true
+```
+
+**Two costs of the import, written down here rather than discovered later.**
+Both are in `main.tf` beside the resource:
+
+1. **A fresh project is a two-pass bootstrap**, like the JWT secret version
+   already is. An import block resolves during *plan*, so on a project with no
+   VPC yet the plan fails with "Cannot import non-existent remote object".
+   Create the network first (`terraform apply -target=google_compute_network.
+   main`), then run the full apply; the auto-mode network creates the subnet
+   as a side effect, so the second pass always finds it.
+2. **`terraform destroy` will stop on it.** An auto-mode network's subnets
+   cannot be deleted individually — the API refuses — and Terraform destroys
+   the subnet before the network. Run `terraform state rm
+   google_compute_subnetwork.main` before the next ephemeral
+   verify-then-destroy cycle; deleting the network removes its auto subnets
+   anyway, so nothing leaks. **This is the third instance of the same class of
+   teardown surprise** (Cloud Run v2's own `deletion_protection` was the first
+   two), which is why it is written down before it happens rather than after.
+
+**The VPC-wide trade-off, restated because it does not go away:** the DNS
+override applies to the whole `broodline` network. Every `*.run.app` lookup
+from anything in it resolves to `199.36.153.8/30` and works only from a subnet
+with PGA on. One caller today; a future workload inherits it silently.
+`restricted.googleapis.com` (`199.36.153.4/30`, the VPC-SC variant) is carried
+by `private-ranges-only` identically, so switching is one `rrdatas` list.
+
+**What is still unproven: everything, by apply.** Both gates are documentation
+plus a plan. The composed Cloud-Run-to-Cloud-Run configuration is not
+something Google documents end-to-end in one place, and IAM denial happens on
+a request rather than on an apply — so **the first wave submission against the
+deployed stack is the first real test of either gate.** If the composition is
+wrong the failure is a 5s timeout answered as `sim_unavailable`, not a broken
+deploy: retryable, nothing consumed, and invisible to a health check.
 
 ### The `terraform output` bug is not a bug, and the recorded cause was wrong
 

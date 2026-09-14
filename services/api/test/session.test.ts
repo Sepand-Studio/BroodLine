@@ -38,7 +38,7 @@ beforeAll(async () => {
   clearBundleCache()
 
   app = createApp({
-    db: t.db, bundleStore: store, simClient: new SimClient('http://127.0.0.1:1'),
+    db: t.db, bundleStore: store, simClient: new SimClient('http://127.0.0.1:1', SimClient.noAuth('a deliberately dead address - no route under test here calls sim')),
     replayStore: new LocalReplayStore(bundleRoot), // this file never submits a wave
   })
 }, 240_000)

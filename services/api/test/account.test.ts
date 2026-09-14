@@ -40,7 +40,7 @@ beforeAll(async () => {
   clearBundleCache()
 
   app = createApp({
-    db: t.db, bundleStore: store, simClient: new SimClient('http://127.0.0.1:1'),
+    db: t.db, bundleStore: store, simClient: new SimClient('http://127.0.0.1:1', SimClient.noAuth('a deliberately dead address - no route under test here calls sim')),
     // This file never submits a wave, so a replay store that shares the
     // bundle's temp root (a disjoint 'replays/' subtree - see
     // LocalReplayStore) is only ever asked to exist, never written to.

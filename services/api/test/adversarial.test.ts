@@ -141,7 +141,7 @@ beforeAll(async () => {
   await store.setPointer('0.1.1')
   clearBundleCache()
 
-  deps = { db: t.db, bundleStore: store, simClient: new SimClient(SIM_URL), replayStore: new LocalReplayStore(bundleRoot) }
+  deps = { db: t.db, bundleStore: store, simClient: new SimClient(SIM_URL, SimClient.noAuth('local sim host on 127.0.0.1: no Cloud Run in front of it, so no invoker check to satisfy')), replayStore: new LocalReplayStore(bundleRoot) }
 }, 240_000)
 
 afterAll(async () => {

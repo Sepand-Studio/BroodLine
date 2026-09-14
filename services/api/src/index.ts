@@ -4,6 +4,7 @@ import { GcsBundleStore } from './config/gcs-store.ts'
 import { createDb, createPool } from './db/client.ts'
 import { GcsReplayStore } from './replays/gcs-store.ts'
 import { SimClient } from './sim/client.ts'
+import { googleIdTokenAuth } from './sim/oidc.ts'
 
 const port = Number(process.env.PORT ?? 8080)
 
@@ -36,7 +37,13 @@ if (!simBaseUrl) throw new Error('SIM_BASE_URL must be set.')
 const app = createApp({
   db: createDb(createPool(url)),
   bundleStore: new GcsBundleStore(bucket),
-  simClient: new SimClient(simBaseUrl),
+  // The SECOND of design 3.1's two gates, and the only one that lives in
+  // application code. `sim` grants roles/run.invoker to exactly one member -
+  // this service account - so every call needs a Google-signed OIDC ID token
+  // with sim's URL as its audience or Cloud Run answers 403 before sim runs.
+  // There is no default for this argument on purpose; see SimAuth in
+  // sim/client.ts for what a defaulted one would silently cost.
+  simClient: new SimClient(simBaseUrl, googleIdTokenAuth()),
   replayStore: new GcsReplayStore(replayBucket),
 })
 

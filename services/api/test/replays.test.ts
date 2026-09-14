@@ -137,7 +137,7 @@ beforeAll(async () => {
   // template, always shallow-copied with a fresh store before use, so one
   // test's writes are never visible to another's `list()` assertion.
   deps = {
-    db: t.db, bundleStore, simClient: new SimClient(SIM_URL), replayStore: new LocalReplayStore(bundleRoot),
+    db: t.db, bundleStore, simClient: new SimClient(SIM_URL, SimClient.noAuth('local sim host on 127.0.0.1: no Cloud Run in front of it, so no invoker check to satisfy')), replayStore: new LocalReplayStore(bundleRoot),
   }
 }, 240_000)
 

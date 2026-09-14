@@ -58,6 +58,170 @@ resource "google_service_networking_connection" "private_services" {
   reserved_peering_ranges = [google_compute_global_address.private_services.name]
 }
 
+# ---------------------------------------------------------------------------
+# Reaching `sim`: Direct VPC egress + Private Google Access + a private DNS
+# zone for run.app. Route B of the VPC egress research
+# (.superpowers/sdd/2026-09-14-phase5-remediation/vpc-egress-research.md),
+# about $0.20/month, and the SECOND of design 3.1's two gates.
+#
+# WHAT THIS BUYS. `sim` is INGRESS_TRAFFIC_INTERNAL_ONLY, and internal means
+# "arrived over a VPC network in this project" - checked at the network
+# layer, BEFORE IAM. `api` calls sim at an https://*.run.app address, which
+# resolves to public Google IPs and therefore leaves Cloud Run for the
+# internet, not for this VPC. Three documented routes close that; this is the
+# cheapest (run/docs/securing/private-networking, third bullet):
+#
+#   "Enable Private Google Access on the subnet associated with the source
+#    resource and configure DNS to resolve run.app URLs to the
+#    private.googleapis.com (199.36.153.8/30) or restricted.googleapis.com
+#    (199.36.153.4/30) ranges. Requests to these ranges are routed through
+#    the VPC network."
+#
+# The load-bearing fact, and the one the previous round could not settle:
+# PRIVATE_RANGES_ONLY *does* carry 199.36.153.8/30. The routed set is
+# enumerated exhaustively on run/docs/configuring/vpc-connectors - "RFC 1918
+# / RFC 6598 / 199.36.153.4/30 and 199.36.153.8/30" - and
+# networking-best-practices prescribes exactly this combination for Direct
+# VPC egress under "Example 2: Internal traffic to a Google API".
+#
+# WHY NOT ALL_TRAFFIC. It would send services/api/src/identity/apple.ts's
+# fetch of https://appleid.apple.com/auth/keys through the VPC too, and a
+# Direct-VPC-egress instance has no external IP, so Apple sign-in would need
+# Cloud NAT: $3.60-35/month and a documented "cold start delays of 30s or
+# more" (run/docs/configuring/vpc-direct-vpc). Under PRIVATE_RANGES_ONLY that
+# fetch is a public destination and keeps exactly the egress path it uses
+# today - untouched, no NAT, no cold-start tax.
+#
+# THE TRADE-OFF TO KNOW ABOUT, because it is network-wide rather than
+# service-wide: the DNS override below applies to the whole `broodline` VPC.
+# EVERY *.run.app lookup from anything in this network will resolve to
+# 199.36.153.8/30 and will only work from a subnet with Private Google Access
+# on. Today that is one caller. A future workload in this VPC that calls some
+# other *.run.app service inherits it silently. Switching to
+# restricted.googleapis.com (199.36.153.4/30, the VPC-SC variant, carried by
+# private-ranges-only identically) is a one-line rrdatas change if that is
+# ever wanted.
+
+# THE SUBNET IS IMPORTED, NOT CREATED, AND THE ALTERNATIVE WAS MEASURED.
+#
+# Private Google Access is a per-subnet setting, and google_compute_network.
+# main is auto-mode (auto_create_subnetworks = true), so its regional subnets
+# are created by GCP and are not resources in this file. There were two ways
+# to get a Terraform-managed subnet to put PGA on, and only one of them is
+# survivable:
+#
+#   - Switch the network to custom mode and declare an explicit subnet.
+#     REJECTED, and not on taste: `terraform plan` with
+#     auto_create_subnetworks = false reports
+#       google_compute_network.main must be replaced
+#         ~ auto_create_subnetworks = true -> false # forces replacement
+#     and the replacement cascades - google_compute_global_address.
+#     private_services and google_service_networking_connection.
+#     private_services both go with it, because their `network` becomes
+#     known-after-apply. Measured: "Plan: 22 to add, 0 to change, 3 to
+#     destroy". That deletes the VPC and the Private Services Access peering
+#     that Cloud SQL's private IP depends on. The GCP API does have an
+#     in-place switchToCustomMode; provider 6.50.0 does not model it, and
+#     what Terraform would execute is a destroy-and-recreate.
+#   - Import the auto-created subnet. THIS. It touches none of the three
+#     existing networking resources and changes one boolean on a subnet that
+#     already exists.
+#
+# WHAT THE IMPORT COSTS, stated rather than discovered later:
+#   1. A FRESH PROJECT IS A TWO-PASS BOOTSTRAP, like the JWT secret version
+#      already is. An import block is resolved during plan, so on a project
+#      where the VPC does not exist yet there is no subnet to import and
+#      `terraform plan` fails with "Cannot import non-existent remote
+#      object". Create the network first
+#        terraform apply -target=google_compute_network.main
+#      then run the full apply. The auto-mode network creates this subnet as
+#      a side effect, so the second pass always finds it.
+#   2. `terraform destroy` WILL STOP HERE. An auto-mode network's subnets
+#      cannot be deleted individually - the API refuses - and Terraform
+#      destroys the subnet before the network. Before the next ephemeral
+#      verify-then-destroy cycle (see deletion_protection in variables.tf),
+#      drop it from state first:
+#        terraform state rm google_compute_subnetwork.main
+#      Deleting the network removes its auto subnets anyway, so nothing is
+#      leaked. This is written here because the last two teardowns were
+#      wedged mid-flight by exactly this class of surprise (Cloud Run v2's
+#      own deletion_protection, twice).
+import {
+  to = google_compute_subnetwork.main
+  # An auto-mode network's subnets take the network's name, one per region.
+  # Literal rather than a reference to google_compute_network.main.name so
+  # the id stays known at plan time even when the network is being created.
+  id = "projects/${var.project_id}/regions/${var.region}/subnetworks/broodline"
+}
+
+resource "google_compute_subnetwork" "main" {
+  name    = "broodline"
+  region  = var.region
+  network = google_compute_network.main.id
+
+  # 10.128.0.0/20 is what GCP allocated to us-central1 when it created this
+  # subnet automatically (auto-mode's fixed per-region map inside
+  # 10.128.0.0/9). It is stated here because the import must match it; it is
+  # not a choice this file is making, and changing it would be a replacement
+  # of a subnet that cannot be replaced.
+  ip_cidr_range = "10.128.0.0/20"
+
+  # THE ONE LINE THIS WHOLE RESOURCE EXISTS FOR. Without it the DNS override
+  # below sends run.app traffic at 199.36.153.8/30 from a subnet that is not
+  # allowed to talk to it, and every call to sim times out instead of being
+  # refused - which is a worse failure than the 403 it replaces, because it
+  # burns the 5s budget in SimClient first.
+  private_ip_google_access = true
+}
+
+# The DNS half. Private zone, visible only inside this VPC, following the
+# shape Google documents for Private Google Access (vpc/docs/configure-
+# private-google-access, "Configure DNS ... using Cloud DNS"): an A record at
+# the apex holding the four private.googleapis.com VIPs, and a CNAME wildcard
+# pointing at it.
+#
+# dns.googleapis.com must be enabled on the project. It already is on
+# broodline-508416 (checked), and no API in this stack is managed by
+# Terraform - there is no google_project_service anywhere in this directory -
+# so a FRESH project needs it turned on out of band like the rest.
+resource "google_dns_managed_zone" "run_app" {
+  name        = "broodline-run-app"
+  dns_name    = "run.app."
+  description = "Routes *.run.app to the Private Google Access VIPs so api can reach sim's internal ingress. See main.tf."
+  visibility  = "private"
+
+  private_visibility_config {
+    networks {
+      network_url = google_compute_network.main.id
+    }
+  }
+}
+
+resource "google_dns_record_set" "run_app" {
+  managed_zone = google_dns_managed_zone.run_app.name
+  name         = "run.app."
+  type         = "A"
+  ttl          = 300
+
+  # private.googleapis.com = 199.36.153.8/30, whose four usable addresses are
+  # these. NOT restricted.googleapis.com (199.36.153.4/30): that one is the
+  # VPC Service Controls variant and refuses traffic for APIs outside a
+  # perimeter, and this project has no perimeter. Both ranges are carried by
+  # PRIVATE_RANGES_ONLY identically, so swapping later is this one list.
+  rrdatas = ["199.36.153.8", "199.36.153.9", "199.36.153.10", "199.36.153.11"]
+}
+
+resource "google_dns_record_set" "run_app_wildcard" {
+  managed_zone = google_dns_managed_zone.run_app.name
+  name         = "*.run.app."
+  type         = "CNAME"
+  ttl          = 300
+
+  # The actual sim hostname is a *.run.app name, so this is the record that
+  # does the work; the apex A record above is what it resolves to.
+  rrdatas = ["run.app."]
+}
+
 resource "google_sql_database_instance" "main" {
   # The instance's private IP allocation depends on the peering existing
   # first; Terraform cannot infer this from the private_network reference
@@ -275,6 +439,41 @@ resource "google_cloud_run_v2_service" "api" {
   template {
     service_account = google_service_account.api.email
 
+    # DIRECT VPC EGRESS - the network half of design 3.1's two gates, and the
+    # thing that makes `sim`'s internal ingress reachable at all. See the
+    # subnet and DNS resources near the top of this file for the full
+    # reasoning; the short version is that this plus Private Google Access
+    # plus the run.app DNS override puts sim's address inside the VPC without
+    # putting anything ELSE inside it.
+    #
+    # No `connector` attribute: Serverless VPC Access connectors bill
+    # always-on VM instances at roughly $8-10/month. Direct VPC egress has no
+    # connector instances, scales to zero with the service, and costs
+    # nothing (run/docs/configuring/connecting-vpc). The whole reachability
+    # fix is the ~$0.20/month Cloud DNS managed zone.
+    vpc_access {
+      # PRIVATE_RANGES_ONLY, NOT ALL_TRAFFIC, and this is the load-bearing
+      # choice rather than a default left in place. ALL_TRAFFIC would pull
+      # every outbound request into the VPC including
+      # services/api/src/identity/apple.ts's fetch of appleid.apple.com,
+      # which Private Google Access does not cover and which an instance
+      # with no external IP cannot reach without Cloud NAT. Under this
+      # setting that fetch keeps exactly the path it uses today. What DOES
+      # get routed is the 199.36.153.8/30 range the DNS zone points run.app
+      # at - private-ranges-only carries it by name (vpc-connectors, "Route
+      # only requests to private IPs to the VPC").
+      egress = "PRIVATE_RANGES_ONLY"
+
+      network_interfaces {
+        network = google_compute_network.main.name
+        # Referenced rather than named literally so Terraform orders the
+        # import and the private_ip_google_access flip BEFORE this revision
+        # exists. A revision that comes up against a subnet without PGA
+        # cannot reach sim, and nothing about it looks unhealthy.
+        subnetwork = google_compute_subnetwork.main.name
+      }
+    }
+
     scaling {
       min_instance_count = 0
       # A HARD CAP, deliberately. solo_execution 5.7: Cloud Run scales to
@@ -434,57 +633,33 @@ resource "google_cloud_run_v2_service" "sim" {
   # to anyone who can reach the service, so reachability is the whole of the
   # defence and this one line is all of it.
   #
-  # ############################################################
-  # THIS SERVICE IS NOT REACHABLE FROM `api` AS THIS STACK STANDS
-  # ############################################################
-  #
-  # The previous note here said "my understanding is that a Cloud Run ->
-  # Cloud Run call without VPC egress is not internal... I am not fully
-  # certain." It has since been checked against the documentation rather than
-  # reasoned about, and the hedge was right:
+  # REACHABILITY: NOW IMPLEMENTED, not merely diagnosed. `api` carries a
+  # vpc_access block (PRIVATE_RANGES_ONLY), the us-central1 subnet has
+  # Private Google Access, and a private DNS zone resolves *.run.app to
+  # 199.36.153.8/30 - see the three resources near the top of this file. That
+  # is run/docs/securing/private-networking's third option, the one that
+  # satisfies
   #
   #   "When calling from Cloud Run or App Engine to a Cloud Run service
   #    that's set to 'Internal' or 'Internal and Cloud Load Balancing',
   #    traffic must route through a VPC network that's considered internal."
-  #       - cloud.google.com/run/docs/securing/ingress, "Access internal
-  #         services"
+  #      - cloud.google.com/run/docs/securing/ingress
   #
-  # `api` has NO vpc_access block, so its call to sim's *.run.app address
-  # does not route through this project's VPC and is therefore not internal.
-  # sim rejects it at the network layer, BEFORE IAM is consulted - so this is
-  # a second, independent gate from the invoker binding below, and fixing
-  # that one does not open this one.
+  # without the Cloud NAT that ALL_TRAFFIC would have forced.
   #
-  # WHAT THE DOCUMENTATION SAYS IS REQUIRED (run/docs/securing/private-
-  # networking, "Receive requests from other Cloud Run resources or App
-  # Engine"): configure the SOURCE service with Direct VPC egress or a
-  # connector, and then either
-  #   (a) "route all traffic through the VPC network and enable Private
-  #       Google Access on the subnet", or
-  #   (b) "enable Private Google Access on the subnet associated with the
-  #       source resource and configure DNS to resolve run.app URLs to the
-  #       private.googleapis.com (199.36.153.8/30) or restricted.
-  #       googleapis.com (199.36.153.4/30) ranges".
+  # THIS IS ONE OF TWO GATES AND NEITHER SUBSTITUTES FOR THE OTHER. This line
+  # decides who can REACH sim; api_invokes_sim below decides who may INVOKE
+  # it. Ingress is enforced at the network layer before IAM is consulted, so
+  # a caller inside the VPC with no token still gets 403, and a caller with a
+  # valid token outside the VPC never arrives. Design 3.1's table asks for
+  # both, and as of this change both exist.
   #
-  # NOT WRITTEN HERE, DELIBERATELY, AND THE REASON IS COST AND A LIVE CODE
-  # PATH. Route (a) sends ALL of api's egress through the VPC, including
-  # services/api/src/identity/apple.ts's fetch of
-  # https://appleid.apple.com/auth/keys - a non-Google endpoint that Private
-  # Google Access does not cover and that a Direct-VPC-egress instance, which
-  # has no external IP, cannot reach without Cloud NAT. Cloud NAT is another
-  # billable resource, and the documentation does not state plainly whether
-  # it is strictly required here. Route (b) avoids that but needs a private
-  # DNS zone for run.app, and the docs do not say whether the default
-  # `private-ranges-only` egress routes 199.36.153.8/30 through the VPC at
-  # all. Both sub-questions are open, both move the bill, and the bill is
-  # what is currently being decided. See the Task 11 gaps report.
-  #
-  # THE ONE FIRM COST FINDING, because it inverts the assumption that framed
-  # this as expensive: Direct VPC egress carries NO connector-instance
-  # compute charge and scales to zero (run/docs/configuring/connecting-vpc);
-  # it is the SERVERLESS VPC ACCESS CONNECTOR, the other option, that bills
-  # always-on VMs at roughly $8-10/month. The reachability fix therefore does
-  # not have to be the expensive one.
+  # STILL UNPROVEN BY AN APPLY. Every fact above is documentation plus a
+  # plan; the composed configuration is not something Google documents
+  # end-to-end for Cloud-Run-to-Cloud-Run in one place. The first apply is
+  # where it is actually tested, and the failure mode if the composition is
+  # wrong is a 5s timeout per wave submission answered as `sim_unavailable`,
+  # not a broken deploy.
   ingress = "INGRESS_TRAFFIC_INTERNAL_ONLY"
 
   # Same reason as the api service above, learned the same way: Cloud Run v2
@@ -535,12 +710,19 @@ resource "google_cloud_run_v2_service" "sim" {
 #
 # Cloud Run requires an authenticated caller unless allUsers holds this role,
 # and no such binding exists here - so this is the ONLY identity that can
-# invoke sim, which is the shape the design asks for. It is also, at the time
-# of writing, a shape services/api/src/sim/client.ts cannot satisfy: SimClient
-# calls fetch() with a content-type header and no Authorization header, and
-# the api has no google-auth-library dependency to mint an OIDC ID token with.
-# See the Task 11 report - this is a runtime gap that no plan can surface,
-# because IAM denial happens on a request, not on an apply.
+# invoke sim, which is the shape the design asks for.
+#
+# SimClient CAN NOW SATISFY IT. services/api/src/sim/client.ts takes a
+# REQUIRED SimAuth argument and src/index.ts wires the real one
+# (src/sim/oidc.ts, google-auth-library): every call carries an
+# `Authorization: Bearer <OIDC ID token>` whose audience is sim's URL, minted
+# from the instance metadata server as this service account. Omitting it is a
+# compile error and a throw, not a silent no-op - the deliberate shape,
+# because an auth gate that can quietly become a no-op is worse than none.
+#
+# What no plan can surface remains true: IAM denial happens on a request, not
+# on an apply, so the first real proof of this binding is the first wave
+# submission against the deployed stack.
 resource "google_cloud_run_v2_service_iam_member" "api_invokes_sim" {
   name     = google_cloud_run_v2_service.sim.name
   location = google_cloud_run_v2_service.sim.location
