@@ -104,6 +104,9 @@ interface DotnetBuildLock {
  *    reclaim()'s re-verify and releaseOnce's ownership check both ask "is
  *    the thing at this path still the same generation I decided about?",
  *    and a value that repeats across generations answers that wrongly.
+ *    This closes the generation question only where a value EXISTS to
+ *    compare; reclaim()'s second accepted residual is the one case where
+ *    none does, and no nonce reaches it.
  *  - *** A bare pid would make this design silently depend on vitest's
  *    pool. *** The three TS callers are distinct processes only because
  *    vitest 2.1's default pool is `forks` and vitest.config.ts sets no
@@ -239,6 +242,24 @@ function createDotnetBuildLock(dir: string, opts: {
    * infrastructure whose worst case is one flaky `dotnet build`, which is
    * the failure this lock already reduced from routine to rare. So: known,
    * bounded, accepted, and written down rather than papered over.
+   *
+   * A SECOND residual sits alongside it, and - unlike the generation
+   * confusion the nonce above really does close - the nonce CANNOT close
+   * this one, because it acts on a value that does not exist yet. During
+   * the mkdir -> owner-write window there is no owner file at all, so
+   * `observedRaw` and `stillThere` are both undefined, the re-verify
+   * compares EQUAL, and reclaim proceeds. Round 4's review demonstrated it
+   * against this code path: an ownerless lock dir aged past staleMs (a
+   * crash inside that window) -> A reads owner-absent and judges stale ->
+   * C reclaims, mkdirs a fresh lock, has not yet written its owner -> A's
+   * re-verify reads owner-absent too, matches its own, and destroys C's
+   * LIVE lock. The bash side is structurally identical, with the empty
+   * string in place of undefined. Pre-existing and Minor - it needs a
+   * crash in a microsecond window plus five minutes of nobody touching the
+   * path - and accepted for exactly the reason above: distinguishing
+   * "absent because not written yet" from "absent because it was never
+   * written" needs the same compare-and-swap primitive this design already
+   * rules disproportionate.
    */
   async function reclaim(observedRaw: string | undefined): Promise<void> {
     if (testBeforeReclaim) await testBeforeReclaim()

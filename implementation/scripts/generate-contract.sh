@@ -214,6 +214,19 @@ build_lock_is_stale() {
 # does not offer; disproportionate for test infrastructure whose worst case
 # is one flaky `dotnet build`. See wave-helpers.ts's reclaim() for the
 # longer version of this note.
+#
+# A SECOND residual sits alongside it, and the owner value's nonce cannot
+# close this one - it acts on a value that does not exist yet. During the
+# mkdir -> owner-write window there is no owner file at all, so `$observed`
+# and `$still_there` are BOTH the empty string, `[ "$still_there" =
+# "$observed" ]` compares equal, and the rm proceeds. It takes an ownerless
+# lock dir aged past BUILD_LOCK_STALE_SECONDS (a crash inside that window):
+# A reads an absent owner and judges stale, another contender reclaims,
+# mkdirs a fresh lock and has not yet written its owner, and A's re-verify
+# reads absent too, matches, and removes that LIVE lock. wave-helpers.ts's
+# reclaim() has the identical hole with `undefined` in place of "". Accepted
+# for the same reason: telling "absent because not written yet" from "absent
+# because never written" needs the compare-and-swap this design rules out.
 build_lock_reclaim() {
   local observed="$1"
   # read_build_lock_owner, NOT `[ -f ... ] && x="$(cat ...)"` - see that
