@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { withServer } from '../src/db/client.ts'
 import { servers, players, accounts, waveIssuances } from '../src/db/schema.ts'
@@ -122,5 +122,114 @@ describe('wave_issuances', () => {
     // because the isolation gate scans pg_class and this table must be in it.
     const rows = await t.db.execute(sql`SELECT * FROM wave_issuances`)
     expect(rows.rows).toHaveLength(0)
+  })
+
+  // --- 0004: the write-once trigger's COLUMN SCOPE.
+  //
+  // 0003 declared the trigger `BEFORE UPDATE` with no column list, so it
+  // entered plpgsql on every update of every column. 0004 narrows it to
+  // `BEFORE UPDATE OF settled_at, settlement`. The four transitions above
+  // must keep their outcomes exactly - if narrowing changed any of them the
+  // narrowing would be wrong, not the test - and these three add what the
+  // narrowing itself is answerable for.
+  describe('the write-once trigger, narrowed to the settlement columns', () => {
+    const SETTLED = 'aaaaaaaa-0000-0000-0000-000000000007'
+
+    beforeAll(async () => {
+      // Its own settled row rather than one of the rows above, so these
+      // three cannot quietly become vacuous if the tests before them are
+      // reordered or retired. Issued and settled immediately: settling it
+      // leaves the one-live slot exactly as this block found it.
+      await issue(t.db, 6, SETTLED)
+      const res = await settle(t.db, SETTLED, 'consumed')
+      expect(res.rowCount).toBe(1)
+    })
+
+    it('still permits a settlement re-set to the value it already holds', async () => {
+      // NOT a statement the narrowing skips: `UPDATE OF settlement` fires on
+      // the column being MENTIONED, not on its value changing, so this
+      // enters the function exactly as a real rewrite does - and is allowed
+      // through only because the guard compares values (IS DISTINCT FROM)
+      // rather than mentions. Pinned here because it is the transition whose
+      // outcome a narrowing could most plausibly have changed, and because
+      // nothing else in this file covers it.
+      const res = await withServer(t.db, 1, (tx) => tx.execute(sql`
+        UPDATE wave_issuances SET settlement = 'consumed'
+        WHERE issuance_id = ${SETTLED}`))
+
+      // The row really matched: an UPDATE that hit nothing would satisfy
+      // "did not throw" while proving nothing about the trigger.
+      expect(res.rowCount).toBe(1)
+    })
+
+    it('refuses a settled_at moved on its own, with settlement never named', async () => {
+      // Why settled_at is in the column list and not only settlement. This
+      // statement rewrites a settlement - it moves WHEN the row stopped
+      // being live - and satisfies 0003's
+      // CHECK ((settled_at IS NULL) = (settlement IS NULL)) while doing it,
+      // so no constraint on this table would catch it. Narrow the trigger to
+      // `OF settlement` alone and this goes green while the guard is gone.
+      await expect(withServer(t.db, 1, (tx) => tx.execute(sql`
+        UPDATE wave_issuances SET settled_at = now() + interval '1 hour'
+        WHERE issuance_id = ${SETTLED}`)))
+        .rejects.toThrow(/write-once/)
+    })
+
+    it('is not entered at all by an UPDATE that names neither settlement column', async () => {
+      // BEHAVIOUR, not a catalog read of pg_trigger.tgattr: for the length
+      // of one transaction the trigger's FUNCTION is replaced by one that
+      // raises unconditionally, which turns "did the trigger body run?" into
+      // something a statement's own outcome answers. Postgres DDL is
+      // transactional, so the rollback below restores 0003's real function
+      // exactly and no other session ever sees the canary.
+      const rollback = new Error('rollback: the canary must not outlive this test')
+
+      try {
+        await t.ownerDb.transaction(async (tx) => {
+          await tx.execute(sql`
+            CREATE OR REPLACE FUNCTION reject_wave_issuance_settlement_rewrite() RETURNS trigger AS $canary$
+            BEGIN
+              RAISE EXCEPTION 'canary: the trigger body was entered';
+            END;
+            $canary$ LANGUAGE plpgsql`)
+
+          // THE CLAIM. wave_id is not a settlement column, so after 0004 this
+          // statement never reaches the function. Under 0003's unscoped
+          // `BEFORE UPDATE` it does, and the canary raises - which is what
+          // makes this red against the trigger it replaces, rather than
+          // green against both.
+          const unrelated = await tx.execute(sql`
+            UPDATE wave_issuances SET wave_id = 7 WHERE issuance_id = ${SETTLED}`)
+          expect(unrelated.rowCount).toBe(1)
+
+          // THE POSITIVE CONTROL, and it is not optional: a canary that was
+          // never actually installed - a renamed function, a signature the
+          // trigger does not use - would make the assertion above pass while
+          // exercising nothing. This proves the canary is armed and that the
+          // trigger still fires for the columns it names. The raise aborts
+          // this transaction, which costs nothing: it is rolled back either
+          // way, and it is the last statement in it.
+          await expect(tx.execute(sql`
+            UPDATE wave_issuances SET settlement = 'consumed' WHERE issuance_id = ${SETTLED}`))
+            .rejects.toThrow(/canary/)
+
+          throw rollback
+        })
+      } catch (err) {
+        if (err !== rollback) throw err
+      }
+
+      // The canary is gone and the real rule is back - asserted, not assumed,
+      // because a rollback that silently failed would leave every later run
+      // of this file testing a different function than the one that ships.
+      await expect(withServer(t.db, 1, (tx) => tx.execute(sql`
+        UPDATE wave_issuances SET settlement = 'expired' WHERE issuance_id = ${SETTLED}`)))
+        .rejects.toThrow(/write-once/)
+
+      // And the rolled-back UPDATE left nothing behind.
+      const [row] = await t.ownerDb.select().from(waveIssuances)
+        .where(eq(waveIssuances.issuanceId, SETTLED))
+      expect(row?.waveId).toBe(6)
+    })
   })
 })

@@ -5,14 +5,14 @@ import { fileURLToPath } from 'node:url'
 import { and, eq, sql } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createApp, type Deps } from '../src/app.ts'
-import { clearBundleCache } from '../src/config/bundle.ts'
+import { clearBundleCache, loadBundle } from '../src/config/bundle.ts'
 import { publishBundle } from '../src/config/publish.ts'
 import { LocalBundleStore } from '../src/config/store.ts'
 import { withServer } from '../src/db/client.ts'
 import { servers, waveIssuances } from '../src/db/schema.ts'
 import { LocalReplayStore } from '../src/replays/store.ts'
 import { SimClient } from '../src/sim/client.ts'
-import { claimIssuance } from '../src/wave/issuance.ts'
+import { claimIssuance, issueWave } from '../src/wave/issuance.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 import {
   clearWave, consumeLiveIssuance, setupPlayer, startWave as start,
@@ -246,5 +246,78 @@ describe('POST /v1/wave/start', () => {
     const stillReadable = await withServer(deps.db, SERVER_ID, (tx) =>
       tx.select().from(waveIssuances).where(eq(waveIssuances.issuanceId, first.issuanceId)))
     expect(stillReadable).toHaveLength(1)
+  })
+
+  // --- The waveId sanity bound (routes/wave.ts's parseStart).
+  //
+  // 400 AND 409 ARE DIFFERENT ANSWERS and the distinction is the whole
+  // point: `invalid_request` says the request was malformed, `wave_locked`
+  // says it was understood and refused. A client could not tell those apart
+  // for an absurd waveId, because every one of them reached `issueWave` -
+  // and paid for a campaign_progress lookup and a bundle scan on the way to
+  // being told 409.
+  //
+  // Nothing in `issueWave` can answer `invalid_request`: its only two
+  // refusals are wave_locked and replay_cap_reached. So a 400 here IS the
+  // proof that the parse layer answered, without a second assertion about
+  // where the answer came from.
+  //
+  // The two route tests below never reach the database - the refusal is
+  // formed before any query - so they leave this file's chained fixture
+  // state exactly as they found it. The third one does touch it, and runs
+  // last for that reason.
+
+  it('refuses a waveId above what the schema could store, as malformed rather than locked', async () => {
+    // wave_issuances.wave_id is a Postgres `integer`, so 2^53-1 is not a
+    // wave that happens to be unavailable - it is not a wave id this system
+    // could hold under any bundle.
+    const res = await start(Number.MAX_SAFE_INTEGER)
+    expect(res.status).toBe(400)
+    expect(await res.json()).toMatchObject({ code: 'invalid_request' })
+  })
+
+  it('refuses a non-positive waveId as malformed rather than locked', async () => {
+    // The floor, from the other end and for the same reason: no bundle can
+    // author wave 0 or wave -1, so the answer does not depend on content.
+    const negative = await start(-1)
+    expect(negative.status).toBe(400)
+    expect(await negative.json()).toMatchObject({ code: 'invalid_request' })
+
+    const zero = await start(0)
+    expect(zero.status).toBe(400)
+    expect(await zero.json()).toMatchObject({ code: 'invalid_request' })
+  })
+
+  it('issueWave still refuses a non-positive waveId when called directly', async () => {
+    // The flip side of the bound above. `/v1/wave/start` is issueWave's only
+    // caller (src/routes/wave.ts), so with the parse bound in place nothing
+    // in the running service reaches issueWave with a waveId below 1 any
+    // more. This pins the OUTCOME at the function's own boundary, so that
+    // moving the check up a layer did not quietly change what issueWave
+    // answers for the ids it can still be handed directly.
+    //
+    // WHAT THIS DOES NOT COVER, stated because the reverse is the easy thing
+    // to assume: it is NOT a gate on issuance.ts's `if (waveId < 1) return
+    // { refused: 'wave_locked' }` line. Deleting that line leaves this test
+    // green - measured, not reasoned - because any waveId below 1 is also
+    // <= cleared (cleared is never negative), so control falls into the
+    // REPLAY branch and check 3 refuses the same ids with the same
+    // wave_locked for a different reason: no bundle authors wave 0 or wave
+    // -1. That line is a short-circuit worth keeping - it saves the replay
+    // branch's count query - but it is not what produces the refusal, and
+    // this test should not be read as covering it.
+    //
+    // No live issuance is created either way: both calls refuse before
+    // check 4's select and check 5's insert, which is why they can share one
+    // player and one transaction.
+    const { playerId } = await setupPlayer(deps)
+    const bundle = await loadBundle(deps.bundleStore)
+
+    const refusals = await withServer(deps.db, SERVER_ID, async (tx) => [
+      await issueWave(tx, SERVER_ID, playerId, 0, bundle),
+      await issueWave(tx, SERVER_ID, playerId, -1, bundle),
+    ])
+
+    expect(refusals).toEqual([{ refused: 'wave_locked' }, { refused: 'wave_locked' }])
   })
 })

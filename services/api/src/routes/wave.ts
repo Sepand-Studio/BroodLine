@@ -18,10 +18,36 @@ import { type SimulateBreach, type SimulateEcho, toInt } from '../sim/client.ts'
 
 interface StartBody { waveId: number }
 
+/**
+ * The parse layer's SANITY bound on waveId. Not a statement about which
+ * waves exist: `issueWave`'s authored-wave check stays the only authority on
+ * that, and every id inside this range still goes to it, wave 6 and wave
+ * 2,000,000 alike.
+ *
+ * 2^31-1 because `wave_issuances.wave_id` is a Postgres `integer`
+ * (drizzle/0003_wave_issuances.sql). An id above it cannot be stored by this
+ * schema under ANY bundle, so it is malformed by construction rather than
+ * merely unavailable - which is the distinction this bound exists to
+ * restore. `invalid_request` (400) says the request was malformed;
+ * `wave_locked` (409) says it was understood and refused, and a client could
+ * not tell those apart for `waveId: 2**53`, which reached `issueWave` and
+ * cost a campaign_progress lookup and a bundle scan to be told 409.
+ *
+ * Deliberately far above anything content will ever author, so that changing
+ * which waves a bundle carries never means touching this number.
+ */
+const MAX_WAVE_ID = 2_147_483_647
+
 function parseStart(raw: unknown): StartBody | null {
   if (typeof raw !== 'object' || raw === null) return null
   const b = raw as Record<string, unknown>
   if (typeof b.waveId !== 'number' || !Number.isInteger(b.waveId)) return null
+  // The floor is 1 for the same reason as the ceiling, from the other end:
+  // no bundle can author wave 0 or a negative wave, so the answer does not
+  // depend on content either. `issueWave` still refuses every waveId < 1 as
+  // wave_locked and keeps doing so - this route can simply no longer hand it
+  // one; test/wave-start.test.ts calls it directly to pin that outcome.
+  if (b.waveId < 1 || b.waveId > MAX_WAVE_ID) return null
   return { waveId: b.waveId }
 }
 
@@ -122,7 +148,14 @@ export function registerWaveRoutes(app: Hono, deps: Deps): void {
 
     const raw = await c.req.json().catch(() => null)
     const body = parseStart(raw)
-    if (body === null) return fail('invalid_request', 'waveId is required.')
+    // The message names the whole rule, not just the missing-field half of
+    // it: `waveId: 2**53` IS present, and answering it "waveId is required."
+    // would be a refusal that misstates its own reason. The client switches
+    // on `code`, never on this text (solo_execution 6.2), so the wording is
+    // free to be accurate.
+    if (body === null) {
+      return fail('invalid_request', `waveId must be an integer between 1 and ${MAX_WAVE_ID}.`)
+    }
 
     const bundle = await loadBundle(deps.bundleStore)
 
