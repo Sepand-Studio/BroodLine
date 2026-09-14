@@ -202,6 +202,16 @@ resource "google_cloud_run_v2_service" "api" {
         name  = "CONFIG_BUCKET"
         value = google_storage_bucket.config.name
       }
+      # Design 5.1's second collection. index.ts hard-fails at boot if this is
+      # unset, ON PURPOSE (its comment explains why: a missing bucket loses
+      # every replay silently and forever, while a crash-loop is caught in
+      # seconds and rolls back with one command). That makes this line a
+      # DEPLOY-ORDER PREREQUISITE, not a convenience - the bucket above must
+      # exist before the revision that reads this ships.
+      env {
+        name  = "REPLAY_BUCKET"
+        value = google_storage_bucket.replays.name
+      }
       env {
         name = "JWT_SECRET"
         value_source {
@@ -215,6 +225,19 @@ resource "google_cloud_run_v2_service" "api" {
         name  = "DATABASE_URL"
         value = "postgresql://broodline_app@localhost/broodline?host=/cloudsql/${google_sql_database_instance.main.connection_name}"
       }
+      # sim's address, from the resource rather than hand-typed: a Cloud Run
+      # URL is assigned at create time and a literal here would be a guess
+      # that survives typechecking and fails at boot. index.ts hard-fails
+      # without it, same as REPLAY_BUCKET.
+      #
+      # This is an INTERNAL-ingress URL (see the sim service above). It is
+      # still an https://*.run.app address - internal ingress changes who may
+      # reach it, not what it is called - so a value appearing here is not by
+      # itself evidence that the api can reach it.
+      env {
+        name  = "SIM_BASE_URL"
+        value = google_cloud_run_v2_service.sim.uri
+      }
 
       startup_probe {
         http_get { path = "/healthz" }
@@ -223,4 +246,168 @@ resource "google_cloud_run_v2_service" "api" {
       }
     }
   }
+}
+
+# ---------------------------------------------------------------------------
+# sim - the second deployable. Design 3.1.
+# ---------------------------------------------------------------------------
+
+# Its OWN service account, and the interesting thing about it is what is NOT
+# attached below: no roles/cloudsql.client, no bucket binding, no secret
+# accessor. Design 3.1 - "no Cloud SQL client, no GCS client, no JWT_SECRET,
+# no knowledge of players, wallets or servers" - is enforced HERE, by the
+# absence, not by sim's source happening not to import a client today. Running
+# sim as the api's account would have made every one of those grants sim's
+# too, silently, and made that line a comment rather than a control.
+resource "google_service_account" "sim" {
+  account_id   = "broodline-sim"
+  display_name = "Broodline sim"
+}
+
+resource "google_cloud_run_v2_service" "sim" {
+  name     = "broodline-sim"
+  location = var.region
+
+  # THE control, per design 3.1 and the comment above MapPost in
+  # services/sim/Program.cs: "there is no authentication here and there must
+  # be no public route." sim takes bytes and returns a verdict; it checks no
+  # token, rate-limits nothing, and knows no player. The `/internal/` path
+  # prefix is a reminder to a reader, not a guard - routing serves that path
+  # to anyone who can reach the service, so reachability is the whole of the
+  # defence and this one line is all of it.
+  #
+  # See the report for Task 11: internal ingress means api must reach sim as
+  # INTERNAL traffic, which is a property of how api egresses, not of this
+  # setting. `terraform plan` cannot prove that hop.
+  ingress = "INGRESS_TRAFFIC_INTERNAL_ONLY"
+
+  # Same reason as the api service above, learned the same way: Cloud Run v2
+  # carries its own deletion_protection defaulting to true, and a service
+  # that is not wired to this variable refuses `terraform destroy` mid-
+  # teardown with the rest of the stack already standing. Wiring the api and
+  # not sim would reproduce that exact discovery on the next ephemeral cycle.
+  deletion_protection = var.deletion_protection
+
+  template {
+    service_account = google_service_account.sim.email
+
+    scaling {
+      # Scales to zero - design 3.1: "nothing to drain, no connection pool
+      # against the Postgres cap". sim is the one component here that is
+      # genuinely free at rest.
+      min_instance_count = 0
+
+      # Capped for a DIFFERENT reason than the api's cap. The api's 10 is a
+      # Postgres connection ceiling (solo_execution 5.7); sim holds no
+      # connection and could safely run wider. This cap is a COST and blast-
+      # radius bound: sim is invoked once per wave submission, the api that
+      # invokes it is itself capped at 10, and nothing should be able to fan
+      # this service out past the only caller that exists.
+      max_instance_count = 10
+    }
+
+    containers {
+      image = var.sim_image
+
+      # No env block at all, and no volumes. sim reads no configuration:
+      # ASPNETCORE_URLS is baked into services/sim/Dockerfile and the engine
+      # arrives by ProjectReference, not by a bundle it would have to fetch.
+      # An env var here would be the first thing sim has to be told, and it
+      # does not need telling.
+
+      startup_probe {
+        # services/sim/Program.cs maps GET /healthz.
+        http_get { path = "/healthz" }
+        initial_delay_seconds = 5
+        failure_threshold     = 10
+      }
+    }
+  }
+}
+
+# api -> sim. Design 3.1: "invoked by api's service account."
+#
+# Cloud Run requires an authenticated caller unless allUsers holds this role,
+# and no such binding exists here - so this is the ONLY identity that can
+# invoke sim, which is the shape the design asks for. It is also, at the time
+# of writing, a shape services/api/src/sim/client.ts cannot satisfy: SimClient
+# calls fetch() with a content-type header and no Authorization header, and
+# the api has no google-auth-library dependency to mint an OIDC ID token with.
+# See the Task 11 report - this is a runtime gap that no plan can surface,
+# because IAM denial happens on a request, not on an apply.
+resource "google_cloud_run_v2_service_iam_member" "api_invokes_sim" {
+  name     = google_cloud_run_v2_service.sim.name
+  location = google_cloud_run_v2_service.sim.location
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.api.email}"
+}
+
+# ---------------------------------------------------------------------------
+# The player-visible replay collection. Design 5.1 / 5.2.
+# ---------------------------------------------------------------------------
+
+# A SECOND bucket, deliberately not a prefix inside the config bucket: the two
+# collections have opposite retention (config objects are versioned and kept,
+# replays are deleted at 30 days) and opposite access for the api (read-only
+# on config, write-only here). A lifecycle rule is a bucket-level object, so
+# one bucket could not carry both policies without the age rule reaching the
+# config bundles too.
+resource "google_storage_bucket" "replays" {
+  name                        = "${var.project_id}-broodline-replays"
+  location                    = var.region
+  uniform_bucket_level_access = true
+
+  # DESIGN 5.1, AND THE REASON IT SHIPS BEFORE PINNING DOES: "a GCS lifecycle
+  # rule deleting at 30 days is one line of Terraform and cannot be
+  # retrofitted onto objects already deleted." An object written before this
+  # rule exists is not retroactively dated; it is simply kept forever unless
+  # something later goes looking for it. The rule is cheap now and impossible
+  # later, so it lands with the bucket.
+  #
+  # The 20-pin exemption from design 5.1 is NOT implemented and is not owed
+  # here: pinning needs a pinned_replays table and a UI that do not exist, and
+  # at milestone-1 scale nothing is 30 days old yet. When pinning arrives, the
+  # exemption is a matches_prefix condition or a separate pinned/ prefix, not
+  # a change to this rule's age.
+  lifecycle_rule {
+    condition {
+      age = 30
+    }
+    action {
+      type = "Delete"
+    }
+  }
+
+  # NO versioning block here, in deliberate contrast to the config bucket
+  # above. Config versioning exists because the POINTER object is
+  # deliberately overwritten; replay objects are write-once, keyed by
+  # issuance id (design 5.2), and never rewritten. Turning versioning on
+  # would also quietly defeat the rule above: with versioning enabled an
+  # age-30 Delete only moves the live object to a NONCURRENT version, which
+  # then needs its own with_state/num_newer_versions rule to actually go
+  # away. The bucket would look like it deleted at 30 days and would in fact
+  # be keeping every byte, billed, forever - the exact failure the rule is
+  # here to prevent.
+}
+
+# api -> replay bucket. Least privilege, and objectCreator is the whole of it.
+#
+# NOT objectAdmin and not objectUser: GcsReplayStore
+# (services/api/src/replays/gcs-store.ts) only ever calls .save(). It has no
+# list() - removed in review precisely so this surface stays small - and no
+# delete. objectCreator grants storage.objects.create and nothing else, so a
+# compromised request handler cannot enumerate other players' replays or
+# erase the evidence behind a disputed submission; the 30-day sweep is the
+# lifecycle rule's job, running as GCS itself rather than as this identity.
+#
+# One consequence worth knowing rather than discovering: objectCreator cannot
+# OVERWRITE, because replacing a live object needs storage.objects.delete. A
+# second write to an already-written issuance key therefore 403s. That is
+# harmless here and arguably correct - the write is gated on a fresh
+# withIdempotency callback (routes/wave.ts), and the call site already wraps
+# it in try/catch and swallows the error as a degraded viewer per design 5.2.
+resource "google_storage_bucket_iam_member" "api_replays" {
+  bucket = google_storage_bucket.replays.name
+  role   = "roles/storage.objectCreator"
+  member = "serviceAccount:${google_service_account.api.email}"
 }

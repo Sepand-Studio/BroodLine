@@ -1,3 +1,4 @@
 project_id = "your-gcp-project"
 region     = "us-central1"
 image      = "us-central1-docker.pkg.dev/your-gcp-project/broodline/api:latest"
+sim_image  = "us-central1-docker.pkg.dev/your-gcp-project/broodline/sim:latest"

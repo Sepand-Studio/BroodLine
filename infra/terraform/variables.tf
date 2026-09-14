@@ -67,3 +67,25 @@ variable "db_authorized_networks" {
     to revert.
   EOT
 }
+
+variable "sim_image" {
+  type        = string
+  description = <<-EOT
+    Artifact Registry image URI for `sim`, tagged by commit SHA on the same
+    rule as `image` (never :latest).
+
+    A SECOND image, not a second tag of the first. `sim` is .NET and builds
+    from a different Dockerfile (services/sim/Dockerfile) over a context that
+    must include engine/ as well as services/sim/ - design 3.1's
+    ProjectReference, one source tree and two manifests - so the api image
+    cannot serve both services.
+
+    Required, with no default, deliberately and for the same reason `image`
+    is: a default here would be a URI pointing at whatever happened to be
+    true when this line was written, and a stale default deploys the wrong
+    engine version silently. NOTE that this makes it a new required input -
+    implementation/scripts/deploy.sh passes `image` and does not yet pass
+    this, nor does cloudbuild.yaml build a sim container at all. Both are
+    owed by the deploy half of Task 11; this file is the infrastructure half.
+  EOT
+}
