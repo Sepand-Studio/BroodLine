@@ -44,9 +44,13 @@ const SIM_URL = `http://127.0.0.1:${SIM_PORT}`
  * A stub standing in for sim would be a second implementation of the exact
  * boundary this phase exists to prove - see the brief. This mirrors
  * implementation/scripts/generate-contract.sh's own build-then-run dance
- * (`dotnet build` + `dotnet <dll>`, not `dotnet run`): that script found
- * `dotnet run` hangs indefinitely on this machine, while build-then-run
- * consistently serves /healthz within a second.
+ * (`dotnet build` + `dotnet <dll>`, not `dotnet run`): `dotnet run` on THIS
+ * project does not work on this machine, while build-then-run consistently
+ * serves /healthz within a second. It does not hang, which is what this
+ * comment used to say - it is killed immediately and silently. See that
+ * script's comment above its own `dotnet build` for the reproduction, what
+ * has been ruled out, and what to check once CI exists; that note is the
+ * authoritative one and this is only a pointer to it.
  */
 async function startSim(): Promise<{ proc: ChildProcess; stop: () => Promise<void> }> {
   const work = await mkdtemp(join(tmpdir(), 'broodline-sim-build-'))

@@ -8,6 +8,52 @@ app.MapOpenApi();                       // /openapi/v1.json
 
 app.MapGet("/healthz", () => Results.Ok(new { ok = true }));
 
+// ONE spelling of the route's name, used twice below: the name the route is
+// registered under, and the name the always-200 middleware scopes on. A
+// second literal here is a silent scoping failure the moment one is edited.
+const string SimulateRouteName = "Simulate";
+
+// ALWAYS 200 - including when the body never binds.
+//
+// A body that is not JSON, or whose `replay` member is not a string, fails
+// minimal-API PARAMETER BINDING and throws BadHttpRequestException. That
+// happens before the endpoint delegate runs and therefore before any
+// endpoint filter, so a filter cannot see it; middleware is the lowest
+// layer that can. Left alone it surfaces as ASP.NET's own 400, and api's
+// SimVerdict (services/api/src/sim/client.ts) maps every non-2xx to
+// `unavailable` - the retryable branch that leaves the issuance live. A
+// submission this service cannot parse is not an outage: it is a fact about
+// the submission, it will fail identically on every retry, and it must
+// arrive as the service's own `rejected` verdict - design 3.2.
+//
+// SCOPED BY MATCHED ENDPOINT, NOT BY REQUEST PATH. `ctx.Request.Path ==
+// "/internal/simulate"` looks equivalent and is not: routing also matches
+// "/internal/simulate/" to this same endpoint (verified by direct
+// experiment - a well-formed body posted to the trailing-slash spelling
+// returns this endpoint's 200 verdict), while PathString equality, which is
+// OrdinalIgnoreCase and so does forgive the "/Internal/Simulate" spelling,
+// does NOT forgive the trailing slash. A path comparison would therefore
+// answer the SAME endpoint with a verdict on one spelling and a bare 400 on
+// another - reintroducing, on a narrower input, exactly the hole this
+// middleware exists to close. The endpoint is what has the always-200
+// contract, so the endpoint is what is matched on.
+//
+// The verdict is built by SimulateResponse.Rejected - the same factory
+// SimulateEndpoint uses for its own replay_malformed rejections - rather
+// than hand-written JSON here, so the two cannot drift in shape, casing or
+// engineVersion. A test asserts the two raw bodies are byte-identical.
+app.Use(async (ctx, next) =>
+{
+    try { await next(); }
+    catch (BadHttpRequestException) when (
+        ctx.GetEndpoint()?.Metadata.GetMetadata<IEndpointNameMetadata>()?.EndpointName
+            == SimulateRouteName)
+    {
+        ctx.Response.StatusCode = 200;
+        await ctx.Response.WriteAsJsonAsync(SimulateResponse.Rejected("replay_malformed"));
+    }
+});
+
 // INTERNAL ingress only - there is no authentication here and there must be
 // no public route. Cloud Run's ingress setting is the control (Task 11); the
 // path prefix is a reminder, not a guard.
@@ -27,7 +73,7 @@ app.MapGet("/healthz", () => Results.Ok(new { ok = true }));
 // have caught a drift in it either.
 app.MapPost("/internal/simulate",
     (SimulateRequest request) => SimulateEndpoint.Handle(request))
-   .WithName("Simulate");
+   .WithName(SimulateRouteName);
 
 app.Run();
 

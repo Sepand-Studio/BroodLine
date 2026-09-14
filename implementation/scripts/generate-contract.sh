@@ -507,17 +507,67 @@ mv "$CLIENT_TMP" "$CLIENT_OUT"
 # service actually serves.
 #
 # Built once, then run via `dotnet <dll>` rather than `dotnet run --project`
-# or the native apphost binary directly: on this machine both of those
-# reliably hung with zero output for the full length of every timeout tried
-# (confirmed up to 90s), while `dotnet build` of the identical project
-# consistently finished in under two seconds and `dotnet
-# <the built dll>` served /healthz within a second. `dotnet run` launches a
-# project with UseAppHost=true (the Web SDK's default) via that same native
-# apphost stub, which is the common thread between the two hanging paths and
-# the one thing `dotnet <dll>` never touches - it loads the assembly
-# in-process under the long-lived `dotnet` binary instead of executing a
-# freshly-built native executable. The two-step form below is the same
-# effective operation (build, then run the host) without whatever that was.
+# or the native apphost binary directly. THE WORKAROUND IS STILL REQUIRED -
+# but the reason recorded here previously ("both reliably hung with zero
+# output", blamed on the apphost stub) was wrong in both halves, and the
+# corrected findings are below so the next person does not re-run the same
+# dead end.
+#
+# Reproduction attempt, 2026-09-14. Environment: macOS 27.0 (Darwin 27.0.0),
+# arm64 (Apple Silicon), .NET SDK 10.0.401 (osx-arm64, host arch arm64) at
+# /usr/local/share/dotnet, no DOTNET_* or ASPNETCORE_* variables set. Each
+# variant launched against its own port and polled on /healthz for up to 45s:
+#
+#   dotnet <the built dll> --urls ...      served /healthz in under 1s.
+#   dotnet run --project <this csproj>     process GONE within ~2s, no output.
+#   the native apphost binary directly     exit 137 (SIGKILL), instantly,
+#                                          with no output at all - including
+#                                          with stdout left attached to the
+#                                          terminal, and with no arguments.
+#
+# 1. IT DOES NOT HANG. It dies immediately. The earlier "hung for the full
+#    length of every timeout" reading is what an instant death LOOKS LIKE
+#    through the readiness loop further down this file: that loop polls
+#    curl on a fixed schedule and never checks whether $SIM_PID is still
+#    alive, so a host that was killed before it bound the port is
+#    indistinguishable from one that is merely slow, and both burn the whole
+#    timeout in silence. Anyone re-investigating should add a `kill -0
+#    "$SIM_PID"` check to that loop FIRST; it turns this from a mystery into
+#    a one-line error. (Deliberately not changed here - it is a diagnostic
+#    improvement to a script this phase has already hardened five times, and
+#    it wants its own test.)
+#
+# 2. IT IS NOT THE APPHOST STUB. That was the previous hypothesis and it is
+#    disproved: tools/config-validate in this same repo also builds with
+#    UseAppHost=true, its apphost is the same 124712-byte template (the two
+#    differ by 50 bytes - the embedded path to the managed dll), and BOTH
+#    `dotnet run --project tools/config-validate` and that apphost run
+#    directly exit 0 on this machine. services/api/src/config/validate.ts
+#    shells out to `dotnet run` for exactly that project on every config
+#    test, and those pass. So "a freshly-built native executable" is not
+#    what fails; something specific to THIS web project's apphost is.
+#
+# 3. NOT ROOT-CAUSED, and not guessed at. Ruled out by experiment, not by
+#    reading: it is not this harness's sandbox (reproduces identically with
+#    sandboxing disabled); it is not an invalid signature (`codesign -v`
+#    reports the apphost valid on disk and satisfying its designated
+#    requirement, ad-hoc signed like the one that works, and re-signing it
+#    ad-hoc by hand leaves the SIGKILL unchanged); it is not output
+#    buffering hiding a crash message (zero output with stdout unredirected).
+#    `spctl -a -t exec` rejects it, but rejects any ad-hoc-signed binary and
+#    is not on its own a SIGKILL path. The unified log surfaced nothing for
+#    the process. What remains unexplained is why the kernel SIGKILLs this
+#    particular ad-hoc-signed, signature-valid apphost and not the other.
+#
+# WHEN CI EXISTS (Task 12 - GitHub Actions is disabled at the org level
+# today, so this has only ever run on one developer machine): re-run the
+# three variants above on the CI runner before assuming any of this
+# transfers. If `dotnet run --project` works there, this is local to macOS
+# arm64 and the two-step form below is merely harmless there; if it fails
+# there too, capture the runner's exit status - a non-137 exit, or any
+# output at all, is a different failure from this one and the notes above do
+# not apply to it. Either way the two-step form is the same effective
+# operation (build, then run the host), so nothing depends on resolving it.
 # -o/--output overrides OutputPath, but NEVER BaseIntermediateOutputPath -
 # the obj/ tree is computed from the latter regardless of -o, so this build
 # and services/api/test/wave-submit.test.ts's and replays.test.ts's (each
