@@ -528,14 +528,14 @@ mv "$CLIENT_TMP" "$CLIENT_OUT"
 # 1. IT DOES NOT HANG. It dies immediately. The earlier "hung for the full
 #    length of every timeout" reading is what an instant death LOOKS LIKE
 #    through the readiness loop further down this file: that loop polls
-#    curl on a fixed schedule and never checks whether $SIM_PID is still
-#    alive, so a host that was killed before it bound the port is
-#    indistinguishable from one that is merely slow, and both burn the whole
-#    timeout in silence. Anyone re-investigating should add a `kill -0
-#    "$SIM_PID"` check to that loop FIRST; it turns this from a mystery into
-#    a one-line error. (Deliberately not changed here - it is a diagnostic
-#    improvement to a script this phase has already hardened five times, and
-#    it wants its own test.)
+#    curl on a fixed schedule and never CHECKED whether $SIM_PID was still
+#    alive, so a host that was killed before it bound the port was
+#    indistinguishable from one that is merely slow, and both burned the
+#    whole timeout in silence. THAT LOOP NOW CHECKS: it breaks as soon as
+#    the host is gone and names the exit status, so re-running this
+#    investigation reports "died before serving /healthz (exit status 137,
+#    killed by SIGKILL)" within a second instead of ten seconds of nothing.
+#    services/api/test/contract.test.ts pins that message.
 #
 # 2. IT IS NOT THE APPHOST STUB. That was the previous hypothesis and it is
 #    disproved: tools/config-validate in this same repo also builds with
@@ -609,9 +609,63 @@ SIM_PID=$!
 # would leave this dotnet process holding port 5199, and the NEXT run would
 # fail with a misleading bind error instead of whatever actually broke.
 
+# Two separate flags rather than one tri-state, so the two messages below
+# cannot be crossed: SIM_DIED is set on exactly one path and read on exactly
+# one path.
 READY=0
+SIM_DIED=0
+# Pre-set to a real number rather than left unset to be assigned only on
+# failure. An empty value is 0 inside `$(( ))` and an error in `[ ]`, so a
+# status that silently failed to be captured would print as a clean exit -
+# the same empty-numeric shape that made an earlier staleness comparison in
+# this script trivially true.
+SIM_EXIT=0
 for _ in $(seq 1 40); do
-  curl -fsS http://127.0.0.1:5199/healthz >/dev/null 2>&1 && { READY=1; break; }
+  if curl -fsS http://127.0.0.1:5199/healthz >/dev/null 2>&1; then
+    READY=1
+    break
+  fi
+  # LIVENESS, not just readiness.
+  #
+  # Without this the loop polls its fixed 40 times whatever happens, so a
+  # host that was killed before it could bind the port and a host that is
+  # merely slow are the same ten seconds of silence ending in the same
+  # "never became ready" - which reads as a hang.
+  #
+  # That cost was paid in full. It is how this file carried, for weeks, the
+  # claim that `dotnet run --project` "reliably hung with zero output for
+  # the full length of every timeout tried (confirmed up to 90s)". It does
+  # not hang; it is killed instantly - exit 137, SIGKILL, zero output (the
+  # reproduction is in the long comment above the `dotnet build` call). This
+  # loop could not tell the two apart, so the wrong one was written down and
+  # believed. A readiness loop that cannot distinguish a dead host from a
+  # slow one does not merely fail to diagnose: it manufactures a diagnosis.
+  #
+  # `kill -0` sends no signal; it only asks whether the process can still be
+  # signalled. Its stderr is discarded because "No such process" IS the
+  # answer being asked for rather than an error, and that answer is reported
+  # in full below. Safe under `set -e` because this is an `if` CONDITION,
+  # where `set -e` is suspended - not the bare `cmd && var=$(...)` statement
+  # shape that once aborted this whole script silently (see
+  # build_lock_owner's comment for that one).
+  #
+  # A just-exited child is briefly a zombie and `kill -0` SUCCEEDS on a
+  # zombie - bash reaps its own background jobs, but not necessarily before
+  # the next poll. That costs one extra 0.25s tick, not a wrong answer.
+  if ! kill -0 "$SIM_PID" 2>/dev/null; then
+    SIM_DIED=1
+    # Called ONCE, and only after `kill -0` has already established the
+    # process is gone - so it cannot block, and cannot be a second `wait` on
+    # an already-reaped job. bash keeps a terminated background job's status
+    # until it is waited for, so this yields the host's real status
+    # (measured: 134 for a host that could not bind the port, 137 for the
+    # SIGKILL above). stderr is deliberately NOT discarded here: if bash
+    # ever answers "pid N is not a child of this shell" it returns 127, and
+    # that line belongs beside the message below rather than in /dev/null,
+    # passing itself off as the host's own exit status.
+    wait "$SIM_PID" || SIM_EXIT=$?
+    break
+  fi
   sleep 0.25
 done
 # Without this check the loop falls through SILENTLY on a host that never
@@ -619,10 +673,27 @@ done
 # line 1 column 1 (char 0)" against an empty curl response - which points
 # at JSON parsing, not at the actual problem, and sends whoever is
 # debugging it down the wrong path entirely.
-[ "$READY" = 1 ] || {
-  echo "sim host never became ready on 127.0.0.1:5199" >&2
+if [ "$READY" != 1 ]; then
+  if [ "$SIM_DIED" = 1 ]; then
+    # NAME THE EXIT STATUS - that is the deliverable here, not a nicety.
+    # 137 is the signature of the launch forms this script deliberately
+    # avoids, and a reader who sees it named does not repeat the "it hangs"
+    # misdiagnosis. The signal name is decoded when there is one (`kill -l`
+    # already understands the shell's 128+n encoding) and omitted rather
+    # than guessed when there is not.
+    SIM_DEATH="exit status $SIM_EXIT"
+    if [ "$SIM_EXIT" -gt 128 ]; then
+      SIM_SIGNAL="$(kill -l "$SIM_EXIT" 2>/dev/null || true)"
+      if [ -n "$SIM_SIGNAL" ]; then
+        SIM_DEATH="$SIM_DEATH, killed by SIG$SIM_SIGNAL"
+      fi
+    fi
+    echo "the sim host on 127.0.0.1:5199 died before serving /healthz ($SIM_DEATH)" >&2
+  else
+    echo "the sim host on 127.0.0.1:5199 was still running but never served /healthz within the timeout (40 polls, 0.25s apart)" >&2
+  fi
   exit 1
-}
+fi
 
 OPENAPI2_OUT="openapi/sim.json"
 CLIENT2_OUT="services/api/src/generated/sim.ts"

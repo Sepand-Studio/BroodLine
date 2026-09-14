@@ -163,6 +163,96 @@ describe('the generated contract', () => {
       }
     }
   }, 300_000)
+
+  /**
+   * A dead sim host must be reported as DEAD, with its exit status - not as
+   * a timeout.
+   *
+   * WHY THIS IS THE DELIVERABLE AND NOT A NICETY. The readiness loop used to
+   * poll curl 40 times on a fixed schedule and never ask whether $SIM_PID was
+   * still alive, so a host killed before it bound the port and a host that is
+   * merely slow produced the same ten seconds of silence and the same "never
+   * became ready" - which reads as a hang. That is not a missed diagnosis, it
+   * is a MANUFACTURED one: generate-contract.sh carried, for weeks, the claim
+   * that `dotnet run --project` "reliably hung with zero output for the full
+   * length of every timeout tried (confirmed up to 90s)". It does not hang. It
+   * is SIGKILLed instantly - exit 137, zero output - and the loop's inability
+   * to tell those apart is the only reason the false version looked true.
+   *
+   * HOW THE HOST IS MADE TO DIE, AND WHY NOTHING IN THE SCRIPT IS TEST-AWARE.
+   * The port is occupied before the script starts, so its sim host cannot bind
+   * and aborts during startup. That needs no test-only hook and no stubbed
+   * launch path: the real `dotnet <dll> --urls ...` line runs unchanged, and a
+   * stale process holding 5199 is a real failure mode - the one the script's
+   * own cleanup() comment exists to prevent the NEXT run from hitting. Nothing
+   * in generate-contract.sh branches on an environment variable for this.
+   *
+   * TWO MEASUREMENT TRAPS, both hit while building this and both load-bearing:
+   *
+   *  - The squatter must DESTROY each connection, not accept and hold it. The
+   *    readiness loop's `curl -fsS` has no --max-time, so a listener that
+   *    accepts and never answers blocks it forever: the test would hang rather
+   *    than fail, against fixed and unfixed script alike.
+   *  - The script must be spawned ASYNCHRONOUSLY. execFileSync/spawnSync block
+   *    this process's event loop, so the squatter never runs its destroy
+   *    handler - while the kernel still completes the handshake into the
+   *    listen backlog, which is precisely the accept-and-never-answer hang
+   *    above. The sibling interrupt test can use `spawn` for its own reasons;
+   *    here it is a correctness requirement.
+   *
+   * WHAT IS ASSERTED, AND WHY THE STATUS MUST BE NON-ZERO. `exit status \d+`
+   * alone would also match the value SIM_EXIT is pre-set to, so a capture that
+   * silently failed would still pass. A host that loses the port never exits
+   * 0, so requiring a non-zero status pins that the status was really read
+   * back off the dead child rather than defaulted. The exact number is NOT
+   * pinned: it is 134 (SIGABRT) for this cause on this machine and 137
+   * (SIGKILL) for the cause above, and the branch is the same one either way.
+   *
+   * Branch-mutation checked, twice, against this specific branch rather than
+   * the enclosing loop - see the report for the exact edits and results.
+   */
+  it('reports a sim host that died, with its exit status, instead of calling it a timeout', async () => {
+    const squatter = createServer((socket) => socket.destroy())
+    await new Promise<void>((resolve, reject) => {
+      squatter.once('error', reject)
+      squatter.listen(SIM_PORT, '127.0.0.1', resolve)
+    })
+
+    const child = spawn('./implementation/scripts/generate-contract.sh', {
+      cwd: REPO,
+      stdio: ['ignore', 'ignore', 'pipe'],
+    })
+    let stderr = ''
+    child.stderr?.setEncoding('utf8')
+    child.stderr?.on('data', (chunk: string) => { stderr += chunk })
+
+    // 'close', not 'exit': stderr must be drained before it is asserted on.
+    const closed = new Promise<{ code: number | null; signal: string | null }>((resolve) => {
+      child.on('close', (code, signal) => resolve({ code, signal }))
+    })
+
+    try {
+      const result = await Promise.race([
+        closed,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('the script did not exit within 120s - the readiness loop is blocked, not merely slow')), 120_000)),
+      ])
+
+      expect(result).toEqual({ code: 1, signal: null })
+
+      // The host died, and the message says so and names what it died of.
+      expect(stderr).toMatch(/died before serving \/healthz \(exit status [1-9]\d*/)
+      // And does NOT claim the opposite. Without the liveness check this is
+      // the line that is printed, and it is false: the host is not running.
+      expect(stderr).not.toContain('never served /healthz within the timeout')
+    } finally {
+      child.kill('SIGKILL')
+      // No lingering sockets to drain: every connection was destroyed on
+      // arrival, so close() cannot wait on one. (net.Server has no
+      // closeAllConnections - that is http.Server's.)
+      await new Promise<void>((resolve) => squatter.close(() => resolve()))
+    }
+  }, 300_000)
 })
 
 /** Whether this process can bind the port right now. Closes it again immediately. */
