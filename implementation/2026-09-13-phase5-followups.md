@@ -264,15 +264,62 @@ status there — a non-137 exit, or any exit at all, is new information.
 
 ## 5. What Task 11 still owes — the gap this file cannot fill
 
-Task 11 provisions billable GCP and was **held by human ruling**, so everything
-here is written from the plan and from what is on disk, not from measurement.
-**This is the one section of this file that is not evidence.**
+Task 11 provisions billable GCP and was **held by human ruling**. This section
+was written entirely from the plan and from what is on disk rather than from
+measurement, and said so.
+
+**Two rows below are now measured and one is not.** The infrastructure half of
+Task 11 has since been written and planned — `terraform init`, `validate`,
+`fmt -check` and `plan` all run clean against the real project, which bills
+nothing and provisions nothing. **No apply has happened; the stack is still
+unbuilt.** So the `terraform output` row and the lifecycle-rule row below now
+rest on a plan that was actually run, while the bundle-rollback row remains
+what it was: unrun, and unrunnable without an apply.
 
 | | What | Where it stands |
 |---|---|---|
 | **Bundle rollback** | Step 8: "confirm rollback is a config change, not a deploy". `loadBundle` caches per process, so an instance that has not turned over keeps serving the old bundle after a pointer change. The claim rests on Cloud Run instance lifetime, **which the code does not control** — Phase 4 booked this and Phase 5 could not settle it | **Unrun.** Whatever Step 8 finds belongs in this file; nothing else records it |
-| **`terraform output` reports no outputs** | `outputs.tf` defines `api_url`, and the tracked `tfstate` carries an **empty outputs map**. Found at Task 0, out of that run's scope, and it will be hit again the moment Task 11 applies | **Unrun.** Pre-existing, not introduced by this phase |
-| **Design §5.1's 30-day replay lifecycle rule** | It ships *now* precisely because it "cannot be retrofitted onto objects already deleted", with the 20-pin exemption unimplemented. **It does not exist in `infra/terraform` even as unapplied HCL** — verified: `main.tf` defines the `config` bucket and no replay bucket, and there is no `lifecycle_rule` anywhere in the directory | **Not written.** Task 11 Step 3 owns it |
+| **`terraform output` reports no outputs** | **Diagnosed — and the recorded hypothesis was wrong.** See below the table | **Not a bug.** Nothing to fix |
+| **Design §5.1's 30-day replay lifecycle rule** | It ships *now* precisely because it "cannot be retrofitted onto objects already deleted", with the 20-pin exemption unimplemented. When this row was written it did **not** exist in `infra/terraform` even as unapplied HCL — `main.tf` defined the `config` bucket, no replay bucket, and no `lifecycle_rule` anywhere in the directory | **Written, unapplied.** `google_storage_bucket.replays` now carries an `age = 30` / `Delete` `lifecycle_rule` in `main.tf`, and the plan shows it creating. It has still never run against a real object |
+
+### The `terraform output` bug is not a bug, and the recorded cause was wrong
+
+This row said the state carried an empty outputs map because **outputs were
+added after the last apply, so the state predates them**, and that the tfstate
+is **tracked**. Both halves are false. They were a hypothesis that this file
+correctly labelled as one, and the hypothesis has now been checked against the
+real state rather than reasoned about.
+
+**What is actually true:**
+
+- `infra/terraform/terraform.tfstate` holds **3 of the 13 resources** the
+  configuration declared at the time — `google_compute_network.main`,
+  `google_compute_global_address.private_services` and
+  `google_service_networking_connection.private_services`. All three are
+  networking. There is **no Cloud SQL instance, no Cloud Run service, no
+  bucket, no service account and no secret** in state, and never has been.
+- `outputs.tf` reads `google_cloud_run_v2_service.api.uri` and
+  `google_storage_bucket.config.name`. **Neither resource exists.** An output
+  whose resource was never created has no value to report, so
+  `terraform output` correctly reports nothing. **`outputs.tf` is fine.**
+- The tfstate is **git-ignored**, at `.gitignore:124`
+  (`infra/terraform/*.tfstate`), and `git ls-files infra/` lists only the four
+  `.tf`/`.hcl` files and `terraform.tfvars.example`. Calling it "tracked" put
+  a local, uncommitted artifact into the shared record.
+
+**Why the distinction is worth this much space.** The old reading made this a
+small bookkeeping fault — re-apply and the outputs populate. The real reading
+is a much larger fact about where this project actually stands: **Task 11 is a
+first apply of nearly the whole stack, not an incremental change to a standing
+one.** The three networking resources exist because an earlier ephemeral cycle
+got that far and was torn down; everything downstream of them, Cloud SQL
+included, has to be created from nothing. That is the difference between a
+cheap correction and the most expensive apply this project has run, and it is
+the single most important input to pricing it.
+
+**Nothing here needs fixing before an apply.** The first step of Task 11 was
+recorded as "fix the `terraform output` bug". There is no bug. The step is
+discharged by this diagnosis.
 
 Two more Task 11 obligations already in the plan, repeated because they are easy
 to miss: **`REPLAY_BUCKET` is a hard deploy-order prerequisite** (Step 2b — the
