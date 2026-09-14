@@ -7,7 +7,11 @@ import type { ReplayStore } from './store.ts'
  * committed repo seed this phase (design 5.1); this store is not it.
  *
  * The bucket's 30-day lifecycle rule is Task 11's job (infra/terraform);
- * this class only ever writes and lists, never deletes.
+ * this class only ever writes - it never lists and never deletes. The doc
+ * said "writes and lists" until the list() it referred to was removed (see
+ * the note at the bottom of this class for why); a class doc that still
+ * advertises a method the class does not have is the kind of stale line a
+ * reader trusts instead of reading the code.
  */
 export class GcsReplayStore implements ReplayStore {
   private readonly storage = new Storage()

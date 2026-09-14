@@ -150,6 +150,26 @@ describe('POST /v1/wave/submit', () => {
     expect(await ledgerRowCount()).toBe(3) // 2 from the starter grant, 1 from this
   })
 
+  // DO NOT DELETE OR RENAME THIS TEST WITHOUT READING THIS FIRST.
+  //
+  // Design §4.2's GUARD ONE - "pays exactly once under retry", the response
+  // half - has NO COVERAGE IN adversarial.test.ts, which is design §7's gate.
+  // Every double-submit test in that file uses a DIFFERENT idempotency key,
+  // deliberately: different-key replay is the attack a modified client mounts
+  // and the issuance must stop it, while same-key replay is the honest retry
+  // and a correctness property about not lying to a client that did nothing
+  // wrong. Those are two properties and they live in two files. The ruling not
+  // to duplicate this test into the gate is recorded as row 10 of
+  // test/weakenings.md, which also shows the weakening it hides: refusing
+  // straight from submit's step-2 read leaves that suite 15/15 GREEN while
+  // answering a retrying client 409 for a wave it was in fact paid for.
+  //
+  // The line row 10 cannot write, because it is a record of the gate rather
+  // than of this file: guard one's coverage is HERE, in this test and in
+  // `refuses a dead issuance without paying for a re-simulation,
+  // indistinguishably from before` below - the two that go red under that
+  // weakening. They are the whole of it. Delete both and guard one is covered
+  // NOWHERE, and nothing anywhere will say so.
   it('returns the stored response on a resend with the SAME key', async () => {
     await setupPlayer(deps)
     const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }

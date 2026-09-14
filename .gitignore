@@ -75,6 +75,14 @@ implementation/results/*
 # 3.5 MB of logs.
 !implementation/results/*.csv
 
+# ...and the recorded test baselines, for the opposite reason: they ARE
+# regenerated, cheaply, and that is exactly why they must be committed. A
+# baseline exists to be diffed against a later run by a later phase, and a
+# file the phase gate cannot read out of the repo is a file it will replace
+# with a number typed into a paragraph - which is how Phase 4's "71" outlived
+# the truth (74) unnoticed. A few hundred bytes.
+!implementation/results/*-test-baseline.txt
+
 # Xcode / iOS (if used later)
 DerivedData/
 *.xcuserstate

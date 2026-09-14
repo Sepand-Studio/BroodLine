@@ -1,0 +1,123 @@
+# Phase 5 recorded test baseline — DATA, NOT PROSE.
+#
+# WHY THIS FILE EXISTS. Phase 4 recorded its api test count as "71" inside a
+# sentence. Tests were added, the sentence was not, and nobody noticed: the
+# real count was 74. That stale 71 was then copied forward, and Phase 5's plan
+# has been carrying a corrected-but-still-typed number in a paragraph ever
+# since. A count that lives in a paragraph is a count that goes stale silently.
+# This file is the machine-readable replacement. THE NUMBERS HERE SUPERSEDE ANY
+# COUNT WRITTEN INTO A SENTENCE ANYWHERE IN implementation/ OR specs/.
+#
+# WHO READS IT. The phase gate (Task 12 of implementation/2026-09-13-phase5-
+# validation.md, "Check the counts against Task 0"). It must diff this file
+# against a freshly measured one rather than compare against a number a human
+# typed. Task 12's own prose still says "roughly thirty from 74"; that sentence
+# is the thing this file exists to retire, and Task 12 is owed an edit pointing
+# it here. See the NOTE FOR TASK 12 at the bottom.
+#
+# WHY PER-FILE ROWS. The gate's real question is not "did the total move" but
+# "did a count FALL", because a fall is a deletion nobody noticed. A total tells
+# you that something vanished; the api.file.* rows tell you which file it
+# vanished from. They are the reason this is a table and not four numbers.
+#
+# ---------------------------------------------------------------------------
+# HOW TO REGENERATE (all four gates, from the repo root)
+#
+#   PATH="$HOME/.nvm/versions/node/v22.22.2/bin:$PATH"   # nvm's default v10 is
+#                                                        # x86: "Bad CPU type"
+#   pnpm --filter @broodline/api test
+#   pnpm --filter @broodline/api typecheck
+#   dotnet test Broodline.sln --nologo
+#   ./implementation/scripts/run-unity-tests.sh EditMode
+#
+# The api.file.* rows come from vitest's own per-file summary lines:
+#
+#   grep -E "^ ✓" <api-log> \
+#     | sed -E 's/^ ✓ test\/([^ ]+) \(([0-9]+) tests?\).*/api.file.\1\t\2/' \
+#     | sort
+#
+# HOW TO DIFF. Strip the comments; the data block is sorted and stable, so a
+# plain diff is the whole comparison:
+#
+#   diff <(grep -v '^#' implementation/results/phase5-test-baseline.txt) \
+#        <(grep -v '^#' /path/to/newly-measured.txt)
+#
+# Empty output = no drift. Any '<' line whose value exceeds its '>' counterpart
+# is a count that FELL — find the deletion before closing the phase.
+#
+# ---------------------------------------------------------------------------
+# PROVENANCE (comments, so they never pollute a diff)
+#
+#   measured   2026-09-14, Phase 5 remediation Task 6
+#   branch     phase_5
+#   commit     e57608b  (tree clean apart from implementation/*.md; no source
+#              file differed from HEAD when these numbers were taken)
+#   host       darwin/arm64, node v22.22.2, pnpm 9.12.0, dotnet 10.0.401,
+#              Unity 6000.6.0f1, Docker running (testcontainers)
+#   parallel   vitest file parallelism ON. It stays on: each sim-hosting file
+#              binds its own port and shares the dotnet build through
+#              withDotnetBuildLock precisely so it can. Do not add
+#              --no-file-parallelism to reproduce these.
+#   flakes     none observed on this run. Two known, neither a source of drift:
+#              "No host port found for host IP" (~1 in 8-10, one file at
+#              container start) and a rarer "Health check not healthy after
+#              120000ms" across many files at once, which cleared on an
+#              immediate re-run of the unchanged tree. Re-run once before
+#              believing a disagreement.
+#
+# ---------------------------------------------------------------------------
+# FORMAT: <key>\t<value>, one per line, sorted, no blank lines in the block.
+
+api.file.account.test.ts	8
+api.file.adversarial.test.ts	15
+api.file.child-reaper.test.ts	8
+api.file.config.test.ts	15
+api.file.contract.test.ts	4
+api.file.dotnet-build-lock.test.ts	6
+api.file.hash.test.ts	4
+api.file.health.test.ts	2
+api.file.idempotency.test.ts	4
+api.file.identity.test.ts	22
+api.file.isolation.test.ts	12
+api.file.issuance-schema.test.ts	9
+api.file.ledger.test.ts	4
+api.file.masked-teardown.test.ts	2
+api.file.pool-teardown.test.ts	3
+api.file.preflight.test.ts	8
+api.file.replays.test.ts	6
+api.file.session.test.ts	6
+api.file.sim-client.test.ts	7
+api.file.sync.test.ts	5
+api.file.validate-rewards.test.ts	2
+api.file.wave-start.test.ts	12
+api.file.wave-submit.test.ts	12
+api.files	23
+api.tests	176
+api.typecheck.errors	0
+dotnet.engine.Broodline.Sim.Tests	174
+dotnet.failed	0
+dotnet.passed	186
+dotnet.service.Broodline.Sim.Service.Tests	12
+dotnet.skipped	0
+dotnet.total	186
+unity.editmode.failed	0
+unity.editmode.passed	35
+unity.editmode.skipped	0
+unity.editmode.total	35
+
+# ---------------------------------------------------------------------------
+# NOTE FOR TASK 12 — two things this file could not do for you.
+#
+# 1. dotnet.skipped MUST stay 0. It is not merely a count. Design §2.5 and the
+#    Definition of Done both require the device round-trip tests to COMPARE
+#    Outcome.Hash rather than assert a throw; a skip is how that quietly stops
+#    being true while the suite still reports green. Treat 0 -> anything as a
+#    failure of the gate, not as drift.
+#
+# 2. Task 12 Step 2 still reads "grown by roughly thirty from 74". Task 6 was
+#    scoped not to edit implementation/*.md, so that sentence was left standing
+#    and is owed an edit: replace it with a diff against this file. Until that
+#    lands, the paragraph and this file disagree by construction — the 74 was
+#    the Task 0 baseline, the 176 here is the current tree — and a reader who
+#    trusts the paragraph gets the same failure mode this file was written to
+#    end.
