@@ -12,7 +12,20 @@
 # --activate leaves bundles/current unset and the service 500s on its very
 # first request. To seed a brand-new bucket:
 #
-#   ./implementation/scripts/publish-bundle.sh 0.1.0 --activate
+#   ./implementation/scripts/publish-bundle.sh 0.1.1 --activate
+#
+# NOT 0.1.0. Task 7 (services/api/src/config/validate.ts) made a wave's
+# `reward` field mandatory, and 0.1.0's wave 6 predates that field, so
+# `publishBundle` -> `validateBundle` now refuses it every time - 0.1.0 can
+# never again pass this script, on this bucket or any other. It would also be
+# a non-functional bootstrap even if validation let it through: rewardForWave
+# (wave/rewards.ts) returns null for a reward-less wave, and routes/wave.ts's
+# submit handler then refuses every clear of it with wave_locked - so a fresh
+# environment seeded from 0.1.0 would have zero winnable waves. 0.1.1 is the
+# oldest bundle that is actually playable; seed from it, or from whatever is
+# current by then. This does NOT affect rolling back an already-seeded bucket
+# to 0.1.0 - setPointer only checks that the version was previously
+# published, never re-validates it, so that path is untouched.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 

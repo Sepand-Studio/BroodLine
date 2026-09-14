@@ -1,0 +1,6 @@
+{
+  "packs": [
+    { "id": "free",  "priceUsdCents": 0,   "value": 0 },
+    { "id": "small", "priceUsdCents": 99,  "value": 1000000 }
+  ]
+}

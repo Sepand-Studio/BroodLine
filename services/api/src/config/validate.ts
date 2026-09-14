@@ -23,11 +23,13 @@ const VERSION_PATTERN = /^\d+\.\d+\.\d+$/
  *
  * Six checks now. Wave *shape* rules are the engine's and are invoked, never
  * copied - see tools/config-validate. Reward completeness is different: Design
- * 2.2 pays a wave's reward by looking it up from the bundle (see
- * routes/wave/submit.ts), so a wave with no reward - or a reward of zero or
- * less - is a payout path that would fail at claim time instead of at publish
- * time. That is a completeness check on authored content, not a game rule, so
- * it lives here rather than in the C# CLI.
+ * 2.2 pays a wave's reward by looking it up from the bundle - rewardForWave in
+ * wave/rewards.ts, called from routes/wave.ts's submit handler - so a wave
+ * with no reward, or a reward of zero or less, is a payout path that would
+ * refuse every clear of that wave (wave_locked) instead of paying it, and
+ * only at claim time rather than at publish time. That is a completeness
+ * check on authored content, not a game rule, so it lives here rather than
+ * in the C# CLI.
  *
  * starter.json and manifest.json carry that exact same blast radius -
  * config/bundle.ts feeds their contents straight to routes/account.ts's
@@ -94,11 +96,12 @@ interface AuthoredWave { id: number; reward?: WaveReward }
 
 /**
  * Task 5 gave wave 6 a `reward` (services/api/src/config/bundle.ts) because
- * Design 2.2 pays a wave's reward by looking it up from the bundle at claim
- * time. This is what makes it mandatory: an authored wave with no reward, or
- * a reward of zero or less, is not a content oversight - it is a payout path
- * that 500s the first time a player clears it. See validateBundle's doc
- * comment for why this check lives here and not in tools/config-validate.
+ * rewardForWave (wave/rewards.ts) pays a wave's reward by looking it up from
+ * the bundle at claim time. This is what makes it mandatory: an authored wave
+ * with no reward, or a reward of zero or less, is not a content oversight -
+ * it is a payout path that refuses every clear of that wave with wave_locked
+ * instead of paying it (routes/wave.ts). See validateBundle's doc comment for
+ * why this check lives here and not in tools/config-validate.
  */
 async function validateWaveRewards(dir: string): Promise<string[]> {
   const raw = await readFile(join(dir, 'waves.json'), 'utf8').catch(() => null)

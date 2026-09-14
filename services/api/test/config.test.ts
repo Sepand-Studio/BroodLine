@@ -44,6 +44,24 @@ describe('validation', () => {
     expect(v.join(' ')).toMatch(/not monotonic/)
   }, 120_000)
 
+  it('catches a free pack instead of reporting a false violation on every pack after it', async () => {
+    // priceUsdCents: 0 with value > 0: the OLD code computed
+    // prevRate = value / priceUsdCents = Infinity, so the free pack sorted
+    // first and EVERY later pack failed `currRate < prevRate` for no reason.
+    const v = await validateBundle(FIX('pack-ladder-infinity'))
+    expect(v).toHaveLength(1)
+    expect(v[0]).toMatch(/Pack 'free' has a non-positive priceUsdCents/)
+  }, 120_000)
+
+  it('catches a free pack instead of silently exempting it from the ladder', async () => {
+    // priceUsdCents: 0 with value === 0: the OLD code computed
+    // prevRate = 0 / 0 = NaN, and every comparison against NaN is false, so
+    // the pack - and the real gap right after it - passed silently.
+    const v = await validateBundle(FIX('pack-ladder-nan'))
+    expect(v).toHaveLength(1)
+    expect(v[0]).toMatch(/Pack 'free' has a non-positive priceUsdCents/)
+  }, 120_000)
+
   it('catches a locale missing a key the reference has', async () => {
     const v = await validateBundle(FIX('missing-locale-key'))
     expect(v.join(' ')).toMatch(/ja\.json is missing 1 key/)
