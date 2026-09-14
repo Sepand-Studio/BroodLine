@@ -58,6 +58,18 @@ on:
       # DeviceReplayTests re-simulate these on every run, so a re-capture is a
       # change to what the suite asserts and has to be checked like one.
       - 'implementation/results/**'
+      # Both halves of the cross-language contract (Task 3) and everything
+      # that can make generate-contract.sh's output drift: the Zod schemas
+      # and OpenAPI export on the api side, the sim service's DTOs and
+      # minimal-API routes on the sim side, the committed documents and
+      # clients themselves, and the tool configs that shape generation.
+      - 'services/api/**'
+      - 'services/sim/**'
+      - 'tests/sim/**'
+      - 'openapi/**'
+      - 'nswag.json'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
   pull_request:
     paths: *watched
   workflow_dispatch: {}
@@ -102,6 +114,61 @@ jobs:
             exit 1
           fi
           echo "ok: no skipped tests"
+
+  contract:
+    name: Cross-language contract (both directions)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: dotnet test tests/sim/
+        # The sim service's own suite, ahead of standing it up below - a
+        # broken sim service should fail here with an ordinary test failure,
+        # not surface later as a mystifying curl timeout against a host that
+        # never came up.
+        run: dotnet test tests/sim/ --nologo
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: generate-contract.sh
+        # ONE script, both directions - design 2.4. This is the same script
+        # services/api/test/contract.test.ts runs; the job exists so the gate
+        # also has a check independent of that package's own test run.
+        run: ./implementation/scripts/generate-contract.sh
+
+      - name: fails on a non-empty diff
+        # FOUR paths, not two - Phase 4 gated the Unity <- api direction
+        # only (openapi/broodline.json, client/Assets/Generated/). Task 3
+        # added the api -> sim direction (openapi/sim.json,
+        # services/api/src/generated/) and this list has to cover both or
+        # the second direction is free to drift uncaught.
+        #
+        # `git status --porcelain`, NOT `git diff --quiet`: the latter is
+        # blind to untracked files, so it would pass on a change that makes
+        # a generator emit a NEW file the tree has never seen (nothing
+        # tracked to diff against) - which is exactly the kind of contract
+        # change most worth catching. contract.test.ts already gates on
+        # `git status --porcelain` for this reason; this step now checks the
+        # identical condition, so there is one gate semantic, not two.
+        run: |
+          dirty="$(git status --porcelain -- \
+            openapi/ client/Assets/Generated/ services/api/src/generated/)"
+          if [ -n "$dirty" ]; then
+            echo "FAIL: the generated contract does not match its sources. Run implementation/scripts/generate-contract.sh and commit the result."
+            echo "$dirty"
+            exit 1
+          fi
 
   client-settings:
     name: Unity settings (committed files only)
