@@ -2,13 +2,22 @@
 
 Design §7, Task 10 Step 3. **A suite whose tests have never been seen to fail
 is a suite that has not been shown to test anything.** That is Phase 4's
-recorded lesson twice over, and Phase 5's ledger has since reached *nine*
+recorded lesson twice over, and Phase 5's ledger reached **ten or eleven**
 assertions that were green while proving nothing — caught by weakening the
-guard and watching the test stay green, never by reading the test. One of the
-nine was caught in this very file's own newest test (row 2 below); one was
-caught at remediation Task 3, where a test passed on its first run having
-exercised nothing at all, because the unexecutable stub it was meant to
-exercise was skipped by the PATH search rather than run.
+guard and watching the test stay green, never by reading the test. One was
+caught in this very file's own newest test (row 2 below); one at remediation
+Task 3, where a test passed on its first run having exercised nothing at all,
+because the unexecutable stub it was meant to exercise was skipped by the PATH
+search rather than run.
+
+**Ten or eleven, not a single number, and the ambiguity is deliberate.** The
+final pair were one house pattern found together in two distinct tests, so the
+count depends on where you draw that boundary. An earlier draft of this
+paragraph said *nine*, which was simply an undercount nobody had reconstructed
+— and in a file whose whole subject is claims that assert more than they prove,
+an unverifiable statistic is the wrong thing to carry. The full enumeration is
+in `implementation/2026-09-13-phase5-followups.md`; take the list over the
+number.
 
 So each row below was **actually applied to the real source**, the suite
 actually run, and the failing test's name actually recorded. Nothing here is
