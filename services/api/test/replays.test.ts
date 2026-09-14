@@ -11,6 +11,7 @@ import { LocalBundleStore } from '../src/config/store.ts'
 import { servers } from '../src/db/schema.ts'
 import { LocalReplayStore } from '../src/replays/store.ts'
 import { SimClient } from '../src/sim/client.ts'
+import { reapOnExit } from './child-reaper.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 import {
   balance, buildLosingReplay, buildWinningReplay, setupPlayer, startWave, submit, submitInit,
@@ -49,6 +50,12 @@ async function startSim(): Promise<{ proc: ChildProcess; stop: () => Promise<voi
     cwd: REPO,
     stdio: 'ignore',
   })
+  // afterAll's stop() is not a guarantee: vitest terminates a test file's
+  // worker by signal on several of its own teardown paths, and a worker
+  // that dies by signal runs no afterAll - orphaning this host, which keeps
+  // SIM_PORT and makes the NEXT run of this file fail to bind. Observed,
+  // not projected; see child-reaper.ts. Mirrors wave-submit.test.ts.
+  const unreap = reapOnExit(proc)
 
   let ready = false
   for (let i = 0; i < 80; i++) {
@@ -62,6 +69,7 @@ async function startSim(): Promise<{ proc: ChildProcess; stop: () => Promise<voi
   }
   if (!ready) {
     proc.kill()
+    unreap()
     await rm(work, { recursive: true, force: true })
     throw new Error(`sim host never became ready on ${SIM_URL}`)
   }
@@ -70,6 +78,7 @@ async function startSim(): Promise<{ proc: ChildProcess; stop: () => Promise<voi
     proc,
     stop: async () => {
       proc.kill()
+      unreap()
       await rm(work, { recursive: true, force: true })
     },
   }
@@ -104,7 +113,11 @@ beforeAll(async () => {
 afterAll(async () => {
   await t?.stop()
   await sim?.stop()
-  await rm(bundleRoot, { recursive: true, force: true })
+  // Guarded: bundleRoot is assigned partway through beforeAll, so an
+  // aborted beforeAll left this throwing ERR_INVALID_ARG_TYPE on top of the
+  // real error and burying it. See wave-submit.test.ts's afterAll for the
+  // full account, and masked-teardown.test.ts for the test.
+  if (bundleRoot) await rm(bundleRoot, { recursive: true, force: true })
 })
 
 /**

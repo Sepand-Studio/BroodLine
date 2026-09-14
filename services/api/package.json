@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch --experimental-strip-types src/index.ts",
-    "test": "vitest run",
+    "test": "node --experimental-strip-types test/preflight.ts && vitest run",
     "typecheck": "tsc --noEmit",
     "openapi": "node --experimental-strip-types src/openapi.ts",
     "migrate": "node --experimental-strip-types src/migrate-cli.ts"

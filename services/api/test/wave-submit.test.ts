@@ -14,6 +14,7 @@ import { servers } from '../src/db/schema.ts'
 import { LocalReplayStore } from '../src/replays/store.ts'
 import { SimClient } from '../src/sim/client.ts'
 import { settle } from '../src/wave/issuance.ts'
+import { reapOnExit } from './child-reaper.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 import {
   balance, buildLosingReplay, buildWinningReplay, ledgerRowCount, liveIssuance,
@@ -57,6 +58,12 @@ async function startSim(): Promise<{ proc: ChildProcess; stop: () => Promise<voi
     cwd: REPO,
     stdio: 'ignore',
   })
+  // afterAll's stop() is not a guarantee: vitest terminates a test file's
+  // worker by signal on several of its own teardown paths, and a worker
+  // that dies by signal runs no afterAll - orphaning this host, which keeps
+  // SIM_PORT and makes the NEXT run of this file fail to bind. Observed,
+  // not projected; see child-reaper.ts.
+  const unreap = reapOnExit(proc)
 
   let ready = false
   for (let i = 0; i < 80; i++) {
@@ -70,6 +77,7 @@ async function startSim(): Promise<{ proc: ChildProcess; stop: () => Promise<voi
   }
   if (!ready) {
     proc.kill()
+    unreap()
     await rm(work, { recursive: true, force: true })
     throw new Error(`sim host never became ready on ${SIM_URL}`)
   }
@@ -78,6 +86,7 @@ async function startSim(): Promise<{ proc: ChildProcess; stop: () => Promise<voi
     proc,
     stop: async () => {
       proc.kill()
+      unreap()
       await rm(work, { recursive: true, force: true })
     },
   }
@@ -109,7 +118,18 @@ beforeAll(async () => {
 afterAll(async () => {
   await t?.stop()
   await sim?.stop()
-  await rm(bundleRoot, { recursive: true, force: true })
+  // GUARDED, like the two above it. bundleRoot is assigned PARTWAY through
+  // beforeAll, so when beforeAll aborts before that point - a container that
+  // will not start, a sim host that never binds 5299 - this line ran with
+  // undefined and threw
+  //   TypeError: The "path" argument must be of type string ...
+  // on top of the real error. That TypeError is what the tail of the output
+  // carries, and it reads like the cause. It is not cosmetic: that exact
+  // shape got an intermittent flake in this suite misattributed twice, and
+  // three reviews passed over a real bug because the reports they rested on
+  // carried vitest's FAIL line and this TypeError, never the actual error.
+  // masked-teardown.test.ts pins both halves.
+  if (bundleRoot) await rm(bundleRoot, { recursive: true, force: true })
 })
 
 describe('POST /v1/wave/submit', () => {
@@ -318,7 +338,9 @@ describe('POST /v1/wave/submit', () => {
       // handler looks like - nothing inside its transaction touches this
       // row until after it has already committed a credit), that absence
       // is itself part of the failure this test exists to catch, not a
-      // reason to hang. Comfortably inside pool.ts's lock_timeout=5000, so
+      // reason to hang. Comfortably inside the lock_timeout=5000 that
+      // src/db/client.ts's createPool sets (there is no pool.ts - the name
+      // this comment used to cite does not exist in this package), so
       // a genuinely blocked backend is never killed out from under us.
       const deadlineAt = Date.now() + 3_000
       for (;;) {

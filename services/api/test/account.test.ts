@@ -50,7 +50,11 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await t?.stop()
-  await rm(bundleRoot, { recursive: true, force: true })
+  // Guarded: bundleRoot is assigned partway through beforeAll, so an
+  // aborted beforeAll left this throwing ERR_INVALID_ARG_TYPE on top of the
+  // real error and burying it. See wave-submit.test.ts's afterAll for the
+  // full account, and masked-teardown.test.ts for the test.
+  if (bundleRoot) await rm(bundleRoot, { recursive: true, force: true })
 })
 
 function create(key: string, body: Record<string, unknown> = { birthdateBand: 'adult', storefrontRegion: 'us-central1' }) {

@@ -349,9 +349,72 @@ cleanup() {
   # and the flag being set/cleared - see wave-helpers.ts's releaseOnce()
   # for why ownership-checking replaces that instead of patching around it).
   release_build_lock
+  # -rf, so a $WORK already removed by an earlier call is not an error: this
+  # function is called on both the signal path and the EXIT path and MUST
+  # tolerate running twice. Verified by direct experiment, not by reading -
+  # calling cleanup() twice in a row with a live SIM_PID, a held lock and an
+  # existing $WORK leaves the same end state as calling it once, and returns
+  # 0 both times (a non-zero return from a trap handler under `set -e` would
+  # be its own silent-abort hazard).
   rm -rf "$WORK"
 }
+
+# Teardown on a signal. WHY THIS IS NOT `trap cleanup EXIT INT TERM`:
+#
+# A trap handler that does not exit RESUMES the script. Bash runs the
+# handler when the current foreground command returns and then carries on
+# from where it left off - so the one-line shape would kill the sim, release
+# the build lock and `rm -rf` the scratch directory UNDERNEATH A STILL-
+# RUNNING SCRIPT, which then curls a host it just killed and `mv`s files out
+# of a directory that no longer exists. That is a worse failure than the one
+# it is meant to fix, and it is not hypothetical: it is what this script did
+# when the one-line shape was tried here first.
+#
+# And note what this is NOT fixing, because the ledger item overstated it.
+# `trap cleanup EXIT` ALONE already runs on Ctrl-C, on vitest's SIGTERM and
+# on SIGHUP: bash installs handlers for its terminating signals and runs the
+# EXIT trap before re-raising with the default disposition. Measured against
+# this script, not assumed - SIGTERM mid-run exits 143 with cleanup having
+# run, nothing left holding 5199 and no stray dotnet; group SIGINT (what
+# Ctrl-C actually delivers) exits 130 the same way.
+#
+# The case bash does NOT cover is a SIGINT delivered to this script's PID
+# alone - `kill -INT <pid>` from another terminal, or any supervisor that
+# signals a single process rather than a group. Bash only terminates on
+# SIGINT when the foreground child it is waiting on died of SIGINT too; when
+# the child is untouched (it is in the same process group but was not
+# signalled), bash swallows the interrupt entirely and the script runs to
+# completion. Measured: unguarded, a single-pid SIGINT delivered while the
+# sim host was up left the script running through the rest of Direction 2
+# and exiting 0, interrupt ignored.
+#
+# So these two handlers do two things: they make that swallowed case
+# terminate promptly with the teardown run, and they make the other three
+# EXPLICIT rather than resting on a bash implementation detail that no other
+# shell shares - this script is `#!/usr/bin/env bash`, but "the EXIT trap
+# happens to fire on fatal signals" is not a property worth depending on
+# silently for the one thing that frees port 5199.
+on_signal() {
+  # Disarm first: this handler owns the teardown from here, and a cleanup
+  # running from both the signal path and the EXIT path is redundant rather
+  # than harmful only because cleanup is idempotent. Disarming makes the
+  # single run the normal case and keeps idempotency as the belt, not the
+  # braces.
+  trap - EXIT INT TERM
+  cleanup
+  # 128+n, not 1. A parent (vitest, a CI runner, an interactive shell) reads
+  # 130/143 as "died of SIGINT/SIGTERM"; exiting 1 would present an
+  # interrupted run as an ordinary generator failure and send whoever is
+  # reading the log looking for a contract defect that is not there.
+  case "$1" in
+    INT) exit 130 ;;
+    TERM) exit 143 ;;
+  esac
+  exit 1
+}
 trap cleanup EXIT
+trap 'on_signal INT' INT
+trap 'on_signal TERM' TERM
 
 # ---- Direction 1: Unity <- api. TypeScript (Zod) is the source of truth. ----
 
@@ -527,12 +590,59 @@ CLIENT2_TMP="$WORK/sim.ts"
 # the inconsistent-tree state the scratch dance exists to prevent, and a
 # `git add -A` mid-window would commit an empty or mismatched contract.
 #
-# --sort-keys is LOAD-BEARING. ASP.NET does not guarantee key order between
+# Key-sorting is LOAD-BEARING. ASP.NET does not guarantee key order between
 # runs of MapOpenApi, so an unsorted document would produce a spurious diff
 # on every regeneration even when nothing actually changed - which turns the
 # contract.test.ts gate into noise, and noise gets disabled.
-curl -fsS http://127.0.0.1:5199/openapi/v1.json \
-  | python3 -m json.tool --sort-keys > "$OPENAPI2_TMP"
+#
+# STRIPPING `servers` IS ALSO LOAD-BEARING, and is why this is a normaliser
+# rather than the `python3 -m json.tool --sort-keys` it replaces. MapOpenApi
+# fills `servers` in from the address the document was FETCHED FROM, which
+# here is the local harness host - so the committed contract for a service
+# that will run on Cloud Run was carrying
+# `"servers": [{"url": "http://127.0.0.1:5199/"}]`, and every generated
+# client that honours `servers` resolves its base URL to localhost. The
+# address of the machine that happened to serve the description is not part
+# of the contract; the paths, schemas and operations are.
+#
+# The strip happens HERE, during normalisation, rather than as an edit to
+# openapi/sim.json: that file is generated, and anything done to it by hand
+# is undone by the next regeneration.
+#
+# Enforcement is contract.test.ts, and it was weakened two ways to find out
+# what it actually enforces. Delete this pop and BOTH of that file's
+# contract assertions fail - the diff gate on a dirty tree, and the
+# `servers` assertion on the key itself. Re-add the block to the COMMITTED
+# document by hand and only the diff gate fails, because it regenerates the
+# file before the other assertion reads it. Either way the strip cannot be
+# quietly undone, which is the property that matters; the second case is
+# recorded because "an assertion on the committed document catches a hand
+# edit" is the natural thing to assume here, and it is not true.
+#
+# The document is written to $WORK exactly as before - the curl output lands
+# in its own scratch file first only because the normaliser is fed to python
+# on stdin as a heredoc and cannot also read the document from there.
+# Neither file is inside the tree, so the staging rule above is unchanged.
+curl -fsS http://127.0.0.1:5199/openapi/v1.json > "$WORK/sim.raw.json"
+
+# indent=4 + sort_keys + ensure_ascii + a trailing newline reproduces
+# `python3 -m json.tool --sort-keys` byte for byte (verified by diffing this
+# normaliser's output against json.tool's on the same document, with the
+# `servers` pop disabled: identical). Keeping that parity is what makes the
+# regeneration diff for this change exactly the removed `servers` block and
+# nothing else.
+python3 - "$WORK/sim.raw.json" "$OPENAPI2_TMP" <<'PY'
+import json, sys
+raw, out = sys.argv[1:3]
+with open(raw) as f:
+    doc = json.load(f)
+# pop, not del: a future sim host that emits no `servers` at all must not
+# turn this into a KeyError and a failed regeneration.
+doc.pop("servers", None)
+with open(out, "w") as f:
+    json.dump(doc, f, indent=4, sort_keys=True)
+    f.write("\n")
+PY
 
 # Absolute paths on both sides: `pnpm --filter <pkg> exec` runs the command
 # with its CWD set to that package's directory (services/api), not the repo

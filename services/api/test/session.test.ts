@@ -45,7 +45,11 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await t?.stop()
-  await rm(bundleRoot, { recursive: true, force: true })
+  // Guarded: bundleRoot is assigned partway through beforeAll, so an
+  // aborted beforeAll left this throwing ERR_INVALID_ARG_TYPE on top of the
+  // real error and burying it. See wave-submit.test.ts's afterAll for the
+  // full account, and masked-teardown.test.ts for the test.
+  if (bundleRoot) await rm(bundleRoot, { recursive: true, force: true })
 })
 
 /** A real player, created through the real route - not a fixture shaped like one. */
