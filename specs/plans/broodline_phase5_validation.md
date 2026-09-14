@@ -709,21 +709,36 @@ a server that rejects everything.
 
 ## 9. Decisions owed
 
-Six. Three carry forward, three are this phase's.
+Eight. Six were booked when this design was written; execution added two, and
+settled or moved three of the six. **Updated at Task 12 against what is on
+disk, not against what was expected** — one row turned out to have been
+discharged before this phase started and never noticed.
 
 | Decision | Why it matters | State |
 |---|---|---|
-| **Narrow `solo_execution` §3.1's degradation row for `sim`** | It promises campaign submissions *"queue and reward optimistically, reconciled on recovery."* That needs an outbox Phase 4 deferred and a clawback — a ledger **debit** against a balance the player may already have spent. At one server with no players, a retryable `503` is honest and costs nothing. The row is right for a live game and wrong for this phase | **New.** Owner: `solo_execution` §3.1. Re-widen at the first non-TestFlight players |
-| **Reward amounts enter the config bundle** | §2.2 makes the reward a function of the wave id. `waves.json` carries `{id, integrity, laneCount, spawns}` and no reward. This is content, not data — §5.2 — so the bundle is its home, and `Broodline.Config.Validate` gains a rule | **New.** Owner: `broodline_campaign_structure.md` for the values, this phase for the shape |
-| **Raise `minimumClientVersion` for the first time** | §2.3 makes a superseded submission a rejection the player sees. The mechanism has shipped since Phase 4 and has never been used; the first use should be deliberate rather than urgent | **New.** Owner: the release process, `solo_execution` §7.0 |
-| **Correct `client_architecture` §2's `ref readonly SimState`** | Still present at line 52, still specifying a shape that guarantees nothing. Phase 3 resolved it in code and booked the edit; Phase 4 booked it again | **Owed since Phase 3.** Twice deferred |
-| **Re-run `broodline_supersession_map.md`** | It accounts for none of `plans/`, and now misses three phase designs rather than two. "Not in the map" is weak evidence a document is unratified | **Owed since `solo_execution`.** Growing by one document per phase |
-| **Enable GitHub Actions at `Sepand-Studio`** | Needs `admin:org`; no session can do it. `tests.yml` and `determinism.yml` are committed and have never run. Every gate here verifies locally, so it blocks no work — but it blocks the determinism gate `solo_execution` §7.3 designed | **Owed since Phase 4.** Human-only |
+| **Narrow `solo_execution` §3.1's degradation row for `sim`** | It promises campaign submissions *"queue and reward optimistically, reconciled on recovery."* That needs an outbox Phase 4 deferred and a clawback — a ledger **debit** against a balance the player may already have spent. At one server with no players, a retryable `503` is honest and costs nothing. The row is right for a live game and wrong for this phase | **Advanced; the edit is still owed.** The honest answer is now built *and* tested — `wave-submit.test.ts` drives an unreachable `sim`, asserts `503 sim_unavailable`, and asserts the **issuance survives**, which is what makes the retry honest rather than a lost wave. So §3.1's row is no longer a preference, it is **contradicted by shipped code**. Owner: `solo_execution` §3.1. Re-widen at the first non-TestFlight players |
+| **Reward amounts enter the config bundle** | §2.2 makes the reward a function of the wave id. `waves.json` carries `{id, integrity, laneCount, spawns}` and no reward. This is content, not data — §5.2 — so the bundle is its home, and `Broodline.Config.Validate` gains a rule | **Discharged for the shape.** `reward` is mandatory, the validator refuses a wave without one and a reward of zero, and `config/bundles/0.1.1` carries it. **Side effect worth carrying:** `0.1.0` no longer validates, so it is retired as a bootstrap target — see [`2026-09-13-phase5-followups.md`][p5followups] §5. Values still owed to `broodline_campaign_structure.md` |
+| **Raise `minimumClientVersion` for the first time** | §2.3 makes a superseded submission a rejection the player sees. The mechanism has shipped since Phase 4 and has never been used; the first use should be deliberate rather than urgent | **New, unchanged.** Owner: the release process, `solo_execution` §7.0 |
+| **Correct `client_architecture` §2's `ref readonly SimState`** | Still present at line 52, still specifying a shape that guarantees nothing. Phase 3 resolved it in code and booked the edit; Phase 4 booked it again | **Owed since Phase 3.** Thrice deferred. Re-checked at Task 12: still line 52, unchanged |
+| **~~Re-run `broodline_supersession_map.md`~~** | It accounts for none of `plans/`, and now misses three phase designs rather than two. "Not in the map" is weak evidence a document is unratified | **Discharged — and not by this phase.** The map was **retired** at `351c163`, replaced by per-file `status:`/`folder:` frontmatter that is checkable per file and cannot drift. That commit is an ancestor of this branch's base, so this row was already stale the day it was written. Recorded rather than deleted: a decision that quietly stopped existing is exactly the kind of drift the rest of this table is for |
+| **Enable GitHub Actions at `Sepand-Studio`** | Needs `admin:org`; no session can do it. `tests.yml` and `determinism.yml` are committed and have never run. Every gate here verifies locally, so it blocks no work — but it blocks the determinism gate `solo_execution` §7.3 designed | **Owed since Phase 4, and it now blocks more than it did.** This phase added a contract job and widened the path filters — still never executed — and left three findings that can only be settled on a runner: the `dotnet run` exit-137 workaround, and both container-startup flakes. "Blocks no work" is no longer quite true |
+| **Prove reward inflation end to end** *(new — Task 6 Step 6(c), Task 10 Step 3)* | `weakenings.md` **row 5** is struck and **not closed**. Reading the reward from `verdict.echo.waveId` cannot break anything today: step 5 rejects a wave-id mismatch before `rewardForWave` runs, and the combined weakening needs two authored waves with different rewards, which **the engine cannot supply** — `WaveDef.ForId` returns wave 6 and throws for every other id. The shipped unit coverage proves the **wiring**, not the property | **Owed against the Phase 6 engine content fill.** A test-only bundle fixture does not help; the gate is the engine. When a second authored wave exists the weakening becomes constructible and **must actually be run** |
+| **Guard design §4.3's retention split** *(new — Task 10 Step 3)* | `weakenings.md` **row 7**, the worst finding of the weakening exercise: the full api suite stayed green at 137/137 when the day boundary stopped being honoured. `'expired'` rows aged out an hour past `expires_at` and `'consumed'` rows retained **48** hours *because they are the replay counter* — neither has a test, because the sweep does not exist (`drizzle/0003_wave_issuances.sql:95`) | **Owed against the retention sweep.** The shipped test pins the **UTC day boundary** to the second and that is all it guards. The sweep needs its own direct test including the 48-vs-24 argument: a row written at 23:50 must still be countable at 00:10 |
+
+> **One ruling recorded here so it is not re-opened as a defect.**
+> `weakenings.md` **row 10** leaves a real hole in the adversarial gate **on
+> purpose**. Different-key replay is the *attack* and is that file's subject;
+> same-key replay is the *honest retry* and belongs in `wave-submit.test.ts`,
+> where guard one's entire coverage is two named tests. Closing row 10 by
+> duplicating a same-key test into the gate would paper the hole over rather
+> than record it. **Delete either of those two tests and guard one is covered
+> nowhere** — [`2026-09-13-phase5-followups.md`][p5followups] §2 names both.
 
 ---
 
 [replay]: ../../engine/Runtime/Combat/Replay.cs
 [followups]: ../../implementation/2026-09-11-phase4-followups.md
+[p5followups]: ../../implementation/2026-09-13-phase5-followups.md
 
 ---
 

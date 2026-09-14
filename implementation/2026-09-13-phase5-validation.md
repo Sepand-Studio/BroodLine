@@ -2559,11 +2559,36 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ## Task 12: The done-when, and what is owed after it
 
+> ### 🟡 PARTIAL — the local half is done; the deployed half is held with Task 11
+>
+> **Landed (2026-09-14):** Steps 1, 2, 4, 5 and 6 complete. Step 3's file exists
+> and carries everything this branch can evidence. All six gates re-run and
+> `implementation/results/phase5-test-baseline.txt` reproduced **row for row**,
+> including every per-file row — api **176 / 23 files**, typecheck **0**, .NET
+> **186 / 0 skipped** (174 engine + 12 sim), Unity EditMode **35 / 0 / 0**,
+> cross-runtime 500 scenarios agree, contract diff clean. **No count fell.**
+>
+> **Still owed, and it is owed to Task 11, not to Step 3.** Task 11 is held by
+> human ruling before provisioning billable GCP, so three things could not be
+> written from evidence and are recorded in the followups file as *plan, not
+> measurement* (§5): what **Step 8** finds about bundle rollback; the
+> `terraform output` empty-outputs-map bug; and design §5.1's **30-day replay
+> lifecycle rule**, which does not exist in `infra/terraform` even as unapplied
+> HCL. **When Task 11 runs, its findings go into the followups file** — that is
+> the only place the reasoning behind this branch's thirty-two commits survives
+> a `git clean`.
+>
+> **Also still owed, and not Task 11's:** the deployed end-to-end wave in the
+> Definition of Done, and parent **Task 1**'s device re-capture (the round-trip
+> is dark — see the followups file §3, and note that `dotnet.skipped 0` says
+> nothing about it).
+
+
 **Files:**
 - Create: `implementation/2026-09-13-phase5-followups.md`
 - Modify: `implementation/README.md`, `specs/plans/broodline_phase5_validation.md`
 
-- [ ] **Step 1: Run every gate**
+- [x] **Step 1: Run every gate**
 
 ```bash
 dotnet test Broodline.sln --nologo
@@ -2575,7 +2600,7 @@ pnpm --filter @broodline/api typecheck
 ./implementation/scripts/run-unity-tests.sh EditMode
 ```
 
-- [ ] **Step 2: Check the counts against Task 0**
+- [x] **Step 2: Check the counts against Task 0**
 
 **Compare against `implementation/results/phase5-test-baseline.txt`, not against any number written in prose — including the ones in this sentence.** That file is committed, machine-diffable, and supersedes anything typed into a paragraph here.
 
@@ -2583,17 +2608,17 @@ This instruction exists because the prose version already failed once: Phase 4 r
 
 For orientation only, superseded by the file: api 176 / 23 files, .NET 186 / 0 skipped (174 engine + 12 sim), Unity EditMode 35 / 0 / 0. **A count that fell is a deletion nobody noticed** — find it before closing the phase.
 
-- [ ] **Step 3: Write the followups file**
+- [~] **Step 3: Write the followups file** — written; the Task 11 clause is the one gap, see the status block above
 
 The working ledger lives in git-ignored scratch and will not survive a `git clean`. Phase 4's equivalent is the model. It must carry, at minimum: whatever Task 11 Step 8 found about bundle rollback, any weakening from Task 10 Step 3 that left the suite green, and the standing debt this phase did not clear.
 
-- [ ] **Step 4: Update the design doc's decisions owed**
+- [x] **Step 4: Update the design doc's decisions owed**
 
 Three of design §9's six are discharged or advanced by this phase's work. Mark them, and **add whatever Task 6 Step 6(c) and Task 10 Step 3 turned up** — a plan that finds something and does not book it has wasted the finding.
 
-- [ ] **Step 5: Add the phase to `implementation/README.md`**
+- [x] **Step 5: Add the phase to `implementation/README.md`**
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add implementation/ specs/plans/broodline_phase5_validation.md
