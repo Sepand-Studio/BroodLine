@@ -268,19 +268,90 @@ Task 11 provisions billable GCP and was **held by human ruling**. This section
 was written entirely from the plan and from what is on disk rather than from
 measurement, and said so.
 
-**Two rows below are now measured and one is not.** The infrastructure half of
+**Most rows below are now measured; one is not.** The infrastructure half of
 Task 11 has since been written and planned — `terraform init`, `validate`,
 `fmt -check` and `plan` all run clean against the real project, which bills
 nothing and provisions nothing. **No apply has happened; the stack is still
-unbuilt.** So the `terraform output` row and the lifecycle-rule row below now
-rest on a plan that was actually run, while the bundle-rollback row remains
-what it was: unrun, and unrunnable without an apply.
+unbuilt.** So every row except the first rests on a plan that was actually
+run, while the bundle-rollback row remains what it was: unrun, and unrunnable
+without an apply.
+
+The plan now stands at **19 to add, 0 to change, 0 to destroy** (15 before the
+two deploy-stopping gaps below were closed). The three networking resources
+that do exist — `google_compute_network.main` and the two private-services-
+access resources — refresh successfully and appear in the plan as nothing but
+a refresh. Nothing is destroyed, replaced or changed.
+
+**One blocker is deliberately still open and is not in this table's gift:**
+`api` cannot mint an OIDC ID token for `sim`, so even once `sim` is reachable
+every call returns 403. The choice between adding `google-auth-library` to the
+api and granting `allUsers` the invoker role is with the human. Nothing in
+this round touched the invoker binding, `SimClient`, or the api's
+dependencies.
 
 | | What | Where it stands |
 |---|---|---|
 | **Bundle rollback** | Step 8: "confirm rollback is a config change, not a deploy". `loadBundle` caches per process, so an instance that has not turned over keeps serving the old bundle after a pointer change. The claim rests on Cloud Run instance lifetime, **which the code does not control** — Phase 4 booked this and Phase 5 could not settle it | **Unrun.** Whatever Step 8 finds belongs in this file; nothing else records it |
 | **`terraform output` reports no outputs** | **Diagnosed — and the recorded hypothesis was wrong.** See below the table | **Not a bug.** Nothing to fix |
 | **Design §5.1's 30-day replay lifecycle rule** | It ships *now* precisely because it "cannot be retrofitted onto objects already deleted", with the 20-pin exemption unimplemented. When this row was written it did **not** exist in `infra/terraform` even as unapplied HCL — `main.tf` defined the `config` bucket, no replay bucket, and no `lifecycle_rule` anywhere in the directory | **Written, unapplied.** `google_storage_bucket.replays` now carries an `age = 30` / `Delete` `lifecycle_rule` in `main.tf`, and the plan shows it creating. It has still never run against a real object |
+| **No `google_sql_user` created the role `DATABASE_URL` names** | Pre-existing and deploy-stopping: the connection string authenticates as `broodline_app` and nothing anywhere created that role. A green apply and a green revision, then a failure on the first query that touches the database — `/healthz` returns `{ok:true}` without consulting Postgres, so the startup probe passes either way | **Fixed, unapplied.** `google_sql_user.app` plus a Secret Manager secret, version and IAM binding for its password. The api receives it as `PGPASSWORD`, which node-postgres reads as the fallback when the connection string omits a password (`pg/lib/connection-parameters.js`), so `DATABASE_URL` is unchanged and **no application code moved** |
+| **`JWT_SECRET` resolves `version = "latest"` against a secret with zero versions** | Pre-existing: `google_secret_manager_secret.jwt` is created, no `google_secret_manager_secret_version` ever was, and the revision therefore fails to start. Cloud Run reports it as a generic container-failed-to-start, which reads like an application crash | **Documented, not papered over.** The value stays out of Terraform on purpose. `deploy.sh` now *refuses to deploy* until an enabled version exists and prints the exact `gcloud secrets versions add` command; the check lists versions and never reads one. A fresh project is a **two-pass bootstrap** (apply → add version → deploy) and that is now written down rather than discovered |
+| **`sim`'s internal ingress is unreachable from `api`** | Carried here from the Task 11 plan report as "my understanding… I am not certain". **Now settled against the documentation, and the hedge was right** — see below the table | **Diagnosed, deliberately unfixed.** The remedy has an open cost question and is not this round's to choose |
+
+### `sim` is unreachable from `api`, and this is now a citation rather than a hunch
+
+The Task 11 plan report flagged this and was honest that it was unsettled:
+"my understanding is that a Cloud Run → Cloud Run call without VPC egress is
+*not* internal… I am not fully certain and I could not test it without
+applying." It has since been checked against Google's documentation.
+
+**The hunch was correct.** From `cloud.google.com/run/docs/securing/ingress`:
+
+> "When calling from Cloud Run or App Engine to a Cloud Run service that's set
+> to 'Internal' or 'Internal and Cloud Load Balancing', traffic must route
+> through a VPC network that's considered internal."
+
+`api` has no `vpc_access` block, so its call to `sim`'s `*.run.app` address
+does not route through this project's VPC and is not internal. `sim` refuses
+it **at the network layer, before IAM is consulted** — which makes this a
+second gate fully independent of the invoker/OIDC question, and means
+resolving that one does not open this one.
+
+**What the documentation says is required**
+(`run/docs/securing/private-networking`, "Receive requests from other Cloud
+Run resources or App Engine"): configure the *source* with Direct VPC egress
+or a connector, then either **(a)** "route all traffic through the VPC network
+and enable Private Google Access on the subnet", or **(b)** enable Private
+Google Access and "configure DNS to resolve `run.app` URLs to the
+`private.googleapis.com` (`199.36.153.8/30`) or `restricted.googleapis.com`
+(`199.36.153.4/30`) ranges".
+
+**The cost assumption that framed this was backwards, and that is the useful
+part.** The worry was ~$8–10/month, near-doubling a ~$10–12 bill. That price
+belongs to the **Serverless VPC Access connector**, which bills always-on VM
+instances. **Direct VPC egress carries no connector-instance compute charge
+and scales to zero** (`run/docs/configuring/connecting-vpc`). The reachability
+fix does not have to be the expensive option.
+
+**Why no HCL was written for it.** Two sub-questions are open and both move
+the bill:
+
+- Route (a) sends *all* of `api`'s egress through the VPC, including
+  `services/api/src/identity/apple.ts`'s fetch of
+  `https://appleid.apple.com/auth/keys` — a non-Google endpoint that Private
+  Google Access does not cover and that a Direct-VPC-egress instance, having
+  no external IP, cannot reach without **Cloud NAT**, another billable
+  resource. The Cloud Run docs do not state plainly whether Cloud NAT is
+  strictly required here; the only mention found is a cold-start caveat.
+  (That fetch is currently reached only from tests — `verifyAppleToken` is
+  wired into no route yet — so this is a loaded gun rather than a live break.)
+- Route (b) avoids Cloud NAT but needs a private DNS zone for `run.app`, and
+  the documentation does not say whether the default `private-ranges-only`
+  egress routes `199.36.153.8/30` through the VPC at all.
+
+Choosing between them is a cost decision taken while the stack's whole fixed
+cost is being weighed, and it is entangled with nothing else here. **Left
+open deliberately, with the diagnosis now firm enough to decide on.**
 
 ### The `terraform output` bug is not a bug, and the recorded cause was wrong
 

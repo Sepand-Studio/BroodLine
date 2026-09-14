@@ -13,6 +13,66 @@ variable "image" {
   description = "Artifact Registry image URI for the api, tagged by commit SHA (never :latest - see implementation/scripts/deploy.sh)."
 }
 
+variable "db_password" {
+  type        = string
+  sensitive   = true
+  description = <<-EOT
+    Password for the `broodline_app` Postgres role.
+
+    NO DEFAULT, deliberately, and it must never be written into
+    terraform.tfvars. Supply it through the environment instead:
+
+      export TF_VAR_db_password="$(openssl rand -base64 32 | tr -d '\n')"
+
+    An env var rather than `-var=` on the command line because a `-var=`
+    argument is visible in `ps` to every other process on the machine for as
+    long as the apply runs, and lands in the shell history besides.
+
+    WHERE IT GOES. It feeds exactly two write-only arguments -
+    google_sql_user.app.password_wo and
+    google_secret_manager_secret_version.db_password.secret_data_wo. A
+    write-only argument is not persisted: this was measured, not assumed, by
+    planning with a sentinel value and searching the output for it. The
+    sentinel appeared in NONE of planned_values, resource_changes,
+    prior_state, configuration, output_changes or relevant_attributes, and
+    google_sql_user.app's recorded change carries `"password_wo": null`.
+    `password` (not `_wo`) would instead put the credential in state in
+    cleartext, which is why required_version in main.tf is pinned at 1.11.
+
+    THE ONE PLACE IT DOES SURVIVE, found by the same test and worth knowing
+    before someone is surprised by it: a SAVED plan file. `terraform plan
+    -out=FILE` records every root input variable, this one included, and
+    `terraform show -json FILE` prints it in cleartext under the top-level
+    "variables" key. `sensitive = true` does not redact it there. So:
+
+      - `terraform apply` with no -out (what deploy.sh does) writes no plan
+        file and leaves the value nowhere on disk.
+      - If you DO use -out, that file is credential material. Keep it out of
+        the repo and delete it after the apply.
+
+    ROTATION is a two-step, and neither step alone is enough: change this
+    value AND increment db_password_version. Terraform cannot see that a
+    write-only value changed - that is the trade for it not being stored - so
+    the version integer is the only signal it has.
+  EOT
+}
+
+variable "db_password_version" {
+  type        = number
+  default     = 1
+  description = <<-EOT
+    Rotation counter for db_password. Increment it - in the same change that
+    alters db_password - to make a new password take effect.
+
+    It drives BOTH google_sql_user.app.password_wo_version and
+    google_secret_manager_secret_version.db_password.secret_data_wo_version
+    on purpose: those are the Postgres role and the copy the api reads, and a
+    rotation that moved one without the other would leave the api holding a
+    password the database no longer accepts. One variable makes that
+    particular mistake unexpressible.
+  EOT
+}
+
 variable "deletion_protection" {
   type        = bool
   default     = true

@@ -1,7 +1,18 @@
 terraform {
-  required_version = ">= 1.9"
+  # 1.11, not 1.9, and the bump is load-bearing rather than housekeeping.
+  # google_sql_user.password_wo and google_secret_manager_secret_version.
+  # secret_data_wo are WRITE-ONLY arguments, which Terraform did not support
+  # before 1.11. They are the whole reason the database password never
+  # appears in terraform.tfstate (see google_sql_user.app below); on 1.10 or
+  # earlier the arguments are simply unknown and the config fails to parse,
+  # which is the right failure - the alternative is `password`, which lands
+  # the credential in state in cleartext.
+  required_version = ">= 1.11"
   required_providers {
-    google = { source = "hashicorp/google", version = "~> 6.0" }
+    # >= 6.23 for the same reason: that is the release that added the
+    # write-only password/secret_data attributes. `~> 6.0` alone would let
+    # `terraform init` select a provider that cannot parse this file.
+    google = { source = "hashicorp/google", version = ">= 6.23, < 7.0" }
   }
 }
 
@@ -115,6 +126,87 @@ resource "google_sql_database" "app" {
   instance = google_sql_database_instance.main.name
 }
 
+# The role DATABASE_URL has always named and nothing has ever created.
+#
+# `postgresql://broodline_app@localhost/broodline?host=/cloudsql/...` (see the
+# api service below) connects as `broodline_app`. There was no
+# google_sql_user anywhere in this directory, so the first deploy would have
+# authenticated as a role Postgres has never heard of and failed on the first
+# query - after a green apply and a green revision, because nothing consults
+# the database until a request arrives.
+#
+# WHY A PASSWORD AT ALL, given the URL carries none. Two routes exist and only
+# one of them is reachable from here:
+#
+#   - Cloud SQL IAM database authentication (type = CLOUD_IAM_SERVICE_ACCOUNT)
+#     needs no password, which would match the URL exactly. But the caller
+#     must present an OAuth token AS the password, and only the Cloud SQL
+#     LANGUAGE connectors do that automatically. Cloud Run's built-in
+#     /cloudsql volume mount (the one this service uses) is not documented to
+#     perform automatic IAM authentication, so taking this route means adding
+#     the Node connector library to services/api - application code, which
+#     this round does not touch.
+#   - A built-in user with a password, delivered out of band. That is this.
+#
+# WHY THE PASSWORD IS NOT IN THE URL. Putting it in DATABASE_URL would put a
+# live credential in this file, in the plan output, in state, and in the Cloud
+# Run env var where anyone with viewer on the project can read it. Instead the
+# api receives it as PGPASSWORD from Secret Manager (see the api service),
+# which node-postgres reads as the fallback when the connection string omits a
+# password - pg/lib/connection-parameters.js resolves `password` through
+# process.env.PGPASSWORD. So DATABASE_URL stays exactly as it was and no
+# application code changes.
+#
+# WHY TERRAFORM WRITES THE SECRET VERSION HERE, when JWT_SECRET's version is
+# deliberately created out of band. JWT_SECRET has ONE consumer: whatever
+# value the api reads is correct by definition. This password has TWO - the
+# Postgres role and the api - and they must agree. Creating them out of band
+# independently is how they silently drift, and a drifted database password
+# is a 28P01 at 3am with two plausible causes. One input, written to both
+# places by one apply, cannot drift.
+#
+# WHY NOTHING LANDS IN STATE ANYWAY. password_wo and secret_data_wo are
+# WRITE-ONLY arguments (provider >= 6.23, Terraform >= 1.11 - see the
+# required_version block): they are accepted from configuration and stored in
+# neither the plan nor the state file. var.db_password itself has no default
+# and is supplied as TF_VAR_db_password at apply time, so the value is in
+# neither this file nor the committed tfvars (terraform.tfvars is gitignored
+# at .gitignore:126 and only terraform.tfvars.example is tracked).
+resource "google_secret_manager_secret" "db_password" {
+  secret_id = "broodline-db-password"
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret_version" "db_password" {
+  secret         = google_secret_manager_secret.db_password.id
+  secret_data_wo = var.db_password
+  # Bumping var.db_password_version is what makes a rotation take effect;
+  # changing the VALUE alone is invisible to Terraform, because a write-only
+  # argument is not stored and therefore cannot be diffed. That is the
+  # documented rotation mechanism for write-only attributes, and it is the
+  # one sharp edge they carry.
+  secret_data_wo_version = var.db_password_version
+}
+
+resource "google_secret_manager_secret_iam_member" "api_db_password" {
+  secret_id = google_secret_manager_secret.db_password.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.api.email}"
+}
+
+resource "google_sql_user" "app" {
+  name     = "broodline_app"
+  instance = google_sql_database_instance.main.name
+
+  password_wo = var.db_password
+  # Must move in lockstep with the secret version above - they are two halves
+  # of one rotation, and bumping only one of them is precisely the drift this
+  # arrangement exists to prevent.
+  password_wo_version = var.db_password_version
+}
+
 resource "google_storage_bucket" "config" {
   name                        = "${var.project_id}-broodline-config"
   location                    = var.region
@@ -162,6 +254,14 @@ resource "google_secret_manager_secret_iam_member" "api_jwt" {
 }
 
 resource "google_cloud_run_v2_service" "api" {
+  # The role must exist before the revision that authenticates as it. Nothing
+  # in the template references google_sql_user.app - the credential arrives
+  # by env var, not by attribute - so Terraform has no way to infer this
+  # edge, exactly as it had none for the Service Networking peering above.
+  # Without it the service can be created first and the first request in is
+  # the thing that discovers the role is missing.
+  depends_on = [google_sql_user.app]
+
   name     = "broodline-api"
   location = var.region
   ingress  = "INGRESS_TRAFFIC_ALL"
@@ -212,6 +312,37 @@ resource "google_cloud_run_v2_service" "api" {
         name  = "REPLAY_BUCKET"
         value = google_storage_bucket.replays.name
       }
+      # ############################################################
+      # DEPLOY PREREQUISITE - THIS SECRET HAS NO VERSION IN TERRAFORM
+      # ############################################################
+      #
+      # `version = "latest"` resolves to nothing on a secret with zero
+      # versions, and google_secret_manager_secret.jwt above creates the
+      # SECRET but deliberately not a VERSION - a JWT signing key in
+      # Terraform is a JWT signing key in state and in every plan output, so
+      # the value is created out of band on purpose.
+      #
+      # The consequence, stated plainly rather than implied: until a human
+      # runs the command below, THIS REVISION FAILS TO START. Cloud Run
+      # reports the failure as a generic "Revision is not ready" / container
+      # failed to start, which reads like an application crash and sends
+      # people into the api logs, where there is nothing to find.
+      #
+      # WHAT A HUMAN MUST RUN, once per project, BEFORE the first deploy:
+      #
+      #   openssl rand -base64 48 \
+      #     | tr -d '\n' \
+      #     | gcloud secrets versions add broodline-jwt-secret \
+      #         --data-file=- --project "$PROJECT_ID"
+      #
+      # At least 32 characters: services/api/src/identity/session.ts refuses
+      # to boot on a shorter one. `openssl rand -base64 48` yields 64.
+      #
+      # implementation/scripts/deploy.sh refuses to deploy until that version
+      # exists, and names this command when it refuses - so the failure is
+      # legible BEFORE the revision ships rather than as a container that
+      # will not start afterwards. The check there lists versions; it never
+      # reads the value, which is the point of keeping the value out of here.
       env {
         name = "JWT_SECRET"
         value_source {
@@ -224,6 +355,33 @@ resource "google_cloud_run_v2_service" "api" {
       env {
         name  = "DATABASE_URL"
         value = "postgresql://broodline_app@localhost/broodline?host=/cloudsql/${google_sql_database_instance.main.connection_name}"
+      }
+      # The password half of DATABASE_URL, kept OUT of DATABASE_URL.
+      #
+      # node-postgres resolves a missing connection-string password through
+      # process.env.PGPASSWORD (pg/lib/connection-parameters.js), so these two
+      # env vars compose into the credential without the credential ever
+      # appearing in a URL, in this file, or in a plan. See google_sql_user.
+      # app for why the role needs a password at all.
+      #
+      # Unlike JWT_SECRET above this one DOES have a version created by
+      # Terraform, so it is not a deploy prerequisite - google_secret_manager_
+      # secret_version.db_password writes it from the same var.db_password
+      # that sets the role's password.
+      env {
+        name = "PGPASSWORD"
+        value_source {
+          secret_key_ref {
+            secret = google_secret_manager_secret.db_password.secret_id
+            # Pinned to the version this apply wrote, not "latest". A
+            # rotation must change the ROLE and the api together; pointing at
+            # "latest" would let a new version reach the api on its next cold
+            # start while google_sql_user still carried the old password, so
+            # the two would disagree for exactly as long as it took someone
+            # to notice.
+            version = google_secret_manager_secret_version.db_password.version
+          }
+        }
       }
       # sim's address, from the resource rather than hand-typed: a Cloud Run
       # URL is assigned at create time and a literal here would be a guess
@@ -276,9 +434,57 @@ resource "google_cloud_run_v2_service" "sim" {
   # to anyone who can reach the service, so reachability is the whole of the
   # defence and this one line is all of it.
   #
-  # See the report for Task 11: internal ingress means api must reach sim as
-  # INTERNAL traffic, which is a property of how api egresses, not of this
-  # setting. `terraform plan` cannot prove that hop.
+  # ############################################################
+  # THIS SERVICE IS NOT REACHABLE FROM `api` AS THIS STACK STANDS
+  # ############################################################
+  #
+  # The previous note here said "my understanding is that a Cloud Run ->
+  # Cloud Run call without VPC egress is not internal... I am not fully
+  # certain." It has since been checked against the documentation rather than
+  # reasoned about, and the hedge was right:
+  #
+  #   "When calling from Cloud Run or App Engine to a Cloud Run service
+  #    that's set to 'Internal' or 'Internal and Cloud Load Balancing',
+  #    traffic must route through a VPC network that's considered internal."
+  #       - cloud.google.com/run/docs/securing/ingress, "Access internal
+  #         services"
+  #
+  # `api` has NO vpc_access block, so its call to sim's *.run.app address
+  # does not route through this project's VPC and is therefore not internal.
+  # sim rejects it at the network layer, BEFORE IAM is consulted - so this is
+  # a second, independent gate from the invoker binding below, and fixing
+  # that one does not open this one.
+  #
+  # WHAT THE DOCUMENTATION SAYS IS REQUIRED (run/docs/securing/private-
+  # networking, "Receive requests from other Cloud Run resources or App
+  # Engine"): configure the SOURCE service with Direct VPC egress or a
+  # connector, and then either
+  #   (a) "route all traffic through the VPC network and enable Private
+  #       Google Access on the subnet", or
+  #   (b) "enable Private Google Access on the subnet associated with the
+  #       source resource and configure DNS to resolve run.app URLs to the
+  #       private.googleapis.com (199.36.153.8/30) or restricted.
+  #       googleapis.com (199.36.153.4/30) ranges".
+  #
+  # NOT WRITTEN HERE, DELIBERATELY, AND THE REASON IS COST AND A LIVE CODE
+  # PATH. Route (a) sends ALL of api's egress through the VPC, including
+  # services/api/src/identity/apple.ts's fetch of
+  # https://appleid.apple.com/auth/keys - a non-Google endpoint that Private
+  # Google Access does not cover and that a Direct-VPC-egress instance, which
+  # has no external IP, cannot reach without Cloud NAT. Cloud NAT is another
+  # billable resource, and the documentation does not state plainly whether
+  # it is strictly required here. Route (b) avoids that but needs a private
+  # DNS zone for run.app, and the docs do not say whether the default
+  # `private-ranges-only` egress routes 199.36.153.8/30 through the VPC at
+  # all. Both sub-questions are open, both move the bill, and the bill is
+  # what is currently being decided. See the Task 11 gaps report.
+  #
+  # THE ONE FIRM COST FINDING, because it inverts the assumption that framed
+  # this as expensive: Direct VPC egress carries NO connector-instance
+  # compute charge and scales to zero (run/docs/configuring/connecting-vpc);
+  # it is the SERVERLESS VPC ACCESS CONNECTOR, the other option, that bills
+  # always-on VMs at roughly $8-10/month. The reachability fix therefore does
+  # not have to be the expensive one.
   ingress = "INGRESS_TRAFFIC_INTERNAL_ONLY"
 
   # Same reason as the api service above, learned the same way: Cloud Run v2
