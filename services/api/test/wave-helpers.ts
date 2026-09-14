@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -17,15 +17,16 @@ import { settle } from '../src/wave/issuance.ts'
  * four directions - this is the one definition.
  */
 
-// --- The dotnet-build lock. wave-submit.test.ts and replays.test.ts both
-// build services/sim/Broodline.Sim.Service.csproj for their own sim
-// instance, and implementation/scripts/generate-contract.sh's Direction 2
-// builds the SAME project independently for its own. MSBuild's -o/--output
-// overrides OutputPath but never BaseIntermediateOutputPath, so all three
+// --- The dotnet-build lock. wave-submit.test.ts, replays.test.ts and
+// adversarial.test.ts each build services/sim/Broodline.Sim.Service.csproj
+// for their own sim instance, and implementation/scripts/generate-contract.sh's
+// Direction 2 builds the SAME project independently for its own - four
+// contending call sites, three of them in this package. MSBuild's -o/--output
+// overrides OutputPath but never BaseIntermediateOutputPath, so all four
 // share services/sim/obj/ regardless of where -o points, and two
 // concurrent builds racing there intermittently fail with "the process
 // cannot access the file ...rjsmrazor.dswa.cache.json". This is the ONE
-// definition for the two TS callers, for the same reason the rest of this
+// definition for the three TS callers, for the same reason the rest of this
 // file is one definition; generate-contract.sh cannot import it and keeps
 // its own bash implementation, hand-kept in sync (see that script's
 // comment, which names this file back) - a path or timeout edit applied to
@@ -83,10 +84,10 @@ interface DotnetBuildLock {
  * path every real caller must use) and dotnet-build-lock.test.ts's
  * isolated instances (each pointed at its own throwaway temp dir, so
  * testing reclaim/contention can never race the real thing a concurrent
- * wave-submit.test.ts/replays.test.ts run might be doing against the
- * production path at the same time).
+ * wave-submit.test.ts / replays.test.ts / adversarial.test.ts run might be
+ * doing against the production path at the same time).
  *
- * Ownership is a pid file written INSIDE the lock dir immediately after
+ * Ownership is an owner file written INSIDE the lock dir immediately after
  * mkdir claims it. There is a small window between mkdir succeeding and
  * that write landing where a waiter can see an empty lock dir with no
  * owner file yet - that is deliberately NOT treated as stale: a
@@ -94,6 +95,35 @@ interface DotnetBuildLock {
  * (isStale below), and that window is microseconds against the staleness
  * threshold, so a waiter who hits it just keeps polling rather than
  * misreading "not written yet" as "abandoned."
+ *
+ * The owner VALUE is `${pid}:${nonce}`, not a bare pid, and the nonce is
+ * fresh per acquisition. Two reasons, and the second is the load-bearing
+ * one:
+ *
+ *  - A bare pid distinguishes lock GENERATIONS only as well as pids do.
+ *    reclaim()'s re-verify and releaseOnce's ownership check both ask "is
+ *    the thing at this path still the same generation I decided about?",
+ *    and a value that repeats across generations answers that wrongly.
+ *  - *** A bare pid would make this design silently depend on vitest's
+ *    pool. *** The three TS callers are distinct processes only because
+ *    vitest 2.1's default pool is `forks` and vitest.config.ts sets no
+ *    `pool`. Setting `pool: 'threads'` there - an edit in an unrelated
+ *    config file, for unrelated reasons - would give every caller ONE
+ *    process.pid, at which point releaseOnce's ownership check and
+ *    isStale's liveness check both degenerate to "yes, that's me" and the
+ *    lock stops excluding anything. Every test would stay green. A nonce
+ *    removes the dependency outright: two lock instances in the same
+ *    process have different owner values, so the protocol holds under any
+ *    pool. dotnet-build-lock.test.ts's "a holder whose lock was reclaimed
+ *    out from under it does not delete the new owner's lock" test is the
+ *    one that pins this, and it runs both instances in THIS process on
+ *    purpose.
+ *
+ * The pid stays the FIRST colon-delimited field because liveness still
+ * needs it (process.kill(pid, 0)); everything else compares the full
+ * string. generate-contract.sh writes the same shape (`$$:$RANDOM...`) and
+ * parses it the same way - the two sides only ever compare owner values
+ * for equality, so all they must agree on is "pid first, then a colon."
  */
 function createDotnetBuildLock(dir: string, opts: {
   staleMs?: number
@@ -102,7 +132,7 @@ function createDotnetBuildLock(dir: string, opts: {
   pollMs?: number
   /**
    * TEST-ONLY. Awaited between isStale() deciding a lock is reclaimable
-   * and the atomic detach that acts on that decision - the exact window
+   * and the destructive step that acts on that decision - the exact window
    * round 3's review demonstrated exploitably: two reclaimers can both
    * decide "stale" against the SAME lock instance before either has
    * removed anything. A no-op (the default, and the only behavior any
@@ -122,7 +152,12 @@ function createDotnetBuildLock(dir: string, opts: {
   const ownerFile = join(dir, 'owner.pid')
 
   async function isStale(raw: string | undefined): Promise<boolean> {
-    const pid = raw === undefined ? NaN : Number(raw)
+    // The owner value is `${pid}:${nonce}`; liveness needs only the pid, so
+    // take the first colon-delimited field. A value with no colon at all
+    // (a bare pid, which is what a lock left behind by an older build of
+    // this file or of generate-contract.sh contains) parses identically,
+    // so an in-flight upgrade cannot produce an unreclaimable lock.
+    const pid = raw === undefined ? NaN : Number(raw.split(':')[0])
 
     const st = await stat(dir).catch(() => undefined)
     if (st === undefined) return false // already gone; the next mkdir attempt will just succeed
@@ -155,40 +190,55 @@ function createDotnetBuildLock(dir: string, opts: {
   }
 
   /**
-   * Re-verify, THEN detach-then-destroy - two layers, because either one
-   * ALONE is insufficient, both confirmed by direct reproduction while
-   * fixing round 3's finding 1:
+   * Re-verify, then destroy. ONE layer, deliberately - an earlier version
+   * had a second, "detach atomically via rename(2), then rm the detached
+   * copy", justified by a comment claiming neither layer sufficed alone.
+   * Round 4's review DISPROVED that claim by direct experiment: at the
+   * one interleaving the comment said rename earned its keep on (three
+   * contenders; B re-verifies OK and stalls; A destroys the dead lock; C
+   * acquires and enters; B's destructive step then runs) blind rm and
+   * atomic rename produced byte-identical outcomes. Rename detaches
+   * whatever generation is at the path just as blindly as rm removes it;
+   * the only case it genuinely wins is two reclaimers destroying the same
+   * STILL-DEAD lock, which is harmless either way (one wins, the other
+   * no-ops on an already-gone path).
    *
-   * Atomicity alone (rename instead of a blind rm) stops two SIMULTANEOUS
-   * reclaimers from both destroying what they each independently judged
-   * stale - only one racing `rename` can win against the same source path,
-   * the other fails ENOENT and does nothing. But rename, like rm, still
-   * acts on "whatever is at `dir` right now" - it has no notion of WHICH
-   * GENERATION of lock that is. If reclaimer A pauses (a slow tick, a
-   * long GC, or here, a testBeforeReclaim hook) between deciding `dir`
-   * held a dead pid and acting on that decision, and in that gap a
-   * DIFFERENT reclaimer (B) has ALREADY reclaimed the same dead lock AND a
-   * fresh owner has ALREADY acquired a brand new, live one at that same
-   * path, A's rename does not know that - it atomically detaches
-   * whichever generation is currently there, which is now B's live one,
-   * and destroys it. Confirmed by reproduction: a signal-gated version of
-   * this exact scenario (A held back until B is confirmed inside its
-   * critical section, no guessed delay) reliably destroyed B's live lock
-   * under rename-only reclaim, identical in shape to the original blind-rm
-   * bug just with the atomicity box checked.
+   * And it had acquired a cost: the detached `${dir}.reclaim-<pid>-<uuid>`
+   * directory is garbage that nothing ever matches or cleans, so a hard
+   * kill landing between the rename and the rm left it in TMPDIR forever
+   * - and hard kills mid-build are precisely the scenario this lock
+   * exists for. Zero demonstrated benefit plus a real leak means the
+   * layer is gone, on this side and in generate-contract.sh's copy.
    *
-   * The re-read below closes that gap: reclaim is handed the EXACT owner
-   * value isStale() judged (raw, not the whole boolean verdict), and
+   * What does the work is the re-read below. reclaim is handed the EXACT
+   * owner value isStale() judged (raw, not the whole boolean verdict), and
    * before touching anything it re-reads the CURRENT owner value and
    * compares. A mismatch - even to a value this function cannot itself
    * interpret - means some OTHER, legitimate acquirer has claimed this
    * path since the decision was made, and reclaim aborts rather than
-   * destroying work that is not its to destroy. This narrows the
-   * decision-to-action window from "however long the caller happened to
-   * be paused" down to "one more filesystem read, immediately before the
-   * atomic step" - not a mathematical impossibility, but the same order of
-   * magnitude of residual risk every other atomicity boundary in this file
-   * (mkdir's EEXIST, rename's ENOENT) already accepts as negligible.
+   * destroying work that is not its to destroy.
+   *
+   * THE WINDOW IS NARROWED, NOT CLOSED. Be precise about what survives:
+   * this is a check-then-act, and between the check and the act there is
+   * still a gap. A re-reads owner=X, re-verifies OK, and then its `rm` is
+   * queued behind a busy libuv threadpool (bash's `rm` behind a
+   * fork/exec); B reclaims, mkdirs a fresh lock and writes its own owner;
+   * A's queued rm lands on B's LIVE lock. The stall required is no longer
+   * "however long the caller happened to be paused" - it is now "longer
+   * than the other side's reclaim + mkdir + owner-write", which round 3
+   * measured at roughly 20ms for the bash side. That is ordinary jitter,
+   * not an exotic pause, so this is an ACCEPTED RESIDUAL, not a closed
+   * hole.
+   *
+   * It is explicitly NOT the same kind of thing as mkdir's EEXIST or
+   * rename's ENOENT, which an earlier comment here claimed. Those are
+   * single atomic syscalls with NO window at all. Closing a check-then-act
+   * properly needs a compare-and-swap primitive that a lock directory
+   * simply does not offer (it would mean a real lock file with
+   * O_EXCL+fcntl, or a lock server) - disproportionate for test
+   * infrastructure whose worst case is one flaky `dotnet build`, which is
+   * the failure this lock already reduced from routine to rare. So: known,
+   * bounded, accepted, and written down rather than papered over.
    */
   async function reclaim(observedRaw: string | undefined): Promise<void> {
     if (testBeforeReclaim) await testBeforeReclaim()
@@ -196,17 +246,11 @@ function createDotnetBuildLock(dir: string, opts: {
     const stillThere = await readFile(ownerFile, 'utf8').catch(() => undefined)
     if (stillThere !== observedRaw) return // changed since the decision - not ours to reclaim
 
-    const detached = `${dir}.reclaim-${process.pid}-${randomUUID()}`
-    try {
-      await rename(dir, detached)
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return // someone else already reclaimed/replaced it
-      throw err
-    }
-    await rm(detached, { recursive: true, force: true })
+    await rm(dir, { recursive: true, force: true })
   }
 
-  async function acquireOnce(): Promise<boolean> {
+  /** The owner value written on success, or undefined if the lock was not won. */
+  async function acquireOnce(): Promise<string | undefined> {
     try {
       await mkdir(dir)
     } catch (err) {
@@ -216,21 +260,32 @@ function createDotnetBuildLock(dir: string, opts: {
       // just move the ABA window rather than close it.
       const observedRaw = await readFile(ownerFile, 'utf8').catch(() => undefined)
       if (await isStale(observedRaw)) await reclaim(observedRaw)
-      return false
+      return undefined
     }
-    await writeFile(ownerFile, String(process.pid), 'utf8')
-    return true
+    // Fresh nonce per acquisition, so no two generations of this lock ever
+    // carry the same owner value - not even two generations produced by
+    // this same instance in this same process. See the factory's comment
+    // for why a bare pid would make the whole protocol depend on vitest's
+    // pool setting.
+    const ownerValue = `${process.pid}:${randomUUID()}`
+    await writeFile(ownerFile, ownerValue, 'utf8')
+    return ownerValue
   }
 
-  async function releaseOnce(): Promise<void> {
+  async function releaseOnce(ownerValue: string): Promise<void> {
     // Only remove the lock if it is still OURS - never a blind rm. The
     // staleness threshold is minutes against a ~1-2s critical section, so
     // this should never fire in practice, but if a build somehow ran long
     // enough to be reclaimed out from under it, blind-removing here would
     // delete whoever holds it NOW and reopen the exact race this file
-    // exists to close.
+    // exists to close. Compared as the FULL owner string, not by pid: a
+    // pid comparison is satisfied by any generation this process wrote,
+    // including one a reclaimer handed to a different lock instance in
+    // this same process, which is exactly the case
+    // dotnet-build-lock.test.ts's "a holder whose lock was reclaimed out
+    // from under it" test drives.
     const raw = await readFile(ownerFile, 'utf8').catch(() => undefined)
-    if (raw !== undefined && Number(raw) === process.pid) {
+    if (raw === ownerValue) {
       await rm(dir, { recursive: true, force: true }).catch(() => {})
     }
   }
@@ -238,8 +293,10 @@ function createDotnetBuildLock(dir: string, opts: {
   return {
     async withLock<T>(fn: () => T | Promise<T>): Promise<T> {
       const deadline = Date.now() + timeoutMs
+      let ownerValue: string | undefined
       for (;;) {
-        if (await acquireOnce()) break
+        ownerValue = await acquireOnce()
+        if (ownerValue !== undefined) break
         if (Date.now() > deadline) {
           throw new Error(`timed out waiting for the dotnet build lock at ${dir}`)
         }
@@ -248,14 +305,19 @@ function createDotnetBuildLock(dir: string, opts: {
       try {
         // Awaited INSIDE the try block (`return await fn()`, not
         // `return fn()`) specifically so that if a future caller passes an
-        // async fn (today's two callers pass synchronous execFileSync),
+        // async fn (today's three callers pass synchronous execFileSync),
         // the finally block's release still runs AFTER fn's promise
         // settles rather than the instant it is created - the reverse
         // ordering would silently drop all mutual exclusion the moment
         // either caller moved to execFile/spawn.
         return await fn()
       } finally {
-        await releaseOnce()
+        // The owner value this acquisition actually wrote, carried in a
+        // local rather than instance state: one instance can have two
+        // concurrent withLock() calls, and instance-level state would let
+        // the second acquisition's value be the one the first release
+        // checks against.
+        await releaseOnce(ownerValue)
       }
     },
   }
@@ -263,11 +325,12 @@ function createDotnetBuildLock(dir: string, opts: {
 
 /**
  * Cross-process mutex around the `dotnet build` step in startSim() (see
- * wave-submit.test.ts and replays.test.ts), scoped to ONLY that step, not
- * the whole file or the whole suite - the critical section is ~1-2s, so
- * worst-case three-way contention adds a few seconds, nowhere near what
- * `--no-file-parallelism` would cost serializing all 17 test files for a
- * problem confined to 3.
+ * wave-submit.test.ts, replays.test.ts and adversarial.test.ts), scoped to
+ * ONLY that step, not the whole file or the whole suite - the critical
+ * section is ~1-2s, so worst-case four-way contention (those three plus
+ * generate-contract.sh) adds a few seconds, nowhere near what
+ * `--no-file-parallelism` would cost serializing all 19 test files for a
+ * problem confined to 4.
  *
  * `flock` isn't installed on macOS by default; mkdir's atomicity (EEXIST if
  * the directory already exists) is the portable substitute. A hard kill
@@ -289,7 +352,7 @@ export const withDotnetBuildLock: DotnetBuildLock['withLock'] =
 // instance (its own throwaway directory) to test reclaim/contention without
 // racing whatever wave-submit.test.ts/replays.test.ts may be doing against
 // the real production lock at the same moment under vitest's parallel file
-// execution. The two real callers above must always go through
+// execution. The three real callers above must always go through
 // withDotnetBuildLock, never this, so every acquirer converges on the one
 // shared production path.
 export const __createDotnetBuildLockForTest = createDotnetBuildLock

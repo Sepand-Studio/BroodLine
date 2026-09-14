@@ -23,10 +23,11 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 # --- The dotnet-build lock. This script's Direction 2 build (below) and
-# services/api/test/wave-submit.test.ts / replays.test.ts each build
+# services/api/test/wave-submit.test.ts / replays.test.ts /
+# adversarial.test.ts each build
 # services/sim/Broodline.Sim.Service.csproj independently for their own sim
 # instance. MSBuild's -o/--output overrides OutputPath but never
-# BaseIntermediateOutputPath, so all three share services/sim/obj/
+# BaseIntermediateOutputPath, so all four share services/sim/obj/
 # regardless of where -o points, and two concurrent builds racing there
 # intermittently fail with "the process cannot access the file
 # ...rjsmrazor.dswa.cache.json". This bash copy cannot import
@@ -38,8 +39,16 @@ cd "$(dirname "$0")/../.."
 # timeout edit applied to only one side yields two locks, no exclusion, and
 # a flake indistinguishable from the one this exists to close.
 #
-# Ownership is a pid file written inside the lock dir right after mkdir
-# claims it. A hard kill or Ctrl-C runs neither this script's own trap NOR
+# Ownership is an owner file written inside the lock dir right after mkdir
+# claims it, holding `<pid>:<nonce>` - NOT a bare pid. The nonce is what
+# makes two GENERATIONS of the lock distinguishable even when they share a
+# pid; see wave-helpers.ts's factory comment for the full argument (on that
+# side a bare pid would have made the whole protocol depend on vitest's
+# pool setting). The two sides only ever compare owner values for equality
+# and split the pid off the front, so all they must agree on is "pid first,
+# then a colon" - which is why this uses $$ plus $RANDOM entropy rather
+# than trying to mirror node's randomUUID. A hard kill or Ctrl-C runs
+# neither this script's own trap NOR
 # node's try/finally in the TS copy, so without staleness detection a
 # single interrupted run would leave the lock stuck and poison every later
 # run - all three call sites, indefinitely, until a human manually removes
@@ -67,6 +76,10 @@ fi
 # otherwise-independent clones, not produce a correctness bug).
 BUILD_LOCK="${TMPDIR:-/tmp}/broodline-sim-dotnet-build-$(id -u)-${REPO_HASH}.lock"
 BUILD_LOCK_OWNER_FILE="$BUILD_LOCK/owner.pid"
+# This run's owner value, computed ONCE (this script acquires the lock at
+# most once per run, so per-run and per-acquisition are the same thing
+# here). Three $RANDOM draws, because a single one is only 0..32767.
+BUILD_LOCK_OWNER="$$:${RANDOM}${RANDOM}${RANDOM}"
 BUILD_LOCK_STALE_SECONDS=300            # critical section is ~1-2s; minutes is a generous margin
 # A SEPARATE, much longer ceiling from the above - deliberately not folded
 # into one OR, and deliberately not a heartbeat (disproportionate here).
@@ -83,6 +96,40 @@ BUILD_LOCK_STALE_SECONDS=300            # critical section is ~1-2s; minutes is 
 BUILD_LOCK_ABSOLUTE_CEILING_SECONDS=1800  # 30 minutes
 BUILD_LOCK_TIMEOUT_TENTHS=600            # 60s, in 0.1s polling ticks
 
+# Reads the owner file, or prints nothing if it is missing or unreadable.
+#
+# The `|| true` is LOAD-BEARING and this is deliberately a function rather
+# than three copies of the idiom. The previous shape,
+#
+#     local observed=""
+#     [ -f "$BUILD_LOCK_OWNER_FILE" ] && observed="$(cat "$BUILD_LOCK_OWNER_FILE" 2>/dev/null)"
+#
+# is a TOCTOU that `set -e` turns into a SILENT ABORT of the whole script.
+# `[ -f ]` and `cat` are two separate syscalls, and the gap between them is
+# exactly when a releasing holder's `rm -rf` lands - this lock exists
+# because four call sites contend here, so that gap gets hit. When it is:
+# the test succeeds, `cat` fails, stderr is discarded by the `2>/dev/null`,
+# the `&&` list's status is 1, and because it is a top-level statement
+# (not an `if` condition, where `set -e` would be suspended) the script
+# exits 1 having printed NOTHING about why.
+#
+# That was not theoretical. It is the diagnosed cause of the intermittent
+# `contract.test.ts` failure this phase had been carrying as an
+# unexplained, supposedly-environmental flake: `Command failed:
+# ./implementation/scripts/generate-contract.sh` with no further output,
+# roughly 1 run in 20 of the full suite and 1 in 5 under deliberate
+# contention. Introduced with the owner file in round 2 and reproduced
+# under a DEBUG trap, which showed the abort landing on this exact `cat`.
+#
+# `cat ... 2>/dev/null || true` collapses "missing", "unreadable" and
+# "vanished underneath us" into the same empty string, which is what every
+# caller here already wants: build_lock_is_stale treats an empty owner as
+# "liveness unconfirmable" and falls back to the age check, and both
+# comparisons against it simply fail to match.
+read_build_lock_owner() {
+  cat "$BUILD_LOCK_OWNER_FILE" 2>/dev/null || true
+}
+
 # Whether $BUILD_LOCK is abandoned and safe to reclaim. Mirrors
 # wave-helpers.ts's isStale(): a missing/unreadable owner file falls back
 # to the lock dir's own mtime rather than being treated as stale outright,
@@ -90,11 +137,29 @@ BUILD_LOCK_TIMEOUT_TENTHS=600            # 60s, in 0.1s polling ticks
 # file being written; a CONFIRMED-alive owner is checked against the
 # absolute ceiling rather than trusted forever, guarding pid reuse.
 build_lock_is_stale() {
-  local pid="$1"
+  # $1 is the OWNER VALUE (`<pid>:<nonce>`); liveness needs only the pid,
+  # so strip from the first colon. A value with no colon (a bare pid, which
+  # is what a lock left behind by an older build of this script or of
+  # wave-helpers.ts contains) is left intact, so an in-flight upgrade
+  # cannot produce an unreclaimable lock.
+  local pid="${1%%:*}"
 
   [ -d "$BUILD_LOCK" ] || return 1  # already gone; the next mkdir will just succeed
   local mtime now age
-  mtime="$(stat -f %m "$BUILD_LOCK" 2>/dev/null || stat -c %Y "$BUILD_LOCK")"
+  # BSD stat first, GNU second, then `|| true` - and the emptiness check
+  # below, which is the point. `[ -d ]` above and this stat are two
+  # syscalls, and the lock can be released in between; when it is, BSD stat
+  # fails, the GNU fallback runs on macOS where `-c` is not a legal option
+  # and prints "stat: illegal option -- c" into this script's stderr (seen
+  # in the wild, forwarded verbatim through contract.test.ts), and mtime
+  # ends up empty. Empty then evaluates as 0 inside $(( )), making `age`
+  # the entire Unix epoch and every threshold comparison below trivially
+  # true - i.e. a confidently WRONG "this lock is stale" verdict derived
+  # from a lock that no longer exists. Treat a missing mtime the same way
+  # the `[ -d ]` check treats a missing directory: not stale, let the next
+  # mkdir decide.
+  mtime="$(stat -f %m "$BUILD_LOCK" 2>/dev/null || stat -c %Y "$BUILD_LOCK" 2>/dev/null || true)"
+  [ -n "$mtime" ] || return 1
   now="$(date +%s)"
   age=$((now - mtime))
 
@@ -116,46 +181,50 @@ build_lock_is_stale() {
   [ "$age" -gt "$BUILD_LOCK_STALE_SECONDS" ]
 }
 
-# Re-verify, THEN detach-then-destroy - two layers, because either one
-# ALONE is insufficient (both confirmed by direct reproduction fixing round
-# 3's finding 1):
+# Re-verify, then destroy. ONE layer, deliberately. An earlier version had
+# a second - `mv` the lock aside (a rename(2)) and then rm the detached
+# copy - justified by a comment claiming neither layer sufficed alone.
+# Round 4's review DISPROVED that by direct experiment: at the one
+# interleaving the comment said the mv earned its keep on, blind rm and
+# atomic mv produced identical outcomes. mv detaches whatever generation is
+# at the path just as blindly as rm removes it; the only case it genuinely
+# wins is two reclaimers destroying the same STILL-DEAD lock, which is
+# harmless either way (one wins, the other's rm no-ops on a gone path).
 #
-# Atomicity alone (mv, a rename(2), instead of a blind rm) stops two
-# SIMULTANEOUS reclaimers from both destroying what they each independently
-# judged stale - only one racing mv can win against the same source path,
-# the other fails (source already gone) and does nothing. But mv, like rm,
-# still acts on "whatever is at $BUILD_LOCK right now" - it has no notion
-# of WHICH GENERATION of lock that is. If a reclaimer pauses between
-# deciding $BUILD_LOCK held a dead pid and acting on that decision, and in
-# that gap a DIFFERENT reclaimer has already reclaimed the same dead lock
-# AND a fresh owner has already acquired a brand new, live one at that same
-# path, the paused reclaimer's mv does not know that - it atomically
-# detaches whichever generation is currently there, which is now the live
-# one, and destroys it. Confirmed by reproduction (see
-# wave-helpers.ts's reclaim() for the TS side of the same fix and the
-# signal-gated test that caught this).
+# It had also acquired a cost: "${BUILD_LOCK}.reclaim-<pid>-<rand>" is a
+# name nothing ever matches or cleans, so a hard kill landing between the
+# mv and the rm left that directory in TMPDIR forever - and hard kills
+# mid-build are precisely the scenario this lock exists for. Removed on
+# both sides; wave-helpers.ts's reclaim() carries the same note.
 #
-# The re-read below closes that gap: called with the EXACT pid
+# What does the work is the re-read: called with the EXACT owner value
 # build_lock_is_stale judged (`$1`, not re-derived), it re-reads the
 # CURRENT owner file immediately before touching anything and compares. A
 # mismatch - even to a value this function cannot itself interpret - means
 # some OTHER, legitimate acquirer has claimed this path since the decision
 # was made, and reclaim aborts rather than destroying work that is not its
 # to destroy.
+#
+# THE WINDOW IS NARROWED, NOT CLOSED - this is a check-then-act, and the
+# act (a fork/exec'd `rm`) can still be delayed past another contender's
+# reclaim+mkdir+owner-write, which round 3 measured at roughly 20ms here.
+# That is ordinary jitter, so it is an ACCEPTED RESIDUAL, not a closed
+# hole, and it is NOT the same kind of thing as mkdir's own atomic EEXIST.
+# Closing it properly needs a compare-and-swap primitive a lock directory
+# does not offer; disproportionate for test infrastructure whose worst case
+# is one flaky `dotnet build`. See wave-helpers.ts's reclaim() for the
+# longer version of this note.
 build_lock_reclaim() {
-  local observed_pid="$1"
-  local still_there=""
-  [ -f "$BUILD_LOCK_OWNER_FILE" ] && still_there="$(cat "$BUILD_LOCK_OWNER_FILE" 2>/dev/null)"
-  [ "$still_there" = "$observed_pid" ] || return 0  # changed since the decision - not ours to reclaim
+  local observed="$1"
+  # read_build_lock_owner, NOT `[ -f ... ] && x="$(cat ...)"` - see that
+  # function's comment. The file vanishing between the test and the read is
+  # not hypothetical here: it is precisely the "someone else reclaimed it
+  # first" case this line exists to detect.
+  local still_there
+  still_there="$(read_build_lock_owner)"
+  [ "$still_there" = "$observed" ] || return 0  # changed since the decision - not ours to reclaim
 
-  local detached="${BUILD_LOCK}.reclaim-$$-${RANDOM}${RANDOM}"
-  if mv "$BUILD_LOCK" "$detached" 2>/dev/null; then
-    rm -rf "$detached" 2>/dev/null || true
-  fi
-  # mv failing means someone else already reclaimed or replaced it (or, in
-  # principle, a real filesystem error) - either way there is nothing safe
-  # for THIS call to remove, so it does nothing further; the caller's
-  # normal poll/retry re-evaluates the situation on the next iteration.
+  rm -rf "$BUILD_LOCK" 2>/dev/null || true
 }
 
 acquire_build_lock() {
@@ -163,7 +232,7 @@ acquire_build_lock() {
   while true; do
     local mkdir_err=""
     if mkdir_err="$(mkdir "$BUILD_LOCK" 2>&1)"; then
-      echo "$$" > "$BUILD_LOCK_OWNER_FILE"
+      echo "$BUILD_LOCK_OWNER" > "$BUILD_LOCK_OWNER_FILE"
       return 0
     fi
     if [ ! -d "$BUILD_LOCK" ]; then
@@ -177,7 +246,7 @@ acquire_build_lock() {
       # 60s toward a misleading "timed out."
       local retry_err=""
       if retry_err="$(mkdir "$BUILD_LOCK" 2>&1)"; then
-        echo "$$" > "$BUILD_LOCK_OWNER_FILE"
+        echo "$BUILD_LOCK_OWNER" > "$BUILD_LOCK_OWNER_FILE"
         return 0
       fi
       if [ ! -d "$BUILD_LOCK" ]; then
@@ -190,13 +259,29 @@ acquire_build_lock() {
     # Read ONCE, feed the same observed value to both the staleness
     # decision and reclaim's later re-check - reading twice here would
     # just move the ABA window rather than close it.
-    local observed_pid=""
-    [ -f "$BUILD_LOCK_OWNER_FILE" ] && observed_pid="$(cat "$BUILD_LOCK_OWNER_FILE" 2>/dev/null)"
-    if build_lock_is_stale "$observed_pid"; then
-      build_lock_reclaim "$observed_pid"
-      continue  # try mkdir again now, immediately - see build_lock_reclaim's comment
+    local observed
+    observed="$(read_build_lock_owner)"
+    if build_lock_is_stale "$observed"; then
+      build_lock_reclaim "$observed"
+      # No sleep: retry mkdir immediately - whether the reclaim removed the
+      # lock or aborted because someone else now owns it, mkdir is the thing
+      # that decides who gets it, and sleeping first would just hand the
+      # path to a slower contender.
+      :
+    else
+      sleep 0.1
     fi
-    sleep 0.1
+    # The counter advances on EVERY iteration, including the reclaim ones.
+    # An earlier version `continue`d straight past this from the reclaim
+    # branch, so BUILD_LOCK_TIMEOUT_TENTHS did not advance there at all: no
+    # sustained interleaving that reaches it repeatedly was constructible
+    # (a changed owner is either alive, which takes the sleep path, or
+    # reclaimable on the next iteration), but a persistently failing rm -
+    # a read-only TMPDIR, say - would have spun hot forever with the 60s
+    # cap effectively disabled. Counting reclaim iterations makes the cap
+    # a real bound in every case; it costs only that a reclaim-heavy wait
+    # burns ticks faster than 0.1s each, which is the correct trade for a
+    # timeout whose job is to stop rather than to measure.
     waited=$((waited + 1))
     if [ "$waited" -gt "$BUILD_LOCK_TIMEOUT_TENTHS" ]; then
       echo "timed out waiting for the dotnet build lock at $BUILD_LOCK" >&2
@@ -209,7 +294,15 @@ release_build_lock() {
   # Only remove the lock if it is still OURS - never a blind rm. Safe to
   # call unconditionally (cleanup() below does, on every exit path): a
   # no-op if this process never acquired the lock or already released it.
-  if [ -f "$BUILD_LOCK_OWNER_FILE" ] && [ "$(cat "$BUILD_LOCK_OWNER_FILE" 2>/dev/null)" = "$$" ]; then
+  # Compared as the FULL owner value, not by pid: a pid comparison would be
+  # satisfied by any generation this process wrote, including one a
+  # reclaimer has since handed to someone else. Reads through
+  # read_build_lock_owner so all three readers in this script share one
+  # shape and nobody re-introduces the `set -e` hazard by copying the wrong
+  # one (this particular read was already safe - a `[ -f ]` inside an `if`
+  # condition is exempt from `set -e` - but that is far too subtle a
+  # distinction to leave standing next to two that were not).
+  if [ "$(read_build_lock_owner)" = "$BUILD_LOCK_OWNER" ]; then
     rm -rf "$BUILD_LOCK" 2>/dev/null || true
   fi
 }

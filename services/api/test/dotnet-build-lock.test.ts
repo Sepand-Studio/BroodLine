@@ -8,8 +8,8 @@ import { __createDotnetBuildLockForTest } from './wave-helpers.ts'
 /**
  * Regression tests for the mkdir-based mutex wave-helpers.ts's
  * withDotnetBuildLock wraps around `dotnet build` (see that file's comment,
- * and wave-submit.test.ts/replays.test.ts/generate-contract.sh for the
- * three real callers). Round 2 review finding: without staleness
+ * and wave-submit.test.ts / replays.test.ts / adversarial.test.ts /
+ * generate-contract.sh for the four real callers). Round 2 review finding: without staleness
  * detection, a Ctrl-C or SIGKILL during a build - a routine developer
  * action, not an edge case - leaves the lock on disk forever, since neither
  * a bash EXIT trap nor a TS try/finally runs on a hard kill.
@@ -28,10 +28,18 @@ import { __createDotnetBuildLockForTest } from './wave-helpers.ts'
  *    each one has been branch-mutated to confirm this; see the comment
  *    on each test for exactly which branch and what mutating it does.
  *
+ * Round 4 found a SEVENTH guard in this phase with no test that fails when
+ * it breaks: releaseOnce's own ownership check. Mutating it to a blind
+ * release left all five then-existing tests green. The last describe block
+ * below is that test; it is also what pins the owner value being
+ * `${pid}:${nonce}` rather than a bare pid, and therefore what stops the
+ * lock silently depending on vitest's default pool being `forks`.
+ *
  * Every test uses __createDotnetBuildLockForTest, an isolated lock
  * instance pointed at its own throwaway directory - never the real
  * production lock path - specifically so testing reclaim/contention here
- * can never race whatever wave-submit.test.ts or replays.test.ts is doing
+ * can never race whatever wave-submit.test.ts, replays.test.ts or
+ * adversarial.test.ts is doing
  * against the actual shared lock under vitest's parallel file execution.
  */
 
@@ -181,23 +189,40 @@ describe('withDotnetBuildLock - live-lock contention (not stolen)', () => {
 
     let waiterRan = false
     const waiterDone = lock.withLock(() => { waiterRan = true })
+    // Attached immediately: if the assertion below throws, the finally
+    // still awaits `waiterDone`, and an unhandled rejection reported after
+    // the test would MASK the real assertion failure with a confusing
+    // ENOENT from the waiter's next mkdir (afterEach removes the temp root
+    // out from under a waiter still polling).
+    waiterDone.catch(() => {})
 
-    // The core assertion: after several of the waiter's own poll
-    // intervals, it must STILL be waiting - not have snuck in, not have
-    // reclaimed a lock that has a live (if foreign) owner and is nowhere
-    // near either staleness threshold.
-    await new Promise((r) => setTimeout(r, 300))
-    expect(waiterRan).toBe(false)
+    try {
+      // The core assertion: after several of the waiter's own poll
+      // intervals, it must STILL be waiting - not have snuck in, not have
+      // reclaimed a lock that has a live (if foreign) owner and is nowhere
+      // near either staleness threshold.
+      await new Promise((r) => setTimeout(r, 300))
+      expect(waiterRan).toBe(false)
 
-    // Release the external holder for real: kill the process, then remove
-    // the lock the way that process's own releaseOnce would have on a
-    // clean exit - only now may the waiter proceed.
-    holder.kill()
-    await new Promise<void>((resolve) => holder.on('exit', () => resolve()))
-    await rm(lockDir, { recursive: true, force: true })
+      // Release the external holder for real: kill the process, then remove
+      // the lock the way that process's own releaseOnce would have on a
+      // clean exit - only now may the waiter proceed.
+      holder.kill()
+      await new Promise<void>((resolve) => holder.on('exit', () => resolve()))
+      await rm(lockDir, { recursive: true, force: true })
 
-    await waiterDone
-    expect(waiterRan).toBe(true)
+      await waiterDone
+      expect(waiterRan).toBe(true)
+    } finally {
+      // Without this, a failure at `expect(waiterRan).toBe(false)` above
+      // skips holder.kill() entirely: the setInterval child is orphaned and
+      // OUTLIVES the vitest worker, and the waiter keeps polling a
+      // directory afterEach is about to delete. Both are cleaned up here on
+      // every path, so a failing assertion reports itself rather than
+      // whatever the debris throws next.
+      holder.kill()
+      await waiterDone.catch(() => {})
+    }
   })
 })
 
@@ -224,7 +249,8 @@ describe('withDotnetBuildLock - ABA race in reclaim', () => {
     //
     // No other logic differs from the real production path;
     // testBeforeReclaim is a no-op for every real caller (wave-submit.test.ts,
-    // replays.test.ts) and exists only for this reproduction.
+    // replays.test.ts, adversarial.test.ts) and exists only for this
+    // reproduction.
     let resolveBEntered: () => void
     const bEntered = new Promise<void>((resolve) => { resolveBEntered = resolve })
 
@@ -266,22 +292,103 @@ describe('withDotnetBuildLock - ABA race in reclaim', () => {
     // disabled makes this test fail deterministically, every run - by
     // the time A's reclaim runs, B has already replaced the dead-pid
     // lock A observed with its own live one, so re-verify is the layer
-    // that catches the mismatch and aborts. Separately mutation-checked
-    // (and NOT caught by this or any other test here): reverting the
-    // atomic rename to a blind `rm(dir, ...)` while KEEPING the
-    // re-verify passes all 5 tests unchanged - in this file's scenarios,
-    // by the time any reclaim's destructive step runs, re-verify has
-    // already established the lock is still the SAME stale object no
-    // legitimate acquirer has touched, so an unconditional destroy at
-    // that point is no more dangerous than the atomic one. The rename's
-    // OWN distinct value - two reclaimers racing to destroy the exact
-    // SAME still-current stale lock at the exact same instant - is real
-    // (without it, both would blind-rm the same dead lock, which is
-    // harmless: one wins, the other's rm just no-ops on an
-    // already-gone path) but is not independently dangerous enough for
-    // this repo's actual failure mode to warrant a dedicated
-    // mutation-isolating test; kept for defense in depth and because it
-    // costs nothing.
+    // that catches the mismatch and aborts.
+    //
+    // Re-verify is now the ONLY layer. reclaim() used to follow it with
+    // an "atomic detach" (rename the lock aside, then rm the detached
+    // copy), which round 4's review removed: mutation-checked here and
+    // in the round-3 report, swapping that rename for a blind
+    // `rm(dir, ...)` left all five tests green, and a direct experiment
+    // at the one interleaving its comment claimed it for produced
+    // IDENTICAL outcomes either way. It was also actively harmful - a
+    // hard kill between the rename and the rm orphaned a
+    // `.reclaim-<pid>-<uuid>` directory in TMPDIR that nothing ever
+    // cleans, in exactly the hard-kill-mid-build scenario this lock
+    // exists for. The tests staying green across that removal is the
+    // POINT, not a coverage gap: there was never a behavior there to
+    // cover.
     expect(events).toEqual(['enter:B', 'exit:B', 'enter:A', 'exit:A'])
+  })
+})
+
+describe("withDotnetBuildLock - release after someone else's reclaim", () => {
+  it('a holder whose lock was reclaimed out from under it does not delete the new owner\'s lock', async () => {
+    const lockDir = await freshLockDir()
+
+    // releaseOnce's ownership guard is the subject. Round 4's review found
+    // it entirely uncovered: mutating it to a blind release left all five
+    // other tests in this file green, because in every one of them the
+    // releasing holder IS still the owner, so "check, then remove" and
+    // "remove" are indistinguishable. This test is the one arrangement
+    // where they differ.
+    //
+    // Both lock instances live in THIS process, deliberately. That is only
+    // a meaningful test because the owner value is `${pid}:${nonce}` rather
+    // than a bare pid: with a bare pid, A and B would write the SAME owner
+    // value here and A's release would delete B's lock no matter what the
+    // guard said. So this test also pins the property that the lock does
+    // not depend on vitest's pool being `forks` - see wave-helpers.ts's
+    // factory comment.
+    const opts = { timeoutMs: 5_000, staleMs: 60_000, absoluteCeilingMs: 60_000, pollMs: 20 }
+    const lockA = __createDotnetBuildLockForTest(lockDir, opts)
+    const lockB = __createDotnetBuildLockForTest(lockDir, opts)
+
+    let resolveAEntered: () => void
+    const aEntered = new Promise<void>((resolve) => { resolveAEntered = resolve })
+    let releaseA: () => void
+    const aMayRelease = new Promise<void>((resolve) => { releaseA = resolve })
+    let resolveBEntered: () => void
+    const bEntered = new Promise<void>((resolve) => { resolveBEntered = resolve })
+    let releaseB: () => void
+    const bMayRelease = new Promise<void>((resolve) => { releaseB = resolve })
+
+    const runA = lockA.withLock(async () => {
+      resolveAEntered()
+      await aMayRelease
+    })
+    await aEntered
+    const ownerA = await readFile(join(lockDir, 'owner.pid'), 'utf8')
+
+    // A is still inside its critical section. Now simulate what a reclaimer
+    // would have done to it - a build that somehow outran the staleness
+    // threshold, which is the one case releaseOnce's comment names. Done
+    // directly rather than through a second reclaiming instance so the
+    // scenario is deterministic: the point under test is what A's RELEASE
+    // does afterwards, not how the reclaim came about.
+    await rm(lockDir, { recursive: true, force: true })
+
+    const runB = lockB.withLock(async () => {
+      resolveBEntered()
+      await bMayRelease
+    })
+    await bEntered
+    const ownerB = await readFile(join(lockDir, 'owner.pid'), 'utf8')
+
+    // Same process, same pid, different owner values - finding 4's property,
+    // asserted rather than assumed. If these were equal, the guard below
+    // could not distinguish A from B at all.
+    expect(ownerB).not.toBe(ownerA)
+    expect(ownerA.split(':')[0]).toBe(String(process.pid))
+    expect(ownerB.split(':')[0]).toBe(String(process.pid))
+
+    // A releases. It no longer owns anything; B does.
+    releaseA!()
+    await runA
+
+    // THE ASSERTION: B's lock is untouched. Branch mutated to confirm this
+    // test depends on exactly that guard - releaseOnce's
+    // `if (raw === ownerValue)` -> `if (true)` (a blind release) makes ONLY
+    // this test fail, on this read: A's rm takes B's live lock with it and
+    // the owner file is gone.
+    const afterARelease = await readFile(join(lockDir, 'owner.pid'), 'utf8').catch(() => undefined)
+    expect(afterARelease).toBe(ownerB)
+
+    releaseB!()
+    await runB
+
+    // And B's OWN release still works - the guard rejects a foreign owner
+    // without also rejecting the legitimate one.
+    const afterBRelease = await readFile(join(lockDir, 'owner.pid'), 'utf8').catch(() => undefined)
+    expect(afterBRelease).toBeUndefined()
   })
 })
