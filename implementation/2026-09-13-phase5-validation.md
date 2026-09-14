@@ -2234,24 +2234,24 @@ describe('adversarial: what a modified client cannot do', () => {
     // never what the client claims - which is why the submission body
     // carries only the replay and an issuance id, with no outcome field
     // for a client to lie in.
-    const { issuanceId, seed } = await startWave(6)
+    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
     const before = await balance('shards')
-    const res = await submit(issuanceId, buildLosingReplay(6, seed), 'adv-1')
+    const res = await submit(issuanceId, buildLosingReplay(6, BigInt(seed)), 'adv-1')
 
     expect((await res.json()).result).toBe('Loss')
     expect(await balance('shards')).toBe(before)
   })
 
   it('cannot submit forged bytes', async () => {
-    const { issuanceId } = await startWave(6)
+    const { issuanceId } = await (await startWave(6)).json() as { issuanceId: string }
     const before = await balance('shards')
     expect((await submit(issuanceId, 'bm90IGEgcmVwbGF5', 'adv-2')).status).toBe(409)
     expect(await balance('shards')).toBe(before)
   })
 
   it('cannot replay a winning submission twice', async () => {
-    const { issuanceId, seed } = await startWave(6)
-    const replay = buildWinningReplay(6, seed)
+    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+    const replay = buildWinningReplay(6, BigInt(seed))
     await submit(issuanceId, replay, 'adv-3a')
     const before = await balance('shards')
 
@@ -2260,9 +2260,21 @@ describe('adversarial: what a modified client cannot do', () => {
   })
 
   it('cannot submit against a self-chosen seed', async () => {
-    const { issuanceId } = await startWave(6)
+    // 0x1111n is a seed the server never issued. The replay is internally
+    // HONEST - it really is a winning wave 6 played at that seed - so sim
+    // verifies it happily and the refusal must come from matchesIssuance
+    // comparing echo.seed to the issuance's, NOT from sim rejecting junk.
+    //
+    // ASSERT THE REASON, NOT ONLY THE BALANCE. An unchanged balance is
+    // satisfied by a submission refused for ANY reason - a malformed body, a
+    // 500, a seed the helper failed to encode. This phase has already shipped
+    // five assertions that were green while proving nothing; this is exactly
+    // that shape. The status pins WHICH guard fired.
+    const { issuanceId } = await (await startWave(6)).json() as { issuanceId: string }
     const before = await balance('shards')
-    await submit(issuanceId, buildWinningReplay(6, 0x1111n), 'adv-4')
+    const res = await submit(issuanceId, buildWinningReplay(6, 0x1111n), 'adv-4')
+    expect(res.status).toBe(409)
+    expect((await res.json()).code).toBe('submission_rejected')
     expect(await balance('shards')).toBe(before)
   })
 
@@ -2276,14 +2288,14 @@ describe('adversarial: what a modified client cannot do', () => {
     // distinguishes issuance.waveId from verdict.echo.waveId - and the
     // reward must come from the first.
     await clearThrough(6)
-    const { issuanceId, seed } = await startWave(6)
+    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
     const before = await balance('shards')
 
     // A replay that is honestly of wave 6 but whose issuance is for wave 6
     // too - then weaken the handler and watch the reward change. Here the
     // assertion is simply that the paid amount equals wave 6's bundle
     // reward and not any other wave's.
-    await submit(issuanceId, buildWinningReplay(6, seed), 'adv-6')
+    await submit(issuanceId, buildWinningReplay(6, BigInt(seed)), 'adv-6')
     expect(await balance('shards')).toBe(before + 40)
   })
 
@@ -2291,8 +2303,8 @@ describe('adversarial: what a modified client cannot do', () => {
     await clearThrough(6)
     let paid = 0
     for (let i = 0; i < 3; i++) {
-      const { issuanceId, seed } = await startWave(6)
-      await submit(issuanceId, buildWinningReplay(6, seed), `adv-7-${i}`)
+      const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+      await submit(issuanceId, buildWinningReplay(6, BigInt(seed)), `adv-7-${i}`)
       paid += 40
     }
     const before = await balance('shards')
@@ -2305,8 +2317,8 @@ describe('adversarial: what a modified client cannot do', () => {
     // that the day a creature table exists this test fails and names the
     // thing that changed. A hole recorded as a passing assertion about the
     // current behaviour is a hole nobody re-reads.
-    const { issuanceId, seed } = await startWave(6)
-    const res = await submit(issuanceId, buildWinningReplay(6, seed, { trait: 'Chill', tier: 3 }), 'adv-8')
+    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+    const res = await submit(issuanceId, buildWinningReplay(6, BigInt(seed), { trait: 'Chill', tier: 3 }), 'adv-8')
 
     expect(res.status).toBe(200)
     // When this flips to 409, Phase 6 has landed the roster check. Update
@@ -2565,7 +2577,11 @@ pnpm --filter @broodline/api typecheck
 
 - [ ] **Step 2: Check the counts against Task 0**
 
-.NET tests must have **grown** by Task 2's five and stayed at **0 skipped**. API tests must have grown by roughly thirty **from 74**, not from the 71 the Phase 4 followups record. **A count that fell is a deletion nobody noticed** — find it before closing the phase.
+**Compare against `implementation/results/phase5-test-baseline.txt`, not against any number written in prose — including the ones in this sentence.** That file is committed, machine-diffable, and supersedes anything typed into a paragraph here.
+
+This instruction exists because the prose version already failed once: Phase 4 recorded "71" in a sentence, it went stale unnoticed, and the real count was 74 — so this very step carried a wrong number for the whole of Phase 5.
+
+For orientation only, superseded by the file: api 176 / 23 files, .NET 186 / 0 skipped (174 engine + 12 sim), Unity EditMode 35 / 0 / 0. **A count that fell is a deletion nobody noticed** — find it before closing the phase.
 
 - [ ] **Step 3: Write the followups file**
 
