@@ -105,6 +105,12 @@ client/.git.disabled/
 services/**/dist/
 services/**/*.tsbuildinfo
 
+# Phase 5 - services/sim, the C# half. Same reasoning as tests/ and tools/
+# above: a pure .NET service with no Unity import concern, so standard
+# bin/obj names rather than engine/'s bin~/obj~/.
+services/**/bin/
+services/**/obj/
+
 # Terraform
 infra/terraform/.terraform/
 infra/terraform/*.tfstate
