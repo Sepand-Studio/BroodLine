@@ -4,12 +4,16 @@ using Broodline.Sim.Combat;
 namespace Broodline.Sim.Tests.Combat
 {
     /// The traits and the raider mechanic this slice gave a body to: Lash's
-    /// attack, Taunt forcing it, and Carapace blunting whatever lands.
+    /// attack, Taunt forcing it, Splash answering the stream of Skirmishers,
+    /// and Carapace blunting whatever lands.
     ///
-    /// Splash is declared and answers Skirmisher but has no effect yet -
-    /// Counters.cs still lists it as deferred - so the only thing asserted
-    /// about it here is that CounterFor names it. A test that pretended
-    /// otherwise would be the more expensive kind of wrong.
+    /// Splash arrived a round late. It shipped declared-but-inert - named by
+    /// CounterFor, listed among Counters.cs's deferred, and reported as zero
+    /// coverage by Diagnosis - while wave 7 is 1 Lash and 6 Skirmishers, whose
+    /// answer IS Splash. Six of the wave's seven spawns had no working counter.
+    /// Pierce, Sprint, Cinder, Reach and Burrow are still deferred and are
+    /// asserted about nowhere here, which is the state Splash should have been
+    /// caught in.
     public class TraitEffectTests
     {
         /// One Defile lane, some Lashes standing on tile 6.
@@ -46,6 +50,12 @@ namespace Broodline.Sim.Tests.Combat
                 Trait1 = trait,
                 Tier1 = tier
             };
+
+        /// Phase 5's splash buffer. The engine's copy lives in SimRunner and is
+        /// sized from the ladder; a test that reached phase 5 directly has to
+        /// supply its own, and sizing it the same way means a retune of tier
+        /// III cannot leave these one entry short.
+        private static int[] SplashScratch() => new int[Stats.MaxSplashTargets];
 
         // ------------------------------------------------------------------
         // The stat lines, which are transcription and nothing else
@@ -113,7 +123,7 @@ namespace Broodline.Sim.Tests.Combat
             }, lashes: 1);
 
             Phases.Targeting(s);
-            Phases.Attack(s);
+            Phases.Attack(s, SplashScratch());
 
             Assert.Equal(1, s.RaiderTargetCreature[0]);      // the far pocket
             Assert.Equal(260 - 30, s.CreatureHp[1]);
@@ -123,12 +133,12 @@ namespace Broodline.Sim.Tests.Combat
             // Not again until the interval elapses.
             s.Tick = 59;
             Phases.Targeting(s);
-            Phases.Attack(s);
+            Phases.Attack(s, SplashScratch());
             Assert.Equal(260 - 30, s.CreatureHp[1]);
 
             s.Tick = 60;
             Phases.Targeting(s);
-            Phases.Attack(s);
+            Phases.Attack(s, SplashScratch());
             Assert.Equal(260 - 60, s.CreatureHp[1]);
         }
 
@@ -192,7 +202,7 @@ namespace Broodline.Sim.Tests.Combat
             s.RaiderProgress[0] = Fix64.FromInt(6);
 
             Phases.Targeting(s);
-            Phases.Attack(s);
+            Phases.Attack(s, SplashScratch());
 
             Assert.Equal(-1, s.RaiderTargetCreature[0]);
             Assert.Equal(60, s.CreatureHp[0]);              // Hollow, untouched
@@ -375,10 +385,289 @@ namespace Broodline.Sim.Tests.Combat
             }, lashes: 1);
 
             Phases.Targeting(s);
-            Phases.Attack(s);
+            Phases.Attack(s, SplashScratch());
 
             Assert.Equal(1, s.RaiderTargetCreature[0]);
             Assert.Equal(260 - 22, s.CreatureHp[1]);
+        }
+
+        // ------------------------------------------------------------------
+        // Splash - the answer to the six bodies wave 7 is mostly made of
+        // ------------------------------------------------------------------
+
+        /// One Defile lane with a Skirmisher on each tile named.
+        ///
+        /// Splash is measured between RAIDERS rather than from the creature, so
+        /// their tiles are the variable here and the carrier's pocket is not.
+        private static SimState SkirmisherLaneWith(CreatureSpec[] deployment, params int[] tiles)
+        {
+            var spawns = new SpawnEntry[tiles.Length];
+            for (int i = 0; i < tiles.Length; i++)
+                spawns[i] = new SpawnEntry { Tick = 0, Type = RaiderType.Skirmisher };
+
+            var s = new SimState(
+                new WaveDef(id: 998, integrity: 9, laneCount: 1, spawns: spawns),
+                Lane.Defile(), deployment);
+
+            s.Tick = 0;
+            Phases.Spawn(s);
+            for (int i = 0; i < tiles.Length; i++) s.RaiderProgress[i] = Fix64.FromInt(tiles[i]);
+            return s;
+        }
+
+        /// The raiders one swing lands on, as an array, for assertions that are
+        /// about WHO rather than about how much.
+        private static int[] Hit(SimState s, int creature, int primary)
+        {
+            var buffer = SplashScratch();
+            int count = Counters.ApplySplash(s, creature, primary, buffer);
+
+            var hits = new int[count];
+            for (int i = 0; i < count; i++) hits[i] = buffer[i];
+            return hits;
+        }
+
+        [Fact]
+        public void Splash_LaddersWithTierAndCountsTheCarriersOwnTargetAmongThem()
+        {
+            // combat_numbers 4.2: 2 targets within 1 tile, 3, then 5 at radius
+            // 2. The count is TOTAL - the creature's own target is one of the
+            // two, not one plus two - which is what makes tier I a real but
+            // small answer to a stream of bodies rather than a tripling.
+            Assert.Equal(2, Stats.SplashTargets(1));
+            Assert.Equal(3, Stats.SplashTargets(2));
+            Assert.Equal(5, Stats.SplashTargets(3));
+            Assert.Equal(0, Stats.SplashTargets(0));   // the no-trait gate
+
+            Assert.Equal(1, Stats.SplashRadius(1));
+            Assert.Equal(1, Stats.SplashRadius(2));
+            Assert.Equal(2, Stats.SplashRadius(3));
+
+            Assert.Equal(5, Stats.MaxSplashTargets);
+        }
+
+        [Fact]
+        public void Splash_HitsItsTierCountAndNoMore()
+        {
+            // Tier I answers 2 of the 3 Skirmishers in radius. Not 3, not all.
+            // All three stand on the same tile, so nothing is excluded by
+            // distance and the CAP is the only thing doing the work.
+            var s = SkirmisherLaneWith(new[]
+            {
+                Spec(Species.Ember, pocket: 0, trait: Trait.Splash, tier: 1)
+            }, 6, 6, 6);
+
+            var hit = Hit(s, creature: 0, primary: 0);
+
+            Assert.Equal(2, hit.Length);
+            // Total order, tie-broken on spawn index - the same two every run,
+            // on CoreCLR and on IL2CPP alike.
+            Assert.Equal(new[] { 0, 1 }, hit);
+        }
+
+        [Fact]
+        public void Splash_TieBreaksOnSpawnIndexAscendingAndAlwaysKeepsTheCarriersOwnTarget()
+        {
+            // Four bodies on one tile and room for three. Every candidate is at
+            // distance 0, so this is a pure tie and the spawn-index tie-break
+            // is the ONLY thing choosing - which is exactly the comparator
+            // solo_execution 12 is about, and the one that would diverge
+            // between runtimes if it were left to a sort over equal keys.
+            var s = SkirmisherLaneWith(new[]
+            {
+                Spec(Species.Ember, pocket: 0, trait: Trait.Splash, tier: 2)
+            }, 6, 6, 6, 6);
+
+            Assert.Equal(new[] { 0, 1, 2 }, Hit(s, creature: 0, primary: 0));
+
+            // The primary is hits[0] whatever its index, and the spill is still
+            // spawn-ordered behind it. Without that, a carrier whose target tied
+            // with a lower-indexed raider could be ordered out of its own swing.
+            Assert.Equal(new[] { 2, 0, 1 }, Hit(s, creature: 0, primary: 2));
+        }
+
+        [Fact]
+        public void Splash_DoesNotReachBeyondItsRadius()
+        {
+            // Tier II has room for THREE, so a third hit would be legal on
+            // capacity - which isolates the radius from the cap.
+            //
+            // The excluded body sits at EXACTLY radius + 1. An earlier version
+            // put it on tile 9, three tiles out, and a mutation widening the
+            // radius by one went undetected: a boundary test has to stand on
+            // the boundary or it only proves the radius is finite.
+            var s = SkirmisherLaneWith(new[]
+            {
+                Spec(Species.Ember, pocket: 0, trait: Trait.Splash, tier: 2)
+            }, 6, 7, 8);
+
+            Assert.Equal(new[] { 0, 1 }, Hit(s, creature: 0, primary: 0));
+        }
+
+        [Fact]
+        public void SplashIII_WidensTheRadiusRatherThanOnlyTheCount()
+        {
+            // 4.2 gives III "5 targets, radius 2" - two changes on one rung.
+            // The same board at II and at III, so the extra body at tile 8 is
+            // attributable to the radius and not to the larger count.
+            var atThree = SkirmisherLaneWith(new[]
+            {
+                Spec(Species.Ember, pocket: 0, trait: Trait.Splash, tier: 3)
+            }, 6, 7, 8, 9);
+
+            Assert.Equal(new[] { 0, 1, 2 }, Hit(atThree, creature: 0, primary: 0));
+
+            var atTwo = SkirmisherLaneWith(new[]
+            {
+                Spec(Species.Ember, pocket: 0, trait: Trait.Splash, tier: 2)
+            }, 6, 7, 8, 9);
+
+            Assert.Equal(new[] { 0, 1 }, Hit(atTwo, creature: 0, primary: 0));
+        }
+
+        [Fact]
+        public void Splash_SkipsDeadRaiders()
+        {
+            var s = SkirmisherLaneWith(new[]
+            {
+                Spec(Species.Ember, pocket: 0, trait: Trait.Splash, tier: 2)
+            }, 6, 6, 6);
+
+            s.RaiderAlive[1] = false;
+
+            Assert.Equal(new[] { 0, 2 }, Hit(s, creature: 0, primary: 0));
+        }
+
+        [Fact]
+        public void WithoutSplash_OnlyTheCarriersOwnTargetIsHit()
+        {
+            // The property that makes this whole mechanic inert for the corpus.
+            // All 500 scenarios predate Splash and none deploys a carrier, so
+            // phase 5 must take a path that is byte-identical to the one it
+            // took before ApplySplash existed - one raider, one subtraction.
+            // If this ever goes red, every corpus hash has moved.
+            var s = SkirmisherLaneWith(new[]
+            {
+                Spec(Species.Ember, pocket: 0)
+            }, 6, 6, 6);
+
+            Assert.Equal(new[] { 0 }, Hit(s, creature: 0, primary: 0));
+
+            // Carrying a DIFFERENT trait is the same path - CreatureCarries
+            // matches on the trait, and a Chill carrier splashes nothing.
+            var chiller = SkirmisherLaneWith(new[]
+            {
+                Spec(Species.Pale, pocket: 0, trait: Trait.Chill, tier: 3)
+            }, 6, 6, 6);
+
+            Assert.Equal(new[] { 0 }, Hit(chiller, creature: 0, primary: 0));
+        }
+
+        [Fact]
+        public void Splash_ReachesPhaseFive()
+        {
+            // The selector being right in isolation says nothing about phase 5
+            // calling it. Asserted on WHO lost HP rather than on how much:
+            // 4.2 is explicit that no counter has a damage component, and the
+            // number below is Ember's ordinary 36 landing on a second body
+            // rather than a bigger number landing on one.
+            //
+            // Ember in pocket 0 (tile 6) has range 3, covering tiles 4..8, so
+            // the body on tile 9 is outside its reach as well as outside the
+            // splash - and Vanguard's tie on tiles 6 and 6 resolves to spawn
+            // index 0, which fixes the impact point.
+            var s = SkirmisherLaneWith(new[]
+            {
+                Spec(Species.Ember, pocket: 0, trait: Trait.Splash, tier: 1)
+            }, 6, 6, 9);
+
+            Phases.Targeting(s);
+            Assert.Equal(0, s.CreatureTarget[0]);
+
+            Phases.Attack(s, SplashScratch());
+
+            Assert.Equal(40 - 36, s.RaiderHp[0]);   // struck
+            Assert.Equal(40 - 36, s.RaiderHp[1]);   // splashed, same swing
+            Assert.Equal(40, s.RaiderHp[2]);        // out of radius, untouched
+        }
+
+        [Fact]
+        public void Splash_CapacityReachesDiagnosis()
+        {
+            // The wiring that makes a Skirmisher breach report the right reason.
+            var s = SkirmisherLaneWith(new[]
+            {
+                Spec(Species.Ember, pocket: 0, trait: Trait.Splash, tier: 3)
+            }, 6);
+
+            Assert.True(Diagnosis.PreWaveCheck(s, RaiderType.Skirmisher).Coverage);
+        }
+
+        [Fact]
+        public void ASkirmisherBreachNoLongerBlamesCoverageWhenTheAnswerIsDeployed()
+        {
+            // The regression the missing Diagnosis arm caused, pinned. With
+            // CapacityFor returning 0 for Splash, Evaluate returned on its
+            // SECOND boolean and EVERY Skirmisher breach read as "coverage" -
+            // the loss screen telling a player their tier was too low while
+            // they were holding the answer. Wave 7 is six Skirmishers, so that
+            // was the wrong sentence for six of its seven spawns.
+            var s = SkirmisherLaneWith(new[]
+            {
+                Spec(Species.Ember, pocket: 0, trait: Trait.Splash, tier: 1)
+            }, 6, 6);
+
+            var verdict = Diagnosis.Evaluate(
+                s, RaiderType.Skirmisher,
+                Diagnosis.SimultaneousCount(s, RaiderType.Skirmisher),
+                tile: 6);
+
+            Assert.True(verdict.Access);
+            Assert.True(verdict.Coverage);     // two at once, and Splash I answers two
+            Assert.True(verdict.Placement);
+            Assert.True(verdict.Answered);
+        }
+
+        [Fact]
+        public void SplashCoverageIsAboutSimultaneityAndTierDecidesHowMuch()
+        {
+            // bible 1.3: tier decides how much a trait covers, never whether it
+            // works. A third body at the same moment is more than Splash I
+            // answers, and the diagnosis must say COVERAGE for that - which is
+            // only distinguishable from the bug above because the capacity
+            // number is genuinely being read.
+            var s = SkirmisherLaneWith(new[]
+            {
+                Spec(Species.Ember, pocket: 0, trait: Trait.Splash, tier: 1)
+            }, 6, 6, 6);
+
+            var verdict = Diagnosis.Evaluate(
+                s, RaiderType.Skirmisher,
+                Diagnosis.SimultaneousCount(s, RaiderType.Skirmisher),
+                tile: 6);
+
+            Assert.True(verdict.Access);
+            Assert.False(verdict.Coverage);    // three at once, Splash I answers two
+        }
+
+        [Fact]
+        public void WithNoSplashCarrierTheDiagnosisIsAccessRatherThanCoverage()
+        {
+            // The first false is the diagnosis (combat_engine 7), so a player
+            // holding nothing must be told they hold nothing - not that their
+            // tier is short.
+            var s = SkirmisherLaneWith(new[]
+            {
+                Spec(Species.Ember, pocket: 0)
+            }, 6, 6);
+
+            var verdict = Diagnosis.Evaluate(
+                s, RaiderType.Skirmisher,
+                Diagnosis.SimultaneousCount(s, RaiderType.Skirmisher),
+                tile: 6);
+
+            Assert.False(verdict.Access);
+            Assert.False(verdict.Coverage);    // never reached, and correctly false
         }
 
         // ------------------------------------------------------------------

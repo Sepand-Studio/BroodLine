@@ -71,17 +71,26 @@ namespace Broodline.Sim.Combat
         /// Coverage is a capacity question, and only a counter that HAS a
         /// capacity rule can answer it.
         ///
-        /// Written as a chain rather than a ternary because it grew a second
-        /// arm the moment CounterFor stopped being total over one raider.
-        /// Splash is the arm that is deliberately missing: it is declared, it
-        /// answers Skirmisher, and Counters.cs still lists it as deferred - so
-        /// zero here is the honest report that the counter does nothing yet,
-        /// and it is an arm to ADD when Splash lands rather than a default
-        /// quietly covering for it.
+        /// Written as a chain rather than a ternary because it grew two more
+        /// arms the moment CounterFor stopped being total over one raider.
+        ///
+        /// SPLASH'S ARM IS NOT DECORATION. It was missing for one round, and
+        /// the cost was not an abstraction: with Splash answering Skirmisher
+        /// and its capacity reading 0, Evaluate returned on the SECOND
+        /// boolean, so every Skirmisher breach diagnosed as "coverage" -
+        /// telling a player their tier was too low when the deployment they
+        /// were being judged on carried the answer. Wave 7 is six
+        /// Skirmishers, so that was the wrong sentence on the loss screen for
+        /// six of its seven spawns.
+        ///
+        /// Carapace, Regrow, Screen and Litter never reach here at all -
+        /// CounterFor cannot return them - so the trailing zero covers only
+        /// the four counters this engine has not built yet.
         private static int CapacityFor(SimState s, Trait trait)
         {
             if (trait == Trait.Chill) return Capacity.TotalChillCapacity(s);
             if (trait == Trait.Taunt) return Capacity.TotalTauntCapacity(s);
+            if (trait == Trait.Splash) return Capacity.TotalSplashCapacity(s);
             return 0;
         }
 

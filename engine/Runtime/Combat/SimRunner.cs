@@ -21,6 +21,7 @@ namespace Broodline.Sim.Combat
         private readonly SimState _s;
         private readonly Breach[] _log;
         private readonly int[] _scratch;
+        private readonly int[] _splashHits;
 
         private Hash _hash;
         private int _breachCount;
@@ -90,6 +91,11 @@ namespace Broodline.Sim.Combat
             _s = new SimState(wave, lane, deployment);
             _log = new Breach[wave.Spawns.Length];
             _scratch = new int[wave.Spawns.Length];
+            // Sized from the ladder, not from the wave: a tier-III Splash
+            // reaches five bodies regardless of how many the wave sends, and a
+            // buffer one entry short is an IndexOutOfRangeException out of the
+            // tick loop rather than a wrong number.
+            _splashHits = new int[Stats.MaxSplashTargets];
 
             _hash = Hash.Create();
             _hash.Add(wave.Id);
@@ -294,7 +300,7 @@ namespace Broodline.Sim.Combat
             Phases.State(_s, _scratch);  // 2
             Phases.Movement(_s);         // 3
             Phases.Targeting(_s);        // 4
-            Phases.Attack(_s);           // 5
+            Phases.Attack(_s, _splashHits);   // 5
             Phases.Death(_s);            // 6
             Phases.Breach(_s, _log, ref _breachCount);   // 7
             _result = Phases.Resolve(_s); // 8

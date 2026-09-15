@@ -141,6 +141,37 @@ namespace Broodline.Sim.Combat
             _ => 0
         };
 
+        /// Splash's capacity. combat_numbers section 4.2: hits 2 targets within
+        /// 1 tile at tier I, 3 at II, 5 at radius 2 at III.
+        ///
+        /// The count is TOTAL, including the creature's own target - the swing
+        /// is one of the two, not one plus two. Section 4.2 says "hits 2
+        /// targets", and the trait is on 4.1's simultaneity axis, which is
+        /// "how many raiders of that type the creature answers at once".
+        ///
+        /// Tier 0 returns 0 rather than 1, and that is the gate the whole
+        /// mechanic hangs off: a creature not carrying Splash must take the
+        /// single-target path byte-for-byte, or all 500 corpus scenarios move.
+        public static int SplashTargets(int tier) => tier switch
+        {
+            1 => 2, 2 => 3, 3 => 5,
+            _ => 0
+        };
+
+        /// How far from the struck raider the splash reaches, in whole tiles.
+        /// Only tier III widens it - 4.2 gives "within 1 tile" for I and II and
+        /// "radius 2" for III - which is why this is a condition rather than a
+        /// third ladder.
+        public static int SplashRadius(int tier) => tier == 3 ? 2 : 1;
+
+        /// The widest a single splash can be, which is what a caller must size
+        /// its hit buffer to.
+        ///
+        /// Derived from the ladder and the coverage cap rather than restated as
+        /// a literal 5, so a tier-III retune moves the buffer with it instead of
+        /// leaving a buffer one entry short of a trait that now reaches further.
+        public static int MaxSplashTargets => SplashTargets(Deployments.MaxCoverageTier);
+
         /// Carapace's incoming damage reduction, as a PERCENTAGE.
         /// combat_numbers section 4.3: -25% / -40% / -55%.
         ///

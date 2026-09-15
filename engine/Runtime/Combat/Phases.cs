@@ -148,7 +148,13 @@ namespace Broodline.Sim.Combat
         /// the raider pass is only cleared in phase 6. Reversing it would let a
         /// defender kill an attacker before it ever answers, which is the
         /// same-tick cascade section 4 exists to forbid.
-        public static void Attack(SimState s)
+        ///
+        /// `splashHits` is the caller's scratch, sized to at least
+        /// Stats.MaxSplashTargets, and it lives in SimRunner rather than in
+        /// SimState for the reason Phases.State's scratch does: it is not world
+        /// state, nothing outside one swing may read it, and the tick loop must
+        /// not allocate.
+        public static void Attack(SimState s, int[] splashHits)
         {
             for (int c = 0; c < s.CreatureCount; c++)
             {
@@ -158,7 +164,20 @@ namespace Broodline.Sim.Combat
                 int target = s.CreatureTarget[c];
                 if (target < 0 || !s.RaiderAlive[target]) continue;
 
-                s.RaiderHp[target] -= Attacks.Damage(s, c);
+                // Computed ONCE, before anything is subtracted. Attacks.Damage
+                // reads only creature state, so hoisting it changes nothing
+                // today - but every raider in the splash takes the same number
+                // by 4.2, and computing it per target would be the shape that
+                // quietly grows a falloff nobody authored.
+                int damage = Attacks.Damage(s, c);
+
+                // Returns 1 with the target in hits[0] for a creature that does
+                // not carry Splash, which is the single-target path this line
+                // used to be.
+                int hits = Counters.ApplySplash(s, c, target, splashHits);
+                for (int h = 0; h < hits; h++)
+                    s.RaiderHp[splashHits[h]] -= damage;
+
                 s.CreatureNextAttackAt[c] = s.Tick + Attacks.IntervalTicks(s, c);
             }
 

@@ -174,6 +174,28 @@ namespace Broodline.Sim.Combat
             return s.Lane.DistSq(s.CreaturePocket[c], s.RaiderTile(raider));
         }
 
+        // --- Splash, the third capacity, counted the same way ---
+
+        /// Summed across every LIVE carrier, exactly as Chill and Taunt are.
+        ///
+        /// Read by Diagnosis and by nothing else. Splash's capacity is spent
+        /// PER SWING rather than held against the board - 4.2 is "hits 2
+        /// targets", not "answers 2 Skirmishers for the wave - so there is no
+        /// assignment pass here to match AssignChill. The sum is still the
+        /// right coverage number: it is what the deployment answers at once,
+        /// which is the question section 7's three-boolean check asks.
+        public static int TotalSplashCapacity(SimState s)
+        {
+            int total = 0;
+            for (int c = 0; c < s.CreatureCount; c++)
+            {
+                if (!s.CreatureAlive(c)) continue;
+                if (s.CreatureCarries(c, Trait.Splash, out int tier))
+                    total += Stats.SplashTargets(tier);
+            }
+            return total;
+        }
+
         /// The (distance, spawnIndex) total order of combat_engine 5.1, applied
         /// to the raiders competing for a finite Taunt capacity.
         ///
