@@ -19,6 +19,35 @@
  */
 export interface ReplayOpts { engineVersion?: string; trait?: string; tier?: number }
 
+/**
+ * A creature AS THE REPLAY CARRIES IT - engine ordinals, because that is what
+ * the bytes hold. `asRosterSpecs` below is the only place this is translated
+ * into the shape `api` stores, and it translates in the ONE direction `sim`
+ * itself translates (ordinal -> name, 0 -> null).
+ */
+export interface ReplayCreature {
+  species: number; trait1: number; tier1: number; trait2: number; tier2: number
+  instinct: number; pocket: number; hp: number
+}
+
+/**
+ * The same creature in the shape `creatures` stores it, plus the hit points a
+ * row carries and a spec does not.
+ *
+ * Structurally `services/api/src/db/schema.ts`'s `CreatureSpec` with `hp`
+ * added - deliberately not imported from there, because importing the schema
+ * would drag Drizzle back into this module and undo the split this file's
+ * header describes.
+ */
+export interface RosterSpec {
+  species: string
+  trait1: string; tier1: number | null
+  trait2: string; tier2: number | null
+  instinct: string
+  pocket: number
+  hp: number
+}
+
 // --- Replay byte layout, mirroring engine/Runtime/Combat/Replay.cs's
 // Serialize() field-for-field. Magic, format version and the field order
 // below are NOT guessed - they are transcribed from that method, including
@@ -56,29 +85,23 @@ const POCKET_COUNT = 5
 // one-entry table rather than a general lookup - it grows with content.
 const WAVE_LANE_COUNT: Record<number, number> = { 6: 1 }
 
-interface Creature {
-  species: number; trait1: number; tier1: number; trait2: number; tier2: number
-  instinct: number; pocket: number; hp: number
-}
-
 /**
  * Four Vetch holding the first four pockets, mirroring
  * tests/engine/Combat/GoldenTests.cs's DeploymentWithoutChill/WithChill - the
  * engine's own pinned fixture for wave 6, not a fixture reinvented here.
  */
-function frontline(): Creature[] {
+function frontline(): ReplayCreature[] {
   return [0, 1, 2, 3].map((pocket) => ({
     species: SPECIES.Vetch, trait1: TRAIT.None, tier1: 0, trait2: TRAIT.None, tier2: 0,
     instinct: INSTINCT.Vanguard, pocket, hp: CREATURE_HP[SPECIES.Vetch]!,
   }))
 }
 
-function buildReplay(waveId: number, seed: bigint, last: Creature, o: ReplayOpts): string {
+function buildReplay(waveId: number, seed: bigint, deployment: readonly ReplayCreature[], o: ReplayOpts): string {
   const laneCount = WAVE_LANE_COUNT[waveId]
   if (laneCount === undefined) {
     throw new Error(`wave-helpers: no known lane count for wave ${waveId} - add it to WAVE_LANE_COUNT`)
   }
-  const deployment = [...frontline(), last]
   const engineVersion = o.engineVersion ?? DEFAULT_ENGINE_VERSION
   const versionBytes = Buffer.from(engineVersion, 'utf8')
 
@@ -120,22 +143,95 @@ function buildReplay(waveId: number, seed: bigint, last: Creature, o: ReplayOpts
 }
 
 /** The fifth creature carries Chill, which answers wave 6's lone Courser. */
-export function buildWinningReplay(waveId: number, seed: bigint, o: ReplayOpts = {}): string {
+export function winningDeployment(o: ReplayOpts = {}): ReplayCreature[] {
   const trait = o.trait !== undefined ? TRAIT[o.trait as keyof typeof TRAIT] : TRAIT.Chill
-  return buildReplay(waveId, seed, {
+  return [...frontline(), {
     species: SPECIES.Pale, trait1: trait, tier1: o.tier ?? 1, trait2: TRAIT.None, tier2: 0,
     instinct: INSTINCT.Vanguard, pocket: 4, hp: CREATURE_HP[SPECIES.Pale]!,
-  }, o)
+  }]
 }
 
 /**
- * Differs from the winning replay in one field: the fifth creature carries
- * Trait.None rather than Trait.Chill, so the Courser is unanswered and
- * breaches - Stats.CounterFor(Courser) is Chill and nothing else covers it.
+ * Differs from the winning deployment in one field: the fifth creature
+ * carries Trait.None rather than Trait.Chill, so the Courser is unanswered
+ * and breaches - Stats.CounterFor(Courser) is Chill and nothing else covers
+ * it.
  */
-export function buildLosingReplay(waveId: number, seed: bigint, o: ReplayOpts = {}): string {
-  return buildReplay(waveId, seed, {
+export function losingDeployment(): ReplayCreature[] {
+  return [...frontline(), {
     species: SPECIES.Loam, trait1: TRAIT.None, tier1: 0, trait2: TRAIT.None, tier2: 0,
     instinct: INSTINCT.Vanguard, pocket: 4, hp: CREATURE_HP[SPECIES.Loam]!,
-  }, o)
+  }]
+}
+
+/**
+ * A replay of an ARBITRARY deployment - what the two builders below are, with
+ * the deployment named rather than implied.
+ *
+ * Exported for the submit-side comparison's tests: the only way to show that
+ * `api` compares the echoed deployment against the ISSUED one is to submit a
+ * replay claiming a different one, and a builder whose deployment is fixed
+ * cannot express that.
+ */
+export function buildReplayOf(
+  waveId: number, seed: bigint, deployment: readonly ReplayCreature[], o: ReplayOpts = {},
+): string {
+  return buildReplay(waveId, seed, deployment, o)
+}
+
+export function buildWinningReplay(waveId: number, seed: bigint, o: ReplayOpts = {}): string {
+  return buildReplay(waveId, seed, winningDeployment(o), o)
+}
+
+export function buildLosingReplay(waveId: number, seed: bigint, o: ReplayOpts = {}): string {
+  return buildReplay(waveId, seed, losingDeployment(), o)
+}
+
+// --- The one translation from the replay's ordinals to the roster's names.
+//
+// THIS IS A MIRROR OF `sim`'s OWN MAPPING (services/sim/SimulateEndpoint.cs:
+// `d.Trait1.ToString()` and `Coverage(tier)`), and it exists so a test can
+// mint the creatures a given replay CLAIMS - which is the only way to build an
+// issuance whose stored deployment the echo can legitimately match.
+//
+// IT IS SAFE TO MIRROR HERE AND NOT IN `src/`. The mapping in `src/` would be
+// the wrong direction (name -> ordinal), and its unknown-name case has no
+// honest answer: `None` is the obvious default and the zero value, so a forged
+// 'Bogus' would compare equal to a simulated Trait.None slot. Here the
+// direction is the same one `sim` takes, the input is a declared member by
+// construction, and a mistake in it cannot make the comparison pass - it makes
+// the honest-submission tests go RED, loudly.
+const SPECIES_NAME = invert(SPECIES)
+const TRAIT_NAME = invert(TRAIT)
+const INSTINCT_NAME = invert(INSTINCT)
+
+function invert(table: Record<string, number>): Record<number, string> {
+  return Object.fromEntries(Object.entries(table).map(([name, n]) => [n, name]))
+}
+
+function nameOf(table: Record<number, string>, n: number, what: string): string {
+  const name = table[n]
+  if (name === undefined) throw new Error(`replay-format: no ${what} name for ordinal ${n}`)
+  return name
+}
+
+/**
+ * The creatures a player would have to OWN for the given replay to be an
+ * honest one.
+ *
+ * `tier 0 -> null` is `sim`'s `Coverage()` restated: the engine spells "this
+ * trait is not really carried" as 0 and `api` spells it null, because
+ * 0005_loop.sql's coverage_tier_N_not_zero makes 0 unstorable.
+ */
+export function asRosterSpecs(deployment: readonly ReplayCreature[]): RosterSpec[] {
+  return deployment.map((c) => ({
+    species: nameOf(SPECIES_NAME, c.species, 'species'),
+    trait1: nameOf(TRAIT_NAME, c.trait1, 'trait'),
+    tier1: c.tier1 === 0 ? null : c.tier1,
+    trait2: nameOf(TRAIT_NAME, c.trait2, 'trait'),
+    tier2: c.tier2 === 0 ? null : c.tier2,
+    instinct: nameOf(INSTINCT_NAME, c.instinct, 'instinct'),
+    pocket: c.pocket,
+    hp: c.hp,
+  }))
 }

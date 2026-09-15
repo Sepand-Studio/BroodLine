@@ -14,8 +14,8 @@ import { SimClient } from '../src/sim/client.ts'
 import { reapOnExit } from './child-reaper.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 import {
-  balance, buildLosingReplay, buildWinningReplay, setupPlayer, startWave, submit, submitInit,
-  withDotnetBuildLock,
+  balance, buildLosingReplay, buildWinningReplay, setupPlayer, startLosing, startWinning,
+  submit, submitInit, withDotnetBuildLock,
 } from './wave-helpers.ts'
 
 // fileURLToPath, not .pathname - a path containing a space would arrive
@@ -176,7 +176,7 @@ describe('replay storage', () => {
       const testDeps = { ...deps, replayStore: store }
       const { playerId } = await setupPlayer(testDeps)
 
-      const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+      const { issuanceId, seed } = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
       const res = await submit(issuanceId, buildWinningReplay(6, BigInt(seed)), 'r-1')
       expect(res.status).toBe(200)
 
@@ -197,7 +197,7 @@ describe('replay storage', () => {
       const testDeps = { ...deps, replayStore: store }
       const { playerId } = await setupPlayer(testDeps)
 
-      const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+      const { issuanceId, seed } = await (await startLosing(6)).json() as { issuanceId: string; seed: string }
       const res = await submit(issuanceId, buildLosingReplay(6, BigInt(seed)), 'r-4')
       expect(res.status).toBe(200)
       expect(await res.json()).toMatchObject({ result: 'Loss' })
@@ -214,7 +214,7 @@ describe('replay storage', () => {
       const testDeps = { ...deps, replayStore: store }
       await setupPlayer(testDeps)
 
-      const { issuanceId } = await (await startWave(6)).json() as { issuanceId: string }
+      const { issuanceId } = await (await startWinning(6)).json() as { issuanceId: string }
       // A well-formed, winning replay, but for a seed nobody issued - sim
       // verifies it fine (it's internally consistent), and it is
       // matchesIssuance (routes/wave.ts step 5) that refuses it, exactly
@@ -225,6 +225,32 @@ describe('replay storage', () => {
       expect(await res.json()).toMatchObject({ code: 'submission_rejected' })
 
       // Storage is not an attacker's write primitive - design 5.2.
+      expect(await store.list()).toHaveLength(0)
+    } finally {
+      await cleanup()
+    }
+  })
+
+  it('writes nothing for a submission the deployment comparison refuses', async () => {
+    // THE THIRD EXCLUSION, and it arrived with design §6.2's comparison. The
+    // test above covers a seed mismatch; this covers a replay that is of the
+    // issued wave AT the issued seed and claims a deployment the issuance
+    // never froze. sim VERIFIES it - so without this, §5.2's "storage is not
+    // an attacker's write primitive" would rest on the comparison returning
+    // before `verifiedPlayerId` is assigned, which is a code-inspection
+    // argument rather than a tested one.
+    const { store, cleanup } = await freshReplayStore()
+    try {
+      const testDeps = { ...deps, replayStore: store }
+      await setupPlayer(testDeps)
+
+      // Issued for a frontline with no Chill; the replay claims the winning
+      // deployment instead.
+      const { issuanceId, seed } = await (await startLosing(6)).json() as { issuanceId: string; seed: string }
+      const res = await submit(issuanceId, buildWinningReplay(6, BigInt(seed)), 'r-7')
+      expect(res.status).toBe(409)
+      expect(await res.json()).toMatchObject({ code: 'deployment_mismatch' })
+
       expect(await store.list()).toHaveLength(0)
     } finally {
       await cleanup()
@@ -249,7 +275,7 @@ describe('replay storage', () => {
     const app2 = createApp({ ...deps, replayStore: failing })
     const before = await balance('shards')
 
-    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+    const { issuanceId, seed } = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
     const res = await app2.request('/v1/wave/submit', submitInit(issuanceId, buildWinningReplay(6, BigInt(seed)), 'r-3'))
 
     // A GCS failure after a successful credit must not roll back a
@@ -283,7 +309,7 @@ describe('replay storage', () => {
       const { playerId } = await setupPlayer(testDeps)
 
       // Issued under 0.1.1, where wave 6 pays 40 shards.
-      const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+      const { issuanceId, seed } = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
 
       // THE ROLLBACK, mid-TTL. try/finally because bundleRoot and the
       // bundle-module cache are shared by every test in this file and
@@ -333,7 +359,7 @@ describe('replay storage', () => {
     const failing = { put: async () => { puts += 1; throw new Error('gcs down') } }
     const app2 = createApp({ ...deps, replayStore: failing })
 
-    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+    const { issuanceId, seed } = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
 
     await bundleStore.setPointer('0.1.0')
     clearBundleCache()

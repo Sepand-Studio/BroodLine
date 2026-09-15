@@ -10,7 +10,7 @@ import { type Bundle, clearBundleCache, loadBundle } from '../src/config/bundle.
 import { publishBundle } from '../src/config/publish.ts'
 import { LocalBundleStore } from '../src/config/store.ts'
 import { withServer } from '../src/db/client.ts'
-import { servers, waveIssuances } from '../src/db/schema.ts'
+import { creatures, servers, waveIssuances } from '../src/db/schema.ts'
 import { LocalReplayStore } from '../src/replays/store.ts'
 import { SimClient } from '../src/sim/client.ts'
 import {
@@ -21,7 +21,7 @@ import { reapOnExit } from './child-reaper.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 import {
   balance, buildLosingReplay, buildWinningReplay, clearThrough, liveIssuance,
-  setupPlayer, startWave, submit, withDotnetBuildLock,
+  setupPlayer, startLosing, startWave, startWinning, submit, withDotnetBuildLock,
 } from './wave-helpers.ts'
 
 /**
@@ -58,6 +58,16 @@ import {
  * A REAL `sim` child process, never a stub - the api/sim boundary is the
  * exact thing this phase exists to make authoritative, and a stub standing
  * in for it would be a second implementation of the boundary under test.
+ *
+ * PHASE 6 ADDED TWO TESTS AND FLIPPED ONE, so this file ships SIXTEEN. Every
+ * "15/15" above is a MEASUREMENT taken at the time, against the fifteen that
+ * existed then, and it is left as measured rather than restated at the new
+ * count - rewriting a number nobody re-ran would be the same defect this file
+ * exists to hunt. The ten rows above are likewise Phase 5's; Phase 6's nine
+ * are in `weakenings.md`'s own Phase 6 section, and the two tests they cover
+ * here are `CANNOT deploy creatures the player does not own` (the flipped
+ * marker) and `cannot submit a replay claiming a deployment it was not
+ * issued`.
  */
 
 // fileURLToPath, not .pathname - this repo lives under a directory
@@ -174,12 +184,47 @@ describe('adversarial: what a modified client cannot do', () => {
     await setupPlayer(deps)
   })
 
+  /**
+   * A live creature belonging to `owner`, written through the OWNER
+   * connection - wave-start.test.ts's and splice-commit.test.ts's idiom, and
+   * for their reason: `grantBaseStock` is the only `insert(creatures)` on a
+   * grant path and it mints Gen-1 Tier-I base stock with no way to ask for a
+   * species, a trait or an owner.
+   *
+   * A REAL SECOND PLAYER's creature, not a row invented under a fabricated
+   * uuid. `creatures.player_id` carries no foreign key, so a fabricated one
+   * would insert happily - and would prove only that `wave/start` refuses an
+   * id nothing owns, which is a weaker statement than refusing one SOMEBODY
+   * ELSE owns.
+   */
+  async function give(owner: string): Promise<string> {
+    const [row] = await t.ownerDb.insert(creatures).values({
+      serverId: SERVER_ID,
+      playerId: owner,
+      species: 'Vetch',
+      generation: 1,
+      trait1: 'Taunt', tier1: 1,
+      trait2: 'Carapace', tier2: 1,
+      instinct: 'Vanguard',
+      hpCurrent: 260, // engine Stats.CreatureHp(Vetch)
+      isFounder: false,
+    }).returning()
+    return row!.creatureId
+  }
+
+  async function committedTo(creatureId: string): Promise<string | null> {
+    const [row] = await t.ownerDb.select().from(creatures)
+      .where(sql`${creatures.serverId} = ${SERVER_ID} AND ${creatures.creatureId} = ${creatureId}`)
+    if (row === undefined) throw new Error(`no creature ${creatureId}`)
+    return row.committedTo
+  }
+
   it('cannot claim a win that did not happen', async () => {
     // The client claims Win; sim says Loss. api pays what sim returns and
     // never what the client claims - which is why the submission body
     // carries only the replay and an issuance id, with no outcome field
     // for a client to lie in.
-    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+    const { issuanceId, seed } = await (await startLosing(6)).json() as { issuanceId: string; seed: string }
     const before = await balance('shards')
     const res = await submit(issuanceId, buildLosingReplay(6, BigInt(seed)), 'adv-1')
 
@@ -188,7 +233,7 @@ describe('adversarial: what a modified client cannot do', () => {
   })
 
   it('cannot submit forged bytes', async () => {
-    const { issuanceId } = await (await startWave(6)).json() as { issuanceId: string }
+    const { issuanceId } = await (await startWinning(6)).json() as { issuanceId: string }
     const before = await balance('shards')
 
     const res = await submit(issuanceId, 'bm90IGEgcmVwbGF5', 'adv-2')
@@ -202,7 +247,7 @@ describe('adversarial: what a modified client cannot do', () => {
   })
 
   it('cannot replay a winning submission twice', async () => {
-    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+    const { issuanceId, seed } = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
     const replay = buildWinningReplay(6, BigInt(seed))
     expect((await submit(issuanceId, replay, 'adv-3a')).status).toBe(200)
     const before = await balance('shards')
@@ -232,7 +277,7 @@ describe('adversarial: what a modified client cannot do', () => {
     // running the same settling UPDATE inside a transaction it does not
     // commit, so the handler's own settle() blocks on a REAL Postgres row
     // lock, at the exact instant the guard is supposed to be looking.
-    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+    const { issuanceId, seed } = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
     const replay = buildWinningReplay(6, BigInt(seed))
     const before = await balance('shards')
 
@@ -331,7 +376,7 @@ describe('adversarial: what a modified client cannot do', () => {
     // 500, a seed the helper failed to encode. This phase has already shipped
     // six assertions that were green while proving nothing; this is exactly
     // that shape. The status and code pin WHICH guard fired.
-    const { issuanceId } = await (await startWave(6)).json() as { issuanceId: string }
+    const { issuanceId } = await (await startWinning(6)).json() as { issuanceId: string }
     const before = await balance('shards')
     const res = await submit(issuanceId, buildWinningReplay(6, 0x1111n), 'adv-4')
     expect(res.status).toBe(409)
@@ -405,7 +450,7 @@ describe('adversarial: what a modified client cannot do', () => {
     // The end-to-end inflation proof is owed against the engine content
     // fill - see weakenings.md row 5.
     await clearThrough(6)
-    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+    const { issuanceId, seed } = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
     const before = await balance('shards')
 
     const res = await submit(issuanceId, buildWinningReplay(6, BigInt(seed)), 'adv-6')
@@ -417,7 +462,7 @@ describe('adversarial: what a modified client cannot do', () => {
   it('cannot farm a cleared wave past the daily cap', async () => {
     await clearThrough(6)
     for (let i = 0; i < REPLAY_CAP_PER_DAY; i++) {
-      const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+      const { issuanceId, seed } = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
       expect((await submit(issuanceId, buildWinningReplay(6, BigInt(seed)), `adv-7-${i}`)).status).toBe(200)
     }
     const before = await balance('shards')
@@ -479,7 +524,7 @@ describe('adversarial: what a modified client cannot do', () => {
     // the probe that gets moved across the boundary.
     const ids: string[] = []
     for (let i = 0; i < REPLAY_CAP_PER_DAY; i++) {
-      const started = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+      const started = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
       expect((await submit(started.issuanceId, buildWinningReplay(6, BigInt(started.seed)), `adv-7c-${i}`)).status).toBe(200)
       ids.push(started.issuanceId)
     }
@@ -567,7 +612,7 @@ describe('adversarial: what a modified client cannot do', () => {
     await clearThrough(6)
 
     for (let i = 0; i < REPLAY_CAP_PER_DAY; i++) {
-      const started = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+      const started = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
       expect((await submit(started.issuanceId, buildWinningReplay(6, BigInt(started.seed)), `adv-tz-${i}`)).status).toBe(200)
     }
 
@@ -643,7 +688,7 @@ describe('adversarial: what a modified client cannot do', () => {
     // succeed. Under 4b it settled 'consumed', the third start hits the cap
     // and this loop fails on a 429 for a wave the player never played.
     for (let i = 0; i < REPLAY_CAP_PER_DAY; i++) {
-      const res = await startWave(6)
+      const res = await startWinning(6)
       expect(res.status).toBe(200)
       const { issuanceId, seed } = await res.json() as { issuanceId: string; seed: string }
       expect((await submit(issuanceId, buildWinningReplay(6, BigInt(seed)), `adv-7b-${i}`)).status).toBe(200)
@@ -656,24 +701,70 @@ describe('adversarial: what a modified client cannot do', () => {
     expect(abandoned?.settlement).toBe('expired')
   })
 
-  it('CAN still deploy creatures the player does not own — Phase 6', async () => {
-    // design 2.2 and 4.4's last row. NOT a defence: a marker, asserted so
-    // that the day a creature table exists this test fails and names the
-    // thing that changed. A hole recorded as a passing assertion about the
-    // current behaviour is a hole nobody re-reads.
+  it('CANNOT deploy creatures the player does not own', async () => {
+    // THE MARKER, FLIPPED. This test was written in Phase 5 as
+    // `CAN still deploy creatures the player does not own - Phase 6`: design
+    // 2.2 left the hole open knowingly and marked it with an assertion about
+    // the CURRENT behaviour rather than a comment about it, so that the day a
+    // creature table existed the suite would fail and name the thing that
+    // changed. It is REWRITTEN IN PLACE rather than deleted and replaced -
+    // the flip is what "Phase 6 landed the roster check" looks like in the
+    // suite (design 6.3), and a fresh test beside a deleted one says nothing.
     //
-    // { trait: 'Chill', tier: 3 } is a LEGAL winning deployment
-    // (Deployments.MaxCoverageTier is 3 and Stats.ChillCapacity(3) is 4),
-    // so a 200 here means the unowned deployment was ACCEPTED - not that
-    // the replay was waved through as rules_violated. The reward assertion
-    // is what pins that distinction: a rejected replay pays nothing.
-    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
-    const res = await submit(issuanceId, buildWinningReplay(6, BigInt(seed), { trait: 'Chill', tier: 3 }), 'adv-8')
+    // WHAT CLOSED THE HOLE IS NOT THIS CHECK. design 6.1 resolves every spec
+    // from the row the request names, so an unowned deployment is not refused
+    // after being simulated - it is INEXPRESSIBLE, and refused here on the
+    // CHEAP path, before any simulation is paid for. The refusal is what a
+    // client sees; the mechanism is that there is no path from a
+    // client-supplied value to a stored spec.
+    //
+    // ASSERTS ON STATE, not only on the code: a route that refused
+    // everything would pass a status-code assertion perfectly. Nothing was
+    // issued, nothing was paid, and the other player's creature was not
+    // committed to anything.
+    const other = await setupPlayer(deps)
+    const theirs = await give(other.playerId)
+    await setupPlayer(deps)
+    const before = await balance('shards')
 
-    expect(res.status).toBe(200)
-    expect(await res.json()).toMatchObject({ result: 'Win', reward: { amount: WAVE_6_REWARD } })
-    // When this flips to 409, Phase 6 has landed the roster check. Update
-    // design 4.4's table in the same change.
+    const res = await startWave(6, [{ creatureId: theirs, pocket: 0 }])
+
+    expect(res.status).toBe(409)
+    expect(await res.json()).toMatchObject({ code: 'creature_not_owned' })
+    expect(await liveIssuance()).toBeUndefined()
+    expect(await balance('shards')).toBe(before)
+    expect(await committedTo(theirs)).toBeNull()
+  })
+
+  it('cannot submit a replay claiming a deployment it was not issued', async () => {
+    // THE OTHER HALF OF THE MARKER, and the half the rewrite above moves
+    // away from. Phase 5's version mounted its attack at SUBMIT - a replay
+    // carrying creatures nothing checked - and closing the boundary at
+    // issuance would be worth nothing if a submitted replay were still free
+    // to claim a deployment other than the one the issuance froze. design
+    // 6.2: a deployment in the echo that does not match the issuance is a
+    // breach, taken on the path Phase 5 built for a seed or wave-id mismatch.
+    //
+    // { tier: 3 } IS THE ORIGINAL MARKER'S OWN ATTACK, PRESERVED. It is a
+    // LEGAL winning deployment (Deployments.MaxCoverageTier is 3 and
+    // Stats.ChillCapacity(3) is 4), so sim VERIFIES it and returns a Win -
+    // which is what makes this a test of the comparison rather than of sim
+    // rejecting junk, exactly as the reward assertion was in Phase 5's
+    // version. The player's own Pale is tier 1 (winningRoster), so the
+    // submitted deployment is one they do not own.
+    const { issuanceId, seed } = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
+    const before = await balance('shards')
+
+    const res = await submit(issuanceId, buildWinningReplay(6, BigInt(seed), { tier: 3 }), 'adv-8')
+
+    expect(res.status).toBe(409)
+    expect(await res.json()).toMatchObject({ code: 'deployment_mismatch' })
+    // A VERIFIED WIN THAT PAID NOTHING. The balance pins that the refusal
+    // beat the credit rather than the credit being absent for some unrelated
+    // reason, and the settled issuance pins that this was a spent attempt -
+    // the same settlement a seed mismatch takes.
+    expect(await balance('shards')).toBe(before)
+    expect(await liveIssuance()).toBeUndefined()
   })
 })
 

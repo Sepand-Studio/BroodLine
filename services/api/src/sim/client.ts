@@ -31,6 +31,31 @@ export function toInt(v: number | string): number {
 }
 
 /**
+ * `toInt` for a field that is allowed to be ABSENT, and the only two fields
+ * that are: `CreatureSpecDto.tier1` and `tier2`.
+ *
+ * NULL IS NOT ZERO AND MUST NEVER BECOME ZERO. data_model 2: a null coverage
+ * tier is an ABERRANT, which has no coverage at all, and zero would sort and
+ * display as "less than tier I" - two states the design keeps apart on
+ * purpose. drizzle/0005_loop.sql's `coverage_tier_N_not_zero` makes 0
+ * unstorable on this side (`tier_N IS NULL OR tier_N BETWEEN 1 AND 3`), and
+ * services/sim/SimulateEndpoint.cs's `Coverage()` translates the engine's own
+ * spelling of the same state (a plain `int` 0) into null on the way out. So
+ * the two sides already agree; this function's whole job is not to undo that
+ * agreement on the last hop.
+ *
+ * `v ?? 0`, `Number(v)` and `toInt(v as number)` are each one keystroke away
+ * and each wrong in the same direction: they turn "no coverage" into "tier
+ * zero", which equals nothing api can store, and design 6.2's comparison
+ * would then reject an HONEST Aberrant on every submission it ever saw.
+ * `toInt` refusing `null` at compile time is what forced this decision to be
+ * made rather than defaulted into.
+ */
+export function toTier(v: null | number | string): number | null {
+  return v === null ? null : toInt(v)
+}
+
+/**
  * The only caller of sim, and the only place that decides what a failure
  * MEANS.
  *

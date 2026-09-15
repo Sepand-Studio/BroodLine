@@ -368,6 +368,17 @@ async function commitCreatures(
  * has the slot", which is exactly the state the recovery SELECT below
  * reads.
  *
+ * `deployment` IS REQUIRED, and it stopped having a `= []` default in Task 10.
+ * The default was harmless while nothing READ the column and became a hazard
+ * the moment something did: an issuance carrying `[]` is indistinguishable
+ * from one carrying "the caller did not say", and design §6.2's submit-side
+ * comparison would then be asked to tell an honest empty deployment from an
+ * unpopulated one. `routes/wave.ts`'s `deploymentMatches` compares LENGTHS
+ * FIRST so an empty stored deployment refuses every non-empty echo rather than
+ * agreeing with all of them - but a comparison being robust against a default
+ * is not a reason to keep the default. Every caller now says what was
+ * deployed, `[]` included.
+ *
  * RETURNS WHETHER THIS CALL INSERTED, not just the row - the same shape and
  * the same reasoning as `settle` below. It matters because Task 8 gave this
  * function a second side effect to pair with: the creatures of the
@@ -381,7 +392,7 @@ async function commitCreatures(
  */
 export async function claimIssuance(
   tx: Tx, serverId: number, playerId: string, waveId: number, seed: bigint,
-  deployment: CreatureSpec[] = [],
+  deployment: CreatureSpec[],
 ): Promise<{ issuance: Issuance; claimed: boolean }> {
   const [row] = await tx.insert(waveIssuances).values({
     serverId, issuanceId: randomUUID(), playerId, waveId,

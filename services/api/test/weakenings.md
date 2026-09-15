@@ -427,6 +427,78 @@ themselves.
 
 ---
 
+## Phase 6 — the deployment comparison and the supply floor
+
+Design §6.2 and §2.4, Phase 6 Task 10. Same discipline as the table above and
+the same method: each row was **applied to the real source at commit
+`b6f93b2`**, the suite actually run, the failing test names actually recorded,
+then reverted with `git checkout -- services/api/src` and `git diff --quiet`
+confirmed before the next row. Nothing here is predicted.
+
+Runs are `pnpm --filter @broodline/api test wave-submit adversarial replays`
+(**48 tests**) unless the row says otherwise — the comparison is exercised from
+all three files, and a row scoped to `adversarial` alone would miss two thirds
+of its own evidence.
+
+| # | Weakened | Where | Result | Test(s) that went red |
+|---|---|---|---|---|
+| P6-1 | The whole `deploymentMatches` call deleted from the submit handler | `routes/wave.ts` submit step 5 | **RED (7/48)** | every deployment test and nothing else: the three mismatch cases, the null-column case, `cannot submit a replay claiming a deployment it was not issued`, `grants NOTHING on a submission the deployment comparison refuses`, `writes nothing for a submission the deployment comparison refuses` |
+| P6-2 | Compared as a **multiset** — the same seven fields, both sides sorted, order ignored | `routes/wave.ts` `deploymentMatches` | **RED — discriminating (1/48)** | `rejects a submission that deploys the SAME creatures in a different order` |
+| P6-3 | The length check dropped, leaving `stored.every(...)` alone | `routes/wave.ts` `deploymentMatches` | **RED — discriminating (1/48)** | `rejects a submission that deploys MORE creatures than it was issued` |
+| P6-4 | A null stored deployment SKIPS the check (`return true`) | `routes/wave.ts` `deploymentMatches` | **RED — discriminating (1/48)** | `rejects a submission against an issuance minted before the column had a writer` |
+| P6-5 | `toTier(null)` returns `0` instead of `null` | `sim/client.ts` | **RED (26/380, full suite)** | every honest submission in all three files — see below |
+| P6-6 | The grant multiplied by the Harvest Array tier | `wave/base-stock.ts` | **RED — discriminating (1/48)** | `does not scale wave base stock with the Harvest Array` |
+| P6-7 | `grantWaveBaseStock` hoisted out of the Win branch to the verification point, so it runs on every verified submission | `routes/wave.ts` submit handler | **RED — discriminating (1/48)** | `grants NOTHING on a losing submission` |
+| P6-8 | The Hatchery cap made a REFUSAL instead of a skip | `wave/base-stock.ts` | **RED — discriminating (1/48)** | `skips the grant at the Hatchery cap and still pays the reward` |
+| P6-9 | `deploymentMatches` returns `false` unconditionally — the **vacuity control** | `routes/wave.ts` | **RED (26/48)** | every honest-path test in all three files; no deployment-mismatch test moved |
+
+### P6-3 and P6-4 are the two that were named in advance
+
+Both were carried forward from Task 9's report as hazards, and both are the
+shape where a wrong answer passes silently rather than failing:
+
+- **P6-3 is the vacuity hazard.** Written as a loop over the stored
+  deployment, the comparison runs **zero iterations** against an empty one and
+  agrees with every echo there is. `claimIssuance`'s `deployment:
+  CreatureSpec[] = []` default made that state reachable from production code;
+  the default is gone as of this task, and the length check is what makes its
+  return harmless rather than fatal. Note what P6-3 did *not* redden: the two
+  field-level mismatch tests stay green under it, because their deployments are
+  the same length. A suite without the MORE-creatures case would have shipped
+  this.
+- **P6-4 is the nullable-column ruling.** `wave_issuances.deployment` is
+  nullable because `drizzle/0006` is the expand step, so for up to
+  `ISSUANCE_TTL_MS` after this handler deploys a player can hold a live
+  issuance the previous build minted with no deployment. "Skip the check when
+  null" reopens the hole for two hours, for everyone — and it reddens exactly
+  one test, which is to say that without that one test the entire repository
+  would have been green while the boundary was open. The ruling is to REFUSE:
+  an honest player mid-deploy loses one attempt, which is a real cost and is
+  the smaller one.
+
+### P6-5 is the case for `toTier`, and it is not a style point
+
+`toInt` does not accept `null`, and the generated `tier1`/`tier2` are
+`null | number | string` — so this **failed at compile** rather than silently,
+which is the good direction. The three one-keystroke "fixes" (`v ?? 0`,
+`Number(v)`, `toInt(v as number)`) are all the same wrong answer: they turn
+"no coverage" into "tier zero". `drizzle/0005_loop.sql`'s
+`coverage_tier_N_not_zero` makes `0` unstorable on the api side, so an echoed
+`0` equals nothing api holds and **every honest submission carrying an empty
+combat slot is refused**. That is what the 26 red tests are: not a subtle
+regression, a route that has stopped working — which is why the row is
+recorded as non-discriminating rather than as a good gate.
+
+### P6-9 is the control the rest of the table needs
+
+Eight of the nine rows above are refusals going missing. A comparison that
+refused EVERYTHING would pass all eight of those tests perfectly, so the table
+would be evidence of nothing without a row that moves in the other direction.
+P6-9 reddens 26 tests and moves none of the mismatch cases — the two halves are
+independent, and the suite pins both.
+
+---
+
 ## Reproducing any row
 
 Apply the change named in the table, then:

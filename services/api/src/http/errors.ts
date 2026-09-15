@@ -19,6 +19,7 @@ export type ErrorCode =
   | 'engine_too_old'
   | 'sim_unavailable'
   // Phase 6
+  | 'deployment_mismatch'
   | 'roster_full'
   | 'creature_not_owned'
   | 'creature_committed'
@@ -52,6 +53,14 @@ const STATUS: Record<ErrorCode, number> = {
   // say which - design 2.3.
   engine_too_old: 426,
   sim_unavailable: 503,
+  // 409, and the SAME status submission_rejected carries, because design §6.2
+  // makes it the same kind of thing: a breach taken on the path Phase 5 built
+  // for a seed or wave-id mismatch. The CODE is distinct because the next
+  // action differs - a seed mismatch means this replay is not of this wave,
+  // where a deployment mismatch means the roster the deployment screen is
+  // showing no longer agrees with what was issued, and solo_execution §6.2's
+  // whole rule is that a client switches on the code.
+  deployment_mismatch: 409,
   // 409, not 400: the request was understood and is refused because of
   // state the caller can change (splice or retire a creature and claim
   // again), which is the same shape wave_locked and issuance_invalid take.

@@ -11,15 +11,16 @@ import { clearBundleCache } from '../src/config/bundle.ts'
 import { publishBundle } from '../src/config/publish.ts'
 import { LocalBundleStore } from '../src/config/store.ts'
 import { withServer } from '../src/db/client.ts'
-import { servers } from '../src/db/schema.ts'
+import { arks, servers } from '../src/db/schema.ts'
 import { LocalReplayStore } from '../src/replays/store.ts'
 import { SimClient } from '../src/sim/client.ts'
 import { settle } from '../src/wave/issuance.ts'
 import { reapOnExit } from './child-reaper.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 import {
-  balance, buildLosingReplay, buildWinningReplay, ledgerRowCount, liveIssuance,
-  setupPlayer, startWave, submit, submitInit, withDotnetBuildLock,
+  asRosterSpecs, balance, buildLosingReplay, buildReplayOf, buildWinningReplay, giveRoster,
+  ledgerRowCount, liveIssuance, rosterCount, setupPlayer, startLosing, startWave,
+  startWinning, submit, submitInit, winningDeployment, winningRoster, withDotnetBuildLock,
 } from './wave-helpers.ts'
 
 // fileURLToPath, not .pathname - this repo lives under a directory
@@ -139,7 +140,7 @@ afterAll(async () => {
 
 describe('POST /v1/wave/submit', () => {
   it('pays a winning submission exactly once', async () => {
-    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+    const { issuanceId, seed } = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
     const replay = buildWinningReplay(6, BigInt(seed))
 
     const res = await submit(issuanceId, replay, 'key-1')
@@ -172,7 +173,7 @@ describe('POST /v1/wave/submit', () => {
   // NOWHERE, and nothing anywhere will say so.
   it('returns the stored response on a resend with the SAME key', async () => {
     await setupPlayer(deps)
-    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+    const { issuanceId, seed } = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
     const replay = buildWinningReplay(6, BigInt(seed))
     const before = await balance('shards')
 
@@ -193,7 +194,7 @@ describe('POST /v1/wave/submit', () => {
     // the caller gets 422 for a request that is theirs and identical, having
     // already been paid for the first one.
     await setupPlayer(deps)
-    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+    const { issuanceId, seed } = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
     const replay = buildWinningReplay(6, BigInt(seed))
     const before = await balance('shards')
 
@@ -206,7 +207,7 @@ describe('POST /v1/wave/submit', () => {
 
   it('pays nothing on a resend with a DIFFERENT key', async () => {
     await setupPlayer(deps)
-    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+    const { issuanceId, seed } = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
     const replay = buildWinningReplay(6, BigInt(seed))
     const before = await balance('shards')
 
@@ -259,7 +260,7 @@ describe('POST /v1/wave/submit', () => {
     // credit() is gated on its return - see routes/wave.ts), not by this
     // test.
     await setupPlayer(deps)
-    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+    const { issuanceId, seed } = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
     const replay = buildWinningReplay(6, BigInt(seed))
     const before = await balance('shards')
 
@@ -320,7 +321,7 @@ describe('POST /v1/wave/submit', () => {
     // Necessary, not sufficient - see the next test for what actually
     // closes the gate.
     await setupPlayer(deps)
-    await startWave(6)
+    await startWinning(6)
     const live = await liveIssuance()
     expect(live).toBeDefined()
 
@@ -354,7 +355,7 @@ describe('POST /v1/wave/submit', () => {
     // commit. This simulates "another submission (or a future sweep) is in
     // the middle of consuming this issuance right now."
     await setupPlayer(deps)
-    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+    const { issuanceId, seed } = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
     const replay = buildWinningReplay(6, BigInt(seed))
     const before = await balance('shards')
 
@@ -447,7 +448,7 @@ describe('POST /v1/wave/submit', () => {
 
   it('refuses a replay whose seed is not the issued one', async () => {
     await setupPlayer(deps)
-    const { issuanceId } = await (await startWave(6)).json() as { issuanceId: string }
+    const { issuanceId } = await (await startWinning(6)).json() as { issuanceId: string }
     const replay = buildWinningReplay(6, 0xDEADBEEFn) // a seed nobody issued
 
     const res = await submit(issuanceId, replay, 'key-5')
@@ -471,7 +472,7 @@ describe('POST /v1/wave/submit', () => {
     // a second authored wave, by sim-client.test.ts's 'refuses a genuine
     // mismatch regardless of which branch the type took'.
     await setupPlayer(deps)
-    const { issuanceId } = await (await startWave(6)).json() as { issuanceId: string }
+    const { issuanceId } = await (await startWinning(6)).json() as { issuanceId: string }
 
     const res = await submit(issuanceId, buildWinningReplay(6, 1n), 'key-6')
     expect(res.status).toBe(409)
@@ -479,7 +480,7 @@ describe('POST /v1/wave/submit', () => {
 
   it('refuses a submission from a superseded engine and tells the client to update', async () => {
     await setupPlayer(deps)
-    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+    const { issuanceId, seed } = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
     const replay = buildWinningReplay(6, BigInt(seed), { engineVersion: '0.1.0' })
 
     const res = await submit(issuanceId, replay, 'key-7')
@@ -489,7 +490,7 @@ describe('POST /v1/wave/submit', () => {
 
   it('leaves the issuance live when sim is unreachable', async () => {
     await setupPlayer(deps)
-    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+    const { issuanceId, seed } = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
 
     const broken = createApp({ ...deps, simClient: new SimClient('http://127.0.0.1:1', SimClient.noAuth('a deliberately dead address - no route under test here calls sim')) })
     const res = await broken.request(
@@ -506,7 +507,7 @@ describe('POST /v1/wave/submit', () => {
 
   it('records a loss without paying', async () => {
     await setupPlayer(deps)
-    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+    const { issuanceId, seed } = await (await startLosing(6)).json() as { issuanceId: string; seed: string }
     const res = await submit(issuanceId, buildLosingReplay(6, BigInt(seed)), 'key-9')
     const body = await res.json() as { result: string; reward?: unknown; breaches: unknown[] }
 
@@ -540,7 +541,7 @@ describe('POST /v1/wave/submit', () => {
     // including a broken one - and by a counter wired to nothing. This
     // pins that the live path DOES reach sim, exactly once, through this
     // very counter, before anything claims the dead path does not.
-    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+    const { issuanceId, seed } = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
     const replay = buildWinningReplay(6, BigInt(seed))
     const paid = await app2.request('/v1/wave/submit', submitInit(issuanceId, replay, 'key-count-live'))
     expect(paid.status).toBe(200)
@@ -589,5 +590,282 @@ describe('POST /v1/wave/submit', () => {
       code: 'issuance_invalid', message: 'That issuance is not live for this player.',
     })
     expect(fabricatedBody).toEqual(settledBody)
+  })
+})
+
+/**
+ * DESIGN §6.2 - the third field of the echo comparison.
+ *
+ * Steps 5 of `POST /v1/wave/submit` already compared `echo.seed` and
+ * `echo.waveId` against the issuance. The deployment joins them: `api` stored
+ * the specs it resolved from the player's OWN rows at issuance (design §6.1),
+ * `sim` reports the deployment the submitted replay actually claimed, and a
+ * disagreement is a breach on the same path a seed mismatch takes.
+ *
+ * THE POSITIVE CONTROL IS `pays a winning submission exactly once`, above.
+ * Every test here asserts a REFUSAL, and a handler that refused every
+ * submission would pass all of them; that test is what says the comparison
+ * accepts an honest pair, and it is in this file deliberately so the two
+ * cannot be separated.
+ */
+describe('POST /v1/wave/submit - the deployment comparison', () => {
+  it('rejects a submission whose deployment is not the issued one', async () => {
+    // THE ATTACK, IN ITS REAL SHAPE: deploy what you actually own, submit a
+    // replay claiming what wins. The issuance is issued against a frontline
+    // with no Chill behind it - a deployment that LOSES wave 6 - and the
+    // replay claims the winning one.
+    //
+    // WHICH DIRECTION THIS RUNS MATTERS. The mirror image (issue the winning
+    // roster, submit the losing replay) is a much weaker test: a losing
+    // replay pays nothing whether or not the comparison exists, so the
+    // balance assertion below would hold vacuously. This way round, deleting
+    // the comparison PAYS 40 shards for a wave the player deployed to lose.
+    await setupPlayer(deps)
+    const { issuanceId, seed } = await (await startLosing(6)).json() as { issuanceId: string; seed: string }
+    const before = await balance('shards')
+
+    const res = await submit(issuanceId, buildWinningReplay(6, BigInt(seed)), 'key-swap')
+
+    expect(res.status).toBe(409)
+    expect(await res.json()).toMatchObject({ code: 'deployment_mismatch' })
+    expect(await balance('shards')).toBe(before)
+    // A spent attempt, settled the same way a seed mismatch is - they
+    // simulated a wave and got an answer.
+    expect(await liveIssuance()).toBeUndefined()
+  })
+
+  it('rejects a submission that deploys MORE creatures than it was issued', async () => {
+    // THE LENGTH CASE, AND IT IS THE ONE THAT KEEPS THE COMPARISON HONEST.
+    // `claimIssuance`'s `deployment` parameter defaulted to `[]` until this
+    // task, and a comparison written as a loop OVER THE STORED ARRAY runs
+    // ZERO ITERATIONS against an empty one and agrees with everything. The
+    // two creatures here are a stored deployment that is SHORTER than the
+    // echo rather than empty, so it catches the same bug without depending
+    // on a default that no longer exists.
+    await setupPlayer(deps)
+    const twoOfThem = (await winningRoster()).slice(0, 2)
+    const { issuanceId, seed } = await (await startWave(6, twoOfThem)).json() as { issuanceId: string; seed: string }
+    const before = await balance('shards')
+
+    const res = await submit(issuanceId, buildWinningReplay(6, BigInt(seed)), 'key-longer')
+
+    expect(res.status).toBe(409)
+    expect(await res.json()).toMatchObject({ code: 'deployment_mismatch' })
+    expect(await balance('shards')).toBe(before)
+  })
+
+  it('rejects a submission that deploys the SAME creatures in a different order', async () => {
+    // A SET COMPARISON WOULD PASS THIS ONE, which is the whole reason it is
+    // here. Every spec below appears in the issuance, with the same pocket -
+    // only the ORDER differs, and order is meaning: the engine indexes its
+    // parallel arrays by deployment order (SimState: "Index == deployment
+    // order"), and `resolveDeployment` iterates the REQUEST's order for
+    // exactly that reason.
+    //
+    // Asserting the CODE and not only the balance is what makes this
+    // discriminating: under a set comparison the reordered replay is
+    // verified, and whether it then pays depends on an engine outcome this
+    // test has no business predicting. `deployment_mismatch` cannot be
+    // reached that way at all.
+    await setupPlayer(deps)
+    const { issuanceId, seed } = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
+    const before = await balance('shards')
+
+    const reordered = winningDeployment()
+    reordered.unshift(reordered.pop()!) // the Chill Pale moves to index 0, keeping pocket 4
+    const res = await submit(issuanceId, buildReplayOf(6, BigInt(seed), reordered), 'key-reorder')
+
+    expect(res.status).toBe(409)
+    expect(await res.json()).toMatchObject({ code: 'deployment_mismatch' })
+    expect(await balance('shards')).toBe(before)
+  })
+
+  it('rejects a submission against an issuance minted before the column had a writer', async () => {
+    // THE NULLABLE-COLUMN RULING, PINNED - and without this test the ruling
+    // is code-inspection only. `wave_issuances.deployment` is nullable
+    // because drizzle/0006 is the EXPAND step, so for up to ISSUANCE_TTL_MS
+    // after the comparison deploys, a player can hold a live issuance minted
+    // by a build that never populated the column.
+    //
+    // "No stored deployment, so skip the check" is the obvious handling and
+    // it reopens the hole this phase exists to close - for every player, for
+    // two hours, on every deploy that crosses this boundary, WITH A GREEN
+    // SUITE THROUGHOUT. That is the weakening this test exists to redden:
+    // `deploymentMatches` returning true for a null stored deployment
+    // changes no other assertion in the repository.
+    //
+    // The row is nulled by hand rather than by checking out the previous
+    // build, for the reason adversarial.test.ts ages an issuance by hand
+    // rather than waiting out the TTL: the previous build is not what is
+    // under test, the shape of the row it left behind is.
+    await setupPlayer(deps)
+    const { issuanceId, seed } = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
+    const before = await balance('shards')
+
+    const nulled = await t.ownerDb.execute(sql`
+      UPDATE wave_issuances SET deployment = NULL WHERE issuance_id = ${issuanceId}::uuid`)
+    // Without this the assertions below are satisfied by an UPDATE that
+    // silently matched nothing, against an issuance whose deployment is
+    // simply wrong for some other reason.
+    expect(nulled.rowCount).toBe(1)
+
+    // An OTHERWISE PERFECT submission: the issued wave, the issued seed, and
+    // the deployment the player really does own. Only the stored column is
+    // absent, so nothing but the null branch can produce this refusal.
+    const res = await submit(issuanceId, buildWinningReplay(6, BigInt(seed)), 'key-null-deployment')
+
+    expect(res.status).toBe(409)
+    expect(await res.json()).toMatchObject({ code: 'deployment_mismatch' })
+    expect(await balance('shards')).toBe(before)
+    expect(await liveIssuance()).toBeUndefined()
+  })
+
+  it('accepts an issuance and a replay that agree on all five', async () => {
+    // THE CONTROL FOR THE THREE ABOVE, stated as an assertion about the
+    // STORED DEPLOYMENT rather than only about the 200. Without it, a
+    // comparison that rejected every non-empty deployment would pass all
+    // three refusals, and the win in `pays a winning submission exactly
+    // once` would be the only thing standing between this suite and a route
+    // that had stopped accepting real submissions - and nothing there says
+    // WHAT was compared.
+    await setupPlayer(deps)
+    const deployed = await winningRoster()
+    const started = await (await startWave(6, deployed)).json() as { issuanceId: string; seed: string }
+
+    const stored = (await liveIssuance())!.deployment
+    expect(stored).toHaveLength(5)
+    // Resolved from the owned rows, and those rows were minted from the very
+    // specs the replay claims - so this is the pairing the comparison sees.
+    expect(stored).toEqual(asRosterSpecs(winningDeployment()).map(({ hp: _hp, ...spec }) => spec))
+
+    const res = await submit(started.issuanceId, buildWinningReplay(6, BigInt(started.seed)), 'key-agree')
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({ result: 'Win' })
+  })
+})
+
+/**
+ * DESIGN §2.4 AND `base_stock` §3 - the supply line under the loop.
+ *
+ * A splice is net -1 creature, so without a source the loop runs for as many
+ * splices as the player has fodder and then seizes. `POST /v1/node/claim` is
+ * one source (Task 5); this is the other, and it is the one `base_stock` §3
+ * makes a FLOOR: "wave-completion base stock never scales with any facility,
+ * purchase, tier or event."
+ */
+describe('POST /v1/wave/submit - wave-completion base stock', () => {
+  /**
+   * An `arks` row does not necessarily exist - `loadArk` falls back to
+   * DEFAULT_ARK and nothing in this phase writes the table - so this is an
+   * upsert rather than an update.
+   */
+  async function setArk(
+    playerId: string, o: { harvestArrayTier?: number; hatcheryTier?: number },
+  ): Promise<void> {
+    const harvestArrayTier = o.harvestArrayTier ?? 1
+    const hatcheryTier = o.hatcheryTier ?? 1
+    await t.ownerDb.insert(arks).values({
+      // THE_REGION (src/map/claim.ts) - this phase's one region, and the
+      // column is `text NOT NULL` with no default, so a row cannot be
+      // written without naming one.
+      serverId: SERVER_ID, playerId, regionId: 'verdant-shelf',
+      harvestArrayTier, hatcheryTier,
+    }).onConflictDoUpdate({
+      target: [arks.serverId, arks.playerId],
+      set: { harvestArrayTier, hatcheryTier },
+    })
+  }
+
+  it('grants base stock on the verified submit path', async () => {
+    await setupPlayer(deps)
+    const { issuanceId, seed } = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
+    const before = await rosterCount()
+
+    const res = await submit(issuanceId, buildWinningReplay(6, BigInt(seed)), 'key-stock-1')
+    expect(res.status).toBe(200)
+
+    expect(await rosterCount()).toBe(before + 1)
+    // THE SAME TRANSACTION AS THE REWARD CREDIT. A grant that could land
+    // without the credit, or the credit without the grant, is two writes
+    // pretending to be one - and a player paid but not granted has lost a
+    // creature to a crash and cannot tell.
+    expect(await balance('shards')).toBe(250 + 40)
+  })
+
+  it('grants NOTHING on a losing submission', async () => {
+    // The grant is the REWARD's companion, so it lives on the branch the
+    // reward lives on. This is also the test that reddens if the grant is
+    // hoisted out of the credit's transaction and run unconditionally.
+    await setupPlayer(deps)
+    const { issuanceId, seed } = await (await startLosing(6)).json() as { issuanceId: string; seed: string }
+    const before = await rosterCount()
+    const shards = await balance('shards')
+
+    const res = await submit(issuanceId, buildLosingReplay(6, BigInt(seed)), 'key-stock-2')
+    expect(await res.json()).toMatchObject({ result: 'Loss' })
+
+    expect(await rosterCount()).toBe(before)
+    expect(await balance('shards')).toBe(shards)
+  })
+
+  it('grants NOTHING on a submission the deployment comparison refuses', async () => {
+    // The grant follows the CREDIT, not the submission. A tampered
+    // submission earns nothing - the sentence Phase 5's done-when was
+    // deliberately written narrower than, and which this phase earns - and
+    // "nothing" has to include the creature.
+    await setupPlayer(deps)
+    const { issuanceId, seed } = await (await startLosing(6)).json() as { issuanceId: string; seed: string }
+    const before = await rosterCount()
+
+    const res = await submit(issuanceId, buildWinningReplay(6, BigInt(seed)), 'key-stock-3')
+    expect(res.status).toBe(409)
+
+    expect(await rosterCount()).toBe(before)
+  })
+
+  it('does not scale wave base stock with the Harvest Array', async () => {
+    // `base_stock` §3's guardrail, and it is absolute: "wave-completion base
+    // stock never scales with any facility, purchase, tier or event." It is
+    // the floor under every player and the only supply line nothing can
+    // accelerate - which is exactly why the loop leans on it.
+    //
+    // Tier 12 is the top of §3.1's table, where NODE-sourced base stock
+    // doubles. If this line ever took a multiplier it would be that one, so
+    // this is the tier that makes the difference visible: 1, not 2.
+    const { playerId } = await setupPlayer(deps)
+    await setArk(playerId, { harvestArrayTier: 12 })
+    const { issuanceId, seed } = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
+    const before = await rosterCount()
+
+    expect((await submit(issuanceId, buildWinningReplay(6, BigInt(seed)), 'key-stock-4')).status).toBe(200)
+
+    expect(await rosterCount()).toBe(before + 1)
+  })
+
+  it('skips the grant at the Hatchery cap and still pays the reward', async () => {
+    // SKIPPED, NOT FAILED - and this is the one place the wave path and the
+    // claim path (design §4.3) deliberately differ over the same write.
+    // `POST /v1/node/claim` refuses the WHOLE claim rather than truncating a
+    // grant, because a partial grant is a loss a player reports as theft.
+    // Here the grant is ONE creature and the alternative is refusing a wave
+    // the player won: that would make the Hatchery cap a soft lockout, which
+    // bible §7.2 forbids. So the reward is paid and the creature is not
+    // minted.
+    await setupPlayer(deps)
+    const deployed = await winningRoster()
+    // rosterCap(1) is 20 - bible §7.2's floor, and design §3.3 pins every
+    // Ark at Hatchery tier 1 this phase. Five are already on the roster.
+    await giveRoster(asRosterSpecs(winningDeployment()))
+    await giveRoster(asRosterSpecs(winningDeployment()))
+    await giveRoster(asRosterSpecs(winningDeployment()))
+    expect(await rosterCount()).toBe(20)
+
+    const { issuanceId, seed } = await (await startWave(6, deployed)).json() as { issuanceId: string; seed: string }
+    const res = await submit(issuanceId, buildWinningReplay(6, BigInt(seed)), 'key-stock-5')
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({ result: 'Win', reward: { currency: 'shards', amount: 40 } })
+    expect(await balance('shards')).toBe(250 + 40)
+    expect(await rosterCount()).toBe(20)
   })
 })

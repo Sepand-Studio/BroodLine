@@ -234,14 +234,14 @@ describe('POST /v1/wave/start', () => {
     const { playerId: freshPlayerId } = await setupPlayer(deps)
 
     const first = await withServer(deps.db, SERVER_ID, (tx) =>
-      claimIssuance(tx, SERVER_ID, freshPlayerId, 6, 111n))
+      claimIssuance(tx, SERVER_ID, freshPlayerId, 6, 111n, []))
 
     // Before the fix (a caught 23505 followed by a recovery SELECT on the
     // SAME now-aborted transaction), this call would REJECT with 25P02
     // rather than resolve - proving Critical 1's finding, not just
     // asserting the fixed behaviour.
     const second = await withServer(deps.db, SERVER_ID, (tx) =>
-      claimIssuance(tx, SERVER_ID, freshPlayerId, 6, 222n))
+      claimIssuance(tx, SERVER_ID, freshPlayerId, 6, 222n, []))
 
     expect(second.issuance.issuanceId).toBe(first.issuance.issuanceId)
     expect(second.issuance.seed).toBe(first.issuance.seed)
@@ -858,7 +858,7 @@ describe('POST /v1/wave/start — the deployment is fixed at issuance (design §
         // conflict is guaranteed rather than timing-dependent.
         beforeClaim: async () => {
           const claim = await withServer(deps.db, SERVER_ID, (tx2) =>
-            claimIssuance(tx2, SERVER_ID, playerId, 6, 777n))
+            claimIssuance(tx2, SERVER_ID, playerId, 6, 777n, []))
           winnerId = claim.issuance.issuanceId
         },
       }))

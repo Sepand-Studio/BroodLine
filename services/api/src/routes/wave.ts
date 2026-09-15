@@ -11,12 +11,13 @@ import { hashRequest } from '../http/hash.ts'
 import type { SessionClaims } from '../identity/jwt.ts'
 import { IdempotencyMismatchError, withIdempotency } from '../money/idempotency.ts'
 import { credit } from '../money/ledger.ts'
+import { grantWaveBaseStock } from '../wave/base-stock.ts'
 import { rewardForWave } from '../wave/rewards.ts'
 import {
-  advanceCampaign, DEPLOYMENT_CAP, type DeployedCreature, type Issuance,
+  advanceCampaign, type CreatureSpec, DEPLOYMENT_CAP, type DeployedCreature, type Issuance,
   issueWave, loadLiveIssuance, settle,
 } from '../wave/issuance.ts'
-import { type SimulateBreach, type SimulateEcho, toInt } from '../sim/client.ts'
+import { type SimulateBreach, type SimulateEcho, toInt, toTier } from '../sim/client.ts'
 
 interface StartBody { waveId: number; deployment: DeployedCreature[] }
 
@@ -180,6 +181,81 @@ export function matchesIssuance(echo: SimulateEcho, issuance: Pick<Issuance, 'se
   return echo.seed === issuance.seed && toInt(echo.waveId) === issuance.waveId
 }
 
+/**
+ * THE THIRD FIELD OF THE SAME COMPARISON, and the line Phase 5's knowingly
+ * open hole closes on - design §6.2.
+ *
+ * `matchesIssuance` above proves the replay is of the issued WAVE, at the
+ * issued SEED. This proves it is of the issued DEPLOYMENT: `api` resolved
+ * those specs from rows the player owns at issuance (design §6.1), `sim`
+ * reports what the submitted bytes actually claimed, and a disagreement is a
+ * breach taken on the path that already existed for the other two.
+ *
+ * NOT A NEW KIND OF CHECK, and deliberately not a roster lookup. Nothing here
+ * reads `creatures`; the entitlement question was answered at issuance and
+ * this only asks whether the submission is of THAT issuance. A version of this
+ * that went back to the roster would be the shape design §2.1 rejects - a
+ * shape match, under which two identical creatures are indistinguishable and a
+ * player who once owned a matching creature can deploy its ghost forever.
+ *
+ * LENGTH FIRST, AND THAT ORDER IS LOAD-BEARING. Written as a loop over
+ * `stored`, this function runs ZERO ITERATIONS against an empty stored
+ * deployment and returns true for every echo there is - which is exactly the
+ * vacuous pass `claimIssuance`'s old `deployment: CreatureSpec[] = []`
+ * default made reachable (that default is gone as of this task, and the length
+ * check is what makes its return harmless rather than fatal). It also makes
+ * the function safe against an echo that is not an array at all: `sim`'s
+ * response is an unchecked cast in sim/client.ts, and `Array.isArray` costs
+ * nothing.
+ *
+ * A NULL STORED DEPLOYMENT IS A MISMATCH, NOT A SKIP, and this is a ruling
+ * rather than a fallback. `wave_issuances.deployment` is nullable because
+ * drizzle/0006 is the EXPAND step (it ships with no reader, so a rollback is
+ * possible), so for up to ISSUANCE_TTL_MS after this handler deploys a player
+ * can hold a live issuance minted by a build that never populated the column.
+ * The alternative - "no stored deployment, so skip the check" - reopens the
+ * exact hole this function exists to close, for every player, for two hours,
+ * on every deploy that crosses this boundary. It is also the kind of hole that
+ * does not announce itself: the suite would be green throughout.
+ *
+ * What refusing costs instead is bounded and visible: an honest player who
+ * started a wave just before the deploy loses that ONE attempt (the issuance
+ * settles 'consumed', the same as any other breach) and starts another. Worth
+ * saying plainly - that is a real cost paid by innocent players, and it is
+ * chosen because a two-hour window in which anyone can deploy creatures they
+ * do not own is the larger loss. The window closes by itself and cannot
+ * recur: every issuance this build mints carries a deployment, so the null
+ * branch is unreachable for anything issued after the deploy, and the
+ * contract migration that makes the column NOT NULL removes it for good.
+ */
+export function deploymentMatches(
+  echo: SimulateEcho['deployment'], stored: CreatureSpec[] | null,
+): boolean {
+  if (stored === null) return false
+  if (!Array.isArray(echo) || echo.length !== stored.length) return false
+
+  // INDEXED, NOT SET-COMPARED. The engine indexes its parallel arrays by
+  // deployment order (SimState: "Index == deployment order") and
+  // `resolveDeployment` iterates the REQUEST's order for that reason, so the
+  // order the client sent is part of what it asked for. Two deployments that
+  // agree as multisets and differ in order are different deployments, and
+  // `rejects a submission that deploys the SAME creatures in a different
+  // order` is what stops this being rewritten as a sort-and-compare.
+  return stored.every((s, i) => {
+    const e = echo[i]
+    if (e === undefined) return false
+    return e.species === s.species
+      && e.trait1 === s.trait1 && toTier(e.tier1) === s.tier1
+      && e.trait2 === s.trait2 && toTier(e.tier2) === s.tier2
+      && e.instinct === s.instinct
+      // `pocket` is `number | string` for the generated contract's usual
+      // reason (sim/client.ts's toInt doc) and `CreatureSpec.pocket` is a
+      // genuine number, so a bare `!==` would type-check while being able to
+      // disagree at runtime the moment the string branch is hit.
+      && toInt(e.pocket) === s.pocket
+  })
+}
+
 /** Design: `api` forwards the breach diagnosis and interprets none of it - narrowed only so the response honours its own numeric schema. */
 export function toBreachDto(b: SimulateBreach): {
   tick: number; raider: number; lane: number; type: string
@@ -196,9 +272,22 @@ async function loadPlayerId(tx: Tx, accountId: string): Promise<string | undefin
   return player?.playerId
 }
 
-function refusalMessage(code: 'issuance_invalid' | 'submission_rejected' | 'wave_locked'): string {
+type SubmitRefusal =
+  'issuance_invalid' | 'submission_rejected' | 'deployment_mismatch' | 'wave_locked'
+
+function refusalMessage(code: SubmitRefusal): string {
   if (code === 'issuance_invalid') return 'That issuance is not live for this player.'
   if (code === 'submission_rejected') return 'That submission was rejected.'
+  // NAMES THE STATE THE CALLER CAN ACT ON, without naming a creature. The
+  // deployment screen's next action is to re-read the roster and start again,
+  // which is a different sentence from submission_rejected's - which is the
+  // whole reason this is a separate code (solo_execution 6.2). It says nothing
+  // about WHICH spec disagreed: that is the same discipline wave/start's two
+  // roster refusals keep, and telling a modified client which of its seven
+  // fields was caught is free information it has no use for honestly.
+  if (code === 'deployment_mismatch') {
+    return 'That replay was not of the deployment this wave was issued for.'
+  }
   return 'That wave has no reward configured.'
 }
 
@@ -230,7 +319,7 @@ async function consumeAndRefuse(deps: Deps, session: SessionClaims, issuanceId: 
 }
 
 type SubmitOutcome =
-  | { refused: 'issuance_invalid' | 'submission_rejected' | 'wave_locked' }
+  | { refused: SubmitRefusal }
   | { paid: null; result: string; integrityRemaining: number; breaches: SimulateBreach[] }
   | { paid: { currency: string; amount: number }; result: string; integrityRemaining: number; breaches: SimulateBreach[] }
 
@@ -504,6 +593,26 @@ export function registerWaveRoutes(app: Hono, deps: Deps): void {
             return { refused: 'submission_rejected' }
           }
 
+          // 5, THE THIRD FIELD - design §6.2, and the line Phase 5's
+          // knowingly-open hole closes on. The two checks above prove this
+          // replay is of the issued WAVE at the issued SEED; this proves it
+          // is of the issued DEPLOYMENT. Same breach, same settlement, a
+          // distinct code because the deployment screen needs a different
+          // sentence from "that replay is not of this wave"
+          // (solo_execution §6.2).
+          //
+          // BEFORE settle() and before the credit, like its two neighbours:
+          // a submission that fails it is a spent attempt that pays nothing,
+          // and `verifiedPlayerId` below is never reached - so a mismatched
+          // replay is not stored either. That exclusion is design §5.2's
+          // "storage is not an attacker's write primitive", and it is the
+          // same reason the seed mismatch returns here rather than falling
+          // through.
+          if (!deploymentMatches(verdict.echo.deployment, issuance.deployment)) {
+            await settle(tx, issuance, 'consumed')
+            return { refused: 'deployment_mismatch' }
+          }
+
           // 6. One transaction: settle, advance, credit. settle() returns
           // whether THIS call performed the settlement - credit() is gated
           // on that, not merely on settle() not throwing, or two concurrent
@@ -554,6 +663,27 @@ export function registerWaveRoutes(app: Hono, deps: Deps): void {
             currency: reward.currency, delta: reward.amount,
             reasonCode: `wave:${issuance.waveId}`,
           })
+
+          // Design §2.4, and it is BESIDE the credit rather than after the
+          // transaction on purpose. Phase 4's rule is that every currency
+          // mutation writes its ledger row in the same transaction as the
+          // balance update; the creature grant joins that transaction for
+          // the same reason - a player who was paid but not granted has lost
+          // a creature to a crash and cannot tell, and a player granted but
+          // not paid is a supply line that runs without the wave being won.
+          //
+          // ON THE WIN BRANCH ONLY. `base_stock` §3 sources this from wave
+          // COMPLETION; a Loss returns above, before the reward lookup, and
+          // grants nothing. Skipped rather than refused at the Hatchery cap
+          // - see grantWaveBaseStock, which is also where the "no multiplier
+          // argument" guardrail lives.
+          //
+          // ITS RESULT IS NOT IN THE RESPONSE, deliberately. design §6.2
+          // makes `SimulateEcho`'s deployment this phase's ONLY contract
+          // change; a new field on this 200 would be a second one, and the
+          // client learns its roster from the roster.
+          await grantWaveBaseStock(tx, session.serverId, playerId, issuance.issuanceId)
+
           return { paid: { currency: reward.currency, amount: reward.amount }, result, integrityRemaining, breaches }
         })
     } catch (err) {
@@ -575,13 +705,15 @@ export function registerWaveRoutes(app: Hono, deps: Deps): void {
     // was written the first time) AND reached the verification point: sim
     // accepted the bytes, they proved to be of the issued wave, and settle()
     // consumed the issuance. That covers 200 and `wave_locked` 409. It does
-    // NOT cover the two refusals that also settle the issuance, and both
-    // exclusions are load-bearing for §5.2's "storage is not an attacker's
+    // NOT cover the THREE refusals that also settle the issuance, and every
+    // exclusion is load-bearing for §5.2's "storage is not an attacker's
     // write primitive": a sim REJECTION (consumeAndRefuse - sim never
-    // verified anything) and a seed/wave MISMATCH (matchesIssuance failed -
-    // sim verified some replay, but not one of the issued wave, so the
-    // bytes are attacker-chosen). Both return before the assignment.
-    // replays.test.ts pins the mismatch case.
+    // verified anything), a seed/wave MISMATCH (matchesIssuance failed - sim
+    // verified some replay, but not one of the issued wave), and a
+    // DEPLOYMENT MISMATCH (deploymentMatches failed - sim verified a replay
+    // of the issued wave, fought by creatures this issuance did not commit).
+    // In all three the bytes are attacker-chosen, and all three return
+    // before the assignment. replays.test.ts pins the seed case.
     //
     // try/catch that logs and swallows, deliberately, and now for TWO
     // reasons. A GCS failure must not roll back a payment that already
