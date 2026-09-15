@@ -169,7 +169,17 @@ export const RegionStateResponse = z.object({
     // floor and can never be taken from anyone (bible §5.3), which is a
     // different statement from "its remaining yield is very large".
     remaining: z.number().int().nullable(),
+    // Creatures a claim would grant right now. With `roster` below, this is
+    // what lets a client predict the roster_full 409 instead of meeting it:
+    // design §4.3 refuses the WHOLE claim, so the shards go unpaid too, and
+    // a refusal a client could not see coming is one a player reads as the
+    // button being broken.
+    grants: z.number().int(),
   })),
+  roster: z.object({
+    count: z.number().int(),
+    cap: z.number().int(),
+  }),
 }).openapi('RegionStateResponse')
 
 export const NodeClaimRequest = z.object({

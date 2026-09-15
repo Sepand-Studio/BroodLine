@@ -1411,6 +1411,9 @@ namespace Broodline.Api
         [Newtonsoft.Json.JsonProperty("nodes", Required = Newtonsoft.Json.Required.Always)]
         public System.Collections.Generic.ICollection<Nodes> Nodes { get; set; } = new System.Collections.ObjectModel.Collection<Nodes>();
 
+        [Newtonsoft.Json.JsonProperty("roster", Required = Newtonsoft.Json.Required.Always)]
+        public Roster Roster { get; set; } = new Roster();
+
         private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
 
         [Newtonsoft.Json.JsonExtensionData]
@@ -1626,6 +1629,29 @@ namespace Broodline.Api
 
         [Newtonsoft.Json.JsonProperty("remaining", Required = Newtonsoft.Json.Required.AllowNull)]
         public int? Remaining { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("grants", Required = Newtonsoft.Json.Required.Always)]
+        public int Grants { get; set; }
+
+        private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
+
+        [Newtonsoft.Json.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class Roster
+    {
+        [Newtonsoft.Json.JsonProperty("count", Required = Newtonsoft.Json.Required.Always)]
+        public int Count { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("cap", Required = Newtonsoft.Json.Required.Always)]
+        public int Cap { get; set; }
 
         private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
 

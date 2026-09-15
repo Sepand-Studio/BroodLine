@@ -357,21 +357,41 @@
                     "integer",
                     "null"
                   ]
+                },
+                "grants": {
+                  "type": "integer"
                 }
               },
               "required": [
                 "slot",
                 "type",
                 "accrued",
-                "remaining"
+                "remaining",
+                "grants"
               ]
             }
+          },
+          "roster": {
+            "type": "object",
+            "properties": {
+              "count": {
+                "type": "integer"
+              },
+              "cap": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "count",
+              "cap"
+            ]
           }
         },
         "required": [
           "regionId",
           "epoch",
-          "nodes"
+          "nodes",
+          "roster"
         ]
       },
       "CreatureDto": {

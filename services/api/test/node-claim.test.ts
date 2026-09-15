@@ -19,6 +19,7 @@ import { epochFor } from '../src/map/rotation.ts'
 import { LocalReplayStore } from '../src/replays/store.ts'
 import { SimClient } from '../src/sim/client.ts'
 import { startTestDb, type TestDb } from './harness.ts'
+import { baseStockSpecies } from '../src/roster/creatures.ts'
 import { setupPlayer } from './wave-helpers.ts'
 
 const SERVER_ID = 1
@@ -252,6 +253,19 @@ async function addCreatures(
 }
 
 /**
+ * Removes every `node_depletion` row for the current epoch, through the
+ * OWNER connection.
+ *
+ * `node_depletion` is SERVER-scoped, not player-scoped, so `beforeEach`'s
+ * fresh player does not reset it - rows written by an earlier test in this
+ * file are still there. A test that asserts a row is ABSENT has to say so
+ * itself rather than depend on running first.
+ */
+async function clearDepletion(): Promise<void> {
+  await t.ownerDb.delete(nodeDepletion).where(eq(nodeDepletion.epoch, epochNow()))
+}
+
+/**
  * Deletes every creature this player holds, through the OWNER connection.
  *
  * The app role has no DELETE on `creatures` at all - 0005_loop.sql withdrew
@@ -269,6 +283,7 @@ describe('GET /v1/region/state', () => {
     // position, or a player who opened the region screen twice would find
     // the second visit showing zero, having been paid nothing for what the
     // first visit consumed.
+    await clearDepletion()
     await setLastSettled(0, hoursAgo(6))
     const before = await positionRow(0)
 
@@ -276,7 +291,11 @@ describe('GET /v1/region/state', () => {
     expect(res.status).toBe(200)
     const body = await res.json() as {
       regionId: string; epoch: number
-      nodes: Array<{ slot: number; type: string; accrued: number; remaining: number | null }>
+      roster: { count: number; cap: number }
+      nodes: Array<{
+        slot: number; type: string; accrued: number
+        remaining: number | null; grants: number
+      }>
     }
 
     const common = body.nodes.find((n) => n.slot === 0)!
@@ -288,9 +307,28 @@ describe('GET /v1/region/state', () => {
     expect(body.nodes.find((n) => n.slot === 1)!.remaining).toBe(RICH_TOTAL)
     expect(body.regionId).toBe(THE_REGION)
 
+    // What the client needs to predict a roster_full 409 rather than meet
+    // one. bible 7.2's floor of 20, against a roster this player has not
+    // been granted anything into yet.
+    expect(body.roster).toEqual({ count: 0, cap: 20 })
+    // Six hours of Common Vein is 120 units against 480 to the creature, so
+    // this particular read owes nothing yet - the assertion that the field
+    // MOVES is on the claim path, where a grant actually happens.
+    expect(common.grants).toBe(0)
+
     expect((await positionRow(0))!.lastSettledAt).toEqual(before!.lastSettledAt)
     expect(await ledgerRowCount()).toBe(STARTER_LEDGER_ROWS)
     expect(await balance()).toBe(STARTER_SHARDS)
+
+    // AND NO node_depletion ROW, for either node. `readDepletion` and
+    // `lockDepletion` have identical signatures in the same file, so
+    // swapping one word for the other here is a one-character-class typo
+    // that would make opening the region screen INSERT a row and take the
+    // hottest shared lock on the server - every screen-open, for every
+    // player. Asserting the position and the ledger cannot see that; only
+    // this can.
+    expect(await depletionRow(0)).toBeUndefined()
+    expect(await depletionRow(1)).toBeUndefined()
   })
 
   it('reports the same accrual twice in a row', async () => {
@@ -421,14 +459,39 @@ describe('POST /v1/node/claim', () => {
 
     expect(body.creatures.length).toBeGreaterThan(0)
     const c = body.creatures[0]!
-    // Vetch is the ONLY species bundle 0.1.2 authors both combat traits for
-    // (traits.json: Taunt and Carapace), which is why base stock is Vetch
-    // this phase rather than rolled - see roster/creatures.ts.
     expect(c).toMatchObject({
-      species: 'Vetch', generation: 1,
-      trait1: 'Taunt', tier1: 1, trait2: 'Carapace', tier2: 1,
+      generation: 1, tier1: 1, tier2: 1,
       instinct: 'Vanguard', isFounder: false, name: null, committedTo: null,
     })
+    // The species and its traits must agree - a grant assembled from one
+    // species' body and another's traits is a creature no bundle authors.
+    expect(baseStockSpecies.map((v) => v.species)).toContain(c.species)
+    const template = baseStockSpecies.find((v) => v.species === c.species)!
+    expect(c.trait1).toBe(template.trait1)
+    expect(c.trait2).toBe(template.trait2)
+  })
+
+  it('grants more than one species across a roster', async () => {
+    // design 5.2 lets a splice take the child's body from EITHER parent's
+    // species. That choice has no reachable input if every creature a
+    // player can obtain is the same species - and this function is the only
+    // insert(creatures) in src/, with starter.json granting currency only.
+    // So this is not a test about variety for its own sake; it is what
+    // makes Task 7's body choice reachable at all.
+    const seen = new Set<string>()
+    for (let i = 0; i < 12 && seen.size < 2; i++) {
+      await clearRoster()
+      await setLastSettled(1, hoursAgo(12))
+      const body = await (await claim(1)).json() as { creatures: Array<{ species: string }> }
+      for (const c of body.creatures) seen.add(c.species)
+    }
+    // TWO, not three: the roll is uniform over three species, so demanding
+    // all three would be a test whose pass depends on how many iterations
+    // were budgeted. Two is the property design 5.2 actually needs, and
+    // twelve claims of at least one creature each make missing it a
+    // ~1-in-88,000 event. The exact distribution is pinned deterministically
+    // in test/base-stock.test.ts, where it costs no container.
+    expect(seen.size).toBeGreaterThanOrEqual(2)
   })
 
   it('never depletes the Common Vein', async () => {
@@ -513,13 +576,22 @@ describe('two claims racing for the last of a node', () => {
     // `harvested_units` before either commits both compute the same
     // `remaining` and both credit it.
     //
-    // Driven through claimNode in two explicitly interleaved transactions
-    // rather than by firing two HTTP requests at once: the second must be
-    // OBSERVED to block, and two racing requests that happened not to
-    // overlap would pass this test while proving nothing.
-    // beforeEach already made one player; this is the second. setupPlayer
-    // REBINDS the module-level `playerId`, so the first one is captured
-    // before the call and both are named explicitly from here on.
+    // THE INTERLEAVING IS CONSTRUCTED, not hoped for, and the first version
+    // of this test did not construct it. Claim A is paused by a hook in its
+    // OWN read-to-write window (see ClaimHooks), so claim B is guaranteed to
+    // arrive after A has read and before A has written - which is the only
+    // ordering the race exists in. Racing two HTTP requests instead produces
+    // whatever ordering the machine happens to give, and an unguarded
+    // implementation survives almost all of them: this suite stayed green
+    // against `lockDepletion` rewritten as `ON CONFLICT DO NOTHING` plus a
+    // plain SELECT until the hook existed.
+    //
+    // WHAT `ON CONFLICT DO NOTHING` ACTUALLY DOES, since it looks like a
+    // cheaper lock and is not one: it waits only while a conflicting tuple
+    // is uncommitted, and the depletion row here is committed long before
+    // either claim starts. It never waits during the read-to-write window,
+    // which is exactly where the race is. It is not a weaker guard; it is
+    // not a guard.
     const A = playerId
     const B = (await setupPlayer(deps)).playerId
 
@@ -529,49 +601,50 @@ describe('two claims racing for the last of a node', () => {
     await setLastSettled(1, settledAt, () => B)
 
     let release!: () => void
-    const held = new Promise<void>((r) => { release = r })
+    const paused = new Promise<void>((r) => { release = r })
+    let aReachedTheWindow!: () => void
+    const aIsInTheWindow = new Promise<void>((r) => { aReachedTheWindow = r })
 
     let firstShards = -1
     const txA = withServer(deps.db, SERVER_ID, async (tx) => {
-      const r = await claimNode(tx, SERVER_ID, A, bundle, 1, new Date(), randomUUID())
+      const r = await claimNode(tx, SERVER_ID, A, bundle, 1, new Date(), randomUUID(), {
+        afterDepletionRead: async () => {
+          aReachedTheWindow()
+          await paused
+        },
+      })
       if (r.kind !== 'ok') throw new Error(`first claim refused: ${r.kind}`)
       firstShards = r.shards
-      await held      // hold the transaction - and the depletion row lock - open
     })
 
-    await new Promise((r) => setTimeout(r, 250))
-    expect(firstShards).toBe(100)   // it took everything the node had left
+    // A has read the node and written nothing. No sleep: waiting on the
+    // hook itself is what makes this deterministic rather than timing-based.
+    await aIsInTheWindow
 
-    let secondSettled = false
+    let bSettled = false
     const txB = withServer(deps.db, SERVER_ID, async (tx) => {
       const r = await claimNode(tx, SERVER_ID, B, bundle, 1, new Date(), randomUUID())
-      secondSettled = true
+      bSettled = true
       return r
     })
 
     await new Promise((r) => setTimeout(r, 400))
-    // The two really are in flight together - which is what stops this from
-    // being a test that passes because the second claim happened to start
-    // after the first finished.
-    //
-    // IT IS NOT THE ASSERTION THAT PROVES THE LOCK, and saying so precisely
-    // matters because the obvious reading is wrong. Measured by removing
-    // the lock: an unguarded claim ALSO stalls here, on `addHarvested`'s own
-    // UPDATE of the same row - it simply stalls after it has already decided
-    // what to pay. So blocking is not the property; blocking BEFORE the
-    // decision is. The two assertions below are the ones that tell those
-    // apart, and they are what redden when the lock is removed (the second
-    // claim paid 100 as well, and harvested_units reached 8,740 against a
-    // node holding 8,640).
-    expect(secondSettled).toBe(false)
+    // B IS BLOCKED, and here that means something it did not mean before:
+    // A has taken the depletion lock and made NO other write, so there is
+    // nothing else in flight for B to be stuck on. Without the lock, B reads
+    // straight past A and finishes.
+    expect(bSettled).toBe(false)
 
     release()
     await txA
     const outcome = await txB
+
+    expect(firstShards).toBe(100)   // A took everything the node had left
     expect(outcome.kind).toBe('ok')
     expect(outcome.kind === 'ok' ? outcome.shards : -1).toBe(0)
 
-    // The invariant the whole guard exists for.
+    // The invariant the whole guard exists for: 8,640 in the node, 8,640
+    // out of it. An unguarded claim reaches 8,740.
     expect((await depletionRow(1))!.harvestedUnits).toBe(RICH_TOTAL)
     expect((await balance(() => A)) + (await balance(() => B)))
       .toBe(2 * STARTER_SHARDS + 100)

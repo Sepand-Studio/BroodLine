@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { and, count, eq, sql } from 'drizzle-orm'
 import type { Tx } from '../db/client.ts'
 import { creatures } from '../db/schema.ts'
@@ -108,56 +109,83 @@ export async function rosterCount(tx: Tx, serverId: number, playerId: string): P
 }
 
 /**
- * The Gen-1 creature a base-stock grant mints.
+ * The Gen-1 creatures a base-stock grant can mint, one entry per species.
  *
- * Every field is a value that EXISTS in authored content, and each one says
- * where it comes from. None of it is in the config bundle, because none of
- * it is authored there: `nodes.json` carries rates, `traits.json` carries
- * the trait table, and the creature's own stats are the ENGINE's (the same
- * split test/replay-format.ts's CREATURE_HP mirror already lives on).
+ * THREE SPECIES, AND THE NUMBER IS CONTENT RATHER THAN A CHOICE. Bible 1.2
+ * gives every species exactly two combat traits; bundle 0.1.2's
+ * `traits.json` authors four traits across three species (Chill/Pale,
+ * Splash/Ember, Taunt/Vetch, Carapace/Vetch). The other three species -
+ * Skitter, Hollow, Loam - have no authored trait at all here, so a grant of
+ * one would have to invent both of its slots.
  *
- *   species    Vetch      - engine `Species.Vetch`. THE ONLY SPECIES THIS
- *                           BUNDLE CAN BUILD A WHOLE CREATURE FROM: bible
- *                           1.2 gives every species exactly two combat
- *                           traits, and of bundle 0.1.2's four authored
- *                           traits Vetch holds two (Taunt, Carapace) while
- *                           Pale and Ember hold one each. A Pale grant
- *                           would have to invent Pale's second trait.
- *   trait1/2   Taunt,     - `config/bundles/0.1.2/traits.json`, the two
- *              Carapace     traits authored against Vetch.
- *   tier1/2    I          - Gen-1. combat_numbers 7 ties the coverage
- *                           ceiling to generation and Chamber tier, and
- *                           design 5.3 derives Tier I as the floor coverage
- *                           never drops below. Base stock sits on that floor.
- *   instinct   Vanguard   - the Instinct the engine's own Vetch fixture
- *                           carries (tests/engine/Combat/GoldenTests.cs,
- *                           mirrored in test/replay-format.ts). Bible 1.4
- *                           says Gen-1 base stock ROLLS an Instinct weighted
- *                           per species and that the weights are "to be set
- *                           with the drop tables" - they are not set
- *                           anywhere, so this grants the one value content
- *                           does supply rather than inventing a distribution.
- *   hpCurrent  260        - engine `Stats`, Species.Vetch.
+ * WHY NOT VETCH ALONE, which is what the first version of this shipped:
+ * this function is the ONLY `insert(creatures)` in `src/`, and
+ * `starter.json` grants currency only - so single-species base stock makes
+ * every obtainable creature a Vetch, and design 5.2's body choice (the
+ * child takes EITHER parent's species) has no reachable input. A rule that
+ * can only be exercised by hand-writing rows is a rule nothing tests.
  *
- * TWO ROLLS ARE THEREFORE NOT IMPLEMENTED, and both are owed rather than
- * forgotten: the per-species Instinct weighting above, and `base_stock`
- * 4.2's region weighting of the species itself (30/30/10/10/10/10 across
- * the region's two weighted species and the other four). The second needs
- * per-region content for thirty regions that design 11 already books as
- * owed, and this phase ships one region.
+ * WHERE EACH FIELD COMES FROM:
+ *   species      - engine `Species`, and `traits.json`'s `species` field.
+ *   trait 1      - the species' own authored counter (`traits.json`).
+ *   trait 2      - Carapace for every species, and this is THE ONE STAND-IN
+ *                  here. Vetch genuinely authors it. Pale's and Ember's real
+ *                  second traits ARE authored - `combat_numbers` 4.3 gives
+ *                  Pale **Screen** and `species_stats` 2 gives Ember
+ *                  **Cinder** - but the engine's `Trait` enum is
+ *                  `{None, Chill, Taunt, Splash, Carapace}` and cannot
+ *                  represent either, and Task 6 reads `dominant` off
+ *                  `traits.json`, so a trait absent from that file makes the
+ *                  splice roll undefined. Carapace is chosen over the other
+ *                  two candidates because it is the bundle's only trait with
+ *                  `counters: null`: a stand-in that answers no raider
+ *                  cannot hand Pale or Ember a counter their authored pair
+ *                  never gave them, which is the only property of this
+ *                  substitution that could change combat.
+ *   tier 1/2     - Tier I. Gen-1; `combat_numbers` 7 ties the coverage
+ *                  ceiling to generation, and design 5.3 derives Tier I as
+ *                  the floor coverage never drops below.
+ *   hpCurrent    - engine `Stats.CreatureHp`, mirrored in
+ *                  test/replay-format.ts's CREATURE_HP.
+ *
+ * OWED, and marked the way `UNITS_PER_CREATURE` is: `base_stock` 4.2 weights
+ * node-sourced species by REGION (30/30 for the region's two, 10 each for
+ * the other four). That needs per-region content for thirty regions which
+ * design 11 already books as owed, and this phase ships one region - so the
+ * roll below is uniform over what exists. Bible 1.4's per-species Instinct
+ * weighting is owed in the same way and deliberately NOT guessed: every
+ * grant carries Vanguard, the one Instinct the engine's own Vetch fixture
+ * supplies (tests/engine/Combat/GoldenTests.cs).
  */
-const BASE_STOCK_TEMPLATE = {
-  species: 'Vetch',
-  generation: 1,
-  trait1: 'Taunt', tier1: 1,
-  trait2: 'Carapace', tier2: 1,
-  instinct: 'Vanguard',
-  hpCurrent: 260,
-  // Founders are granted deliberately and named; base stock is neither.
-  // 0005's only_founders_named refuses a named non-Founder outright.
-  isFounder: false,
-  name: null,
-} as const
+const BASE_STOCK_SPECIES = [
+  { species: 'Vetch', trait1: 'Taunt', trait2: 'Carapace', hpCurrent: 260 },
+  { species: 'Pale', trait1: 'Chill', trait2: 'Carapace', hpCurrent: 120 },
+  { species: 'Ember', trait1: 'Splash', trait2: 'Carapace', hpCurrent: 130 },
+] as const
+
+export type BaseStockSpecies = (typeof BASE_STOCK_SPECIES)[number]
+
+/** Every species a base-stock grant can mint - exported for tests. */
+export const baseStockSpecies: readonly BaseStockSpecies[] = BASE_STOCK_SPECIES
+
+/**
+ * Which species a given grant mints - a pure function of a seed string, so
+ * the roll is reproducible rather than a `Math.random()` nobody can
+ * re-derive after a dispute. Same discipline design 5.1 applies to the
+ * splice, for the same reason: this is a grant a player can complain about.
+ *
+ * SHA-256 rather than a hand-rolled mixer because the input is structured
+ * and adjacent (the same key with a different index, one claim to the next),
+ * and a weak mix over adjacent inputs correlates in exactly the way that
+ * would make a claim granting three creatures give the same species three
+ * times. The modulo is biased by about one part in 1.4 billion over three
+ * species out of 2^32, which is far below anything this distribution's
+ * provisional status could justify correcting.
+ */
+export function speciesForSeed(seed: string): BaseStockSpecies {
+  const digest = createHash('sha256').update(seed).digest()
+  return BASE_STOCK_SPECIES[digest.readUInt32BE(0) % BASE_STOCK_SPECIES.length]!
+}
 
 /**
  * Mints `count` Gen-1 creatures for this player, in the caller's transaction.
@@ -170,11 +198,24 @@ const BASE_STOCK_TEMPLATE = {
  * function grants exactly what it is asked for.
  */
 export async function grantBaseStock(
-  tx: Tx, serverId: number, playerId: string, n: number,
+  tx: Tx, serverId: number, playerId: string, n: number, seed: string,
 ): Promise<CreatureRow[]> {
   if (n <= 0) return []
-  const rows = await tx.insert(creatures)
-    .values(Array.from({ length: n }, () => ({ serverId, playerId, ...BASE_STOCK_TEMPLATE })))
+  return tx.insert(creatures)
+    .values(Array.from({ length: n }, (_unused, i) => ({
+      serverId,
+      playerId,
+      generation: 1,
+      tier1: 1,
+      tier2: 1,
+      instinct: 'Vanguard',
+      // Founders are granted deliberately and named; base stock is neither.
+      // 0005's only_founders_named refuses a named non-Founder outright.
+      isFounder: false,
+      name: null,
+      // The INDEX is in the seed, so a claim granting three creatures rolls
+      // three times rather than minting one species three times.
+      ...speciesForSeed(`${seed}:${i}`),
+    })))
     .returning()
-  return rows
 }

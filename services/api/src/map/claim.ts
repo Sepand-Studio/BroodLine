@@ -55,11 +55,18 @@ function serverSeed(serverId: number): bigint {
  * NOTHING CREATES AN ARK ROW YET. `POST /v1/account` predates the table and
  * this phase adds no writer, and `GET /v1/region/state` must write nothing
  * (design 4.1) - so a player who has never had a row written for them must
- * still be able to read their region and claim from it. The defaults below
- * MIRROR 0005_loop.sql's column defaults, including the Splicing Chamber's
- * tier 3 (design 3.3 - tiers 1-2 cap coverage at Tier I, which would make
- * design 5.3's recessive downtier unobservable in the only configuration
- * this phase ships).
+ * still be able to read their region and claim from it.
+ *
+ * THE THREE TIERS mirror 0005_loop.sql's column defaults, including the
+ * Splicing Chamber's tier 3 (design 3.3 - tiers 1-2 cap coverage at Tier I,
+ * which would make design 5.3's recessive downtier unobservable in the only
+ * configuration this phase ships). `regionId` MIRRORS NOTHING:
+ * `arks.region_id` is `text NOT NULL` with no DEFAULT at all
+ * (0005_loop.sql:221), because there is no sensible server-wide default for
+ * a column that will name one of thirty regions. THE_REGION below is this
+ * phase's stand-in for the region an Ark would have been parked in at
+ * creation, and the day an `arks` writer exists it - not this constant -
+ * becomes the authority.
  *
  * A real writer is owed, and account creation is its natural home: design
  * 3.3 says one row per player, and this function's `??` is a stand-in for
@@ -288,12 +295,52 @@ export interface NodeStateDto {
   type: string
   accrued: number
   remaining: number | null
+  /**
+   * Creatures a claim on this node would grant RIGHT NOW.
+   *
+   * Here so the 409 is predictable rather than a surprise: without it a
+   * client has no way to know that claiming is about to be refused for a
+   * full roster, and design 4.3 refuses the WHOLE claim - the shards go
+   * unpaid too. `grants > 0 && roster.count + grants > roster.cap` is the
+   * exact condition `claimNode` applies, so a client can grey the button
+   * and say why instead of discovering it by being refused.
+   *
+   * ADVISORY, like every other number on this screen. It is computed
+   * outside any lock and the claim recomputes it under one, so a
+   * concurrent claim on the same node can still change the answer between
+   * this read and that claim.
+   */
+  grants: number
 }
 
 export interface RegionState {
   regionId: string
   epoch: number
   nodes: NodeStateDto[]
+  /** The other half of the condition above - bible 7.2's Hatchery cap. */
+  roster: { count: number; cap: number }
+}
+
+/**
+ * TEST-ONLY seams, and the same idiom test/wave-helpers.ts's lock factory
+ * already uses (`testBeforeReclaim`) for the same kind of problem.
+ *
+ * `afterDepletionRead` is awaited between the depletion read and every
+ * write this claim makes. THE RACE LIVES IN THAT WINDOW, and no test driving
+ * two HTTP requests can produce the interleaving reliably: it needs a second
+ * claim to read AFTER the first has read and BEFORE the first has written.
+ * Without this seam a test can only observe that the second claim stalls
+ * somewhere, which an UNGUARDED implementation also does - it stalls on
+ * `addHarvested`'s own UPDATE, just after it has already decided what to
+ * pay. Measured, not supposed: the whole suite stayed green against a
+ * `lockDepletion` rewritten as `ON CONFLICT DO NOTHING` plus a plain SELECT
+ * until this hook existed.
+ *
+ * A no-op for every real caller - `claimNode`'s parameter defaults to `{}`,
+ * and nothing under `src/routes/` passes it.
+ */
+export interface ClaimHooks {
+  afterDepletionRead?: () => Promise<void>
 }
 
 export type ClaimResult =
@@ -320,6 +367,12 @@ export async function regionState(
   const nodes = nodeSet(bundle, serverId, ark.regionId, epoch)
   if (nodes === undefined) return { kind: 'no_nodes' }
 
+  // ONE roster count for the whole response, not one per node: it is the
+  // same number for every node, and design 4.3's cap is a property of the
+  // player rather than of the ground they are standing on.
+  const cap = rosterCap(ark.hatcheryTier)
+  const count = await rosterCount(tx, serverId, playerId)
+
   const dtos: NodeStateDto[] = []
   for (const node of nodes) {
     const depletion = await readDepletion(tx, serverId, ark.regionId, node.slot, epoch)
@@ -327,21 +380,23 @@ export async function regionState(
     const lastSettledAt = await loadLastSettled(
       tx, serverId, playerId, ark.regionId, node.slot, epoch, now)
 
+    // The SAME functions the claim pays and grants from, not a second
+    // estimate of either. A display computed differently from the credit is
+    // a bug report the player is right to file.
+    const args = {
+      lastSettledAt, now, ratePerHour: node.ratePerHour,
+      arrayTier: ark.harvestArrayTier, remaining,
+    }
     dtos.push({
       slot: node.slot,
       type: node.type,
-      // The SAME function the claim pays from, not a second estimate of it.
-      // A display that is computed differently from the credit is a bug
-      // report the player is right to file.
-      accrued: accrue({
-        lastSettledAt, now, ratePerHour: node.ratePerHour,
-        arrayTier: ark.harvestArrayTier, remaining,
-      }),
+      accrued: accrue(args),
       remaining,
+      grants: baseStockFor(args),
     })
   }
 
-  return { regionId: ark.regionId, epoch, nodes: dtos }
+  return { regionId: ark.regionId, epoch, nodes: dtos, roster: { count, cap } }
 }
 
 /**
@@ -363,10 +418,26 @@ export async function regionState(
  * time the grant lands, and the refusal would then be racing the thing it
  * is protecting. Nothing is credited, nothing is granted, and the position
  * is NOT settled, so the accrual is still there when a slot is freed.
+ *
+ * THE REFUSAL STILL TAKES THE DEPLETION LOCK, AND STILL COMMITS, because
+ * the cap check needs `grants`, `grants` needs `remaining`, and `remaining`
+ * is only trustworthy under that lock. So a client polling `claim` against
+ * a full roster churns the hottest shared row on the server doing nothing.
+ * Considered and DECLINED rather than missed: the cheap fix - decide the
+ * refusal from an UNLOCKED read before taking the lock - is not safe on a
+ * money path. `harvested_units` only grows within an epoch, so an unlocked
+ * read can only over-estimate `grants`; refusing on it would refuse a
+ * player whose locked claim would have granted nothing and PAID THEM
+ * SHARDS, whenever another claim drained the node in between. Refusing
+ * shards someone is owed is the same family of loss as truncating a grant,
+ * and this whole refusal exists to avoid that family. The real fix is for
+ * the client not to poll a claim it can already see will be refused, which
+ * is what `RegionState.grants` and `RegionState.roster` are for.
  */
 export async function claimNode(
   tx: Tx, serverId: number, playerId: string, bundle: Bundle,
   slot: number, now: Date, idempotencyKey: string,
+  hooks: ClaimHooks = {},
 ): Promise<ClaimResult> {
   const ark = await loadArk(tx, serverId, playerId)
   const epoch = await loadEpoch(tx, serverId, now)
@@ -377,6 +448,10 @@ export async function claimNode(
   if (node === undefined) return { kind: 'unknown_node' }
 
   const depletion = await lockDepletion(tx, serverId, ark.regionId, slot, epoch)
+  // The read-to-write window, and the ONLY place a test can stand to see
+  // whether the line above took a lock - see ClaimHooks. A no-op for every
+  // real caller.
+  if (hooks.afterDepletionRead) await hooks.afterDepletionRead()
   const remaining = remainingOf(node, depletion)
 
   const lastSettledAt = await loadLastSettled(
@@ -408,7 +483,14 @@ export async function claimNode(
     })
     : await readBalance(tx, serverId, playerId)
 
-  const granted = await grantBaseStock(tx, serverId, playerId, grants)
+  // The species roll is reproducible from this string - see speciesForSeed.
+  // Every component is already fixed by the time the grant happens, so a
+  // replayed claim would re-derive the same creatures rather than a fresh
+  // roll (withIdempotency returns the stored response and never re-runs
+  // this function, so that is a property nothing depends on today - but it
+  // is the property a dispute would be settled with).
+  const granted = await grantBaseStock(tx, serverId, playerId, grants,
+    `${serverId}:${playerId}:${ark.regionId}:${epoch}:${slot}:${idempotencyKey}`)
   await settlePosition(tx, serverId, playerId, ark.regionId, slot, epoch, now)
   await addHarvested(tx, serverId, ark.regionId, slot, epoch, units, remaining, now)
 
