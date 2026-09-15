@@ -75,6 +75,16 @@ CREATE TABLE IF NOT EXISTS creatures (
   -- design 3.2's tombstone, in place. A pruned row keeps its identity
   -- (server_id, creature_id), its parent pointers, and the three fields a
   -- lineage view renders - "an unnamed Gen-4 Vetch" - and nothing else.
+  -- "Nothing else" is ENFORCED, by pruned_creatures_are_stripped below; it
+  -- was a claim in this comment alone until review caught that.
+  --
+  -- A BORN-PRUNED row - inserted with pruned = true and every stripped
+  -- column already NULL - satisfies both constraints and is deliberately
+  -- allowed. It is not reachable from any request path (handlers create
+  -- live creatures), forbidding it would need a BEFORE INSERT trigger on
+  -- the roster's hottest write for a hazard nothing can reach, and it is
+  -- affirmatively WANTED: solo_execution 4 makes a server merge a re-keying
+  -- exercise, which has to re-insert already-pruned ancestors directly.
   pruned         boolean NOT NULL DEFAULT false,
 
   PRIMARY KEY (server_id, creature_id),
@@ -107,6 +117,26 @@ CREATE TABLE IF NOT EXISTS creatures (
   -- null the name bible 3.3 makes the emotional anchor of every descendant's
   -- tree, and only_founders_named means it could never be written back.
   CONSTRAINT founders_are_never_pruned CHECK (NOT (pruned AND is_founder)),
+  -- THE MIRROR of live_creatures_are_whole, and the half that was missing.
+  -- That CHECK is one-directional: it says what a LIVE row must have and
+  -- nothing about what a pruned one may keep, so
+  -- `UPDATE creatures SET pruned = true` ALONE succeeded - a live creature
+  -- hidden behind the flag with its whole payload intact. The comment at
+  -- `pruned` claimed "and nothing else" and nothing enforced it.
+  --
+  -- The concrete failure this closes is not the storage saving, which is
+  -- merely not achieved. It is that Task 7's prune omitting ONE column from
+  -- its SET list - committed_to, say - drops the row out of every
+  -- `NOT pruned` roster query WHILE IT STILL HOLDS A LIVE COMMITMENT. A
+  -- garrison or escort would be held by a creature the roster cannot show
+  -- and the player cannot recall.
+  --
+  -- Cheaper as a CHECK here than as an 0006 once rows exist.
+  CONSTRAINT pruned_creatures_are_stripped CHECK (
+    NOT pruned OR (trait_1 IS NULL AND tier_1 IS NULL AND trait_2 IS NULL
+                   AND tier_2 IS NULL AND instinct IS NULL AND name IS NULL
+                   AND hp_current IS NULL AND regen_until IS NULL
+                   AND committed_to IS NULL)),
 
   FOREIGN KEY (server_id, player_id) REFERENCES players (server_id, player_id),
 
@@ -152,10 +182,16 @@ CREATE TABLE IF NOT EXISTS creatures (
 -- Tasks 5 and 7 own those queries. What the predicate does is keep the
 -- index's definition and the meaning of "available" in one place, so a
 -- query that forgets `NOT pruned` loses the index rather than matching it.
--- That is an access-path argument, not a correctness one, and it is why no
--- test reddens when this predicate alone is weakened - recorded as a
--- finding in the task report rather than papered over with a test that
--- would only be re-asserting the query it already wrote.
+-- That is an access-path argument, not a correctness one.
+--
+-- It is NOT, however, untestable, and this comment previously said it was -
+-- that only an EXPLAIN test could see the predicate, which would pin the
+-- planner rather than the schema. Wrong, and disproved by running it:
+-- pg_indexes.indexdef is a CATALOG read, pins no plan, and reddens the
+-- moment the predicate is dropped. `both roster indexes are partial on NOT
+-- pruned` asserts exactly that. The overstatement is recorded in the task
+-- report rather than quietly corrected, on the same principle that put the
+-- previous one there.
 CREATE INDEX IF NOT EXISTS creatures_by_player ON creatures (server_id, player_id, acquired_at)
   WHERE NOT pruned;
 CREATE INDEX IF NOT EXISTS creatures_available ON creatures (server_id, player_id)
@@ -209,7 +245,15 @@ CREATE TABLE IF NOT EXISTS node_depletion (
   harvested_units bigint   NOT NULL DEFAULT 0,
   depleted_at     timestamptz,
   PRIMARY KEY (server_id, region_id, node_slot, epoch),
-  CONSTRAINT harvested_non_negative CHECK (harvested_units >= 0)
+  CONSTRAINT harvested_non_negative CHECK (harvested_units >= 0),
+  -- The only table in 0001-0005 that had NO foreign key at all, because it
+  -- is the only one that hangs off no player - so nothing tied its
+  -- server_id to a server that exists, and `server_id = 999` inserted
+  -- happily while the same bogus id on harvest_positions was refused. Every
+  -- other table here reaches servers transitively through
+  -- players -> accounts; this one needs to say it directly, exactly as
+  -- accounts does at 0001:29.
+  FOREIGN KEY (server_id) REFERENCES servers (server_id)
 );
 
 -- design 4.2: last_settled_at per player per node per epoch - the one input
