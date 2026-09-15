@@ -3,7 +3,8 @@ import { writeFile } from 'node:fs/promises'
 import { OpenAPIRegistry, OpenApiGeneratorV31 } from '@asteasolutions/zod-to-openapi'
 import {
   CreateAccountRequest, CreateAccountResponse, DeleteAccountResponse, ErrorResponse,
-  RefreshRequest, RefreshResponse, SyncResponse,
+  NodeClaimRequest, NodeClaimResponse, RefreshRequest, RefreshResponse,
+  RegionStateResponse, SyncResponse,
   WaveStartRequest, WaveStartResponse, WaveSubmitRequest, WaveSubmitResponse,
 } from './schemas.ts'
 
@@ -106,6 +107,36 @@ registry.registerPath({
   responses: {
     200: { description: 'A fresh access token; the refresh token is unchanged', content: { 'application/json': { schema: RefreshResponse } } },
     ...errors([400, 401]),
+  },
+})
+
+// Phase 6, Task 5. design 4.3's two map routes, registered in the task that
+// adds them - see schemas.ts for why that is stated rather than assumed.
+registry.registerPath({
+  method: 'get',
+  path: '/v1/region/state',
+  operationId: 'regionState',
+  security: [{ [bearerAuth.name]: [] }],
+  responses: {
+    200: { description: 'The region, its nodes, and what each has accrued', content: { 'application/json': { schema: RegionStateResponse } } },
+    ...errors([401, 404, 500]),
+  },
+})
+
+registry.registerPath({
+  method: 'post',
+  path: '/v1/node/claim',
+  operationId: 'claimNode',
+  security: [{ [bearerAuth.name]: [] }],
+  parameters: [{
+    name: 'Idempotency-Key', in: 'header', required: true,
+    schema: { type: 'string' },
+    description: 'Generated when the action is taken, not when it is sent.',
+  }],
+  request: { body: { content: { 'application/json': { schema: NodeClaimRequest } } } },
+  responses: {
+    200: { description: 'Shards credited, base stock granted, the node settled', content: { 'application/json': { schema: NodeClaimResponse } } },
+    ...errors([400, 401, 404, 409, 422, 500]),
   },
 })
 

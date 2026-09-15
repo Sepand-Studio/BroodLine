@@ -73,16 +73,145 @@ function shardMultiplierHundredths(arrayTier: number): number {
  */
 export function accrue(a: AccrueArgs): number {
   const nowMs = a.now.getTime()
-  const effectiveLastSettledMs = Math.max(a.lastSettledAt.getTime(), nowMs - MAX_OFFLINE_MS)
+  const effectiveLastSettledMs = effectiveFrom(a)
   if (nowMs <= effectiveLastSettledMs) return 0 // clock skew, or a non-positive interval, pays nothing
 
   const rate = BigInt(a.ratePerHour)
   const mult = BigInt(shardMultiplierHundredths(a.arrayTier))
-  const denom = BigInt(HOUR_MS) * 100n
 
-  const upper = (BigInt(nowMs) * rate * mult) / denom
-  const lower = (BigInt(effectiveLastSettledMs) * rate * mult) / denom
-  const units = Number(upper - lower)
+  const units = floorDifference(effectiveLastSettledMs, nowMs, rate * mult, BigInt(HOUR_MS) * 100n)
 
   return a.remaining === null ? units : Math.max(0, Math.min(units, a.remaining))
+}
+
+/** The twelve-hour cap, applied to `lastSettledAt` - see accrue's comment on order. */
+function effectiveFrom(a: AccrueArgs): number {
+  return Math.max(a.lastSettledAt.getTime(), a.now.getTime() - MAX_OFFLINE_MS)
+}
+
+/**
+ * `floor(to * numer / denom) - floor(from * numer / denom)`, in BigInt.
+ *
+ * The telescoping shape accrue's comment above argues for, extracted so
+ * base stock uses the SAME one rather than a second implementation of it -
+ * a per-call `floor(elapsed * rate)` in either place is the drift this
+ * shape exists to rule out, and one of the two silently having it would be
+ * worse than neither.
+ */
+function floorDifference(fromMs: number, toMs: number, numer: bigint, denom: bigint): number {
+  return Number((BigInt(toMs) * numer) / denom - (BigInt(fromMs) * numer) / denom)
+}
+
+/**
+ * Shard units of harvest that buy one Gen-1 base-stock creature.
+ *
+ * PROVISIONAL, in the Phase 5 sense the plan's Values table uses: a real
+ * number chosen against a stated property and owed to a content document
+ * for ratification, not invented to fill a blank. Owed to
+ * `broodline_base_stock.md` 3 alongside the node rates design 11 already
+ * books against `broodline_region_roster.md`.
+ *
+ * DERIVED, from numbers that are authored:
+ *   - The twelve-hour offline cap means a player claiming both nodes at the
+ *     cap twice a day accrues 24h of yield on each - 24 x (20 + 60) = 1,920
+ *     units a day at Harvest Array tier 1 (`nodes.json`, bundle 0.1.2).
+ *   - `base_stock` 3 puts a Core player's NODE-SOURCED supply at 4.0
+ *     creatures a day.
+ *   - 1,920 / 4 = 480.
+ *
+ * WHAT THE ANCHOR DOES NOT REPRODUCE, stated rather than papered over:
+ * `base_stock` 3's spread is 1.0 / 4.0 / 8.0 across Casual / Core /
+ * Optimiser, and against this phase's map only the Core figure comes out
+ * right (Casual, claiming once a day, gets 2.0; an Optimiser cannot beat
+ * Core, because two claims a day already saturate the twelve-hour cap on
+ * both of the only two nodes that exist). That spread is bought with map
+ * access - relocation, better ground, Apex Veins - and this phase ships one
+ * region and no relocation (design 4.1). Calibrating the constant to
+ * recover a spread the map cannot express would mean mispricing the one
+ * archetype that IS expressible.
+ */
+const UNITS_PER_CREATURE = 480
+
+/**
+ * Harvest Array tier -> base-stock multiplier, in hundredths.
+ * `base_stock` 3.1's table, verbatim: 1.00x / 1.18x / 1.50x / 2.00x against
+ * the shard table's 1.00x / 1.35x / 2.00x / 3.00x - "half the rate shards
+ * do", because shards are throughput and can spread widely while base stock
+ * is species, and species are counters.
+ *
+ * Refuses an uncalibrated tier for the same reason
+ * shardMultiplierHundredths does, and the two tables MUST keep the same
+ * key set: `baseStockFor` divides one by the other, so a tier calibrated in
+ * one and not the other is a division by an undefined value rather than a
+ * refusal. 0005_loop.sql's `harvest_array_tier_calibrated` CHECK is what
+ * stops a row reaching either of them with a tier neither knows.
+ */
+function baseStockMultiplierHundredths(arrayTier: number): number {
+  const knownTiers: Record<number, number> = { 1: 100, 4: 118, 8: 150, 12: 200 }
+  const mult = knownTiers[arrayTier]
+  if (mult === undefined) throw new Error(`no calibrated base-stock multiplier for Harvest Array tier ${arrayTier}`)
+  return mult
+}
+
+/**
+ * Gen-1 creatures earned on a node over the same window `accrue` pays
+ * shards for - design 4.3's second write, and the supply line design 2.4
+ * makes the difference between a loop that closes and one that seizes.
+ *
+ * IT TAKES THE SAME ARGUMENTS AS `accrue` RATHER THAN ITS RESULT, which is
+ * a deviation from the plan's sketched `baseStockFor(units, arrayTier,
+ * nodeType)` and the reason is arithmetic rather than taste. A count
+ * derived from one claim's `units` has to floor, and the remainder is then
+ * thrown away on every claim instead of carried - which at 480 units a
+ * creature and a twelve-hour cap means the Common Vein, whose largest
+ * possible single claim is 12 x 20 = 240 units, grants base stock NEVER, at
+ * any cadence, forever. Telescoping over absolute timestamps the way
+ * `accrue` already does carries the remainder into the next claim's floor,
+ * and two twelve-hour Common Vein claims in a day then grant exactly the
+ * one creature a day the rate says they should. `nodeType` is absent for a
+ * different reason: it selects the SPECIES (`base_stock` 4.2's region
+ * weighting), not the count, and species selection lives with the grant in
+ * roster/creatures.ts.
+ *
+ * THE DEPLETION BOUND IS APPLIED BY RE-ASKING `accrue`, not by reproducing
+ * its clamp. A node that ran dry inside the window paid fewer shards than
+ * the window would otherwise have earned, and base stock is earned on
+ * shards actually harvested - so that case leaves the telescoping branch
+ * and counts against what was paid. The branch is exact where it matters
+ * and terminal where it is not: a dry node pays zero and grants zero on
+ * every subsequent claim, so the remainder it drops cannot accumulate.
+ */
+export function baseStockFor(a: AccrueArgs): number {
+  const nowMs = a.now.getTime()
+  const fromMs = effectiveFrom(a)
+  if (nowMs <= fromMs) return 0
+
+  // The base-stock table is consulted FIRST so that an uncalibrated tier is
+  // refused by the table this function owns rather than by the shard table
+  // it happens to share a key set with - otherwise that guard is
+  // unreachable, and an edit that dropped a key from one table only would
+  // be caught by nothing.
+  const baseMult = BigInt(baseStockMultiplierHundredths(a.arrayTier))
+  const shardMult = BigInt(shardMultiplierHundredths(a.arrayTier))
+  const perCreature = BigInt(UNITS_PER_CREATURE)
+
+  const paid = accrue(a)
+  if (paid >= accrue({ ...a, remaining: null })) {
+    // THE SHARD MULTIPLIER IS ABSENT HERE, and its absence is the scaling
+    // rule rather than an omission. Over a window this pays
+    // `rate x baseMult / (480 x 100)` creatures an hour, so tier 12's 2.00x
+    // base-stock multiplier makes it 2x tier 1 while the SAME window's
+    // shards go up 3.00x - `base_stock` 3.1's "half the rate shards do",
+    // expressed as the thing it is rather than as a correction applied
+    // afterwards. Dividing by the shard multiplier as well would scale base
+    // stock DOWN at higher tiers (2/3 x at tier 12), which is the bug this
+    // note exists to stop someone reintroducing for symmetry with the
+    // branch below.
+    return floorDifference(fromMs, nowMs, BigInt(a.ratePerHour) * baseMult,
+      perCreature * 100n * BigInt(HOUR_MS))
+  }
+  // The clipped branch starts from `paid`, which DOES already carry the
+  // shard multiplier - so here it is divided back out, and the same tier-12
+  // window again pays 3x the shards for 2x the creatures.
+  return Number((BigInt(paid) * baseMult) / (perCreature * shardMult))
 }

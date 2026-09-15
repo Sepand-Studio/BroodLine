@@ -18,6 +18,8 @@ export type ErrorCode =
   | 'submission_rejected'
   | 'engine_too_old'
   | 'sim_unavailable'
+  // Phase 6
+  | 'roster_full'
 
 export interface ErrorBody {
   code: ErrorCode
@@ -46,6 +48,13 @@ const STATUS: Record<ErrorCode, number> = {
   // say which - design 2.3.
   engine_too_old: 426,
   sim_unavailable: 503,
+  // 409, not 400: the request was understood and is refused because of
+  // state the caller can change (splice or retire a creature and claim
+  // again), which is the same shape wave_locked and issuance_invalid take.
+  // design 4.3 refuses the WHOLE claim rather than truncating the grant, so
+  // this is the only answer a full roster can get - a partial grant that
+  // silently drops creatures is a loss a player reports as theft.
+  roster_full: 409,
 }
 
 export function fail(code: ErrorCode, message: string, details?: unknown): Response {

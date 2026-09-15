@@ -20,11 +20,43 @@ export interface BundleWave {
   spawns: WaveSpawn[]
 }
 
+/**
+ * A harvest node as authored in nodes.json (Task 2, bundle 0.1.2).
+ *
+ * Structurally identical to map/rotation.ts's own `BundleNode`, and
+ * deliberately NOT imported from there or exported to it: that module
+ * declares its slice locally so its purity stays checkable by inspection
+ * (it imports nothing from `config/` or `db/`), and TypeScript's structural
+ * typing already lets a `Bundle` loaded here satisfy `nodesFor`'s parameter.
+ */
+export interface BundleNode {
+  id: string
+  ratePerHour: number
+  totalYield: number | null
+}
+
 export interface Bundle {
   version: string
   minimumClientVersion: string
   starterGrants: StarterGrant[]
   waves: BundleWave[]
+  /**
+   * EMPTY when the published bundle carries no nodes.json, rather than a
+   * load failure - and the choice is forced rather than preferred. Bundles
+   * 0.1.0 and 0.1.1 predate the file and are immutable (0.1.0 is published
+   * to GCS and must stay byte-identical to what shipped in Phase 4), and
+   * most of this suite publishes one of those two, so requiring the file
+   * here would fail every one of those tests at `loadBundle` for a file
+   * their bundle could never have carried. config/validate.ts's
+   * `validateNodeRates` treats it as optional for the same reason.
+   *
+   * The cost is that a bundle which was SUPPOSED to ship nodes and forgot
+   * loads as a region with no nodes. routes/region.ts refuses in that case
+   * rather than serving an empty map, so the failure is named where it is
+   * legible - but that is a check at request time, not at publish time, and
+   * making it a publish-time one is still owed (Task 4's report, note 3).
+   */
+  nodes: BundleNode[]
 }
 
 let cached: Bundle | undefined
@@ -47,12 +79,18 @@ export async function loadBundle(store: BundleStore, opts: { refresh?: boolean }
   }
   const starter = JSON.parse(await store.readFile(version, 'starter.json')) as { grants: StarterGrant[] }
   const waves = JSON.parse(await store.readFile(version, 'waves.json')) as BundleWave[]
+  // Absent means "this bundle authors no nodes", not "this bundle is
+  // broken" - see Bundle.nodes. The catch is on the READ, so a nodes.json
+  // that exists and is malformed still throws from JSON.parse rather than
+  // being silently swallowed into an empty region.
+  const nodesRaw = await store.readFile(version, 'nodes.json').catch(() => null)
 
   cached = {
     version: manifest.version,
     minimumClientVersion: manifest.minimumClientVersion,
     starterGrants: starter.grants,
     waves,
+    nodes: nodesRaw === null ? [] : JSON.parse(nodesRaw) as BundleNode[],
   }
   return cached
 }

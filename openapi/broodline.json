@@ -328,6 +328,153 @@
         "required": [
           "refreshToken"
         ]
+      },
+      "RegionStateResponse": {
+        "type": "object",
+        "properties": {
+          "regionId": {
+            "type": "string"
+          },
+          "epoch": {
+            "type": "integer"
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "slot": {
+                  "type": "integer"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "accrued": {
+                  "type": "integer"
+                },
+                "remaining": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "slot",
+                "type",
+                "accrued",
+                "remaining"
+              ]
+            }
+          }
+        },
+        "required": [
+          "regionId",
+          "epoch",
+          "nodes"
+        ]
+      },
+      "CreatureDto": {
+        "type": "object",
+        "properties": {
+          "creatureId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "species": {
+            "type": "string"
+          },
+          "generation": {
+            "type": "integer"
+          },
+          "trait1": {
+            "type": "string"
+          },
+          "tier1": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "trait2": {
+            "type": "string"
+          },
+          "tier2": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "instinct": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isFounder": {
+            "type": "boolean"
+          },
+          "committedTo": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "creatureId",
+          "species",
+          "generation",
+          "trait1",
+          "tier1",
+          "trait2",
+          "tier2",
+          "instinct",
+          "name",
+          "isFounder",
+          "committedTo"
+        ]
+      },
+      "NodeClaimResponse": {
+        "type": "object",
+        "properties": {
+          "slot": {
+            "type": "integer"
+          },
+          "shards": {
+            "type": "integer"
+          },
+          "creatures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CreatureDto"
+            }
+          },
+          "balance": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "slot",
+          "shards",
+          "creatures",
+          "balance"
+        ]
+      },
+      "NodeClaimRequest": {
+        "type": "object",
+        "properties": {
+          "slot": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "slot"
+        ]
       }
     },
     "parameters": {}
@@ -699,6 +846,160 @@
             }
           },
           "401": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/region/state": {
+      "get": {
+        "operationId": "regionState",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The region, its nodes, and what each has accrued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegionStateResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/node/claim": {
+      "post": {
+        "operationId": "claimNode",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Generated when the action is taken, not when it is sent."
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NodeClaimRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Shards credited, base stock granted, the node settled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeClaimResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
             "description": "Error",
             "content": {
               "application/json": {

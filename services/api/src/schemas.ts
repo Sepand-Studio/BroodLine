@@ -121,3 +121,66 @@ export const RefreshResponse = z.object({
   // 6.4) - this is the SAME token the caller sent, not a freshly minted one.
   refreshToken: z.string(),
 }).openapi('RefreshResponse')
+
+// Phase 6, Task 5. The map's two routes - design §4.3.
+//
+// Registered into openapi.ts's registry in the SAME task that adds the
+// routes, not a later one. Phase 5 shipped /v1/wave/start in code and left
+// it out of the registry, so it was absent from the generated client
+// entirely until the next task found it - see openapi.ts's own note on that
+// path. A route the Unity client must call and has no generated method for
+// is the same gap wearing a new name.
+export const CreatureDto = z.object({
+  creatureId: z.string().uuid(),
+  species: z.string(),
+  generation: z.number().int(),
+  trait1: z.string(),
+  // NULLABLE, and it is not an oversight to "fix": null is an Aberrant,
+  // which has no coverage, and data_model §2 refuses to conflate that with
+  // zero because zero would sort and display as "less than tier I".
+  // 0005_loop.sql's coverage_tier_N_not_zero is the same rule in storage.
+  tier1: z.number().int().nullable(),
+  trait2: z.string(),
+  tier2: z.number().int().nullable(),
+  instinct: z.string(),
+  // Founders only - 0005's only_founders_named.
+  name: z.string().nullable(),
+  isFounder: z.boolean(),
+  // The issuance this creature is out fighting for, or null - design §2.5.
+  // Its first writer is Task 8; it is on the DTO from the first response
+  // that carries a creature because the roster screen renders it.
+  committedTo: z.string().uuid().nullable(),
+}).openapi('CreatureDto')
+
+export const RegionStateResponse = z.object({
+  regionId: z.string(),
+  // A plain integer, not a string: the epoch is a small counter derived
+  // from the server's tick fields, not a seed, so it carries none of the
+  // precision risk that makes WaveStartResponse.seed a decimal string. Same
+  // judgement schema.ts's `bigint mode: 'number'` columns already make.
+  epoch: z.number().int(),
+  nodes: z.array(z.object({
+    slot: z.number().int(),
+    type: z.string(),
+    // What a claim WOULD pay right now. Reading this settles nothing -
+    // design §4.1 - so two reads in a row report the same number.
+    accrued: z.number().int(),
+    // null for a node that never depletes. The Common Vein is the livable
+    // floor and can never be taken from anyone (bible §5.3), which is a
+    // different statement from "its remaining yield is very large".
+    remaining: z.number().int().nullable(),
+  })),
+}).openapi('RegionStateResponse')
+
+export const NodeClaimRequest = z.object({
+  slot: z.number().int(),
+}).openapi('NodeClaimRequest')
+
+export const NodeClaimResponse = z.object({
+  slot: z.number().int(),
+  // Zero is a legitimate answer, not an error: a second claim moments after
+  // the first has genuinely accrued nothing - design §4.3.
+  shards: z.number().int(),
+  creatures: z.array(CreatureDto),
+  balance: z.number().int(),
+}).openapi('NodeClaimResponse')

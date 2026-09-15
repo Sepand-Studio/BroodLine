@@ -718,6 +718,10 @@ describe("the reward's source of truth (design §2.2)", () => {
       { id: 6, integrity: 10, laneCount: 1, reward: { currency: 'shards', amount: 40 }, spawns: [] },
       { id: 7, integrity: 10, laneCount: 1, reward: { currency: 'shards', amount: 9_999 }, spawns: [] },
     ],
+    // Task 5 gave Bundle a `nodes` field. Empty here because rewardForWave
+    // reads waves and nothing else - a fixture that carried nodes would
+    // imply this test had an opinion about the map, which it does not.
+    nodes: [],
   }
 
   it('pays what the wave id it is given pays, and nothing else', () => {
