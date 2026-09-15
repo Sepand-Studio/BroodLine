@@ -241,7 +241,22 @@ can happen on a write that is already occurring should not become a job.
 
 One row per player. It carries the region the Ark is parked in — a constant this
 phase, because there is one region — and three facility tiers: Harvest Array,
-Hatchery, Splicing Chamber. **All pinned at tier 1, with no upgrade path.**
+Hatchery, Splicing Chamber. **Pinned, with no upgrade path.**
+
+**Harvest Array and Hatchery pin at tier 1. The Splicing Chamber pins at tier 3,
+and that is not an arbitrary difference.** `combat_numbers` §7 ties the Chamber's
+tier to a maximum generation and through it to a coverage ceiling: tiers 1–2 cap
+a creature at **G2**, which caps coverage at **Tier I**.
+
+A G2 cap does not break the loop — base stock is G1, so G1 × G1 → G2 keeps
+working indefinitely and the loop closes as often as supply allows. What it
+breaks is §5.3: a **Tier I** recessive trait cannot carry "one tier lower," so
+the phase's most interesting coverage rule would be unreachable in the only
+configuration the phase ships. Tier 3 caps at G4 and Tier II, which makes the
+downtier a thing that actually happens to a player.
+
+The cost of the choice is one integer, and it buys the difference between
+shipping a rule and shipping a rule nobody can observe.
 
 The tiers are columns rather than rows in a `facilities` table, and that is a
 deliberate trade worth stating plainly because it costs a migration later.
@@ -413,6 +428,21 @@ was unstated anywhere before that document wrote it down:
 The recessive downtier is recoverable by re-fusing. The two non-carrying traits
 are not, and that asymmetry is why retirement exists as a system — which this
 phase does not build, §10.
+
+> **The downtier needs a floor, and no document states one** — but the design
+> set determines it, so this is a derivation rather than a ruling.
+> `sample_economy` §7 says a recessive trait carries "one tier lower" without
+> saying what happens at Tier I, where there is no lower tier. Bible §2.2
+> settles it: a downtier *"costs coverage and never access — the trait still
+> works, it covers less."* A Tier I trait that downtiered out of existence would
+> cost access, which that sentence forbids, and `combat_numbers` §4.1 says the
+> same thing from the other side — *"tier decides how much a trait covers, never
+> whether it works."*
+>
+> **Therefore: the downtier floors at Tier I.** Coverage never reaches zero or
+> null through this path. Null stays reserved for Aberrants (§3.1); conflating
+> the two would render a downtiered trait as an Aberrant. Owed back to
+> `sample_economy` §7 as an edit, §11.
 
 DOM/REC is per-trait content and lives in the bundle. It is owed, §11.
 
@@ -650,10 +680,11 @@ Five carried from Phase 5 and still open, and five this design creates.
 | **Raise `minimumClientVersion` for the first time** | The mechanism has shipped since Phase 4 and has never been used | **Unchanged.** This phase gives it its first real trigger: `wave/start`'s body grows, so an old client's call is malformed rather than merely stale |
 | **Narrow `solo_execution` §3.1's degradation row** | Contradicted by shipped code since Phase 5 | **The edit is still owed.** Owner: `solo_execution` §3.1 |
 | **Guard §4.3's retention split** | `weakenings.md` row 7. The sweep does not exist, so neither does its test | **Owed against the retention sweep.** This phase adds no sweep — §2.3's reasoning removes the need for one on nodes, but it does not discharge the issuance sweep |
-| **Reward for the second authored wave** *(new)* | §7. Row 5's gate is two waves with **different** rewards; two waves with the same reward closes nothing | **Owed to `broodline_campaign_structure.md`.** The bundle's `reward` field is mandatory and validated since Phase 5, so this is a value, not a schema change |
-| **The trait set, their counters and DOM/REC flags** *(new)* | §§2.2, 5.3, 7. Traits and raiders scale together under `combat_engine` §5.4's shared-counter invariant, and DOM/REC decides the recessive downtier | **Owed to `broodline_combat_numbers.md`.** The largest content decision in the phase, and the one that decides whether the splice has an outcome space |
+| **~~Reward for the second authored wave~~** *(new)* | §7. Row 5's gate is two waves with **different** rewards; two waves with the same reward closes nothing | **Discharged — it was already authored.** `broodline_waves_01_12.md` gives wave 7 as *1 Lash · 6 Skirmishers*, integrity 3, first clear **230 shards**, against wave 6's 40 in `config/bundles/0.1.1`. Different by 190, so row 5's gate is constructible from content that exists. The samples in wave 7's reward line are dropped — no sample economy this phase, §10 |
+| **DOM/REC per trait** *(new)* | §5.3. Dominance decides the recessive downtier, and it is the one input to the splice that no document supplies | **Genuinely owed, and narrower than it first looked.** The traits themselves are **authored** — `broodline_combat_numbers.md` §4.2 gives eight counters with species, raider and three tiers each, §4.3 gives four that counter nothing, and §6 gives eight raider profiles. Those are a **port**, not a decision. Dominance is adopted as a mechanic (bible §2.2, `reconciliation` 3.5) but **assigned to no trait anywhere in the set**, and the splice cannot roll without it |
 | **Node rates and the Rich Deposit's depletion budget** *(new)* | §4.1. "~6 days of active harvesting" is a duration; `accrue` needs a rate and a total in units | **Owed to `broodline_region_roster.md` / bible §5.3.** Must be expressed so the six days falls out of the arithmetic rather than being asserted beside it |
-| **The Splicing Chamber's tier-1 generation ceiling** *(new)* | §5.2. A splice past the ceiling is blocked, and with the Chamber pinned at tier 1 the ceiling is a constant this phase cannot avoid naming | **Owed to `broodline_gene_vault.md` §4.** If the tier-1 ceiling is high enough never to bind in a slice, say so explicitly rather than leaving it unset. *(That document calls the facility the Splice Chamber and bible §7.2 calls it the Splicing Chamber. Same facility — worth knowing before searching for the wrong one.)* |
+| **~~The Splicing Chamber's tier-1 generation ceiling~~** *(new)* | §5.2 | **Discharged, and it changed a decision.** `broodline_combat_numbers.md` §7 already carries the table: Chamber tiers 1–2 cap a creature at **G2** and coverage at **Tier I**. That is why §3.3 pins the Chamber at **tier 3** rather than tier 1 — at Tier I the recessive downtier has nothing to drop to and §5.3's rule ships unobservable |
+| **The downtier's floor, back into `sample_economy` §7** *(new)* | §5.3. That document says "one tier lower" and stops, leaving Tier I undefined | **Derived here, and the edit is owed there.** Bible §2.2's *"costs coverage and never access"* forces the floor to be Tier I. The derivation belongs in the document that owns the rule, not only in a phase design |
 | **The `facilities` table** *(new)* | §3.3. Three tiers ship as columns on `arks`; six facilities and an upgrade path need rows | **Trigger: the first facility upgrade.** Costs one migration at that point, and the alternative is shipping five-sixths of a table nothing reads |
 
 > **One boundary restated, because this phase is where it moves.**
