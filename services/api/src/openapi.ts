@@ -4,7 +4,7 @@ import { OpenAPIRegistry, OpenApiGeneratorV31 } from '@asteasolutions/zod-to-ope
 import {
   CreateAccountRequest, CreateAccountResponse, DeleteAccountResponse, ErrorResponse,
   NodeClaimRequest, NodeClaimResponse, RefreshRequest, RefreshResponse,
-  RegionStateResponse, SpliceCommitRequest, SpliceCommitResponse,
+  RegionStateResponse, RosterResponse, SpliceCommitRequest, SpliceCommitResponse,
   SplicePreviewRequest, SplicePreviewResponse, SyncResponse,
   WaveStartRequest, WaveStartResponse, WaveSubmitRequest, WaveSubmitResponse,
 } from './schemas.ts'
@@ -121,6 +121,24 @@ registry.registerPath({
   responses: {
     200: { description: 'The region, its nodes, and what each has accrued', content: { 'application/json': { schema: RegionStateResponse } } },
     ...errors([401, 404, 500]),
+  },
+})
+
+// Phase 6, Task 12. The roster listing the phase's done-when needs and no
+// earlier task was assigned - see schemas.ts's RosterResponse for why it is
+// its own route rather than a field on /v1/region/state. Registered in the
+// SAME task that adds it, which is the discipline every route below states.
+registry.registerPath({
+  method: 'get',
+  path: '/v1/roster',
+  operationId: 'roster',
+  security: [{ [bearerAuth.name]: [] }],
+  responses: {
+    200: { description: "The player's live creatures, and the Hatchery cap", content: { 'application/json': { schema: RosterResponse } } },
+    // No 500: unlike region/state there is no content this route can find
+    // missing. An empty roster is a 200 - a new player owns zero creatures
+    // and that is a correct answer about a player who exists.
+    ...errors([401, 404]),
   },
 })
 

@@ -199,6 +199,44 @@ export async function rosterCount(tx: Tx, serverId: number, playerId: string): P
 }
 
 /**
+ * The player's whole live roster, as DTOs - `GET /v1/roster`'s body of work.
+ *
+ * THE SAME `liveCreature()` AS EVERY OTHER ROSTER READ, and that is the
+ * point of this function existing here rather than as a query inside the
+ * route. The two hand-rolled predicates a roster listing invites are both
+ * wrong in the direction that ships dead creatures to a deployment screen:
+ *
+ *  - `committed_to IS NULL` is TRUE of every pruned tombstone and every
+ *    consumed parent, so it lists dead ancestors as deployable - and
+ *    `toCreatureDto` THROWS on a pruned row, so that mistake is a 500 on a
+ *    player whose line is five generations deep rather than a quiet bug.
+ *  - `NOT pruned` alone keeps every consumed parent, which are whole,
+ *    render perfectly, and outnumber the tombstones for the first five
+ *    generations of every line (design 3.2 retains them for the lineage
+ *    view, which is a different screen from this one).
+ *
+ * NO `FOR UPDATE` and no write: this route is a read, and two calls in a row
+ * return the same list. `loadOwnedCreatures` takes the lock because a
+ * deployment is resolved from its rows; nothing is resolved from these.
+ *
+ * ORDERED BY id so two reads agree on order. A client diffing the list
+ * against its cache should see a creature appear or disappear, never the
+ * same set in a new order - and unordered Postgres is free to return either.
+ */
+export async function loadRoster(
+  tx: Tx, serverId: number, playerId: string,
+): Promise<CreatureDto[]> {
+  const rows = await tx.select().from(creatures)
+    .where(and(
+      eq(creatures.serverId, serverId),
+      eq(creatures.playerId, playerId),
+      liveCreature(),
+    ))
+    .orderBy(creatures.creatureId)
+  return rows.map(toCreatureDto)
+}
+
+/**
  * Starting HP for a species - engine `Stats.CreatureHp`
  * (engine/Runtime/Combat/Stats.cs), transcribed.
  *

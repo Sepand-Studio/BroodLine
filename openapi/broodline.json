@@ -533,6 +533,24 @@
           "committedTo"
         ]
       },
+      "RosterResponse": {
+        "type": "object",
+        "properties": {
+          "creatures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CreatureDto"
+            }
+          },
+          "cap": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "creatures",
+          "cap"
+        ]
+      },
       "NodeClaimResponse": {
         "type": "object",
         "properties": {
@@ -1181,6 +1199,48 @@
             }
           },
           "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/roster": {
+      "get": {
+        "operationId": "roster",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The player's live creatures, and the Hatchery cap",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RosterResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
             "description": "Error",
             "content": {
               "application/json": {

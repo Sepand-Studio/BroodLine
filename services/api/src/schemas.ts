@@ -236,6 +236,34 @@ export const RegionStateResponse = z.object({
   }),
 }).openapi('RegionStateResponse')
 
+// Phase 6, Task 12. `GET /v1/roster` - the listing no earlier task was
+// assigned and which the phase's done-when needs: "harvest -> splice ->
+// fight -> reward closes without leaving the app" requires a player to SEE
+// and CHOOSE their creatures, and until this route existed the only creature
+// lists a client ever held were the ones `node/claim` and `splice/commit`
+// happened to return. A relaunch lost every id.
+//
+// A ROUTE OF ITS OWN RATHER THAN A FIELD ON `region/state`, for three
+// reasons. `region/state` is the MAP: it is derived per request against one
+// clock read (design 4.1), and the roster is not clock-dependent, so folding
+// the list into it would make every map poll re-read and re-serialise the
+// whole roster to answer a question about accrual. Its `roster: {count, cap}`
+// is a HEADLINE deliberately - it exists so a client can predict the
+// roster_full 409 - and the Splice Chamber and deployment screens need the
+// members, not the count, at moments when they are not looking at the map.
+// And the two have different cache lives: accrual moves every shard tick,
+// a roster only when the player changes it.
+//
+// NO `count` FIELD. It is `creatures.length` by construction - both sides of
+// that would come from the same `liveCreature()` read - and a second copy of
+// a number is a second thing to disagree. `cap` IS here because it is not
+// derivable from the list and the roster screen needs it to say "18 of 20".
+export const RosterResponse = z.object({
+  creatures: z.array(CreatureDto),
+  // bible 7.2's Hatchery capacity for this player's Ark tier.
+  cap: z.number().int(),
+}).openapi('RosterResponse')
+
 export const NodeClaimRequest = z.object({
   slot: z.number().int(),
 }).openapi('NodeClaimRequest')
