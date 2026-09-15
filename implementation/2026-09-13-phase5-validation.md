@@ -198,6 +198,32 @@ This plan assumes `phase_5` throughout. Phase 4 landed on `develop`.
 
 ## Task 1: Re-capture the device proof, and restore hash comparison
 
+> ### ✅ DONE 2026-09-14
+>
+> Re-captured on an **iPhone 15 Pro** (`iPhone16,1`) and in the Unity 6 Editor,
+> both under engine `0.2.0`. Device rally tick **205**, Editor **200** — both
+> inside creature 0's engagement, the device one inside the narrower 184..207
+> the rally-effectiveness test needs.
+>
+> `TheDeviceRunReSimulatesToTheSameHash` and
+> `TheDeviceRunsRallyActuallyChangedTheSimulation` now **run their assertions
+> instead of bailing**, and pass. `TheDeviceRunIsSupersededAndIsNotReSimulated`
+> is replaced by `TheTrackedCapturesAreCurrent`, whose green means the
+> round-trip is proven rather than dark.
+>
+> **The new guard was proven by weakening**, not assumed: `SimVersion` set to
+> `0.3.0` gave 1 failed / 31 passed, the single red being
+> `TheTrackedCapturesAreCurrent` while both round-trip tests reported *passed*
+> from their bail-out. Reverted; `engine/` untouched. **.NET 186 / 0 failed /
+> 0 skipped.**
+>
+> Two traps worth carrying forward, neither in the step text below. The
+> **effective device window is 184..207**, the overlap of the 184..240 in
+> `ReCaptureOwed` and the 150..207 in the rally-effectiveness failure message —
+> the wider number alone will produce an inert capture. And opening Unity
+> rewrote `ProjectSettings.asset` with `SENTIS_ANALYTICS_ENABLED`, exactly the
+> hazard followups §6 names; it was reverted rather than committed.
+
 **This is the phase gate and it is first because it needs physical hardware**, which is the one input no later task can schedule around. Design §2.5: the round-trip tests currently assert a thrown `ReplayFormatException`, which is strictly weaker than comparing hashes, and weaker in exactly the direction this phase depends on.
 
 **Files:**

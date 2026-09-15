@@ -321,7 +321,12 @@ Five ledger items, all cheap. Batched because each is a one-line change that sti
 
 ## Held by ruling — planned, not dispatched
 
-### Parent Task 1: device round-trip re-capture
+### Parent Task 1: device round-trip re-capture — ✅ DONE 2026-09-14
+
+**No longer held.** Re-captured on an iPhone 15 Pro under engine `0.2.0`;
+both round-trip tests run their assertions and pass, and the replacement guard
+`TheTrackedCapturesAreCurrent` was proven by weakening `SimVersion`. See the
+parent plan's Task 1 and followups §3. The original note follows.
 
 **Yours.** Needs a physical iPhone and a human tap. Re-capture the device replay artifacts under engine `0.2.0` so the round-trip tests compare `Outcome.Hash` instead of asserting a throw, and `dotnet test` reports 0 skipped.
 

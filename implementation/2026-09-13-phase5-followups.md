@@ -138,6 +138,44 @@ test cleanup and the silent loss of the phase's central claim.
 
 ## 3. The device round-trip is dark, and nothing goes red about it
 
+> ### ✅ RESOLVED 2026-09-14 — re-captured on hardware, and the guard is proven
+>
+> **Parent Task 1 is done.** Both artifacts were re-captured under engine
+> `0.2.0` — the device half on an **iPhone 15 Pro** (`iPhone16,1`), the other in
+> the Unity 6 Editor — and both round-trip tests now **execute their assertions
+> instead of bailing**:
+>
+> | | Rally tick | Engine | Result |
+> |---|---|---|---|
+> | Editor | 200 | `0.2.0` | Loss, 540 ticks |
+> | Device | 205 | `0.2.0` | Loss, 540 ticks |
+>
+> Both taps land inside creature 0's engagement (184..240), and the device tap
+> is inside the narrower 184..207 the rally-effectiveness test needs. **.NET
+> 186 / 0 failed / 0 skipped**, and that zero now means something.
+>
+> **The marker flipped, as designed.**
+> `TheDeviceRunIsSupersededAndIsNotReSimulated` — whose *green* was the
+> statement that the round-trip was dark — is gone, replaced by
+> `TheTrackedCapturesAreCurrent` asserting `ReplayArtifact.AreCurrent`.
+>
+> **And the new guard was proven rather than assumed.** Temporarily setting
+> `SimVersion.Value` to `0.3.0` produced **1 failed, 31 passed**: the only red
+> was `TheTrackedCapturesAreCurrent`, while both round-trip tests bailed and
+> reported **passed**. That is this section's claim, reproduced on demand — and
+> the reason deleting that one test would take the whole round-trip dark
+> silently. The weakening was reverted; `engine/` is untouched.
+>
+> One more literal went with it. `EditorReplayTests` pinned
+> `Assert.Equal(78, record.RallyTick)`, which broke on the first re-capture for
+> a reason unrelated to the property under test. It now asserts
+> `0 <= RallyTick < ticks` — a millisecond timestamp for the same tap would be
+> ~6,600 against a 540-tick wave and still fails loudly, while any honest human
+> tap passes. Same fault `CapturedUnder` was rewritten to remove.
+>
+> The original text follows, unaltered, because the mechanism it describes is
+> still exactly how this goes dark next time.
+
 Carried from Phase 4, still true, and the mechanism that would normally report
 it **does not exist in this repository by design.**
 
