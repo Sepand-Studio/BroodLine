@@ -215,10 +215,26 @@ rows either way (§2) and the rows are real rows. **What is NOT demonstrated is
 that a player can harvest their way to a wave-7 deployment**, and nothing in
 this phase shows they can.
 
-**The driver was a throwaway and is not committed.** Its full transcript is in
-`.superpowers/sdd/2026-09-14-phase6-loop/task-13-report.md`. Nothing in the
-suite drives the whole sequence as one thing, so **"the loop closes" is checked
-by hand and only when someone remembers**. That is owed.
+**~~The driver was a throwaway and is not committed … that is owed.~~
+DISCHARGED in fix round 2** — and it was the false claim above that made the
+case. What caught that claim was not a test but a reviewer multiplying shard
+deltas by hand, and a done-when checkable only that way is a claim rather than a
+gate. The drive is now **`services/api/test/loop.test.ts`**, three tests inside
+the ordinary suite, so it runs on every `pnpm --filter @broodline/api test`.
+
+It carries the earned-vs-seeded ledger as **assertions, not output**: every
+booking is of a delta measured against `rosterCount()` rather than an argument's
+length; a reconciliation after every step catches any creature that enters
+unbooked; and the closing assertion is on the **split** (`seeded === 10`,
+`earned === 3`) rather than the sum, because booking all thirteen to one bucket
+satisfies a sum and is exactly the conflation that went unnoticed here. Both
+guards were weakened against committed state and each was seen to fail for its
+own reason — booking the seeded deployment as earned reddens the split test
+alone while the sum stays 13, and an unbooked `giveRoster` reddens the
+reconciliation at the very next step.
+
+A third test pins the unjoined supply line below, so it cannot be closed in
+prose while the code still seeds ten.
 
 > Writing the driver surfaced a fact worth keeping: a **twelve-hour window on
 > the `common_vein` grants zero creatures**. Base stock is one gen-1 creature per
@@ -548,8 +564,10 @@ test green, start there.
 7. **The document edits this phase's code has outrun**: `region_roster`/bible
    §5.3 on node rates, `sample_economy` §7 on the downtier floor,
    `solo_execution` §3.1's degradation row, `client_architecture` §2.
-8. **An end-to-end test for the loop**, so that "the loop closes" stops being
-   something checked by hand. §3.
+8. ~~**An end-to-end test for the loop**, so that "the loop closes" stops being
+   something checked by hand.~~ **Discharged in fix round 2** —
+   `services/api/test/loop.test.ts`. §3. What is *not* discharged is the same
+   drive against a **deployed** stack, which is item 2.
 9. **A drive whose supply line is unbroken.** §3's reconciliation: ten of the
    thirteen creatures in the closing roster were inserted directly, so the
    harvest→splice leg and the wave→payout leg have never been joined by
