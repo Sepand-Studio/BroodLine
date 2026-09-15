@@ -44,7 +44,33 @@ namespace Broodline.UI
         /// RosterScreen for why that is all there is.
         public int RosterCount { get; internal set; }
         public int RosterCap { get; internal set; }
-        public bool RosterIsFull { get { return RosterCount >= RosterCap; } }
+
+        /// Whether the two numbers above mean anything.
+        ///
+        /// THE LOAD-STATE AMBIGUITY RosterScreen HAS DOES NOT APPLY HERE, and
+        /// the difference is structural rather than lucky: this model only
+        /// ever exists as the product of `Build`, which refuses a null
+        /// response, so a failed load produces NO model at all rather than one
+        /// that claims something false. RosterScreen is a mutable cache that
+        /// OUTLIVES a failed call; this is an immutable projection of one
+        /// response that cannot exist without it.
+        ///
+        /// What does carry over is the `0 >= 0` shape, and it is reachable:
+        /// the generated `RegionStateResponse` DEFAULT-INITIALISES `Roster` to
+        /// `new Roster()`, so a response object that was constructed rather
+        /// than deserialised carries Count 0 and Cap 0 - and a null check
+        /// would not catch it. Both numbers are 0 there because they are
+        /// UNSET, not because the Hatchery is a zero-capacity one.
+        ///
+        /// SO THE TEST IS `Cap > 0`, not a null check. `rosterCap()` returns
+        /// 20 for the only authored tier and THROWS for any other, so zero is
+        /// a value the server cannot send and is unambiguously "unset".
+        /// `RosterIsFull` is gated on it for the same reason
+        /// RosterScreen.IsFull is: an unknown cap reading as FULL would grey
+        /// out the claim button for a player who has room.
+        public bool HasRosterCounts { get; internal set; }
+
+        public bool RosterIsFull { get { return HasRosterCounts && RosterCount >= RosterCap; } }
     }
 
     /// The map screen. Harvest a node; that is the loop's first beat.
@@ -69,7 +95,7 @@ namespace Broodline.UI
                 foreach (var node in state.Nodes)
                 {
                     if (node == null) continue;
-                    rows.Add(RowFor(node, count, cap));
+                    rows.Add(RowFor(node, count, cap, cap > 0));
                 }
             }
 
@@ -80,6 +106,7 @@ namespace Broodline.UI
                 Nodes = rows,
                 RosterCount = count,
                 RosterCap = cap,
+                HasRosterCounts = cap > 0,
             };
         }
 
@@ -92,7 +119,8 @@ namespace Broodline.UI
         /// server's rule, not a second authority: the claim re-reads the count
         /// inside its own transaction and refuses `roster_full` there, and
         /// that refusal is the one that counts.
-        private static NodeRow RowFor(Nodes node, int rosterCount, int rosterCap)
+        private static NodeRow RowFor(
+            Nodes node, int rosterCount, int rosterCap, bool capIsKnown)
         {
             var row = new NodeRow
             {
@@ -119,7 +147,12 @@ namespace Broodline.UI
                 return row;
             }
 
-            if (node.Grants > 0 && rosterCount + node.Grants > rosterCap)
+            // `capIsKnown` GATES THIS, and without it the check inverts its
+            // own purpose: an unset cap of 0 makes `count + grants > 0` true
+            // for every granting node, so a response that carried no roster
+            // headline would grey out every claim button on the map - telling
+            // a player with an empty roster that it has no room.
+            if (capIsKnown && node.Grants > 0 && rosterCount + node.Grants > rosterCap)
             {
                 row.CanClaim = false;
                 // design 4.3 refuses the WHOLE claim rather than truncating

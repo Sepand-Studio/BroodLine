@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Net.Http;
 using Broodline.Api;
 using NUnit.Framework;
 
@@ -295,6 +296,166 @@ namespace Broodline.UI.Tests
         // ---------------------------------------------------------------
         // The roster cache says when it is partial
         // ---------------------------------------------------------------
+
+        // ---------------------------------------------------------------
+        // "Empty" and "unknown" are not the same state
+        // ---------------------------------------------------------------
+
+        [Test]
+        public void ARosterNothingHasLoaded_DoesNotClaimToBeComplete()
+        {
+            // `_order.Count >= ServerCount` is `0 >= 0` on a fresh cache, so
+            // WITHOUT an explicit load state this reads as "roster complete, 0
+            // creatures" before anything has been fetched - indistinguishable
+            // from a genuine new player.
+            var roster = new RosterScreen();
+
+            Assert.AreEqual(RosterLoadState.NeverLoaded, roster.LoadState);
+            Assert.IsFalse(roster.IsComplete);
+            Assert.IsFalse(roster.HasCounts);
+            Assert.IsNotEmpty(roster.IncompleteNotice);
+        }
+
+        [Test]
+        public void AFailedLoad_SaysTheRosterIsNotAllOfIt()
+        {
+            // THE CASE THIS STATE EXISTS FOR. A player with twelve creatures
+            // whose load failed must not be shown an empty roster and told
+            // that is correct - that is worse than not having the endpoint,
+            // because the client has stopped knowing it is missing data.
+            var roster = new RosterScreen();
+            roster.MarkLoadFailed();
+
+            Assert.AreEqual(RosterLoadState.Failed, roster.LoadState);
+            Assert.IsFalse(roster.IsComplete);
+            StringAssert.Contains("could not be loaded", roster.IncompleteNotice);
+        }
+
+        [Test]
+        public void AFailedLoadAfterAGoodOne_StopsClaimingCompleteness()
+        {
+            // A refresh that fails must not leave the previous answer wearing
+            // a completeness claim it no longer earns.
+            var roster = new RosterScreen();
+            var response = new RosterResponse { Cap = 20 };
+            response.Creatures.Add(Creature());
+            roster.ApplyRoster(response);
+            Assert.IsTrue(roster.IsComplete);
+
+            roster.MarkLoadFailed();
+
+            Assert.IsFalse(roster.IsComplete);
+            Assert.IsNotEmpty(roster.IncompleteNotice);
+            // The creatures are KEPT - they were real when the server handed
+            // them over, and clearing them would turn a failed refresh into an
+            // empty screen. What changes is the claim.
+            Assert.AreEqual(1, roster.Known.Count);
+        }
+
+        [Test]
+        public void LoadAsyncAgainstADeadServer_RecordsTheFailureOnTheCache()
+        {
+            // The wiring, not just the flag: a caller who forgets a try/catch
+            // is exactly how the cache ends up silently claiming to be
+            // complete, so the failure is recorded by the call itself.
+            var roster = new RosterScreen();
+            var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+            var api = new BroodlineApiClient(http) { BaseUrl = "http://127.0.0.1:1" };
+
+            // Blocking rather than an async test method: a refused connection
+            // to a dead local port returns immediately, and this keeps the
+            // test inside the plain [Test] path.
+            var error = roster.LoadAsync(api).GetAwaiter().GetResult();
+
+            Assert.IsNotNull(error);
+            Assert.AreEqual(RosterLoadState.Failed, roster.LoadState);
+            Assert.IsFalse(roster.IsComplete);
+            StringAssert.Contains("could not be loaded", roster.IncompleteNotice);
+        }
+
+        [Test]
+        public void AGrantDoesNotMakeTheRosterComplete()
+        {
+            // A claim's grant is not a listing. Only the server saying "here
+            // is all of it" counts as that - otherwise a session that claimed
+            // two creatures would think it had seen the whole roster.
+            var roster = new RosterScreen();
+            var claim = new NodeClaimResponse { Slot = 1, Shards = 40, Balance = 100 };
+            claim.Creatures.Add(Creature());
+            claim.Creatures.Add(Creature());
+
+            roster.ApplyClaim(claim);
+
+            Assert.AreEqual(2, roster.Known.Count);
+            Assert.AreEqual(RosterLoadState.NeverLoaded, roster.LoadState);
+            Assert.IsFalse(roster.IsComplete);
+        }
+
+        [Test]
+        public void AnUnknownCap_DoesNotGreyOutTheClaimButton()
+        {
+            // False when unknown is the safe direction: roster_full is a
+            // refusal the server makes in its own transaction, so letting the
+            // player tap costs a refusal, while claiming FULL on no
+            // information costs them the button entirely.
+            var roster = new RosterScreen();
+
+            Assert.IsFalse(roster.HasCounts);
+            Assert.IsFalse(roster.IsFull);
+        }
+
+        [Test]
+        public void AMapPollWithNoRosterObject_DoesNotReportAFullHatchery()
+        {
+            // RegionScreen has no load-state ambiguity - a failed load builds
+            // no model at all - but it shared the `0 >= 0` shape. And the
+            // shape is REACHABLE: the generated RegionStateResponse
+            // default-initialises Roster to `new Roster()`, so this response
+            // carries Count 0 / Cap 0 and a null check would not catch it.
+            var model = RegionScreen.Build(new RegionStateResponse { RegionId = "r1", Epoch = 1 });
+
+            Assert.IsNotNull(model.RosterCap);
+            Assert.IsFalse(model.HasRosterCounts);
+            Assert.IsFalse(model.RosterIsFull);
+        }
+
+        [Test]
+        public void AnUnknownCap_DoesNotGreyOutEveryNodeOnTheMap()
+        {
+            // The inverted check: an unset cap of 0 makes `count + grants > 0`
+            // true for every granting node, so without the gate a response
+            // carrying no roster headline would tell a player with an empty
+            // roster that it has no room for anything.
+            var state = new RegionStateResponse { RegionId = "r1", Epoch = 1 };
+            state.Nodes.Add(new Nodes
+            {
+                Slot = 1, Type = "common_vein", Accrued = 40, Remaining = 3, Grants = 2,
+            });
+
+            var model = RegionScreen.Build(state);
+
+            Assert.IsFalse(model.HasRosterCounts);
+            Assert.IsTrue(model.Nodes[0].CanClaim);
+            Assert.IsEmpty(model.Nodes[0].Blocker);
+        }
+
+        [Test]
+        public void AMapPollWithARosterObject_ReportsTheHatcheryHonestly()
+        {
+            var full = RegionScreen.Build(new RegionStateResponse
+            {
+                RegionId = "r1", Epoch = 1, Roster = new Roster { Count = 20, Cap = 20 },
+            });
+            Assert.IsTrue(full.HasRosterCounts);
+            Assert.IsTrue(full.RosterIsFull);
+
+            var room = RegionScreen.Build(new RegionStateResponse
+            {
+                RegionId = "r1", Epoch = 1, Roster = new Roster { Count = 3, Cap = 20 },
+            });
+            Assert.IsTrue(room.HasRosterCounts);
+            Assert.IsFalse(room.RosterIsFull);
+        }
 
         [Test]
         public void APartialRosterSaysSo_RatherThanPresentingItselfAsWhole()

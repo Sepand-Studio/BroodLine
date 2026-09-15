@@ -135,10 +135,17 @@ registry.registerPath({
   security: [{ [bearerAuth.name]: [] }],
   responses: {
     200: { description: "The player's live creatures, and the Hatchery cap", content: { 'application/json': { schema: RosterResponse } } },
-    // No 500: unlike region/state there is no content this route can find
-    // missing. An empty roster is a 200 - a new player owns zero creatures
-    // and that is a correct answer about a player who exists.
-    ...errors([401, 404]),
+    // 500 FOR THE SAME REASON /v1/region/state DECLARES ONE, and it is the
+    // same CALL: both read the Ark and pass its tier to `rosterCap()`, which
+    // THROWS for a tier nobody authored rather than guessing a cap, and
+    // app.ts's onError turns that into `internal`. Unreachable today - every
+    // Ark is pinned to tier 1 - but two routes making opposite claims about
+    // one function is what misleads whoever adds the upgrade path.
+    //
+    // An empty roster is still a 200, not a 404 and not this: a new player
+    // owns zero creatures, and that is a correct answer about a player who
+    // exists.
+    ...errors([401, 404, 500]),
   },
 })
 
