@@ -495,6 +495,146 @@
         "required": [
           "slot"
         ]
+      },
+      "CombatOutcomeDto": {
+        "type": "object",
+        "properties": {
+          "trait": {
+            "type": "string"
+          },
+          "tier": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "p": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "trait",
+          "tier",
+          "p"
+        ]
+      },
+      "SpliceForecast": {
+        "type": "object",
+        "properties": {
+          "combat2": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CombatOutcomeDto"
+            }
+          },
+          "instinct": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "instinct": {
+                  "type": "string"
+                },
+                "p": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "instinct",
+                "p"
+              ]
+            }
+          },
+          "mutation": {
+            "type": "number"
+          },
+          "aberrant": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "combat2",
+          "instinct",
+          "mutation",
+          "aberrant"
+        ]
+      },
+      "SplicePreviewResponse": {
+        "type": "object",
+        "properties": {
+          "forecast": {
+            "$ref": "#/components/schemas/SpliceForecast"
+          },
+          "coverageLost": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "trait": {
+                  "type": "string"
+                },
+                "tier": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "trait",
+                "tier"
+              ]
+            }
+          }
+        },
+        "required": [
+          "forecast",
+          "coverageLost"
+        ]
+      },
+      "SpliceLock": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "enum": [
+              "a",
+              "b"
+            ]
+          },
+          "slot": {
+            "type": "string",
+            "enum": [
+              "trait_1",
+              "trait_2"
+            ]
+          }
+        },
+        "required": [
+          "from",
+          "slot"
+        ]
+      },
+      "SplicePreviewRequest": {
+        "type": "object",
+        "properties": {
+          "parentA": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "parentB": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "locked": {
+            "$ref": "#/components/schemas/SpliceLock"
+          }
+        },
+        "required": [
+          "parentA",
+          "parentB",
+          "locked"
+        ]
       }
     },
     "parameters": {}
@@ -1010,6 +1150,77 @@
             }
           },
           "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/splice/preview": {
+      "post": {
+        "operationId": "splicePreview",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SplicePreviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The odds this splice rolls against, and the coverage it destroys",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SplicePreviewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
             "description": "Error",
             "content": {
               "application/json": {

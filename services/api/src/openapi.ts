@@ -4,7 +4,7 @@ import { OpenAPIRegistry, OpenApiGeneratorV31 } from '@asteasolutions/zod-to-ope
 import {
   CreateAccountRequest, CreateAccountResponse, DeleteAccountResponse, ErrorResponse,
   NodeClaimRequest, NodeClaimResponse, RefreshRequest, RefreshResponse,
-  RegionStateResponse, SyncResponse,
+  RegionStateResponse, SplicePreviewRequest, SplicePreviewResponse, SyncResponse,
   WaveStartRequest, WaveStartResponse, WaveSubmitRequest, WaveSubmitResponse,
 } from './schemas.ts'
 
@@ -137,6 +137,22 @@ registry.registerPath({
   responses: {
     200: { description: 'Shards credited, base stock granted, the node settled', content: { 'application/json': { schema: NodeClaimResponse } } },
     ...errors([400, 401, 404, 409, 422, 500]),
+  },
+})
+
+// Phase 6, Task 6. design 5.1's forecast route, registered here in the task
+// that adds it - the discipline the region routes above state, kept.
+registry.registerPath({
+  method: 'post',
+  path: '/v1/splice/preview',
+  operationId: 'splicePreview',
+  security: [{ [bearerAuth.name]: [] }],
+  // No Idempotency-Key: preview writes nothing and spends nothing. The charge
+  // is spent at /v1/splice/commit, which does take one.
+  request: { body: { content: { 'application/json': { schema: SplicePreviewRequest } } } },
+  responses: {
+    200: { description: 'The odds this splice rolls against, and the coverage it destroys', content: { 'application/json': { schema: SplicePreviewResponse } } },
+    ...errors([400, 401, 404, 500]),
   },
 })
 

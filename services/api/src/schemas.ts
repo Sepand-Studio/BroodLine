@@ -194,3 +194,61 @@ export const NodeClaimResponse = z.object({
   creatures: z.array(CreatureDto),
   balance: z.number().int(),
 }).openapi('NodeClaimResponse')
+
+// Phase 6, Task 6. design §5.1's forecast - the value `POST
+// /v1/splice/preview` returns and `POST /v1/splice/commit` (Task 7) samples.
+//
+// Registered into openapi.ts's registry in the SAME task that adds the route,
+// for the reason the map's two routes state above: Phase 5 shipped
+// /v1/wave/start in code and left it out of the registry, so it was absent
+// from the generated client entirely until the next task found it.
+export const SpliceLock = z.object({
+  // Which of the parents' four combat traits the player locked - BY POSITION,
+  // not by trait id. Two parents frequently share a trait (every base-stock
+  // species carries Carapace in slot 2), so a lock naming only a trait would
+  // be ambiguous about whose coverage carries.
+  from: z.enum(['a', 'b']),
+  slot: z.enum(['trait_1', 'trait_2']),
+}).openapi('SpliceLock')
+
+export const SplicePreviewRequest = z.object({
+  parentA: z.string().uuid(),
+  parentB: z.string().uuid(),
+  locked: SpliceLock,
+}).openapi('SplicePreviewRequest')
+
+// ONE entry per distinct OUTCOME, not one per parent copy - see
+// splice/distribution.ts. Two parents carrying Carapace publish it once, at
+// the summed probability, because that is the odds rather than the pool.
+const CombatOutcomeDto = z.object({
+  trait: z.string(),
+  // NULLABLE for the same reason CreatureDto.tier1 is: null is an Aberrant,
+  // which has no coverage, and design §5.3's recessive downtier floors at
+  // Tier I precisely so an ordinary trait can never arrive here as null.
+  tier: z.number().int().nullable(),
+  p: z.number(),
+}).openapi('CombatOutcomeDto')
+
+export const SpliceForecast = z.object({
+  combat2: z.array(CombatOutcomeDto),
+  instinct: z.array(z.object({
+    instinct: z.string(),
+    p: z.number(),
+  })),
+  // Per splice - `sample_economy` §9.
+  mutation: z.number(),
+  // OF mutations, not absolute. `splice_confirm_spec` §2 shows the two
+  // separately so the player understands they are not the same event.
+  aberrant: z.number(),
+}).openapi('SpliceForecast')
+
+export const SplicePreviewResponse = z.object({
+  forecast: SpliceForecast,
+  // `sample_economy` §7's screen requirement, and only what is certain: the
+  // coverage that cannot carry under ANY outcome above. Empty is the normal
+  // answer for four distinct traits - see splice/distribution.ts.
+  coverageLost: z.array(z.object({
+    trait: z.string(),
+    tier: z.number().int().nullable(),
+  })),
+}).openapi('SplicePreviewResponse')

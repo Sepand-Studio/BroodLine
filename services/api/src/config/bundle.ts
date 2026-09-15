@@ -57,6 +57,39 @@ export interface Bundle {
    * making it a publish-time one is still owed (Task 4's report, note 3).
    */
   nodes: BundleNode[]
+  /**
+   * The trait table - `traits.json`, which is OBJECT-WRAPPED (`{"traits":
+   * [...]}`) and not a bare array the way nodes.json and waves.json are.
+   *
+   * `dominant` is what design §5.3's rolled slot reads: full coverage if
+   * dominant, one tier lower if recessive. splice/distribution.ts declares
+   * its own structural slice of this rather than importing `Bundle`, so that
+   * module's purity stays checkable by inspection - the same split
+   * map/rotation.ts keeps with `BundleNode`.
+   *
+   * EMPTY when the bundle carries no traits.json, for the reason `nodes` is:
+   * bundle 0.1.0 is published to GCS and must stay byte-identical to what
+   * shipped in Phase 4, and a hard read here would make a rollback to it a
+   * boot failure. Unlike nodes.json this is NOT a tolerance the validator
+   * shares - `validateTraitDominance` already refuses to publish a bundle
+   * whose traits.json is missing or whose flags are absent - so the empty
+   * case is unreachable for anything published since Phase 4. The refusal
+   * for a trait nobody authored is `spliceDistribution`'s, where it can name
+   * the trait.
+   */
+  traits: BundleTrait[]
+}
+
+/**
+ * A trait as authored in traits.json. `counters` and `species` are carried
+ * because the file has them and a reader of this type should see the whole
+ * authored row; only `dominant` is read today.
+ */
+export interface BundleTrait {
+  id: string
+  species: string
+  counters: string | null
+  dominant: boolean
 }
 
 let cached: Bundle | undefined
@@ -84,6 +117,9 @@ export async function loadBundle(store: BundleStore, opts: { refresh?: boolean }
   // that exists and is malformed still throws from JSON.parse rather than
   // being silently swallowed into an empty region.
   const nodesRaw = await store.readFile(version, 'nodes.json').catch(() => null)
+  // Same shape of tolerance, same placement of the catch - see Bundle.traits.
+  // A traits.json that EXISTS and is malformed still throws from JSON.parse.
+  const traitsRaw = await store.readFile(version, 'traits.json').catch(() => null)
 
   cached = {
     version: manifest.version,
@@ -91,6 +127,8 @@ export async function loadBundle(store: BundleStore, opts: { refresh?: boolean }
     starterGrants: starter.grants,
     waves,
     nodes: nodesRaw === null ? [] : JSON.parse(nodesRaw) as BundleNode[],
+    // Object-wrapped, unlike every other file here.
+    traits: traitsRaw === null ? [] : (JSON.parse(traitsRaw) as { traits: BundleTrait[] }).traits,
   }
   return cached
 }
