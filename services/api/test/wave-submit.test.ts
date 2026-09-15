@@ -184,6 +184,26 @@ describe('POST /v1/wave/submit', () => {
     expect(await balance('shards')).toBe(before + 40)
   })
 
+  it('replays a resend whose issuanceId casing changed', async () => {
+    // The quiet half of the case-sensitivity defect Task 7's fix round found
+    // on /v1/splice/commit. This route never compares issuanceId in JS - it
+    // goes to Postgres, where uuid equality is case-insensitive - but it
+    // HASHES the parsed body for the idempotency key. Without normalisation
+    // the same logical retry with different casing hashes differently and
+    // the caller gets 422 for a request that is theirs and identical, having
+    // already been paid for the first one.
+    await setupPlayer(deps)
+    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+    const replay = buildWinningReplay(6, BigInt(seed))
+    const before = await balance('shards')
+
+    await submit(issuanceId, replay, 'key-case')
+    const second = await submit(issuanceId.toUpperCase(), replay, 'key-case')
+
+    expect(second.status).toBe(200)
+    expect(await balance('shards')).toBe(before + 40)
+  })
+
   it('pays nothing on a resend with a DIFFERENT key', async () => {
     await setupPlayer(deps)
     const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }

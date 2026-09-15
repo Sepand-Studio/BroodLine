@@ -683,6 +683,63 @@ describe('POST /v1/splice/commit', () => {
     await nothingConsumed(a, b)
   })
 
+  it('refuses a creature spliced with itself under a DIFFERENT CASE', async () => {
+    // THE SAME BUG CLASS AS 7bbb76f, one route over. `http/ids.ts`'s regex
+    // accepts upper case (RFC 4122 hex is case-insensitive and clients send
+    // both) and Postgres `uuid` equality is case-insensitive - but JS `===`
+    // is not. So this body used to pass `parentA === parentB`, resolve BOTH
+    // parent locks to the same row, and run the splice PAST THE DEBIT before
+    // `consume` found one parent where it expected two: HTTP 500 on the only
+    // route in the game that destroys player property.
+    //
+    // 400, and the SAME 400 the lower-case body gets - which is the other
+    // half of the point: `/v1/splice/preview` refuses the identical body, and
+    // two splice routes disagreeing about whether a body is legal is exactly
+    // what sharing `parseParents` exists to prevent.
+    const { a, b } = await pair()
+
+    const res = await commit({ parentA: a, parentB: a.toUpperCase(), locked: LOCK_A1, bodyFrom: 'Vetch' })
+    expect(res.status).toBe(400)
+    expect(await res.json()).toMatchObject({ code: 'invalid_request' })
+    await nothingConsumed(a, b)
+  })
+
+  it('accepts an UPPER-CASE parent id and resolves it to the same creature', async () => {
+    // The positive control, and without it the refusal above is satisfied by
+    // a parse layer that rejects every upper-case id - which would break
+    // every client that sends canonical upper-case uuids, and would be a
+    // worse bug than the one being fixed.
+    const { a, b } = await pair()
+
+    const res = await commit({
+      parentA: a.toUpperCase(), parentB: b, locked: LOCK_A1, bodyFrom: 'Vetch',
+    })
+    expect(res.status).toBe(200)
+    const { child } = await res.json() as { child: { creatureId: string } }
+    expect((await read(child.creatureId))?.parentA).toBe(a)
+    expect(await isLive(a)).toBe(false)
+  })
+
+  it('replays a retried key whose id casing changed', async () => {
+    // The quieter half of the same defect. Both splice routes hash the
+    // PARSED body for the idempotency key, so an un-normalised id makes the
+    // same logical retry a DIFFERENT request - 422 for something the caller
+    // sent twice on purpose, on a route where the first attempt already
+    // destroyed two creatures.
+    const { a, b } = await pair()
+    const key = randomUUID()
+
+    const first = await commit({ parentA: a, parentB: b, locked: LOCK_A1, bodyFrom: 'Vetch' }, { key })
+    const second = await commit(
+      { parentA: a.toUpperCase(), parentB: b, locked: LOCK_A1, bodyFrom: 'Vetch' }, { key })
+
+    expect(second.status).toBe(200)
+    expect((await second.json() as { spliceId: string }).spliceId)
+      .toBe((await first.json() as { spliceId: string }).spliceId)
+    expect(await spliceRows()).toHaveLength(1)
+    expect(await balance('splice_charges')).toBe(STARTING_CHARGES - 1)
+  })
+
   it('refuses a malformed body as a bad request, not as a server error', async () => {
     const { a, b } = await pair()
     for (const body of [

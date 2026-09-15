@@ -6,7 +6,7 @@ import { withServer, type Tx } from '../db/client.ts'
 import { players } from '../db/schema.ts'
 import { requireSession } from '../http/auth.ts'
 import { fail } from '../http/errors.ts'
-import { isUuid } from '../http/ids.ts'
+import { normalizeUuid } from '../http/ids.ts'
 import { hashRequest } from '../http/hash.ts'
 import type { SessionClaims } from '../identity/jwt.ts'
 import { IdempotencyMismatchError, withIdempotency } from '../money/idempotency.ts'
@@ -66,9 +66,14 @@ function parseSubmit(raw: unknown): SubmitBody | null {
   // malformed. See http/ids.ts; this is a shape check and NOT a claim about
   // which issuances exist, so a fabricated uuid still gets step 2's
   // ordinary `issuance_invalid`.
-  if (!isUuid(b.issuanceId)) return null
+  // NORMALISED, not merely accepted: this value is hashed into the
+  // idempotency key (`hashRequest`), so an un-normalised id makes the same
+  // retry with different casing a DIFFERENT request - 422 for something the
+  // caller sent twice on purpose. See http/ids.ts.
+  const issuanceId = normalizeUuid(b.issuanceId)
+  if (issuanceId === null) return null
   if (typeof b.replay !== 'string' || b.replay.length === 0) return null
-  return { issuanceId: b.issuanceId, replay: b.replay }
+  return { issuanceId, replay: b.replay }
 }
 
 /**

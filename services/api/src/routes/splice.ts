@@ -7,7 +7,7 @@ import { creatures, players } from '../db/schema.ts'
 import { requireSession } from '../http/auth.ts'
 import { fail } from '../http/errors.ts'
 import { hashRequest } from '../http/hash.ts'
-import { isUuid } from '../http/ids.ts'
+import { normalizeUuid } from '../http/ids.ts'
 import { IdempotencyMismatchError, withIdempotency } from '../money/idempotency.ts'
 import { liveCreature, toCreatureDto, type CreatureDto } from '../roster/creatures.ts'
 import { commitSplice } from '../splice/commit.ts'
@@ -72,18 +72,29 @@ function parseParents(raw: unknown): ParentsBody | null {
   const b = raw as Record<string, unknown>
   // `creatures.creature_id` is a Postgres `uuid` (drizzle/0005_loop.sql) -
   // see http/ids.ts for why the shape is checked here rather than met as a
-  // 22P02 inside the roster read.
-  if (!isUuid(b.parentA)) return null
-  if (!isUuid(b.parentB)) return null
+  // 22P02 inside the roster read, and why it NORMALISES rather than merely
+  // accepting.
+  const parentA = normalizeUuid(b.parentA)
+  const parentB = normalizeUuid(b.parentB)
+  if (parentA === null || parentB === null) return null
   // A splice CONSUMES both parents (design §5.1), so one creature cannot be
   // both. Refused here rather than at commit because a forecast for a splice
   // that can never happen is worse than no forecast: the pool it would
   // publish is that creature's own two traits, which is a plausible-looking
   // answer to an impossible question.
-  if (b.parentA === b.parentB) return null
+  //
+  // COMPARED AFTER NORMALISATION, and that is the whole of a measured bug
+  // rather than tidiness. `===` is case-sensitive, the uuid regex is not,
+  // and Postgres `uuid` equality is not - so `{parentA: id, parentB: id
+  // .toUpperCase()}` passed this line, resolved BOTH parent locks to the
+  // same row, and ran the splice past the debit before `consume` found one
+  // parent where it expected two: a 500 on the only route that destroys
+  // player property, for a body preview answered 404 for. http/ids.ts holds
+  // the reasoning; this line is the one that was wrong.
+  if (parentA === parentB) return null
   const locked = parseLocked(b.locked)
   if (locked === null) return null
-  return { parentA: b.parentA, parentB: b.parentB, locked }
+  return { parentA, parentB, locked }
 }
 
 /**

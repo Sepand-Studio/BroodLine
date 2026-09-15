@@ -271,6 +271,29 @@ describe('POST /v1/splice/preview', () => {
     expect(await res.json()).toMatchObject({ code: 'invalid_request' })
   })
 
+  it('refuses a creature spliced with itself under a DIFFERENT CASE', async () => {
+    // The same body `/v1/splice/commit` must refuse, asserted on BOTH routes
+    // because they share `parseParents` precisely so they cannot disagree.
+    // The uuid regex accepts upper case and Postgres `uuid` equality is
+    // case-insensitive; JS `===` is not, so this body passed the
+    // self-splice check until the ids were normalised.
+    const a = await give(VETCH)
+    const res = await preview({ parentA: a, parentB: a.toUpperCase(), locked: LOCK_A1 })
+
+    expect(res.status).toBe(400)
+    expect(await res.json()).toMatchObject({ code: 'invalid_request' })
+  })
+
+  it('accepts an UPPER-CASE parent id', async () => {
+    // The positive control: normalising must not become "reject upper case",
+    // which would break every client sending canonical upper-case uuids.
+    const a = await give(VETCH)
+    const b = await give(PALE)
+    const res = await preview({ parentA: a.toUpperCase(), parentB: b, locked: LOCK_A1 })
+
+    expect(res.status).toBe(200)
+  })
+
   it('refuses a malformed creature id as a bad request, not as a server error', async () => {
     // `creature_id` is a Postgres uuid: without the parse-layer shape check
     // the read raises 22P02 from inside the transaction and the caller is
