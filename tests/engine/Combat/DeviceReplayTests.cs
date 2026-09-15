@@ -32,12 +32,29 @@ namespace Broodline.Sim.Tests.Combat
         public static bool AreCurrent => CapturedUnder == SimVersion.Value;
 
         /// What is owed once they are not.
+        ///
+        /// THE TICK WINDOW HERE USED TO BE WRONG, and wrong in the direction
+        /// that costs a device trip. It said 184..240 - creature 0's
+        /// engagement - while TheDeviceRunsRallyActuallyChangedTheSimulation
+        /// separately demands 150..207, the Courser still below the first
+        /// defender. Aiming by the first number alone yields a capture that
+        /// round-trips perfectly and proves nothing, which is exactly how the
+        /// first two device captures (taps at 373 and 480) passed review. The
+        /// message a person actually reads now names the OVERLAP.
         public static string ReCaptureOwed =>
             "The tracked captures were recorded under engine " + CapturedUnder +
             " and this engine is " + SimVersion.Value + ", so solo_execution 9.4 supersedes them " +
             "and the renderer round-trip is NOT being proven right now. Re-capture per Task 10 of " +
-            "the Phase 3 plan: play Assets/Scenes/Wave.unity in the Editor and on device, with a " +
-            "tap between ticks 184 and 240, then commit the four files in implementation/results/.";
+            "the Phase 3 plan: play Assets/Scenes/Wave.unity in the Editor and on device, then " +
+            "commit the four files in implementation/results/.\n" +
+            "ON DEVICE, aim for a tap at ticks 184..207. That is the overlap of two separate " +
+            "requirements - creature 0 holds a target during 184..240, and the Courser must still " +
+            "be below the first defender, which ends at 207 - and a tap outside it can round-trip " +
+            "perfectly while proving nothing. The two known-good captures landed at 204 and 205. " +
+            "The HUD prints the live tick beside Integrity; expect roughly ten ticks of reaction " +
+            "lag, so aim near 190.\n" +
+            "IN THE EDITOR it is looser: Rally lasts 120 ticks, so any tap whose window overlaps " +
+            "184..240 is valid - the 2026-09-11 capture tapped at 78 and was fine.";
 
         /// The supersession half of every test that re-simulates a capture.
         ///
@@ -148,10 +165,11 @@ namespace Broodline.Sim.Tests.Combat
             // past these artifacts, THIS test is the only thing that goes red.
             // It is the guard on the guard, and deleting it would take the
             // whole round-trip dark silently.
+            // ReCaptureOwed already names both versions; repeating them here
+            // printed the same pair twice in the failure output.
             Assert.True(ReplayArtifact.AreCurrent,
-                "the tracked captures are engine " + ReplayArtifact.CapturedUnder + " and this engine is " +
-                SimVersion.Value + ", so every round-trip test in this file is now bailing before its " +
-                "assertions and reporting PASSED. " + ReplayArtifact.ReCaptureOwed);
+                "every round-trip test in this file is now bailing before its assertions and " +
+                "reporting PASSED. " + ReplayArtifact.ReCaptureOwed);
         }
     }
 
