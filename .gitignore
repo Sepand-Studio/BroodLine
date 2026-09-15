@@ -109,6 +109,14 @@ client/.git.disabled/
 # Claude Code worktrees - isolated workspaces, never committed
 .claude/worktrees/
 
+# Claude Code permission grants. MACHINE-LOCAL, never shared: settings.json
+# was committed once by accident on 2026-09-14 carrying Bash(gcloud:*) and
+# Bash(terraform:*), which hands every clone the ability to run any command
+# against any cloud project the cloner is authenticated to. A permission grant
+# is a property of one developer's machine and trust, not of the repository.
+.claude/settings.json
+.claude/settings.local.json
+
 # Phase 4 - the TypeScript half
 services/**/dist/
 services/**/*.tsbuildinfo
