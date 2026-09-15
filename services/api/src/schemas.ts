@@ -52,9 +52,43 @@ export const SyncResponse = z.object({
 // Phase 5, Task 5, registered into openapi.ts's registry by Task 6 - see
 // that file's header comment for why both wave routes were still absent
 // from the generated contract until now.
+// Phase 6, Task 8. design §6.1: the request carries an ID and a POCKET and
+// nothing else, and that is the contract stating the mechanism rather than
+// merely permitting it. A body that could name a species or a tier would be
+// a body a modified client could deploy a creature it does not own with -
+// the hole Phase 5 shipped knowingly and this closes. The specs are resolved
+// server-side from the rows these ids name.
+export const DeployedCreature = z.object({
+  creatureId: z.string().uuid(),
+  // Which pocket of the lane. Bounded only below (and at int32) by the API -
+  // how many pockets a lane has is content, and `sim` is the authority; see
+  // routes/wave.ts's MAX_POCKET.
+  pocket: z.number().int(),
+}).openapi('DeployedCreature')
+
 export const WaveStartRequest = z.object({
   waveId: z.number().int(),
+  // REQUIRED, and may be empty. Zero creatures is a deployment the engine
+  // simulates (and loses); an ABSENT field is a body written against the
+  // pre-Task-8 contract. At most Stats.DeploymentCap (5) entries, naming
+  // distinct creatures.
+  deployment: z.array(DeployedCreature),
 }).openapi('WaveStartRequest')
+
+// A creature as deployed - engine `CreatureSpec`, and the mirror of
+// services/api/src/db/schema.ts's CreatureSpec. No creature id: design §2.1,
+// identity is a storage concern and the engine has no business holding one.
+export const CreatureSpecDto = z.object({
+  species: z.string(),
+  trait1: z.string(),
+  // NULLABLE for CreatureDto.tier1's reason: null is an Aberrant, which has
+  // no coverage, and data_model §2 refuses to conflate that with zero.
+  tier1: z.number().int().nullable(),
+  trait2: z.string(),
+  tier2: z.number().int().nullable(),
+  instinct: z.string(),
+  pocket: z.number().int(),
+}).openapi('CreatureSpecDto')
 
 export const WaveStartResponse = z.object({
   issuanceId: z.string().uuid(),
@@ -64,6 +98,17 @@ export const WaveStartResponse = z.object({
   seed: z.string(),
   waveId: z.number().int(),
   expiresAt: z.string(),
+  // What was ACTUALLY issued, which need not be what the request asked for:
+  // design §2.1 returns a live issuance rather than replacing it, so a second
+  // start gets the first one's deployment back.
+  //
+  // NULLABLE, and honestly so rather than by oversight. The column is the
+  // expand step of drizzle/0006_issuance_deployment.sql, so for the two hours
+  // of ISSUANCE_TTL_MS after this handler ships a player can still hold a
+  // live issuance minted by the previous build, which has no deployment and
+  // never will. A contract that promised an array there would be lying for
+  // exactly as long as it mattered.
+  deployment: z.array(CreatureSpecDto).nullable(),
 }).openapi('WaveStartResponse')
 
 // Phase 5, Task 6.

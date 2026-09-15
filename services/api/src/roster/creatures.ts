@@ -116,6 +116,77 @@ export function liveCreature(): SQL {
   return sql`NOT ${creatures.pruned} AND ${creatures.consumedAt} IS NULL`
 }
 
+/**
+ * The live creatures this player owns out of `ids`, LOCKED FOR UPDATE, keyed
+ * by the row's own id.
+ *
+ * design 6.1 steps 2 and 4. The caller resolves each deployed spec from the
+ * row this returns and from nothing else, which is why this function hands
+ * back WHOLE ROWS rather than a boolean: a predicate saying "yes, they own
+ * these five" would leave the caller holding only what the request said, and
+ * the mechanism this task exists to build is that there is no path from a
+ * client-supplied value to a spec.
+ *
+ * A MAP, NOT AN ARRAY, and the difference is a bug this closes rather than a
+ * preference. The brief's shape was `owned.map((c, i) => ({ ...c, pocket:
+ * deployment[i].pocket }))`, which is only correct if these rows come back in
+ * REQUEST order - and nothing promises that. A caller cannot make that
+ * mistake against a Map: it has to look each row up by the id the request
+ * named, which is also the pairing the engine needs (SimState: "Index ==
+ * deployment order"). A SHORT map is the caller's "not owned" answer; the
+ * ids it is missing are the ones that were not owned, not live, or not this
+ * player's.
+ *
+ * KEYED ON `row.creatureId`, THE ROW'S OWN VALUE, not on the request string
+ * that found it. Postgres `uuid` equality is case-insensitive and JS `===`
+ * is not, so keying on the request's spelling makes this map answer a
+ * different question from the one the database answered. Callers must look
+ * up by a `normalizeUuid`d id (http/ids.ts), which is the same canonical
+ * lower-case form Postgres emits - Task 7's bug, one route over, in both
+ * directions.
+ *
+ * THE LIVENESS PREDICATE IS `liveCreature()`, both halves, and a hand-rolled
+ * one here would reintroduce this task's own hole from the other direction:
+ * `committed_to IS NULL` is true of every pruned tombstone AND every
+ * consumed parent, so "available means uncommitted" would let a player
+ * deploy creatures that no longer exist. A consumed parent is the sharper
+ * half - it is not pruned and it is WHOLE, so it would resolve to a
+ * perfectly valid spec.
+ *
+ * FOR UPDATE, and it is not decoration. design 2.5 names the race directly:
+ * the deployment stored on an issuance is resolved FROM these rows, so a
+ * splice destroying one between this read and the commit below would let the
+ * deployment outlive the roster it came from. splice/commit.ts's
+ * `lockParents` takes the same lock on the same rows, so the two serialize:
+ * whichever runs second re-evaluates its predicate against the winner's
+ * committed row and refuses - the splice on `committed_to`, this on
+ * `liveCreature()`.
+ *
+ * LOCKED IN SORTED ID ORDER, one statement per id, for `lockParents`'
+ * reason: two callers naming the same creatures in different orders would
+ * otherwise deadlock, and a single `IN (...)` scan takes its locks in
+ * whatever order the plan produces rows, which is not something to build a
+ * deadlock argument on. Every writer of `creatures` in this codebase now
+ * takes its locks in ascending creature_id order; keep it that way.
+ */
+export async function loadOwnedCreatures(
+  tx: Tx, serverId: number, playerId: string, ids: readonly string[],
+): Promise<Map<string, CreatureRow>> {
+  const owned = new Map<string, CreatureRow>()
+  for (const id of [...ids].sort()) {
+    const [row] = await tx.select().from(creatures)
+      .where(and(
+        eq(creatures.serverId, serverId),
+        eq(creatures.playerId, playerId),
+        eq(creatures.creatureId, id),
+        liveCreature(),
+      ))
+      .for('update')
+    if (row !== undefined) owned.set(row.creatureId, row)
+  }
+  return owned
+}
+
 /** Live creatures this player holds - the Hatchery cap's left-hand side. */
 export async function rosterCount(tx: Tx, serverId: number, playerId: string): Promise<number> {
   const [row] = await tx.select({ n: count() }).from(creatures)

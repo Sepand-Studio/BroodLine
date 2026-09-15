@@ -180,6 +180,47 @@
           "deleted"
         ]
       },
+      "CreatureSpecDto": {
+        "type": "object",
+        "properties": {
+          "species": {
+            "type": "string"
+          },
+          "trait1": {
+            "type": "string"
+          },
+          "tier1": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "trait2": {
+            "type": "string"
+          },
+          "tier2": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "instinct": {
+            "type": "string"
+          },
+          "pocket": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "species",
+          "trait1",
+          "tier1",
+          "trait2",
+          "tier2",
+          "instinct",
+          "pocket"
+        ]
+      },
       "WaveStartResponse": {
         "type": "object",
         "properties": {
@@ -195,13 +236,39 @@
           },
           "expiresAt": {
             "type": "string"
+          },
+          "deployment": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/CreatureSpecDto"
+            }
           }
         },
         "required": [
           "issuanceId",
           "seed",
           "waveId",
-          "expiresAt"
+          "expiresAt",
+          "deployment"
+        ]
+      },
+      "DeployedCreature": {
+        "type": "object",
+        "properties": {
+          "creatureId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pocket": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "creatureId",
+          "pocket"
         ]
       },
       "WaveStartRequest": {
@@ -209,10 +276,17 @@
         "properties": {
           "waveId": {
             "type": "integer"
+          },
+          "deployment": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeployedCreature"
+            }
           }
         },
         "required": [
-          "waveId"
+          "waveId",
+          "deployment"
         ]
       },
       "BreachDto": {

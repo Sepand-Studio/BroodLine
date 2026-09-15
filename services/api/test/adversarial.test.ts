@@ -577,7 +577,10 @@ describe('adversarial: what a modified client cannot do', () => {
         // set_config(..., true) is SET LOCAL: parameterised, so the zone
         // name is bound rather than interpolated into SQL text.
         await tx.execute(sql`SELECT set_config('TimeZone', ${tz}, true)`)
-        return issueWave(tx, SERVER_ID, playerId, 6, bundle)
+        // An empty deployment: this gate is about the replay CAP, which is
+        // counted off consumed rows and is reached before design 6.1's roster
+        // checks ever run. Task 8 grew the parameter; nothing here asserts on it.
+        return issueWave(tx, SERVER_ID, playerId, 6, [], bundle)
       })
 
     // Put all three consumed rows EXACTLY on midnight UTC. Under the fixed

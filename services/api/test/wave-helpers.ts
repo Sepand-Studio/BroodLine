@@ -412,12 +412,39 @@ export async function setupPlayer(d: Deps): Promise<{ playerId: string; token: s
   return { playerId, token }
 }
 
-export async function startWave(waveId: number): Promise<Response> {
+/** design §6.1's body: an id and a pocket, and nothing else a client controls. */
+export interface Deployed { creatureId: string; pocket: number }
+
+/**
+ * Sends the body VERBATIM, so a test can put fields in it that `parseStart`
+ * has no business honouring.
+ *
+ * That is the whole point of having it: design §6.1's mechanism is that
+ * there is no path from a client-supplied value to a stored spec, and the
+ * only way to show that is to supply one. `startWave` below cannot - its
+ * signature admits an id and a pocket, which is exactly the shape under
+ * test.
+ */
+export async function startWaveRaw(body: unknown): Promise<Response> {
   return app.request('/v1/wave/start', {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-    body: JSON.stringify({ waveId }),
+    body: JSON.stringify(body),
   })
+}
+
+/**
+ * DEFAULTS TO AN EMPTY DEPLOYMENT, which is a real deployment and not a
+ * stand-in for "the field is optional": `deployment` is REQUIRED by
+ * routes/wave.ts's parseStart (design §6.1 grows the body), and an empty
+ * array is the one value every pre-Task-8 caller in this package can be
+ * given without asserting anything new. Those callers - wave-submit,
+ * replays and adversarial - are about the SUBMIT path and say nothing about
+ * what was deployed; Task 9 is where the echo starts being compared against
+ * the issuance, and that is the task that has to give them real rosters.
+ */
+export async function startWave(waveId: number, deployment: Deployed[] = []): Promise<Response> {
+  return startWaveRaw({ waveId, deployment })
 }
 
 export function submitInit(issuanceId: string, replay: string, key: string): RequestInit {

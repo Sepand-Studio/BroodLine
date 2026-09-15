@@ -136,7 +136,13 @@ begin(`start wave ${WAVE}`)
 let issuanceId: string
 let seed: string
 {
-  const r = await call('/v1/wave/start', { token, body: { waveId: WAVE } })
+  // `deployment` is REQUIRED as of Phase 6 Task 8 (design §6.1) and EMPTY
+  // here on purpose. This smoke test drives a fresh account, which holds no
+  // creatures until a node is claimed - so there is no id it could name -
+  // and what it is checking is the issuance round trip, not the roster. A
+  // 400 from this call after a deploy means the body and the live api
+  // disagree about the contract, which is exactly what a smoke test is for.
+  const r = await call('/v1/wave/start', { token, body: { waveId: WAVE, deployment: [] } })
   if (r.status !== 200) {
     // wave_locked here usually means rewardForWave returned null, i.e. the
     // live bundle has no reward on this wave - the 0.1.0 rollback hazard.

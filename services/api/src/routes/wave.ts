@@ -13,11 +13,12 @@ import { IdempotencyMismatchError, withIdempotency } from '../money/idempotency.
 import { credit } from '../money/ledger.ts'
 import { rewardForWave } from '../wave/rewards.ts'
 import {
-  advanceCampaign, type Issuance, issueWave, loadLiveIssuance, settle,
+  advanceCampaign, DEPLOYMENT_CAP, type DeployedCreature, type Issuance,
+  issueWave, loadLiveIssuance, settle,
 } from '../wave/issuance.ts'
 import { type SimulateBreach, type SimulateEcho, toInt } from '../sim/client.ts'
 
-interface StartBody { waveId: number }
+interface StartBody { waveId: number; deployment: DeployedCreature[] }
 
 /**
  * The parse layer's SANITY bound on waveId. Not a statement about which
@@ -39,6 +40,86 @@ interface StartBody { waveId: number }
  */
 const MAX_WAVE_ID = 2_147_483_647
 
+/**
+ * The parse layer's SANITY bound on a pocket, and it is only the two ENDS
+ * of the range because only the two ends are content-independent.
+ *
+ * The floor is 0: `Deployments.Problem` refuses a negative pocket on every
+ * lane that could ever exist. The ceiling is int32 because
+ * engine/Runtime/Combat/Replay.cs writes the pocket as a 4-byte signed
+ * integer, so a value outside that range cannot be expressed in a replay
+ * under ANY terrain - malformed by construction, exactly like MAX_WAVE_ID.
+ *
+ * WHICH POCKETS A LANE ACTUALLY HAS IS CONTENT (Defile authors five) and
+ * `sim` stays the only authority on it, the same way `issueWave` stays the
+ * only authority on which waves exist. Transcribing Defile's five here would
+ * put a second, unauthored copy of a geometry constant in the one file that
+ * has no business owning it, and a new terrain would then be refused by the
+ * HTTP layer before the engine ever saw it.
+ */
+const MAX_POCKET = 2_147_483_647
+
+/**
+ * design 6.1's deployment, reduced to the only two fields a client is
+ * allowed to contribute.
+ *
+ * **THIS FUNCTION IS HALF THE MECHANISM.** It does not validate the entry and
+ * pass it on - it CONSTRUCTS a new one out of exactly `creatureId` and
+ * `pocket`, so every other field a body carries is dropped here and can never
+ * reach `issueWave` to be read by accident. `resolveDeployment` is the other
+ * half: what it stores comes off the owned row. Between them there is no path
+ * from a client-supplied value to a stored spec.
+ *
+ * THE CAP IS HERE, not in `issueWave`, for MAX_WAVE_ID's reason: a deployment
+ * longer than `Stats.DeploymentCap` is malformed by construction - no roster
+ * state and no bundle could make it legal - and `invalid_request` (400) says
+ * that, where every refusal `issueWave` can make says "understood and
+ * refused" (409) instead. A client could not otherwise tell the two apart.
+ *
+ * DUPLICATE IDS ARE MALFORMED TOO, and refused here rather than being left to
+ * fall out of the ownership check downstream as a short map. A body naming one
+ * creature in two pockets asks for two creatures out of one; the player DOES
+ * own it, so `creature_not_owned` would be a refusal that misstates its own
+ * reason. Compared on the NORMALISED ids, because Postgres `uuid` equality is
+ * case-insensitive and JS `===` is not - without that, `[id,
+ * id.toUpperCase()]` reads as two distinct ids here and as one row in the
+ * database, which is precisely the bug Task 7 fixed on /v1/splice/commit.
+ *
+ * AN EMPTY DEPLOYMENT IS LEGAL and a MISSING one is not. Zero creatures is a
+ * deployment the engine simulates perfectly well (and loses); an absent field
+ * is a body written against the pre-Task-8 contract, and answering it 200
+ * would put an issuance in flight whose stored deployment nothing ever chose.
+ */
+function parseDeployment(raw: unknown): DeployedCreature[] | null {
+  if (!Array.isArray(raw)) return null
+  if (raw.length > DEPLOYMENT_CAP) return null
+
+  const deployment: DeployedCreature[] = []
+  const seen = new Set<string>()
+  for (const entry of raw) {
+    if (typeof entry !== 'object' || entry === null) return null
+    const e = entry as Record<string, unknown>
+
+    // `creatures.creature_id` is a Postgres `uuid` and `loadOwnedCreatures`
+    // compares this value against it. Without the shape check a non-uuid
+    // reaches that comparison, Postgres raises 22P02, and app.ts's onError
+    // turns it into `internal` - telling an authenticated caller the server
+    // broke for a body they malformed. See http/ids.ts; NORMALISED rather
+    // than merely accepted, both for the duplicate check above and because
+    // the id is what the row is looked up and keyed by.
+    const creatureId = normalizeUuid(e.creatureId)
+    if (creatureId === null) return null
+    if (seen.has(creatureId)) return null
+    seen.add(creatureId)
+
+    if (typeof e.pocket !== 'number' || !Number.isInteger(e.pocket)) return null
+    if (e.pocket < 0 || e.pocket > MAX_POCKET) return null
+
+    deployment.push({ creatureId, pocket: e.pocket })
+  }
+  return deployment
+}
+
 function parseStart(raw: unknown): StartBody | null {
   if (typeof raw !== 'object' || raw === null) return null
   const b = raw as Record<string, unknown>
@@ -49,7 +130,9 @@ function parseStart(raw: unknown): StartBody | null {
   // wave_locked and keeps doing so - this route can simply no longer hand it
   // one; test/wave-start.test.ts calls it directly to pin that outcome.
   if (b.waveId < 1 || b.waveId > MAX_WAVE_ID) return null
-  return { waveId: b.waveId }
+  const deployment = parseDeployment(b.deployment)
+  if (deployment === null) return null
+  return { waveId: b.waveId, deployment }
 }
 
 interface SubmitBody { issuanceId: string; replay: string }
@@ -169,7 +252,9 @@ export function registerWaveRoutes(app: Hono, deps: Deps): void {
     // on `code`, never on this text (solo_execution 6.2), so the wording is
     // free to be accurate.
     if (body === null) {
-      return fail('invalid_request', `waveId must be an integer between 1 and ${MAX_WAVE_ID}.`)
+      return fail('invalid_request',
+        `waveId must be an integer between 1 and ${MAX_WAVE_ID}, and deployment must be ` +
+        `at most ${DEPLOYMENT_CAP} entries of { creatureId, pocket } naming distinct creatures.`)
     }
 
     const bundle = await loadBundle(deps.bundleStore)
@@ -179,7 +264,8 @@ export function registerWaveRoutes(app: Hono, deps: Deps): void {
         .where(eq(players.accountId, session.accountId))
       if (player === undefined) return null
 
-      return issueWave(tx, session.serverId, player.playerId, body.waveId, bundle)
+      return issueWave(
+        tx, session.serverId, player.playerId, body.waveId, body.deployment, bundle)
     })
 
     if (result === null) return fail('not_found', 'No player on this server for that account.')
@@ -187,6 +273,20 @@ export function registerWaveRoutes(app: Hono, deps: Deps): void {
     if ('refused' in result) {
       if (result.refused === 'wave_locked') {
         return fail('wave_locked', 'That wave is not available to you right now.')
+      }
+      // design 6.1's two roster refusals. Both 409 and both distinct codes,
+      // because the deployment screen needs a different sentence and a
+      // different next action for each - solo_execution 6.2's rule that a
+      // client switches on `code`. Neither says WHICH creature: a refusal
+      // naming one would tell a caller something about a row that may not be
+      // theirs, which is the discipline loadLiveIssuance already keeps.
+      if (result.refused === 'creature_not_owned') {
+        return fail('creature_not_owned',
+          'One of those creatures is not on your roster any more. Refresh and try again.')
+      }
+      if (result.refused === 'creature_committed') {
+        return fail('creature_committed',
+          'One of those creatures is already out fighting. Finish or abandon that wave first.')
       }
       return fail('replay_cap_reached', 'You have replayed this wave the maximum number of times today. Try again tomorrow.')
     }
@@ -202,6 +302,14 @@ export function registerWaveRoutes(app: Hono, deps: Deps): void {
       seed: result.seed,
       waveId: result.waveId,
       expiresAt: result.expiresAt.toISOString(),
+      // What was ACTUALLY issued, which is not always what this request
+      // asked for: design 2.1 returns a live issuance rather than replacing
+      // it, so a second start carrying a different deployment gets the first
+      // one's back. Echoing it is what lets a client show the player which
+      // creatures are committed without guessing, and it is null only for an
+      // issuance minted before this column had a writer - see
+      // drizzle/0006_issuance_deployment.sql.
+      deployment: result.deployment,
     })
   })
 

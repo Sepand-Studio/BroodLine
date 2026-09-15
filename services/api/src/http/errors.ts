@@ -20,6 +20,7 @@ export type ErrorCode =
   | 'sim_unavailable'
   // Phase 6
   | 'roster_full'
+  | 'creature_not_owned'
   | 'creature_committed'
   | 'generation_ceiling'
   | 'insufficient_charges'
@@ -64,6 +65,16 @@ const STATUS: Record<ErrorCode, number> = {
   // state the caller can change - and each needs a different sentence and a
   // different next action on the Splice Chamber screen:
   //
+  //   creature_not_owned  - the roster the screen is showing is stale;
+  //                         refresh it. design 6.1, and it is a REFUSAL
+  //                         rather than a 404 for the reason every other
+  //                         409 here is one: the request was understood,
+  //                         and what it named may well exist - just not as
+  //                         a live creature of this player's. Collapsing
+  //                         "not yours", "already spliced away" and
+  //                         "fabricated" into one answer is deliberate, so
+  //                         wave/start tells a caller nothing about rows
+  //                         that are not theirs.
   //   creature_committed  - recall it, or wait for the wave to settle
   //   generation_ceiling  - upgrade the Splicing Chamber (design 5.2 wants
   //                         the upgrade surfaced, not a bare error), and the
@@ -72,6 +83,7 @@ const STATUS: Record<ErrorCode, number> = {
   //   insufficient_charges - wait for regen, or buy
   //
   // Collapsing them into `conflict` would make the screen guess.
+  creature_not_owned: 409,
   creature_committed: 409,
   generation_ceiling: 409,
   insufficient_charges: 409,
