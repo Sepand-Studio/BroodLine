@@ -900,20 +900,54 @@ unmigrated**, and re-opening it is another Cloud SQL update cycle. Schema, then
 config, then code — the order `deploy.sh`'s own header gives, and the reason
 for it.
 
-### What is still missing, and is not written yet
+### Step 7's proof now exists, and has never been run against a live service
 
-**`implementation/scripts/smoke-wave.sh` does not exist.** Task 11 Step 7 calls
-it for *"create account → start → submit → assert balance"*, and that flow is
-the Definition of Done's deployed clause — the only thing that exercises `sim`,
-which has no public URL to curl by design. The pieces it needs are all present:
-`POST /v1/account` → `POST /v1/wave/start` → `POST /v1/wave/submit` (the first
-and third require an `Idempotency-Key` header), and `buildWinningReplay(6,
-seed)` in `services/api/test/wave-helpers.ts` already constructs a
-current-version winning replay for wave 6. **The tracked
-`implementation/results/editor-replay.bin` cannot be used**: it is engine
-`0.1.0` and would be rejected as `engine_too_old`. Writing this against a
-service that does not exist yet would produce a script nobody has run, so it is
-booked here rather than guessed at.
+**`implementation/scripts/smoke-wave.sh` + `smoke-wave.ts` are written.** Task
+11 Step 7 asks for *"create account → start → submit → assert balance"*, and
+that flow is the Definition of Done's deployed clause — the only thing that
+exercises `sim`, which has no public URL to curl by design.
+
+**The last assertion is the phase goal, and it is the reason the script is
+worth more than a curl.** A single winning submission proves only that the pair
+is wired. The script then **resubmits under the same idempotency key and asserts
+the balance did not move** — that is *"an honest one pays exactly once under
+retry"* checked against the deployed configuration, which no local test can
+speak to. It also checks the replay object landed in the bucket **separately and
+afterwards**, because `wave/submit` can return a clean 200 with the store having
+silently failed: the verdict comes from `sim` and the credit from Postgres, and
+neither knows whether GCS accepted anything.
+
+**The tracked `implementation/results/editor-replay.bin` is not usable for
+this** — engine `0.1.0`, refused as `engine_too_old`, correctly. The script
+builds a current replay against the **server-issued** seed, which is the only
+version of the test that means anything: a replay built on any other seed is the
+tampering case, not the honest one.
+
+**Verified as far as it can be without a deployment:** it loads, its imports
+resolve, it exits with guidance when `API_URL` is unset, and it fails cleanly at
+step 1 against an unreachable URL rather than crashing. **Every assertion past
+step 1 is unrun.**
+
+#### Writing it found a layering fault, now fixed
+
+The script would not load. `buildWinningReplay` lived in `test/wave-helpers.ts`,
+which imports the Hono app — and `SimClient`'s constructor (added by `5619d6f`)
+uses **TypeScript parameter properties**, which `node
+--experimental-strip-types` refuses outright. So a process that wanted nothing
+but a byte buffer could not start.
+
+Production code was **not** reshaped to suit a script; that possibility was
+checked and closed first. `migrate-cli.ts` runs under the same flag, but its
+import graph never reaches `sim/client.ts`, so migrations were never at risk and
+the parameter properties are not a latent bug.
+
+The fault was the boundary. The replay wire format mirrors
+`engine/Runtime/Combat/Replay.cs` field-for-field and is owned by the engine,
+not by the HTTP surface — it had no business importing an app, a schema and a
+Cloud Run client. It now lives in **`services/api/test/replay-format.ts`**,
+re-exported from `wave-helpers.ts` so every existing importer is untouched and
+there is still exactly one definition. **api 189 / 24 files after the move, with
+every per-file row identical to the baseline**, and typecheck 0.
 
 ---
 
