@@ -27,7 +27,7 @@ export interface ReplayOpts { engineVersion?: string; trait?: string; tier?: num
 
 const MAGIC = 0x50524c42 // "BLRP" little-endian, engine/Runtime/Combat/Replay.cs
 const FORMAT_VERSION = 1
-const DEFAULT_ENGINE_VERSION = '0.2.0' // engine/Runtime/SimVersion.cs SimVersion.Value
+const DEFAULT_ENGINE_VERSION = '0.3.0' // engine/Runtime/SimVersion.cs SimVersion.Value
 
 // engine/Runtime/Combat/Ids.cs
 const SPECIES = { Vetch: 0, Ember: 1, Skitter: 2, Hollow: 3, Loam: 4, Pale: 5 } as const
