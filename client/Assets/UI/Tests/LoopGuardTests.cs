@@ -299,9 +299,10 @@ namespace Broodline.UI.Tests
         [Test]
         public void APartialRosterSaysSo_RatherThanPresentingItselfAsWhole()
         {
-            // There is no endpoint that lists owned creatures, so a cold start
-            // knows the roster's SIZE and none of its members. Showing what
-            // happens to be cached as if it were everything is how a player
+            // The map's `roster` is a headline and carries no members, so a
+            // session that has polled the map but not yet loaded /v1/roster
+            // knows the roster's SIZE and only the creatures it happened to be
+            // handed. Showing that as if it were everything is how a player
             // concludes a creature was lost.
             var roster = new RosterScreen();
             roster.ApplyRegionState(new RegionStateResponse
@@ -314,6 +315,95 @@ namespace Broodline.UI.Tests
 
             Assert.IsFalse(roster.IsComplete);
             StringAssert.Contains("1 of 4", roster.IncompleteNotice);
+        }
+
+        [Test]
+        public void LoadingTheRoster_MakesAColdLaunchComplete()
+        {
+            // GET /v1/roster is what closes the loop across a relaunch. After
+            // it answers, the cache holds the player's whole live roster and
+            // says so.
+            var roster = new RosterScreen();
+            roster.ApplyRegionState(new RegionStateResponse
+            {
+                RegionId = "r1", Epoch = 1, Roster = new Roster { Count = 3, Cap = 20 },
+            });
+            Assert.IsFalse(roster.IsComplete);
+
+            var a = Creature();
+            var b = Creature();
+            var c = Creature();
+            var response = new RosterResponse { Cap = 20 };
+            response.Creatures.Add(a);
+            response.Creatures.Add(b);
+            response.Creatures.Add(c);
+
+            roster.ApplyRoster(response);
+
+            Assert.IsTrue(roster.IsComplete);
+            Assert.IsEmpty(roster.IncompleteNotice);
+            Assert.AreEqual(3, roster.Known.Count);
+            Assert.AreEqual(20, roster.ServerCap);
+            Assert.IsNotNull(roster.Find(b.CreatureId));
+        }
+
+        [Test]
+        public void TheRosterResponseReplaces_RatherThanMerges()
+        {
+            // The server has just stated the COMPLETE live set, so a creature
+            // the cache holds and the response does not is a creature that is
+            // gone. Merging would keep a splice's consumed parent on screen
+            // forever.
+            var stale = Creature();
+            var roster = RosterOf(stale);
+            Assert.IsNotNull(roster.Find(stale.CreatureId));
+
+            var fresh = Creature();
+            var response = new RosterResponse { Cap = 20 };
+            response.Creatures.Add(fresh);
+
+            roster.ApplyRoster(response);
+
+            Assert.IsNull(roster.Find(stale.CreatureId));
+            Assert.AreEqual(1, roster.Known.Count);
+            Assert.IsTrue(roster.IsComplete);
+        }
+
+        [Test]
+        public void AnEmptyRoster_IsCompleteAndSaysNothingIsMissing()
+        {
+            // A new player owns zero creatures. That is a complete answer, not
+            // a partial one - the roster screen should send them to harvest,
+            // not tell them something failed to load.
+            var roster = new RosterScreen();
+            roster.ApplyRoster(new RosterResponse { Cap = 20 });
+
+            Assert.IsTrue(roster.IsComplete);
+            Assert.IsEmpty(roster.IncompleteNotice);
+            Assert.AreEqual(0, roster.Known.Count);
+            Assert.IsFalse(roster.IsFull);
+        }
+
+        [Test]
+        public void ALoadedRosterFeedsTheDeployScreenDirectly()
+        {
+            // The point of the endpoint: after a cold launch the player can
+            // choose a deployment from creatures nothing in this session
+            // happened to grant.
+            var a = Creature();
+            var b = Creature();
+            b.CommittedTo = Guid.NewGuid();
+
+            var roster = new RosterScreen();
+            var response = new RosterResponse { Cap = 20 };
+            response.Creatures.Add(a);
+            response.Creatures.Add(b);
+            roster.ApplyRoster(response);
+
+            Assert.IsTrue(DeployScreen.Build(6, roster, new List<Guid> { a.CreatureId }).CanDeploy);
+            // And the committed one is still greyed out, from the server's own
+            // `committedTo`.
+            Assert.IsFalse(DeployScreen.Build(6, roster, new List<Guid> { b.CreatureId }).CanDeploy);
         }
 
         [Test]

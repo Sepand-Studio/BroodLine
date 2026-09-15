@@ -197,14 +197,31 @@ namespace Broodline.UI.Tests
         [Test]
         public void TwoFounders_RaiseADialogEach_NeitherCollapsed()
         {
-            // Both parents being Founders is reachable, and collapsing the two
-            // into one dialog would drop a name the spec makes load-bearing.
+            // RULED, not assumed: two Founders raise two dialogs. Each Founder
+            // is individually irreplaceable, and the spec's whole mechanism is
+            // that THE NAME is what stops you - so one combined dialog would
+            // let a player lose two Founders on a single tap, which is exactly
+            // the "trains players to tap through it" failure section 1 is
+            // written against.
             var vm = SpliceScreen.Build(Founder("Ash"), Founder("Bramble"), Preview());
 
             Assert.AreEqual(2, vm.FounderDialogs.Count);
-            Assert.AreEqual("Consume Ash", vm.FounderDialogs[0].ConfirmLabel);
-            Assert.AreEqual("Consume Bramble", vm.FounderDialogs[1].ConfirmLabel);
             Assert.AreEqual(3, vm.Dialogs.Count);
+
+            // Each names its OWN Founder. A combined dialog would have to drop
+            // one of these names or merge them into a phrase naming neither.
+            Assert.AreEqual("Consume Ash", vm.FounderDialogs[0].ConfirmLabel);
+            Assert.AreEqual("Keep Ash", vm.FounderDialogs[0].CancelLabel);
+            Assert.AreEqual("Consume Bramble", vm.FounderDialogs[1].ConfirmLabel);
+            Assert.AreEqual("Keep Bramble", vm.FounderDialogs[1].CancelLabel);
+
+            // And neither is a tap the other one carries: both interrupt, both
+            // default to the safe action.
+            foreach (var dialog in vm.FounderDialogs)
+            {
+                Assert.IsFalse(dialog.Suppressible);
+                Assert.IsFalse(dialog.ConfirmIsPrimary);
+            }
         }
 
         [Test]
