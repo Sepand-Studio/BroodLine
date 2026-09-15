@@ -40,14 +40,48 @@ namespace Broodline.Sim.Service
                                             b.Access, b.Coverage, b.Placement);
             }
 
+            // The deployment the SUBMITTED RECORD claimed, read back off the
+            // record rather than off SimState - design 6.2 asks what this
+            // submission asserted it fought with, and `record` is that
+            // assertion after Deployments.Problem has already refused every
+            // out-of-range species, trait, tier and pocket in it. Built AFTER
+            // Combat.Sim.Replay for that reason: a record whose deployment the
+            // rules reject is a rejection, not an echo.
+            var deployment = new CreatureSpecDto[record.Deployment.Length];
+            for (int c = 0; c < deployment.Length; c++)
+            {
+                var d = record.Deployment[c];
+                deployment[c] = new CreatureSpecDto(
+                    d.Species.ToString(),
+                    d.Trait1.ToString(), Coverage(d.Tier1),
+                    d.Trait2.ToString(), Coverage(d.Tier2),
+                    d.Instinct.ToString(),
+                    d.Pocket);
+            }
+
             return new SimulateResponse(
                 "verified", null, SimVersion.Value,
                 new SimulateEcho(record.WaveId, record.Seed.ToString(),
                                  record.Terrain.ToString(), record.LaneCount,
-                                 record.RallyTick, record.RallyCreature),
+                                 record.RallyTick, record.RallyCreature,
+                                 deployment),
                 new SimulateOutcome(outcome.Result.ToString(), outcome.Ticks,
                                     outcome.IntegrityRemaining,
                                     outcome.Hash.ToString(), breaches));
         }
+
+        /// The engine's tier in the shape api stores it: 0 is NOT A TIER.
+        ///
+        /// Stats.SplashTargets and Attacks.DamageTaken both read 0 as "the
+        /// trait is not really carried", and data_model 2 spells that same
+        /// state null because zero would sort and display as less than tier I.
+        /// drizzle/0005_loop.sql's coverage_tier_N_not_zero makes it
+        /// unstorable on the api side, so an echoed 0 could never equal
+        /// anything api holds - design 6.2's comparison would reject an honest
+        /// Aberrant every time.
+        ///
+        /// A FUNCTION rather than a cast, so the choice is written down once
+        /// and the two slots cannot drift apart.
+        private static int? Coverage(int tier) => tier == 0 ? null : tier;
     }
 }

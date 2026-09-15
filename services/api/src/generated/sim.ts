@@ -69,7 +69,20 @@ export interface components {
             tick: number | string;
             type: string;
         };
+        CreatureSpecDto: {
+            instinct: string;
+            /** Format: int32 */
+            pocket: number | string;
+            species: string;
+            /** Format: int32 */
+            tier1: null | number | string;
+            /** Format: int32 */
+            tier2: null | number | string;
+            trait1: string;
+            trait2: string;
+        };
         SimulateEcho: {
+            deployment: components["schemas"]["CreatureSpecDto"][];
             /** Format: int32 */
             laneCount: number | string;
             /** Format: int32 */
