@@ -614,12 +614,22 @@ describe('adversarial: what a modified client cannot do', () => {
     // second wave existed to check it against. What this test adds that the
     // argument alone could not: it is now possible to actually run an honest
     // wave-7 submission end to end and watch it pay wave 7's real,
-    // independently-authored reward rather than wave 6's, which the old
-    // synthetic-bundle stand-in below could only show of `rewardForWave` in
-    // isolation. THE ROW'S ONLY DISCRIMINATING GATE REMAINS THAT STAND-IN -
-    // calling `rewardForWave` directly is the one place a row-5 mutation can
-    // still be watched to fail, because it is the one place nothing stands
-    // between the mutated line and the call.
+    // independently-authored reward rather than wave 6's.
+    //
+    // CORRECTED AT FIX ROUND 2 - NOTHING DISCRIMINATES THIS WEAKENING IN
+    // ISOLATION, not even the synthetic-bundle stand-in below. An earlier
+    // draft of this comment called that block the row's only discriminating
+    // gate; that is false, and unfalsifiably so - the block calls
+    // `rewardForWave(twoWaves, 6)` and `rewardForWave(twoWaves, 7)` with its
+    // OWN LITERAL ids, never through this file's route handler at all, so it
+    // cannot observe - by construction - which of `issuance.waveId` or
+    // `verdict.echo.waveId` the call site at routes/wave.ts:663 passes. It
+    // proves `rewardForWave` uses whatever id it is handed; it says nothing
+    // about which id the call site chooses to hand it, which is the entire
+    // content of this row. See weakenings.md's "Row 5" for the full
+    // correction and fix round 1 for the weakening that DOES discriminate -
+    // the COMBINED one, which needs matchesIssuance's waveId comparison gone
+    // too, at `cannot claim wave 7's reward against a wave 6 issuance` below.
     //
     // A DELIBERATELY BUILT WIN, not `buildWinningReplay` with the wave id
     // swapped - see `wave7WinningDeployment`'s own comment for why that
@@ -675,11 +685,40 @@ describe('adversarial: what a modified client cannot do', () => {
     // against this exact exploit, once matchesIssuance's waveId half is
     // gone, is THIS assertion.
     //
-    // ASSERT THE REASON, NOT ONLY THE BALANCE. On real source the refusal
-    // must come from matchesIssuance's waveId half specifically (the seed
-    // matches; only the wave id disagrees), so the code pins WHICH guard
-    // fired - `cannot submit against a self-chosen seed`'s reasoning, same
-    // shape, the other field.
+    // FIX ROUND 2 - SELF-CONTAINED WIN CONFIRMATION, not borrowed from a
+    // sibling test. Review finding: this test's whole power to redden under
+    // the combined weakening depends on `wave7WinningDeployment()` actually
+    // WINNING wave 7. Nothing below asserted that - it was borrowed from
+    // `pays the ISSUED wave reward...` above, a coupling that existed only
+    // in a comment, nowhere in the code. If that composition ever stopped
+    // winning (an engine tuning change, a stat table edit), the attack
+    // below would become a Loss that pays nothing, and this test would stop
+    // meaning what its name says while still doing SOMETHING under the
+    // weakening - not a silent pass, but not a trustworthy signal either.
+    //
+    // So the win is confirmed directly, first, against a SEPARATE control
+    // player - a second `setupPlayer()`, exactly like `counts against
+    // midnight UTC...` above uses for its own second identity. A control
+    // rather than reusing the attacker: winning wave 7 legitimately
+    // requires wave 6 cleared first, and the attacker below specifically
+    // must NOT have cleared anything, or the exploit stops being the thing
+    // row 5 is about.
+    await setupPlayer(deps)
+    await clearThrough(6)
+    const controlRoster = await giveRoster(wave7WinningRosterSpecs())
+    const control = await (await startWave(7, controlRoster)).json() as { issuanceId: string; seed: string }
+    const controlRes = await submit(
+      control.issuanceId, buildReplayOf(7, BigInt(control.seed), wave7WinningDeployment()), crypto.randomUUID())
+    expect(controlRes.status).toBe(200)
+    expect(await controlRes.json()).toMatchObject(
+      { result: 'Win', reward: { currency: 'shards', amount: WAVE_7_REWARD } })
+
+    // THE ATTACK. A fresh player (setupPlayer again) who has cleared
+    // NOTHING - no clearThrough - issues wave 6 with the SAME
+    // engine-verified composition the control above just confirmed wins
+    // wave 7, then submits a wave-7 replay claiming it, at the wave-6
+    // issuance's own real seed.
+    await setupPlayer(deps)
     const roster = await giveRoster(wave7WinningRosterSpecs())
     const { issuanceId, seed } = await (await startWave(6, roster)).json() as { issuanceId: string; seed: string }
     const before = await balance('shards')
@@ -687,6 +726,22 @@ describe('adversarial: what a modified client cannot do', () => {
     const res = await submit(
       issuanceId, buildReplayOf(7, BigInt(seed), wave7WinningDeployment()), crypto.randomUUID())
 
+    // ASSERT AS FAR AS THE RESPONSE CAN ACTUALLY PIN IT, NOT FURTHER - fix
+    // round 2 correction. `submission_rejected` is returned by BOTH halves
+    // of matchesIssuance's `&&` (its own definition, routes/wave.ts:187:
+    // `echo.seed === issuance.seed && toInt(echo.waveId) === issuance.
+    // waveId`; the call site mapping a false result to this code is
+    // :598-600) - a seed mismatch produces this identical code, and nothing
+    // in the response says which half fired. An earlier draft of this
+    // comment claimed the code pins it; it does not. What pins this refusal
+    // to the WAVEID half specifically is construction, not observation: the
+    // replay above carries the issuance's own real seed, so the seed half
+    // is known to hold here, and `cannot submit against a self-chosen seed`
+    // already shows the seed half ALONE produces this same code when it is
+    // the one that fails - so by elimination, this refusal is the waveId
+    // half. That is an argument about the source and the test suite around
+    // this one, not something these four assertions can observe on their
+    // own.
     expect(res.status).toBe(409)
     expect(await res.json()).toMatchObject({ code: 'submission_rejected' })
     expect(await balance('shards')).toBe(before)
@@ -1037,15 +1092,35 @@ describe('adversarial: what a modified client cannot do', () => {
  *
  * MEASURED, NOT ARGUED, THIS TIME. `pays the ISSUED wave reward, never the
  * submitted one` above drives an honest wave-7 win through the real handler
- * with the row-5 weakening applied to real source, and stays GREEN - task-
- * 11-report.md carries the run. That confirms point 1 rather than retiring
- * it: nothing reachable through `/v1/wave/submit` can ever present
- * `rewardForWave` with an `echo.waveId` that disagrees with `issuance.
- * waveId`, which is a STRONGER claim than "untested". This block remains
- * the row's ONLY discriminating gate for exactly that reason - it is the
- * one place nothing stands between a mutated `rewardForWave` argument and
- * the call, because it calls the function directly rather than through the
- * guarded handler.
+ * with the SINGLE-EDIT row-5 weakening applied to real source, and stays
+ * GREEN - task-11-report.md carries the run. That confirms point 1 rather
+ * than retiring it: nothing reachable through `/v1/wave/submit` can ever
+ * present `rewardForWave` with an `echo.waveId` that disagrees with
+ * `issuance.waveId`, which is a STRONGER claim than "untested".
+ *
+ * THIS BLOCK IS NOT A DISCRIMINATING GATE FOR THAT WEAKENING, OR FOR ANY
+ * OTHER ROW-5 MUTATION - CORRECTED AT FIX ROUND 2. An earlier draft of this
+ * comment called it the row's only discriminating gate; that is false, and
+ * unfalsifiably so. Look at the block below: `rewardForWave(twoWaves, 6)`
+ * and `rewardForWave(twoWaves, 7)` are called with LITERAL ids the test
+ * itself chose, never through routes/wave.ts's call site at :663. Weaken
+ * that call site any way at all - read `issuance.waveId`, read
+ * `verdict.echo.waveId`, read a hardcoded constant - and this block cannot
+ * tell, because it never asks the call site anything. It proves
+ * `rewardForWave` is a pure function of whatever id it is given, which is a
+ * real and worth-keeping fact about `rewardForWave` - it proves nothing
+ * about which id `routes/wave.ts` chooses to give it, and no row-5 mutation
+ * changes what this block observes.
+ *
+ * NOTHING discriminates the single-edit weakening - not this block, not
+ * anything else in the suite, confirmed by actually running it (above).
+ * The weakening that DOES redden a test is the COMBINED one fix round 1
+ * found by re-reading Phase 5's own decision register rather than stopping
+ * at this result: delete `matchesIssuance`'s waveId comparison as well, and
+ * `cannot claim wave 7's reward against a wave 6 issuance` - earlier in
+ * this file, in the main `describe` block above - goes red. See
+ * weakenings.md's "Row 5" for both results side by side and why they
+ * answer different questions.
  */
 describe("the reward's source of truth (design §2.2)", () => {
   // Two waves with DIFFERENT rewards - the shape the engine cannot yet

@@ -42,8 +42,13 @@ row is safe"), and row 10 is a genuine hole in this gate that a controller
 ruling deliberately leaves open, because closing it here would put a
 non-adversarial property in the adversarial suite.
 
-Every run is `pnpm --filter @broodline/api test adversarial` against the file
-as it ships (**15 tests**), on branch `phase_5`, with file parallelism on.
+Every run of the original ten rows (1 through 10, including 4b) is
+`pnpm --filter @broodline/api test adversarial` against the file as it
+shipped THEN (**15 tests**), on branch `phase_5`, with file parallelism on.
+Row 5's two Task 11 entries run against a later `phase_6` file instead
+(**18 tests** as of fix round 1) and say so precisely in their own section
+below, not here — this sentence describes the original ten and nothing
+after them, so it is not updated to chase a count it was never claiming.
 After each run the weakening was reverted (`git checkout`) and the suite
 re-run to green.
 
@@ -58,8 +63,8 @@ re-run to green.
 | 3 | `settle()` moved outside the credit's transaction and the credit un-gated on it | `routes/wave.ts` submit handler | **RED — discriminating (1/15)**, *after a new test was written* | `cannot replay a winning submission twice under a genuinely concurrent second attempt` |
 | 4 | The settlement write-once trigger not created | `drizzle/0004_trigger_scope_and_bounds.sql` — **not `0003`**, see below | **GREEN — 15/15. FINDING.** | none in this file — see below |
 | 4b | The abandoned row settled `'consumed'` rather than `'expired'` | `wave/issuance.ts` `issueWave` check 4 | **RED — discriminating (1/15)**, *after a new test was written* | `cannot spend a replay it never took by abandoning a wave` |
-| 5 | Read the reward from `verdict.echo.waveId` ALONE | `routes/wave.ts` submit step 6, `rewardForWave`'s argument | **GREEN — 17/17 (`adversarial`), 49/49 (`wave-submit adversarial replays`). FINDING, run at Task 11.** | none — masked by step 5's own `matchesIssuance`, see "Row 5" below |
-| 5c | THE COMBINED WEAKENING: 5, AND `matchesIssuance`'s `waveId` comparison deleted (seed comparison kept) | `routes/wave.ts` `matchesIssuance` + submit step 6 | **RED — discriminating in `adversarial` (1/18); ALSO reddens a second, unrelated test (1/7 in `sim-client`)** | `cannot claim wave 7's reward against a wave 6 issuance`; separately, `sim-client.test.ts`'s `matchesIssuance > refuses a genuine mismatch regardless of which branch the type took` |
+| 5 | Read the reward from `verdict.echo.waveId` ALONE, `matchesIssuance` left intact | `routes/wave.ts` submit step 6, `rewardForWave`'s argument | **GREEN — 17/17 (`adversarial`), 49/49 (`wave-submit adversarial replays`). NOT the row's closing result — masked because `matchesIssuance` still stands; see 5b, and "Row 5" below for why nothing, including the synthetic-bundle unit test, discriminates this in isolation.** | none |
+| 5b | THE COMBINED WEAKENING, AND THE ROW'S CLOSING RESULT: 5, AND `matchesIssuance`'s `waveId` comparison deleted (seed comparison kept) | `routes/wave.ts` `matchesIssuance` + submit step 6 | **RED — discriminating in `adversarial` (1/18); ALSO reddens a second, unrelated test (1/7 in `sim-client`)** | `cannot claim wave 7's reward against a wave 6 issuance`; separately, `sim-client.test.ts`'s `matchesIssuance > refuses a genuine mismatch regardless of which branch the type took` |
 | 6 | Issuance check 2 (the replay cap) deleted | `wave/issuance.ts` `issueWave` | **RED (3/15)** | `cannot farm a cleared wave past the daily cap`, `counts a consumed issuance against the UTC day boundary, to the second`, `counts against midnight UTC even when the session TimeZone is not UTC` |
 | 7 | `'consumed'` issuances aged out at 3 hours rather than the UTC day boundary | `wave/issuance.ts` check 2's count window | **RED (2/15)**, *after a new test was written, then rewritten* — **but the row is NOT closed: see the OWED ruling below** | `counts a consumed issuance against the UTC day boundary, to the second`, `counts against midnight UTC even when the session TimeZone is not UTC` |
 | 8 | `sim`'s rejection returned as a `5xx` instead of a `200` verdict | `services/sim/Program.cs` | **RED — discriminating (1/15)** | `cannot submit forged bytes` |
@@ -287,17 +292,24 @@ the mutation — nothing can, over HTTP, because no request reaches line 663
 with the two fields disagreeing. **That is a stronger property than "no test
 happened to catch it"**: the substitution is unreachable by construction,
 not merely unexercised, and an honest end-to-end test is what makes that
-checkable rather than assumed. `adversarial.test.ts`'s pre-existing
-`describe("the reward's source of truth (design §2.2)")` block — the
-synthetic-bundle stand-in Phase 5 wrote in place of a real second wave —
-remains the ONLY thing that discriminates THIS SINGLE-EDIT weakening in
-isolation, for the same reason as always: it calls `rewardForWave` directly,
-with nothing standing between the mutated argument and the call. (Fix round
-1, next, finds a second discriminating gate — but only for the COMBINED
-weakening; it does not catch the single edit alone, because
-`matchesIssuance`'s waveId half is still standing in that scenario and
-refuses the request before the reward line runs, exactly as this section
-found.)
+checkable rather than assumed. **CORRECTED AT FIX ROUND 2 — nothing
+discriminates the single edit, and that includes `adversarial.test.ts`'s
+pre-existing `describe("the reward's source of truth (design §2.2)")`
+block.** An earlier draft of this paragraph called that block "the row's
+only discriminating gate," which is false, and false in a way a test run
+could never catch: the block calls `rewardForWave(twoWaves, 6)` and
+`rewardForWave(twoWaves, 7)` with its OWN LITERAL ids, never through
+`routes/wave.ts`'s call site at all, so it cannot observe — by
+construction, not merely in practice — which of `issuance.waveId` or
+`verdict.echo.waveId` that call site passes. It is unfalsifiable against
+this weakening: green whichever argument the handler reads, because it
+never reads the handler's argument. It proves `rewardForWave` uses whatever
+id it is given; it says nothing about which id the call site chooses to
+give it, which is the entire content of row 5. (Fix round 1, next, finds a
+genuine discriminating gate — but only for the COMBINED weakening; it does
+not catch the single edit alone, because `matchesIssuance`'s waveId half is
+still standing in that scenario and refuses the request before the reward
+line runs, exactly as this section found.)
 
 **This result stands, and it is real — it is just not the row.** The
 single-edit weakening leaves this file green and says why, which is worth
