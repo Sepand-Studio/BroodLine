@@ -784,6 +784,139 @@ time hosted CI sees this phase's code.
 
 ---
 
+## 12. The Task 11 bootstrap order, derived and verified up to the apply
+
+Added 2026-09-14. **This replaces `task-11-brief.md`, which `deploy.sh` cites
+for the deploy order and which no longer exists** — it lived in git-ignored
+scratch and did not survive. Everything below was checked against the real
+project with `terraform plan`, `gcloud` and the committed config; only the
+apply itself is unrun, and it is unrun because it was blocked, not because it
+failed.
+
+**Verified state of the target project** (`broodline-508416`, created
+2026-09-12): ACTIVE, **billing enabled** (`<redacted: read it with gcloud billing projects describe>`), and every
+API the stack needs is on — `sqladmin`, `run`, `secretmanager`,
+`servicenetworking`, `storage`, `artifactregistry`, `cloudbuild`, `compute`,
+`dns`, `iam`, `serviceusage`. `cloudresourcemanager.googleapis.com` was
+**missing and has been enabled**; Terraform's provider needs it for
+`google_project_iam_member`.
+
+`terraform plan` runs clean: **1 to import, 22 to add, 1 to change, 0 to
+destroy**, matching §5 exactly.
+
+### The one-letter trap, and check for it first
+
+There are two Google accounts one `s` apart, and **only one of them can do
+anything here**:
+
+| | Account | Access |
+|---|---|---|
+| Project owner | `sepand.a`**`ss`**`adi@gmail.com` | `roles/owner` — the only human in the IAM policy |
+| Easy to authenticate as by mistake | `sepand.a`**`s`**`adi@gmail.com` | **no binding at all** |
+
+`gcloud auth login` and `gcloud auth application-default login` are **separate
+browser flows**, and Terraform reads ADC, not the CLI account. Getting the
+first right and the second wrong produces a confusing symptom: a
+`serviceusage.services.use` permission error on a project where you hold
+`roles/owner`. **Check the ADC identity, not the CLI account:**
+
+```bash
+curl -s "https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=$(gcloud auth application-default print-access-token)" \
+  | python3 -m json.tool | grep email
+```
+
+### Why a single `terraform apply` does not work
+
+**The images do not exist.** `terraform.tfvars` points both services at
+`:latest` tags that were never pushed, and nothing can push them until
+`google_artifact_registry_repository.api` exists. A full apply therefore
+creates twenty resources and fails at the two `google_cloud_run_v2_service`
+resources. The fix is not a flag; it is an ordering, and it is the reason for
+pass 1 below.
+
+### The order
+
+**Prerequisite** — the Postgres password, generated once and kept. It is in the
+login Keychain as of 2026-09-14 and is read from there rather than retyped, so
+it never reaches a file, `ps`, or shell history. `variables.tf` forbids `-var=`
+for exactly those reasons:
+
+```bash
+export TF_VAR_db_password="$(security find-generic-password -a broodline -s broodline-db-password -w)"
+```
+
+**Pass 1 — everything except Cloud Run, with a temporary public IP.** The
+eleven targets are leaves; Terraform pulls the other twelve resources in as
+dependencies. `db_public_ip` exists for precisely this window and defaults off.
+
+```bash
+cd infra/terraform
+terraform apply -auto-approve \
+  -var 'db_public_ip=true' \
+  -var 'db_authorized_networks=["YOUR.IP.HERE/32"]' \
+  -target=google_project_iam_member.api_sql \
+  -target=google_secret_manager_secret_iam_member.api_db_password \
+  -target=google_secret_manager_secret_iam_member.api_jwt \
+  -target=google_storage_bucket_iam_member.api_config \
+  -target=google_storage_bucket_iam_member.api_replays \
+  -target=google_sql_database.app \
+  -target=google_sql_user.app \
+  -target=google_artifact_registry_repository.api \
+  -target=google_dns_record_set.run_app \
+  -target=google_dns_record_set.run_app_wildcard \
+  -target=google_service_account.sim
+```
+
+Cloud SQL takes 10–15 minutes. A `-target` apply warns that state may be
+incomplete; that is expected and the full apply at pass 2 reconciles it.
+
+**Then, in this order:**
+
+1. **The JWT version** — `main.tf` creates the secret and deliberately not a
+   version, while the api resolves `version = "latest"`. Without this the
+   revision fails to start and Cloud Run reports a generic
+   container-failed-to-start that reads like an application crash.
+   ```bash
+   openssl rand -base64 48 | tr -d '\n' \
+     | gcloud secrets versions add broodline-jwt-secret --data-file=- --project broodline-508416
+   ```
+2. **Schema** — the four migrations, `0001_tables` through
+   `0004_trigger_scope_and_bounds`, over the temporary public IP.
+   `pnpm --filter @broodline/api migrate`.
+3. **Config** — `./implementation/scripts/publish-bundle.sh 0.1.1 --activate`.
+   **0.1.1, never 0.1.0**: Task 7 made `reward` mandatory and 0.1.0's wave 6
+   predates it, so `validateBundle` refuses it. `--activate` is the only thing
+   that sets `bundles/current`, and the service 500s on its first request
+   without the pointer.
+4. **Code** — `./implementation/scripts/deploy.sh`, which builds and pushes
+   **both** images and runs the full apply.
+
+**The public IP closes itself, and that cuts both ways.** `deploy.sh`'s
+`terraform apply` passes only `project_id`, `region`, `image` and `sim_image`,
+so `db_public_ip` reverts to its `false` default and the public IP is removed
+without a separate step. The corollary is the trap: **run `deploy.sh` before
+the migrations and the database access window shuts with the schema still
+unmigrated**, and re-opening it is another Cloud SQL update cycle. Schema, then
+config, then code — the order `deploy.sh`'s own header gives, and the reason
+for it.
+
+### What is still missing, and is not written yet
+
+**`implementation/scripts/smoke-wave.sh` does not exist.** Task 11 Step 7 calls
+it for *"create account → start → submit → assert balance"*, and that flow is
+the Definition of Done's deployed clause — the only thing that exercises `sim`,
+which has no public URL to curl by design. The pieces it needs are all present:
+`POST /v1/account` → `POST /v1/wave/start` → `POST /v1/wave/submit` (the first
+and third require an `Idempotency-Key` header), and `buildWinningReplay(6,
+seed)` in `services/api/test/wave-helpers.ts` already constructs a
+current-version winning replay for wave 6. **The tracked
+`implementation/results/editor-replay.bin` cannot be used**: it is engine
+`0.1.0` and would be rejected as `engine_too_old`. Writing this against a
+service that does not exist yet would produce a script nobody has run, so it is
+booked here rather than guessed at.
+
+---
+
 *Owns: nothing normative. This is the record of what Phase 5's execution found
 and chose not to fix, so the next person does not rediscover it. Each item's
 real home is the code, migration or design section it names. Where this file and
