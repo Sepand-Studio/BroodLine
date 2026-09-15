@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { validateBundle } from '../src/config/validate.ts'
+import { REQUIRED_NODE_IDS } from '../src/map/rotation.ts'
 
 // fileURLToPath (not .pathname) so a space anywhere in the path - as in this
 // very repo's parent directory - is decoded rather than left as a literal
@@ -83,5 +84,64 @@ describe('node rates', () => {
     } finally {
       await rm(dir, { recursive: true, force: true })
     }
+  }, 120_000)
+})
+
+describe('node identity', () => {
+  /**
+   * THE SHARPER HALF OF THE SAME CHECK, and the one the per-task reviews
+   * could not see: Task 4 wrote `nodesFor`, which looks these ids up with a
+   * non-null assertion, and Task 5 wrote `nodeSet`, which guards only
+   * `nodes.length === 0`. Each assumed the other checked that the ids
+   * themselves exist, so ONE typo - `rich_desposit` - validated clean and
+   * then threw `TypeError: Cannot read properties of undefined (reading
+   * 'ratePerHour')` out of `nodesFor`, as a 500 on GET /v1/region/state and
+   * on the claim route, for every player on the server, until someone rolled
+   * the bundle back.
+   *
+   * Driven off REQUIRED_NODE_IDS rather than two hand-written cases, for the
+   * same reason the validator imports it: adding a third required node must
+   * extend this test by construction, not by somebody remembering to.
+   */
+  const withNodes = async (nodes: unknown[]): Promise<string[]> => {
+    const dir = await mkdtemp(join(tmpdir(), 'broodline-bundle-'))
+    try {
+      // Same scratch copy of the real, valid 0.1.2 bundle as above - so the
+      // only thing that can be wrong with what validateBundle sees is the
+      // nodes.json this writes, and config/bundles/0.1.2 is never touched.
+      await cp(BUNDLE_0_1_2, dir, { recursive: true })
+      await writeFile(join(dir, 'nodes.json'), JSON.stringify(nodes))
+      return await validateBundle(dir)
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  }
+
+  /** Every required node, authored correctly - the shape each case mutates. */
+  const complete = () => REQUIRED_NODE_IDS.map((id) => (
+    { id, ratePerHour: 20, totalYield: null, multiplier: 1 }))
+
+  for (const missing of REQUIRED_NODE_IDS) {
+    it(`refuses a bundle whose nodes.json omits '${missing}'`, async () => {
+      const v = await withNodes(complete().filter((n) => n.id !== missing))
+      expect(v).toHaveLength(1)
+      expect(v[0]).toContain(missing)
+    }, 120_000)
+  }
+
+  it("refuses a typo'd id rather than reading it as a new node", async () => {
+    // The reproduction verbatim. A typo is not a missing node from the
+    // author's point of view - the file still has two entries - so a check
+    // that counted nodes rather than naming them would pass this.
+    const v = await withNodes(complete().map((n) => (
+      n.id === 'rich_deposit' ? { ...n, id: 'rich_desposit' } : n)))
+    expect(v).toHaveLength(1)
+    expect(v[0]).toContain('rich_deposit')
+  }, 120_000)
+
+  it('accepts a nodes.json that authors every required id - the positive control', async () => {
+    // Without this, the cases above would be satisfied by a check that
+    // refused every nodes.json, and the suite could not tell the two apart.
+    expect(await withNodes(complete())).toEqual([])
   }, 120_000)
 })

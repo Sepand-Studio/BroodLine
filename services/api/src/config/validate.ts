@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { currency as currencyEnum } from '../db/schema.ts'
+import { REQUIRED_NODE_IDS } from '../map/rotation.ts'
 
 const run = promisify(execFile)
 
@@ -51,11 +52,13 @@ const VERSION_PATTERN = /^\d+\.\d+\.\d+$/
  *     not construct the reward-inflation weakening because only one wave was
  *     authored; this stops a future bundle from quietly re-creating that
  *     one-wave condition by giving two authored waves equal rewards.
- *   - node rates (validateNodeRates): map/accrual.ts's accrue() (Task 4)
- *     converts a node's ratePerHour to a BigInt; a non-integer rate throws a
- *     cryptic RangeError deep inside a claim instead of failing here, at
- *     publish time, where it is legible and cheap. See that function for the
- *     fix-round-1 finding this closes.
+ *   - node rates AND node identity (validateNodeRates): map/accrual.ts's
+ *     accrue() (Task 4) converts a node's ratePerHour to a BigInt, so a
+ *     non-integer rate throws a cryptic RangeError deep inside a claim
+ *     instead of failing here. The identity half is sharper still - a
+ *     nodes.json missing either id map/rotation.ts's `nodesFor` requires
+ *     500s GET /v1/region/state and the claim route for every player on the
+ *     server. See that function for both findings.
  */
 export async function validateBundle(dir: string): Promise<string[]> {
   const violations: string[] = []
@@ -345,11 +348,30 @@ interface AuthoredNode { id: string; ratePerHour: unknown; totalYield: unknown }
  * legible (solo_execution 5.2's whole argument for this file). `totalYield`
  * feeds `remaining` the same way and is checked for the same reason.
  *
- * nodes.json is OPTIONAL here, deliberately: config/bundle.ts's loadBundle
- * does not read it yet (see the Task 2 and Task 4 reports), so no fixture in
- * this suite carries one, and every one of them must keep passing. A bundle
- * that is supposed to ship nodes.json but omits it is not this check's
- * problem to catch.
+ * THE SECOND CHECK IS THE ONE THAT MATTERS MOST, and it was the Task 4
+ * carry-forward nobody closed: map/rotation.ts's `nodesFor` looks the two
+ * REQUIRED_NODE_IDS up with a non-null assertion, and map/claim.ts's
+ * `nodeSet` guards only `nodes.length === 0`. So a nodes.json carrying one
+ * typo'd id - `rich_desposit` - passed every check here and then threw
+ * `TypeError: Cannot read properties of undefined (reading 'ratePerHour')`
+ * out of `nodesFor`: a 500 on GET /v1/region/state and on the claim route,
+ * for EVERY player on the server, until someone rolled the bundle back.
+ * Two tasks each assumed the other had this. Publish time is where it dies,
+ * because a published bundle reaches every player at once and cannot be
+ * recalled by an app update.
+ *
+ * The id set is IMPORTED from rotation.ts rather than restated here, for the
+ * reason VALID_CURRENCIES is read off the Postgres enum: a set written down
+ * twice is a set that drifts, and this check exists precisely because two
+ * places disagreed about it.
+ *
+ * nodes.json is OPTIONAL here, deliberately: a bundle that authors no map is
+ * not a broken bundle - config/bundle.ts's loadBundle reads nodes.json
+ * through a catch and leaves `nodes` empty when it is absent, and claim.ts's
+ * `nodeSet` answers "no region" rather than an empty one. No fixture in this
+ * suite carries a nodes.json, and every one of them must keep passing. A
+ * bundle that is supposed to ship one but omits it is not this check's
+ * problem to catch; a bundle that ships one and gets it WRONG is.
  */
 async function validateNodeRates(dir: string): Promise<string[]> {
   const raw = await readFile(join(dir, 'nodes.json'), 'utf8').catch(() => null)
@@ -357,6 +379,16 @@ async function validateNodeRates(dir: string): Promise<string[]> {
 
   const nodes = JSON.parse(raw) as AuthoredNode[]
   const violations: string[] = []
+
+  const authored = new Set(nodes.map((n) => n.id))
+  for (const required of REQUIRED_NODE_IDS) {
+    if (!authored.has(required)) {
+      violations.push(
+        `nodes.json authors no node with id '${required}'. map/rotation.ts's ` +
+        `nodesFor requires it; without it GET /v1/region/state and the claim ` +
+        `route answer 500 for every player on the server.`)
+    }
+  }
 
   for (const node of nodes) {
     if (typeof node.ratePerHour !== 'number' || !Number.isInteger(node.ratePerHour) || node.ratePerHour <= 0) {

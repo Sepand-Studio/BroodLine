@@ -39,9 +39,24 @@ export interface Bundle {
   nodes: BundleNode[]
 }
 
+/**
+ * The node ids `nodesFor` REQUIRES a bundle to author, as a value rather
+ * than as two string literals buried in a function body.
+ *
+ * It is exported so config/validate.ts can enumerate it at publish time
+ * instead of restating it - the same reason validate.ts reads the currency
+ * enum off db/schema.ts rather than listing currencies again. A bundle whose
+ * nodes.json misspells one of these used to pass every check and then throw
+ * a TypeError out of `nodesFor` on GET /v1/region/state, for every player on
+ * the server, until someone rolled the bundle back.
+ */
+export const REQUIRED_NODE_IDS = ['common_vein', 'rich_deposit'] as const
+
+export type NodeId = typeof REQUIRED_NODE_IDS[number]
+
 export interface NodeState {
   slot: number
-  type: 'common_vein' | 'rich_deposit'
+  type: NodeId
   ratePerHour: number
   totalYield: number | null
 }
@@ -92,8 +107,15 @@ export function epochFor(server: ServerTick, at: Date): bigint {
 export function nodesFor(
   serverId: number, regionId: string, epoch: bigint, seed: bigint, bundle: Bundle,
 ): NodeState[] {
-  const common = bundle.nodes.find(n => n.id === 'common_vein')!
-  const rich = bundle.nodes.find(n => n.id === 'rich_deposit')!
+  // Typed `NodeId`, so the two ids below are checked against
+  // REQUIRED_NODE_IDS rather than being free-floating strings: drop one from
+  // that constant and this function stops compiling, which is what keeps the
+  // set config/validate.ts enforces and the set this function demands from
+  // drifting apart. The `!` is sound only BECAUSE the validator enforces
+  // that set at publish time - see validateNodeRates.
+  const byId = (id: NodeId) => bundle.nodes.find(n => n.id === id)!
+  const common = byId('common_vein')
+  const rich = byId('rich_deposit')
   return [
     { slot: 0, type: 'common_vein', ratePerHour: common.ratePerHour, totalYield: null },
     { slot: 1, type: 'rich_deposit', ratePerHour: rich.ratePerHour, totalYield: rich.totalYield },
