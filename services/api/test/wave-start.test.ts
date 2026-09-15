@@ -15,13 +15,13 @@ import { LocalReplayStore } from '../src/replays/store.ts'
 import { creatureHp } from '../src/roster/creatures.ts'
 import { SimClient } from '../src/sim/client.ts'
 import {
-  claimIssuance, type CreatureSpec, DEPLOYMENT_CAP, type DeployedCreature,
-  type Issuance, issueWave, settle,
+  claimIssuance, commitCreatures, type CreatureSpec, DEPLOYMENT_CAP, DEPLOYMENT_FLOOR,
+  type DeployedCreature, type Issuance, issueWave, settle,
 } from '../src/wave/issuance.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 import {
   clearWave, consumeLiveIssuance, type Deployed, liveIssuance, setupPlayer,
-  startWave as start, startWaveRaw,
+  startWave as start, startWaveRaw, winningRoster,
 } from './wave-helpers.ts'
 
 // serverId is always 1 in this file - the one server beforeAll creates.
@@ -75,9 +75,35 @@ afterAll(async () => {
   if (bundleRoot) await rm(bundleRoot, { recursive: true, force: true })
 })
 
+/**
+ * `start`, with a deployment that is LEGAL AND SAYS NOTHING.
+ *
+ * Every test in the block below is about issuance mechanics - which waves are
+ * available, the replay cap, the one-live rule, the malformed-waveId bounds -
+ * and none of them has an opinion about the roster. They passed the empty
+ * default until Task 10's fix round put a floor of one under `deployment`
+ * (DEPLOYMENT_FLOOR: an empty deployment is a wave fought with nothing, and
+ * `wave/submit` would pay for it the day content authors a wave the Ark
+ * survives undefended).
+ *
+ * THE POINT IS THAT ONLY ONE THING IS MALFORMED AT A TIME. Three of these
+ * tests assert `invalid_request` for a bad `waveId`, and with an empty
+ * deployment they would now be answered `invalid_request` for the DEPLOYMENT
+ * instead - green, for a reason that has nothing to do with what they are
+ * named for. `refuses the deployment field empty` in the roster block below
+ * is where the floor itself is pinned.
+ *
+ * `winningRoster()` rather than a fixture of this file's own: it is minted
+ * once per player, cleared by `setupPlayer`, and already the one definition
+ * the three submit-path files use.
+ */
+async function startAny(waveId: number): Promise<Response> {
+  return start(waveId, await winningRoster())
+}
+
 describe('POST /v1/wave/start', () => {
   it('issues a seed for the next uncleared wave', async () => {
-    const res = await start(6)
+    const res = await startAny(6)
     expect(res.status).toBe(200)
     const body = await res.json() as { issuanceId: string; seed: string; expiresAt: string }
 
@@ -97,8 +123,8 @@ describe('POST /v1/wave/start', () => {
   })
 
   it('returns the SAME issuance rather than minting a second', async () => {
-    const first = await (await start(6)).json() as { issuanceId: string; seed: string }
-    const second = await (await start(6)).json() as { issuanceId: string; seed: string }
+    const first = await (await startAny(6)).json() as { issuanceId: string; seed: string }
+    const second = await (await startAny(6)).json() as { issuanceId: string; seed: string }
 
     // design 2.1. Determinism is what makes verification cheap; it is also
     // what makes seed-shopping cheap, and this is the defence.
@@ -107,7 +133,7 @@ describe('POST /v1/wave/start', () => {
   })
 
   it('refuses a wave beyond the next one', async () => {
-    const res = await start(20)
+    const res = await startAny(20)
     expect(res.status).toBe(409)
     expect(await res.json()).toMatchObject({ code: 'wave_locked' })
   })
@@ -116,7 +142,7 @@ describe('POST /v1/wave/start', () => {
     // The bundle carries wave 6 only. A wave id the content does not define
     // is wave_locked, not a 500 - the bundle is the content source, per
     // solo_execution 5.2's content-versus-data split.
-    const res = await start(1)
+    const res = await startAny(1)
     expect([409]).toContain(res.status)
     expect(await res.json()).toMatchObject({ code: 'wave_locked' })
   })
@@ -125,7 +151,7 @@ describe('POST /v1/wave/start', () => {
     await clearWave(6) // helper: consume any live issuance and advance progress
 
     for (let i = 0; i < 3; i++) {
-      expect((await start(6)).status).toBe(200)
+      expect((await startAny(6)).status).toBe(200)
       await consumeLiveIssuance()
     }
 
@@ -133,7 +159,7 @@ describe('POST /v1/wave/start', () => {
     // nothing until tomorrow. WITHOUT THIS CHECK wave 1 is farmable
     // indefinitely and re-simulation never notices, because every one of
     // those runs is honest - design 4.1 check 2.
-    const res = await start(6)
+    const res = await startAny(6)
     expect(res.status).toBe(429)
     expect(await res.json()).toMatchObject({ code: 'replay_cap_reached' })
   })
@@ -162,7 +188,7 @@ describe('POST /v1/wave/start', () => {
     await setupPlayer(deps)
     await clearWave(6)
 
-    const res = await start(5)
+    const res = await startAny(5)
     expect(res.status).toBe(409)
     expect(await res.json()).toMatchObject({ code: 'wave_locked' })
   })
@@ -178,7 +204,7 @@ describe('POST /v1/wave/start', () => {
     // side effect of clearWave()'s own cleanup elsewhere in this file.
     const { playerId: freshPlayerId } = await setupPlayer(deps)
 
-    const firstBody = await (await start(6)).json() as { issuanceId: string }
+    const firstBody = await (await startAny(6)).json() as { issuanceId: string }
 
     // Force the abandoned state directly - expired, but never settled -
     // via the owner connection (bypasses RLS; this is a fixture write a
@@ -188,7 +214,7 @@ describe('POST /v1/wave/start', () => {
       UPDATE wave_issuances SET expires_at = now() - interval '1 second'
       WHERE issuance_id = ${firstBody.issuanceId}`)
 
-    const res = await start(6)
+    const res = await startAny(6)
     expect(res.status).toBe(200)
     const secondBody = await res.json() as { issuanceId: string }
     expect(secondBody.issuanceId).not.toBe(firstBody.issuanceId)
@@ -286,7 +312,7 @@ describe('POST /v1/wave/start', () => {
     // wave_issuances.wave_id is a Postgres `integer`, so 2^53-1 is not a
     // wave that happens to be unavailable - it is not a wave id this system
     // could hold under any bundle.
-    const res = await start(Number.MAX_SAFE_INTEGER)
+    const res = await startAny(Number.MAX_SAFE_INTEGER)
     expect(res.status).toBe(400)
     expect(await res.json()).toMatchObject({ code: 'invalid_request' })
   })
@@ -294,11 +320,11 @@ describe('POST /v1/wave/start', () => {
   it('refuses a non-positive waveId as malformed rather than locked', async () => {
     // The floor, from the other end and for the same reason: no bundle can
     // author wave 0 or wave -1, so the answer does not depend on content.
-    const negative = await start(-1)
+    const negative = await startAny(-1)
     expect(negative.status).toBe(400)
     expect(await negative.json()).toMatchObject({ code: 'invalid_request' })
 
-    const zero = await start(0)
+    const zero = await startAny(0)
     expect(zero.status).toBe(400)
     expect(await zero.json()).toMatchObject({ code: 'invalid_request' })
   })
@@ -540,6 +566,41 @@ describe('POST /v1/wave/start — the deployment is fixed at issuance (design §
     expect((await start(6, deploymentOf(mine.slice(0, 5)))).status).toBe(200)
   })
 
+  it('refuses an EMPTY deployment, as malformed rather than as a wave fought with nothing', async () => {
+    // THE OTHER END OF THE SAME BOUND, added in Task 10's fix round.
+    //
+    // An empty deployment was legal until then, on the argument that zero
+    // creatures is something the engine simulates fine and LOSES. The second
+    // half of that is the problem: it is a fact about wave 6's lone Courser
+    // reaching the Ark unaided - ENGINE CONTENT, not a guard. `wave/submit`
+    // compares the echoed deployment against the stored one and `[]` matches
+    // `[]` perfectly, so the day content authors a wave the Ark survives
+    // undefended, an empty issuance WINS it and is paid its reward plus its
+    // base stock, three times a day, with the whole suite green. Phase 7
+    // authors more waves.
+    //
+    // 400 and not 409, for the cap's reason exactly: no roster state and no
+    // bundle could make a deployment of zero legal, so it is malformed by
+    // construction rather than understood and refused.
+    expect(DEPLOYMENT_FLOOR).toBe(1)
+
+    const res = await start(6, [])
+    expect(res.status).toBe(400)
+    expect(await res.json()).toMatchObject({ code: 'invalid_request' })
+    // ASSERTS ON STATE, not only the code. The refusal has to ISSUE NOTHING -
+    // a 400 handed out alongside a live issuance would leave a seed in flight
+    // for a deployment nobody chose, which is the same defect
+    // `requires the deployment field at all` guards from the other side.
+    expect(await liveIssuance()).toBeUndefined()
+
+    // THE FLOOR IS A FLOOR, NOT A REQUIRED SIZE - the positive control, and
+    // without it a check that refused every deployment shorter than five
+    // would pass the half above. One creature is a legal, if doomed,
+    // deployment: how a wave GOES is the engine's business and nothing this
+    // route has an opinion about.
+    expect((await start(6, deploymentOf(mine.slice(0, 1)))).status).toBe(200)
+  })
+
   it('refuses the same creature named twice, as malformed rather than unowned', async () => {
     // A body naming one creature in two pockets asks for two creatures out
     // of one. It IS owned, so `creature_not_owned` would be a refusal that
@@ -657,6 +718,70 @@ describe('POST /v1/wave/start — the deployment is fixed at issuance (design §
         species: c.species, trait1: c.trait1, tier1: c.tier1, pocket,
       })
     })
+  })
+
+  it("commitCreatures refuses a row that is not this player's, live and uncommitted", async () => {
+    // DRIVEN DIRECTLY, AND THAT IS THE WHOLE POINT. `commitCreatures` is the
+    // write design §2.5's temporal guarantee rests on - committed means
+    // cannot be spliced, so cannot be consumed, so cannot be pruned, for
+    // exactly as long as the issuance is live. It shipped filtering on
+    // `server_id` and `creature_id` alone, which is correct ONLY because
+    // `loadOwnedCreatures` took FOR UPDATE on those rows three statements
+    // earlier, having already checked ownership, liveness and `committed_to`.
+    //
+    // So no HTTP request can reach these predicates: `resolveDeployment`
+    // refuses an unowned, dead or committed creature long before this runs,
+    // and weakenings P6-13/14/15 confirmed it - dropping the row-count
+    // assertion, the player predicate or the committed_to predicate each left
+    // the suite 79/79 GREEN. That is precisely the argument the loose WHERE
+    // was resting on, which is why it cannot also be the reason not to test
+    // it. This calls the function WITHOUT the lock in front of it, which is
+    // the only place the predicates can be shown to do anything at all. Same
+    // precedent as `claimIssuance`'s own direct test above.
+    const { playerId: owner } = await setupPlayer(deps)
+    const issuanceId = randomUUID()
+
+    // THE POSITIVE CONTROL FIRST, and it is not decoration: every case below
+    // asserts a THROW, and a function that threw unconditionally would pass
+    // all four. This one must commit.
+    const ok = await give(owner)
+    await withServer(deps.db, SERVER_ID, (tx) =>
+      commitCreatures(tx, SERVER_ID, owner, [ok.creatureId], issuanceId))
+    expect((await reread([ok.creatureId])).get(ok.creatureId)!.committedTo).toBe(issuanceId)
+
+    // Each refusal names a row this statement must decline, and each is
+    // checked for the THROW and for the row being untouched afterwards - a
+    // throw that had already written something would roll back here (the
+    // transaction aborts) but would not in a caller that caught it.
+    const otherPlayer = (await setupPlayer(deps)).playerId
+    const theirs = await give(otherPlayer)
+    const committed = await give(owner, { committedTo: randomUUID() })
+    const dead = await give(owner, { consumed: true })
+
+    for (const [why, row] of [
+      ["another player's", theirs],
+      ['already committed elsewhere', committed],
+      ['consumed', dead],
+    ] as const) {
+      const before = (await reread([row.creatureId])).get(row.creatureId)!.committedTo
+      await expect(
+        withServer(deps.db, SERVER_ID, (tx) =>
+          commitCreatures(tx, SERVER_ID, owner, [row.creatureId], issuanceId)),
+        why,
+      ).rejects.toThrow(/commitCreatures/)
+      expect((await reread([row.creatureId])).get(row.creatureId)!.committedTo, why).toBe(before)
+    }
+
+    // AND THE COUNT, not just the predicates: four ids of which one matches
+    // is a partial commitment, and a partial commitment leaves the other
+    // three spliceable while the issuance believes they are out fighting.
+    const second = await give(owner)
+    await expect(withServer(deps.db, SERVER_ID, (tx) => commitCreatures(
+      tx, SERVER_ID, owner,
+      [second.creatureId, theirs.creatureId, committed.creatureId, dead.creatureId],
+      issuanceId,
+    ))).rejects.toThrow(/deployed 4 creatures but 1 rows were committed/)
+    expect((await reread([second.creatureId])).get(second.creatureId)!.committedTo).toBeNull()
   })
 
   it('sets committed_to on every deployed creature, and clears it when the issuance is CONSUMED', async () => {

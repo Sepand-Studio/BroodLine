@@ -430,8 +430,8 @@ themselves.
 ## Phase 6 — the deployment comparison and the supply floor
 
 Design §6.2 and §2.4, Phase 6 Task 10. Same discipline as the table above and
-the same method: each row was **applied to the real source at commit
-`b6f93b2`**, the suite actually run, the failing test names actually recorded,
+the same method: each row was **applied to the real source** at this task’s
+own shipped state, the suite actually run, the failing test names actually recorded,
 then reverted with `git checkout -- services/api/src` and `git diff --quiet`
 confirmed before the next row. Nothing here is predicted.
 
@@ -496,6 +496,48 @@ refused EVERYTHING would pass all eight of those tests perfectly, so the table
 would be evidence of nothing without a row that moves in the other direction.
 P6-9 reddens 26 tests and moves none of the mismatch cases — the two halves are
 independent, and the suite pins both.
+
+### Fix round — the two guards review added
+
+`DEPLOYMENT_FLOOR` and `commitCreatures`' full WHERE, applied to the fix-round commit's own shipped state.
+Runs are `pnpm --filter @broodline/api test wave-start wave-submit adversarial
+replays` (**80 tests**) — `wave-start` joins because both guards live on the
+issuance side.
+
+| # | Weakened | Where | Result | Test(s) that went red |
+|---|---|---|---|---|
+| P6-10 | The floor removed — an empty deployment issuable again | `routes/wave.ts` `parseDeployment` | **RED — discriminating (1/80)** | `refuses an EMPTY deployment, as malformed rather than as a wave fought with nothing` |
+| P6-11 | The floor raised to `DEPLOYMENT_CAP` — a required size of five rather than a minimum of one | `routes/wave.ts` `parseDeployment` | **RED (11/80)** | the floor test's own positive control, plus nine roster tests and `rejects a submission that deploys MORE creatures than it was issued` |
+| P6-12 | The row-count assertion deleted **and** the update narrowed to the first id | `wave/issuance.ts` `commitCreatures` | **RED (5/80)** | the direct test plus all four `committed_to` route tests |
+| P6-13 | The row-count assertion deleted, predicates intact | `wave/issuance.ts` `commitCreatures` | **RED — discriminating (1/80)** | `commitCreatures refuses a row that is not this player's, live and uncommitted` |
+| P6-14 | The `player_id` predicate dropped | `wave/issuance.ts` `commitCreatures` | **RED — discriminating (1/80)** | same |
+| P6-15 | The `committed_to IS NULL` predicate dropped | `wave/issuance.ts` `commitCreatures` | **RED — discriminating (1/80)** | same |
+
+**P6-11 is the floor's positive control**, and it is the row that stops the
+floor from being "refuse anything shorter than a full deployment". A check that
+demanded five would pass P6-10's test perfectly; it reddens eleven, including
+the `expect((await start(6, deploymentOf(mine.slice(0, 1)))).status).toBe(200)`
+inside the floor test itself. One creature is a legal, if doomed, deployment —
+how a wave *goes* is the engine's business.
+
+**P6-13, P6-14 and P6-15 were GREEN at first, and that is recorded rather than
+quietly fixed.** Run against the fix commit BEFORE its direct test existed,
+each of the three left the suite **79/79 green**. That is not an
+accident of coverage, it is structural: `resolveDeployment` refuses an unowned,
+dead or committed creature long before `commitCreatures` runs, so **no HTTP
+request can present that statement with a row it should decline.** Which is
+precisely the argument that made the loose `WHERE` "correct today" — and it
+cannot also be the reason not to test it.
+
+So `commitCreatures` is exported and driven **directly, without the FOR UPDATE
+in front of it** (`wave-start.test.ts`'s `commitCreatures refuses a row that is
+not this player's, live and uncommitted`), which is the only place the
+predicates can be shown to do anything. The same precedent `claimIssuance` set
+one test up: when a guard is unreachable through the route, drive the function.
+With that test in place all three rows became discriminating at 1/80. The
+sequence — green, recorded, test written, red — is the point; a reader should
+be able to see that these three predicates had no coverage at all until
+something went looking.
 
 ---
 

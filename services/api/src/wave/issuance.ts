@@ -3,7 +3,7 @@ import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 import type { Bundle } from '../config/bundle.ts'
 import type { Tx } from '../db/client.ts'
 import { campaignProgress, creatures, waveIssuances, type CreatureSpec } from '../db/schema.ts'
-import { loadOwnedCreatures } from '../roster/creatures.ts'
+import { liveCreature, loadOwnedCreatures } from '../roster/creatures.ts'
 
 export const ISSUANCE_TTL_MS = 7_200_000 // two hours - design 4.1
 export const REPLAY_CAP_PER_DAY = 3 // broodline_campaign_structure.md
@@ -26,6 +26,40 @@ export const REPLAY_CAP_PER_DAY = 3 // broodline_campaign_structure.md
  * it into a migration means a tuning change needs one.
  */
 export const DEPLOYMENT_CAP = 5
+
+/**
+ * The other end of the same bound, and unlike the cap it mirrors NOTHING in
+ * the engine - `Deployments.Problem` is perfectly happy to simulate zero
+ * creatures. It is an `api` rule, and it exists because `wave/submit` pays.
+ *
+ * AN EMPTY DEPLOYMENT USED TO BE LEGAL, and the argument for it was that zero
+ * creatures is a deployment the engine simulates fine and loses. The second
+ * half of that sentence is the problem: **it is engine content, not a guard.**
+ * Wave 6's lone Courser reaches the Ark unaided, so an empty submission loses
+ * today and earns nothing - but `deploymentMatches` agrees that `[]` echoes
+ * `[]`, so the moment content authors one wave the Ark survives undefended, an
+ * empty issuance wins it, and `routes/wave.ts` pays the reward AND grants base
+ * stock, three times a day, for deploying nothing. The entire suite would be
+ * green: nothing anywhere pinned it, because the thing standing in the way was
+ * a raider's movement speed.
+ *
+ * Phase 7 authors more waves. A pay-for-nothing path one content change away
+ * from live, on the exact route this phase exists to protect, is not a risk
+ * worth carrying for a body shape no honest client sends - the deployment
+ * screen cannot even express it.
+ *
+ * AT THE PARSE LAYER, beside the cap, for the cap's own reason: a deployment
+ * of zero is malformed by construction - no roster state and no bundle could
+ * make it legal - and `invalid_request` (400) says exactly that, where every
+ * refusal `issueWave` can make says "understood and refused" (409) instead.
+ *
+ * `issueWave` ITSELF STILL ACCEPTS `[]`, deliberately and like every other
+ * parse-layer bound in this file's neighbour: the route can simply no longer
+ * hand it one. Tests that drive `issueWave` directly to reach a check that
+ * runs BEFORE the roster (the replay cap) keep passing `[]` and keep meaning
+ * what they meant.
+ */
+export const DEPLOYMENT_FLOOR = 1
 
 /** design 6.1's request shape: an id and a pocket, and nothing else. */
 export interface DeployedCreature {
@@ -221,7 +255,8 @@ export async function issueWave(
   // `creature_committed`), which is precisely the case where the winner's
   // deployment says nothing about ours.
   if (claim.claimed) {
-    await commitCreatures(tx, serverId, deployment.map((d) => d.creatureId), claim.issuance.issuanceId)
+    await commitCreatures(
+      tx, serverId, playerId, deployment.map((d) => d.creatureId), claim.issuance.issuanceId)
   }
   return claim.issuance
 }
@@ -316,17 +351,70 @@ async function resolveDeployment(
  *
  * No lock ordering to argue about: every row named here is already held
  * FOR UPDATE by `loadOwnedCreatures`, taken in ascending id order.
+ *
+ * THE WHERE SAYS THE WHOLE PREDICATE, AND NOT BECAUSE THE LOCK IS IN DOUBT.
+ * This statement shipped filtering on `server_id` and `creature_id` alone,
+ * which is correct today for one reason and one only: `loadOwnedCreatures`
+ * took `FOR UPDATE` on exactly these rows, three statements up, having already
+ * checked ownership and liveness, and `resolveDeployment` refused every row
+ * whose `committed_to` was not null. Every one of those facts lives in a
+ * DIFFERENT function.
+ *
+ * That matters more than it looks, because this is the write the phase's
+ * temporal guarantee rests on: committed -> cannot be spliced
+ * (splice/commit.ts) -> cannot be consumed -> cannot be pruned, for exactly as
+ * long as the issuance is live. A guarantee of that weight should not be
+ * recoverable only by reading three functions in the right order and trusting
+ * that a lock stays where it is. So the predicate is restated here in full -
+ * the player, the liveness (through the shared `liveCreature()`, never a
+ * hand-rolled copy), and `committed_to IS NULL` - and each term is a claim
+ * this statement makes for itself rather than one it inherits.
+ *
+ * AND THE ROW COUNT IS ASSERTED. Adding predicates without checking what they
+ * matched would be strictly worse than not adding them: a narrowed WHERE that
+ * silently matches fewer rows commits four creatures out of five, the fifth
+ * stays spliceable while it is out fighting, and NOTHING downstream can tell -
+ * `issueWave` returns the issuance either way. Under the lock this can only
+ * fire on a logic bug (a caller passing ids `resolveDeployment` did not
+ * resolve, or a predicate that drifts from the one `loadOwnedCreatures`
+ * selected on), which is precisely the case worth a loud abort: the throw
+ * rolls back the whole transaction, so no issuance exists and no creature is
+ * half-committed. It is also covered from the other direction by every
+ * successful `wave/start` in the suite - an off-by-one here would 500 all of
+ * them.
+ *
+ * EXPORTED FOR ITS OWN TEST, and that is the point rather than a concession.
+ * None of the three predicates is reachable through `wave/start`: by the time
+ * this runs, `resolveDeployment` has already refused an unowned, dead or
+ * committed creature, so no HTTP request can present this statement with a row
+ * it should decline. Which is exactly the argument that made the loose WHERE
+ * "correct today" - and a guarantee recoverable only from a lock in another
+ * function is one a test cannot hold either. `wave-start.test.ts`'s
+ * `commitCreatures refuses a row that is not this player's, live and
+ * uncommitted` drives it directly, WITHOUT that lock, which is the only place
+ * the predicates can be shown to do anything. Same precedent as `claimIssuance`
+ * and `settle`, both exported and driven directly for the same reason.
  */
-async function commitCreatures(
-  tx: Tx, serverId: number, ids: readonly string[], issuanceId: string,
+export async function commitCreatures(
+  tx: Tx, serverId: number, playerId: string, ids: readonly string[], issuanceId: string,
 ): Promise<void> {
   if (ids.length === 0) return
-  await tx.update(creatures)
+  const res = await tx.update(creatures)
     .set({ committedTo: issuanceId })
     .where(and(
       eq(creatures.serverId, serverId),
+      eq(creatures.playerId, playerId),
       inArray(creatures.creatureId, [...ids]),
+      isNull(creatures.committedTo),
+      liveCreature(),
     ))
+
+  if ((res.rowCount ?? 0) !== ids.length) {
+    throw new Error(
+      `commitCreatures: issuance ${issuanceId} deployed ${ids.length} creatures but `
+      + `${res.rowCount ?? 0} rows were committed - the rows resolveDeployment locked are `
+      + `no longer all live, uncommitted and this player's.`)
+  }
 }
 
 /**

@@ -385,7 +385,7 @@ describe('adversarial: what a modified client cannot do', () => {
   })
 
   it('cannot skip to wave 60', async () => {
-    const res = await startWave(60)
+    const res = await startWinning(60)
     expect(res.status).toBe(409)
     expect(await res.json()).toMatchObject({ code: 'wave_locked' })
     // No issuance was minted for the skipped wave - the refusal is a
@@ -415,8 +415,8 @@ describe('adversarial: what a modified client cannot do', () => {
     // aborting the transaction` - :207 today, but the NAME is the stable
     // anchor; the old :203 citation rotted when that file grew. It drives
     // claimIssuance directly against a real conflict.
-    const firstRes = await startWave(6)
-    const secondRes = await startWave(6)
+    const firstRes = await startWinning(6)
+    const secondRes = await startWinning(6)
     // ASSERT BOTH SUCCEEDED FIRST. Found by running weakening 2 against an
     // earlier draft of this very test: when both calls 500, both bodies are
     // error envelopes, both `issuanceId`s read `undefined`, and
@@ -467,7 +467,7 @@ describe('adversarial: what a modified client cannot do', () => {
     }
     const before = await balance('shards')
 
-    const res = await startWave(6)
+    const res = await startWinning(6)
     expect(res.status).toBe(429)
     expect(await res.json()).toMatchObject({ code: 'replay_cap_reached' })
     expect(await balance('shards')).toBe(before)
@@ -569,7 +569,7 @@ describe('adversarial: what a modified client cannot do', () => {
     // (weakening 7's three hours, at any hour of the day) drops it and
     // this reads 200.
     await moveProbe(new Date(dayStartMs))
-    const bound = await startWave(6)
+    const bound = await startWinning(6)
     expect(bound.status).toBe(429)
     expect(await bound.json()).toMatchObject({ code: 'replay_cap_reached' })
 
@@ -579,7 +579,7 @@ describe('adversarial: what a modified client cannot do', () => {
     // reads 429 - which is what kills the rolling-24h mutation the first
     // version of this test could not see.
     await moveProbe(new Date(dayStartMs - 1_000))
-    const free = await startWave(6)
+    const free = await startWinning(6)
     expect(free.status).toBe(200)
     // The file asserts the CODE beside the status everywhere else; this is
     // the success side, so the equivalent is that a real issuance came back
@@ -675,7 +675,7 @@ describe('adversarial: what a modified client cannot do', () => {
     // two hours is not a thing a test can wait for, and the TTL itself is
     // not what is under test here.
     await clearThrough(6)
-    const first = await (await startWave(6)).json() as { issuanceId: string }
+    const first = await (await startWinning(6)).json() as { issuanceId: string }
 
     // Abandon it: expired, still unsettled, exactly what backgrounding the
     // app mid-wave leaves behind.

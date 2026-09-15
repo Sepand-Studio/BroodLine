@@ -14,8 +14,8 @@ import { credit } from '../money/ledger.ts'
 import { grantWaveBaseStock } from '../wave/base-stock.ts'
 import { rewardForWave } from '../wave/rewards.ts'
 import {
-  advanceCampaign, type CreatureSpec, DEPLOYMENT_CAP, type DeployedCreature, type Issuance,
-  issueWave, loadLiveIssuance, settle,
+  advanceCampaign, type CreatureSpec, DEPLOYMENT_CAP, DEPLOYMENT_FLOOR,
+  type DeployedCreature, type Issuance, issueWave, loadLiveIssuance, settle,
 } from '../wave/issuance.ts'
 import { type SimulateBreach, type SimulateEcho, toInt, toTier } from '../sim/client.ts'
 
@@ -86,14 +86,20 @@ const MAX_POCKET = 2_147_483_647
  * id.toUpperCase()]` reads as two distinct ids here and as one row in the
  * database, which is precisely the bug Task 7 fixed on /v1/splice/commit.
  *
- * AN EMPTY DEPLOYMENT IS LEGAL and a MISSING one is not. Zero creatures is a
- * deployment the engine simulates perfectly well (and loses); an absent field
- * is a body written against the pre-Task-8 contract, and answering it 200
- * would put an issuance in flight whose stored deployment nothing ever chose.
+ * AN EMPTY DEPLOYMENT IS NOT LEGAL, and a MISSING one is not either - two
+ * different malformed bodies with one answer. An absent field is a body
+ * written against the pre-Task-8 contract, and answering it 200 would put an
+ * issuance in flight whose stored deployment nothing ever chose. An empty
+ * ARRAY is a request to fight a wave with nothing, which no deployment screen
+ * can express and which `wave/submit` would PAY for the moment content authors
+ * a wave the Ark survives undefended - see DEPLOYMENT_FLOOR, which carries the
+ * full argument. The floor was added in Task 10's fix round; until then this
+ * function accepted `[]` on the grounds that the engine loses with it, which
+ * was a fact about wave 6 wearing the costume of a guard.
  */
 function parseDeployment(raw: unknown): DeployedCreature[] | null {
   if (!Array.isArray(raw)) return null
-  if (raw.length > DEPLOYMENT_CAP) return null
+  if (raw.length < DEPLOYMENT_FLOOR || raw.length > DEPLOYMENT_CAP) return null
 
   const deployment: DeployedCreature[] = []
   const seen = new Set<string>()
@@ -343,7 +349,8 @@ export function registerWaveRoutes(app: Hono, deps: Deps): void {
     if (body === null) {
       return fail('invalid_request',
         `waveId must be an integer between 1 and ${MAX_WAVE_ID}, and deployment must be ` +
-        `at most ${DEPLOYMENT_CAP} entries of { creatureId, pocket } naming distinct creatures.`)
+        `${DEPLOYMENT_FLOOR} to ${DEPLOYMENT_CAP} entries of { creatureId, pocket } ` +
+        `naming distinct creatures.`)
     }
 
     const bundle = await loadBundle(deps.bundleStore)

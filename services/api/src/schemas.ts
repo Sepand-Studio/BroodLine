@@ -68,10 +68,19 @@ export const DeployedCreature = z.object({
 
 export const WaveStartRequest = z.object({
   waveId: z.number().int(),
-  // REQUIRED, and may be empty. Zero creatures is a deployment the engine
-  // simulates (and loses); an ABSENT field is a body written against the
-  // pre-Task-8 contract. At most Stats.DeploymentCap (5) entries, naming
-  // distinct creatures.
+  // REQUIRED, AND NON-EMPTY. `DEPLOYMENT_FLOOR` (1) to `Stats.DeploymentCap`
+  // (5) entries, naming distinct creatures. An ABSENT field is a body written
+  // against the pre-Task-8 contract; an EMPTY array is a wave fought with
+  // nothing, which `wave/submit` would pay for the day content authors a wave
+  // the Ark survives undefended (Task 10's fix round - see DEPLOYMENT_FLOOR).
+  //
+  // NEITHER BOUND IS IN THE SCHEMA, and that is the same ruling the cap has
+  // always had here: `routes/wave.ts`'s parse layer owns the bounds and this
+  // file owns the SHAPE. `DEPLOYMENT_CAP` is a balance constant - issuance.ts
+  // refuses to freeze it into a migration for exactly this reason, and a
+  // generated contract is harder to change than a migration, not easier. The
+  // floor is not a balance constant, but splitting the two across two
+  // enforcement layers would be worse than keeping them together.
   deployment: z.array(DeployedCreature),
 }).openapi('WaveStartRequest')
 
