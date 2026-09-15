@@ -716,29 +716,68 @@ of running it would be the phase quietly inheriting what it was meant to close.
 
 ## 11. Decisions owed
 
-Five carried from Phase 5 and still open, and five this design creates.
+*Updated after execution, 2026-09-15 (Task 13). Five were carried from Phase 5
+and five created here; execution discharged three of them, left one actively
+wrong, and added eleven of its own. The measured record is
+`implementation/2026-09-15-phase6-followups.md`, which owns the reasoning — this
+table is the index into it.*
 
 | Decision | Why it matters | State |
 |---|---|---|
-| **Enable GitHub Actions at `Sepand-Studio`** | Needs `admin:org`; no session can do it. `tests.yml` and `determinism.yml` are committed and have never run | **Owed since Phase 4.** This phase adds a trait/raider enum change, which is exactly the class of change the determinism gate exists to catch across runtimes. It now blocks more than it did again |
-| **Correct `client_architecture` §2's `ref readonly SimState`** | Still specifies a shape that guarantees nothing. Phase 3 resolved it in code and booked the edit; Phases 4 and 5 booked it again | **Owed since Phase 3.** Four times deferred. Not this phase's to fix, and recorded so the count stays honest |
-| **Raise `minimumClientVersion` for the first time** | The mechanism has shipped since Phase 4 and has never been used | **Unchanged.** This phase gives it its first real trigger: `wave/start`'s body grows, so an old client's call is malformed rather than merely stale |
-| **Narrow `solo_execution` §3.1's degradation row** | Contradicted by shipped code since Phase 5 | **The edit is still owed.** Owner: `solo_execution` §3.1 |
-| **Guard §4.3's retention split** | `weakenings.md` row 7. The sweep does not exist, so neither does its test | **Owed against the retention sweep.** This phase adds no sweep — §2.3's reasoning removes the need for one on nodes, but it does not discharge the issuance sweep |
-| **~~Reward for the second authored wave~~** *(new)* | §7. Row 5's gate is two waves with **different** rewards; two waves with the same reward closes nothing | **Discharged — it was already authored.** `broodline_waves_01_12.md` gives wave 7 as *1 Lash · 6 Skirmishers*, integrity 3, first clear **230 shards**, against wave 6's 40 in `config/bundles/0.1.1`. Different by 190, so row 5's gate is constructible from content that exists. The samples in wave 7's reward line are dropped — no sample economy this phase, §10 |
-| **DOM/REC per trait** *(new)* | §5.3. Dominance decides the recessive downtier, and it is the one input to the splice that no document supplies | **Genuinely owed, and narrower than it first looked.** The traits themselves are **authored** — `broodline_combat_numbers.md` §4.2 gives eight counters with species, raider and three tiers each, §4.3 gives four that counter nothing, and §6 gives eight raider profiles. Those are a **port**, not a decision. Dominance is adopted as a mechanic (bible §2.2, `reconciliation` 3.5) but **assigned to no trait anywhere in the set**, and the splice cannot roll without it |
-| **Node rates and the Rich Deposit's depletion budget** *(new)* | §4.1. "~6 days of active harvesting" is a duration; `accrue` needs a rate and a total in units | **Owed to `broodline_region_roster.md` / bible §5.3.** Must be expressed so the six days falls out of the arithmetic rather than being asserted beside it |
-| **~~The Splicing Chamber's tier-1 generation ceiling~~** *(new)* | §5.2 | **Discharged, and it changed a decision.** `broodline_combat_numbers.md` §7 already carries the table: Chamber tiers 1–2 cap a creature at **G2** and coverage at **Tier I**. That is why §3.3 pins the Chamber at **tier 3** rather than tier 1 — at Tier I the recessive downtier has nothing to drop to and §5.3's rule ships unobservable |
-| **The downtier's floor, back into `sample_economy` §7** *(new)* | §5.3. That document says "one tier lower" and stops, leaving Tier I undefined | **Derived here, and the edit is owed there.** Bible §2.2's *"costs coverage and never access"* forces the floor to be Tier I. The derivation belongs in the document that owns the rule, not only in a phase design |
-| **The `facilities` table** *(new)* | §3.3. Three tiers ship as columns on `arks`; six facilities and an upgrade path need rows | **Trigger: the first facility upgrade.** Costs one migration at that point, and the alternative is shipping five-sixths of a table nothing reads |
+| **Enable GitHub Actions at `Sepand-Studio`** | Needs `admin:org`; no session can do it. `tests.yml` and `determinism.yml` are committed and have never run | **Owed since Phase 4, and it got worse.** This phase widened the trait/raider enums, added a second authored wave and a second bundle — exactly the class of change the determinism gate exists to catch across runtimes — and every one of the six gates was run by hand on one machine. `contract.test.ts` runs the contract gate with the suite, which is the only part of this that is automated at all |
+| **Correct `client_architecture` §2's `ref readonly SimState`** | Still specifies a shape that guarantees nothing. Phase 3 resolved it in code and booked the edit; Phases 4, 5 and now 6 booked it again | **Owed since Phase 3. FIVE times deferred.** Not this phase's to fix, and recorded so the count stays honest |
+| **Raise `minimumClientVersion` for the first time** | The mechanism has shipped since Phase 4 and has never been used | **STILL OWED, and now actively wrong — the sharpest thing on this table.** The design predicted this phase would give it its first real trigger, and it did: `parseStart` now REQUIRES `deployment` (routes/wave.ts), so a pre-Phase-6 client posting `{waveId}` alone gets `400 invalid_request`. `config/bundles/0.1.2/manifest.json` still says `"minimumClientVersion": "0.1.0"`, so that client is told it is current while every wave it starts is refused. The trigger fired and the mechanism was not used |
+| **Narrow `solo_execution` §3.1's degradation row** | Contradicted by shipped code since Phase 5 | **The edit is still owed.** Owner: `solo_execution` §3.1. Untouched this phase |
+| **Guard §4.3's retention split** | `weakenings.md` row 7. The sweep does not exist, so neither does its test | **Owed against the retention sweep, and it acquired a second claimant.** §2.3's reasoning removed the need for one on nodes, but Task 8 found that an issuance refused at checks 1–3 strands its creatures `committed_to` a dead issuance with no sweeper to release them. Two things now wait on the same sweep |
+| **~~Reward for the second authored wave~~** | §7. Row 5's gate is two waves with **different** rewards | **Discharged — it was already authored.** Wave 7 at 230 shards against wave 6's 40. Task 11 published it as `config/bundles/0.1.2` and row 5's combined weakening was run against it |
+| **~~DOM/REC per trait~~** | §5.3. Dominance decides the recessive downtier, and it is the one input to the splice that no document supplies | **Discharged BY EXECUTION, for this phase's four traits only.** `config/bundles/0.1.2/traits.json` now carries `dominant` per trait — Chill and Splash dominant, Taunt and Carapace recessive — and `config/validate.ts`'s `validateTraitDominance` makes a bundle missing one unpublishable. **What is still owed is the rest of the set:** `combat_numbers` §4.2/§4.3's twelve traits and six species are not authored here, and the ruling that assigned these four is provisional in the same way base stock's species roll is |
+| **Node rates and the Rich Deposit's depletion budget** | §4.1. "~6 days of active harvesting" is a duration; `accrue` needs a rate and a total in units | **Half discharged: the numbers exist, the document edit does not.** `config/bundles/0.1.2/nodes.json` authors `common_vein` at 20/hr with no cap and `rich_deposit` at 60/hr with `totalYield` 8640 — and 8640 / 60 = 144 hours = **exactly six days**, so the duration now falls out of the arithmetic rather than sitting beside it. **The edit back into `broodline_region_roster.md` / bible §5.3 is still owed**, and until it lands the six days is a number in a bundle that no document explains. Note also `validateNodeRates` SKIPS a bundle with no `nodes.json`; it must become mandatory when `loadBundle` starts reading it, or the rule is inert |
+| **~~The Splicing Chamber's tier-1 generation ceiling~~** | §5.2 | **Discharged, and it changed a decision.** `combat_numbers` §7 carries the table; §3.3 pins the Chamber at tier 3 so the recessive downtier has somewhere to drop to |
+| **The downtier's floor, back into `sample_economy` §7** | §5.3. That document says "one tier lower" and stops, leaving Tier I undefined | **Derived, SHIPPED, and the edit is still owed there.** The floor at Tier I is implemented and tested this phase (never zero, never null). `sample_economy` §7 still says "one tier lower" and stops, so the document and the code now disagree about a rule the document owns |
+| **The `facilities` table** | §3.3. Three tiers ship as columns on `arks`; six facilities and an upgrade path need rows | **Trigger: the first facility upgrade. Unchanged — and a prior condition surfaced.** Nothing in `src/` creates an `arks` row at all; `loadArk` returns a documented default. Safe today because no FK targets `arks`, but a writer is owed before any facility can be upgraded |
 
-> **One boundary restated, because this phase is where it moves.**
-> Phase 5's §2.2 required its done-when to be written *narrower* than "a
-> tampered submission earns nothing," since a deployment the player did not own
-> still won. §6 closes that. The stronger sentence becomes true here — and it
-> should be claimed **as newly earned in this phase**, not quoted as though it
-> were always the case, or the record loses the fact that it was open for a
-> phase and why.
+### What execution added
+
+Eleven rows this design could not have written, because each was found by
+running something. Full reasoning in
+`implementation/2026-09-15-phase6-followups.md`; the one-line statements are:
+
+| Added | State |
+|---|---|
+| **The device round-trip proof under `0.3.0`** | **OWED, AND IT BLOCKS THE PHASE.** `SimVersion` moved 0.2.0 → 0.3.0 in Task 1, superseding the tracked captures. No iOS hardware was available. A human ruled execution continue with `TheTrackedCapturesAreCurrent` **failing rather than skipping** — a skip is indistinguishable from success, a failure is visible. **Phase 6 cannot close until the capture happens.** See §3 of the followups |
+| **Base stock's species roll** | **Provisional, owed to `base_stock` §4.** Task 5 ruled it across the three species 0.1.2 authors traits for, because every obtainable creature was otherwise a Vetch and Task 7's body choice had no reachable input. No six-species roll and no Instinct weighting: the content supplies neither |
+| **An abandoned issuance strands its creatures** | **Owed against the retention sweep** (folded into §4.3's row above). No sweeper exists |
+| **`Diagnosis.PreWaveCheck` can never clear wave 7** | **Owed.** It counts all six Skirmishers as simultaneous while Splash III caps at 5. No production caller yet; it will mislead the pre-wave panel when that screen is built |
+| **Two constraint/function couplings enforced only by comments** | **Owed, and a reviewer has already prototyped the fix.** `CHECK (hatchery_tier = 1)` vs `rosterCap`'s table, and `CHECK (harvest_array_tier IN (1,4,8,12))` vs `shardMultiplierHundredths`. A `pg_get_constraintdef` test goes red when either side is widened alone; the introspection idiom already exists in `ledger.ts` and `idempotency.ts` |
+| **`rosterCap` throws on the PAID submit path** | **Owed.** Reachable since Task 10's base-stock grant. A throw there would 500 a winning submission and roll back its credit. Unreachable while `CHECK (hatchery_tier = 1)` stands, but it is a throw where every other cap interaction is a skip |
+| **The corpus can never show that a NEW trait works** | **Methodological, and it applies to every trait this phase added.** All 500 corpus scenarios are wave 6 with one Courser, so no Splash ever gets a second target. The corpus shows a new trait did not BREAK old behaviour; the unit test is the only thing showing it works, not a redundant second guard |
+| **`NearestTaunter`'s carrier tie-break is unpinned** | **Owed.** `<` → `<=` leaves all 204 engine tests green. Code correct, future edit unprotected |
+| **The loop has never been driven on a deployed stack** | **OWED.** Task 13 drove it end to end against Testcontainers Postgres and a real `sim` child process — 20/20 observations, 230 shards, one ledger row. There is no deployed stack to drive it on: `gcloud run services list` and `gcloud sql instances list` are both empty and the Terraform state holds three networking resources and no `api`. Standing one up is billable, so it was not done. **Every deployed-stack clause in this phase's done-when is therefore believed, not demonstrated** — the same debt Phase 5's Task 11 left |
+| **The end-to-end drive is a transcript, not a test** | **Owed.** The driver was a throwaway; what survives is its recorded output in `.superpowers/sdd/2026-09-14-phase6-loop/task-13-report.md`. Nothing in the suite drives sign-in → claim → splice → start → submit as one sequence, so the loop closing is checked by hand and only when someone remembers |
+| **`generate-contract.sh` failed with an error naming the wrong thing** | **CLOSED in Task 13** (commit `832bfb6`), and listed here because it cost several agents time before it was. `pnpm openapi` under the stale pnpm 3.7.5 first on a default PATH printed usage and exited 0, so the script ran on and died in NSwag with a `FileNotFoundException` naming a temp file. Two guards now: a pnpm-major check against `package.json`'s own pin, and an assertion that the document was actually written and parses. Three branches, each fired by a stub in `preflight.test.ts` |
+
+> **One boundary restated, because this phase is where it moved — and it moved.**
+>
+> Phase 5's §2.2 required its done-when to be written *narrower* than "a tampered
+> submission earns nothing," because a deployment the player did not own still
+> won. **§6 closed that here, and the stronger sentence is now EARNED rather
+> than assumed.** The record of how matters more than the claim:
+>
+> - Task 8 fixed the deployment at issuance, resolved from owned rows only.
+> - Task 9 made `SimulateEcho` carry the deployment it simulated.
+> - Task 10 flipped the marker. `adversarial.test.ts`'s Phase 5 marker was
+>   **rewritten in place, not deleted** — it now reads *"CANNOT deploy creatures
+>   the player does not own"* and expects `409 creature_not_owned`, and the
+>   original attack (a legal winning deployment the player does not own,
+>   verified by `sim` as a Win) is **preserved verbatim as a second test**,
+>   because the flip moved the boundary from the submit side to the issuance
+>   side. The suite ships 18 tests and **none of them asserts a hole**.
+> - A reviewer could construct no payout path, and the marker was shown to
+>   discriminate: removing the issuance ownership check reddens five tests
+>   including the flipped marker.
+>
+> It was open for a whole phase, and that is part of the record.
+
 
 ---
 
