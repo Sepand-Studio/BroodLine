@@ -58,6 +58,54 @@ export async function drainPool(pool: pg.Pool): Promise<void> {
 }
 
 /**
+ * BOOKED, NOT GATED - and the distinction is the whole reason this exists.
+ *
+ * The suite intermittently died at container start with testcontainers'
+ * `Error: No host port found for host IP`. That line is testcontainers
+ * asking the Docker daemon which host port it published, with ZERO product
+ * code between it and the answer: nothing this repo wrote can produce it,
+ * and nothing this repo wrote can be hiding behind it. Ruled environmental,
+ * not investigated into the ground - it went 5/5 green when chased.
+ *
+ * So it is booked as flake and bounded, rather than gated on. A retry here
+ * cannot mask a defect in the thing under test, because `.start()` runs none
+ * of it; the retry is over infrastructure, and it stops exactly where
+ * product code begins. `migrate()` below is deliberately NOT inside it - a
+ * migration that fails twice and passes on the third go is a real finding,
+ * and swallowing it would be the failure mode this comment is warning about.
+ *
+ * Bounded at three attempts with a short linear backoff, and the last
+ * failure is rethrown with its own message INLINE rather than only as a
+ * `cause`. A machine with no Docker daemon must still fail in one legible
+ * line - that is preflight.ts's argument, and a retry that turned it into
+ * "could not start, 3 attempts" would be undoing it two files over.
+ *
+ * A start that throws part-way is testcontainers' own to clean up, and Ryuk
+ * reaps whatever it does not; nothing here holds a reference to a container
+ * it failed to return.
+ */
+const CONTAINER_START_ATTEMPTS = 3
+const CONTAINER_START_BACKOFF_MS = 500
+
+async function startContainer(): Promise<StartedPostgreSqlContainer> {
+  let last: unknown
+  for (let attempt = 1; attempt <= CONTAINER_START_ATTEMPTS; attempt++) {
+    try {
+      return await new PostgreSqlContainer('postgres:16-alpine').start()
+    } catch (err) {
+      last = err
+      if (attempt < CONTAINER_START_ATTEMPTS) {
+        await new Promise((resolve) => setTimeout(resolve, CONTAINER_START_BACKOFF_MS * attempt))
+      }
+    }
+  }
+  throw new Error(
+    `testcontainers could not start postgres:16-alpine in ${CONTAINER_START_ATTEMPTS} attempts. ` +
+    `Last failure: ${last instanceof Error ? last.message : String(last)}`,
+    { cause: last })
+}
+
+/**
  * Real Postgres, never a mock and never SQLite.
  *
  * RLS, set_config's transaction scoping, unique-violation semantics and
@@ -65,7 +113,7 @@ export async function drainPool(pool: pg.Pool): Promise<void> {
  * and all four are exactly what a substitute fakes.
  */
 export async function startTestDb(): Promise<TestDb> {
-  const container: StartedPostgreSqlContainer = await new PostgreSqlContainer('postgres:16-alpine').start()
+  const container = await startContainer()
 
   const ownerPool = createPool(container.getConnectionUri())
   await migrate(ownerPool)
