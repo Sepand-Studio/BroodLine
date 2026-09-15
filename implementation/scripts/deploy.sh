@@ -47,12 +47,13 @@
 #    The preflight below refuses to deploy until (b) has happened, so the
 #    failure arrives here, named, instead of as a dead revision afterwards.
 #
-# STILL OWED, and this script does NOT yet work without it: `sim_image` is a
-# required variable with no default and is not passed below, because nothing
-# builds a sim image yet - cloudbuild.yaml builds only the api. Passing a URI
-# for a container that was never pushed would deploy a broken revision
-# instead of failing here, which is worse. Both belong to the deploy half of
-# Task 11. Until then `terraform apply` below stops on the missing variable.
+# TWO IMAGES, both built and both passed. This script previously built only
+# the api and did not pass `sim_image`, so `terraform apply` stopped on the
+# missing variable - that was the deploy half of Task 11 and it is now done.
+# cloudbuild.yaml builds both containers from one uploaded context and pushes
+# both; the URIs are derived from the same commit SHA below, so api and sim
+# always deploy from the same tree. A tag that exists for one and not the
+# other is the failure this pairing exists to prevent.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
@@ -89,6 +90,7 @@ fi
 REGION="${REGION:-us-central1}"
 TAG="$(git rev-parse --short HEAD)"
 IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/broodline/api:${TAG}"
+SIM_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/broodline/sim:${TAG}"
 
 # Tagged by commit, never :latest. A revision that cannot be named cannot be
 # rolled back to, and 7.0 wants the previous revision one command away.
@@ -96,8 +98,13 @@ IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/broodline/api:${TAG}"
 # ours is at services/api/Dockerfile and needs the repo root as its
 # build context. See cloudbuild.yaml.
 gcloud builds submit --config cloudbuild.yaml \
-  --substitutions "_IMAGE=${IMAGE}" --project "$PROJECT_ID" .
+  --substitutions "_IMAGE=${IMAGE},_SIM_IMAGE=${SIM_IMAGE}" \
+  --project "$PROJECT_ID" .
 
 cd infra/terraform
-terraform apply -var="project_id=${PROJECT_ID}" -var="region=${REGION}" -var="image=${IMAGE}"
+terraform apply \
+  -var="project_id=${PROJECT_ID}" \
+  -var="region=${REGION}" \
+  -var="image=${IMAGE}" \
+  -var="sim_image=${SIM_IMAGE}"
 terraform output -raw api_url

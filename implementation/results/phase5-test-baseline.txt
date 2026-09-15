@@ -47,12 +47,28 @@
 # is a count that FELL — find the deletion before closing the phase.
 #
 # ---------------------------------------------------------------------------
-# PROVENANCE (comments, so they never pollute a diff)
+# WHAT MOVED SINCE THE FIRST MEASUREMENT (e57608b -> b623711)
 #
-#   measured   2026-09-14, Phase 5 remediation Task 6
+#   api.tests  176 -> 189    api.files  23 -> 24
+#
+# One file added, api.file.sim-auth.test.ts (13 tests), by 5619d6f - the
+# required-SimAuth work. NO PER-FILE COUNT FELL; the diff against the previous
+# baseline is a single added line. That is the benign direction: this gate
+# hunts for falls, because a fall is a deletion nobody noticed.
+#
+# The previous baseline was NOT regenerated when 5619d6f landed, so it read
+# 176/23 against a tree producing 189/24 for two commits. That is exactly the
+# staleness this file exists to prevent, arriving by a route it did not guard:
+# the file is only correct if regenerating it is part of landing a test change.
+#
+# # PROVENANCE (comments, so they never pollute a diff)
+#
+#   measured   2026-09-14, Phase 5 Task 12 re-run (second measurement; the
+#              first was Phase 5 remediation Task 6 at e57608b, api 176 / 23)
 #   branch     phase_5
-#   commit     e57608b  (tree clean apart from implementation/*.md; no source
-#              file differed from HEAD when these numbers were taken)
+#   commit     b623711  (no source file differed from HEAD: the only modified
+#              files were implementation/*.md, cloudbuild.yaml and
+#              implementation/scripts/deploy.sh, none of which is a test input)
 #   host       darwin/arm64, node v22.22.2, pnpm 9.12.0, dotnet 10.0.401,
 #              Unity 6000.6.0f1, Docker running (testcontainers)
 #   parallel   vitest file parallelism ON. It stays on: each sim-hosting file
@@ -68,6 +84,7 @@
 #
 # ---------------------------------------------------------------------------
 # FORMAT: <key>\t<value>, one per line, sorted, no blank lines in the block.
+
 
 api.file.account.test.ts	8
 api.file.adversarial.test.ts	15
@@ -87,13 +104,14 @@ api.file.pool-teardown.test.ts	3
 api.file.preflight.test.ts	8
 api.file.replays.test.ts	6
 api.file.session.test.ts	6
+api.file.sim-auth.test.ts	13
 api.file.sim-client.test.ts	7
 api.file.sync.test.ts	5
 api.file.validate-rewards.test.ts	2
 api.file.wave-start.test.ts	12
 api.file.wave-submit.test.ts	12
-api.files	23
-api.tests	176
+api.files	24
+api.tests	189
 api.typecheck.errors	0
 dotnet.engine.Broodline.Sim.Tests	174
 dotnet.failed	0

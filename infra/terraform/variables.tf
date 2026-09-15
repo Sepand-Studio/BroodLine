@@ -143,9 +143,13 @@ variable "sim_image" {
     Required, with no default, deliberately and for the same reason `image`
     is: a default here would be a URI pointing at whatever happened to be
     true when this line was written, and a stale default deploys the wrong
-    engine version silently. NOTE that this makes it a new required input -
-    implementation/scripts/deploy.sh passes `image` and does not yet pass
-    this, nor does cloudbuild.yaml build a sim container at all. Both are
-    owed by the deploy half of Task 11; this file is the infrastructure half.
+    engine version silently.
+
+    BOTH SIDES NOW EXIST. cloudbuild.yaml builds the sim container from
+    services/sim/Dockerfile over the repo root, pushes it alongside the api,
+    and implementation/scripts/deploy.sh derives both URIs from the same
+    commit SHA and passes both. api and sim therefore always deploy from one
+    tree; a tag that exists for one and not the other is the failure that
+    pairing prevents.
   EOT
 }

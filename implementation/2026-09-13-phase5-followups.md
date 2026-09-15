@@ -711,6 +711,79 @@ reproduces with `MSB4018` moving between `replays.test.ts` and
 
 ---
 
+## 11. CI: enabled since 2026-09-12, and the determinism gate has still never run
+
+Added 2026-09-14, from measurement. **Both halves of this correct a claim that
+was carried forward as fact.**
+
+**Actions is on.** `2026-09-11-phase4-followups.md` §1 records Actions as
+disabled at the `Sepand-Studio` org level, with "No workflow has ever run on
+this repository", and makes Phase 4 Task 12 blocked on it. That stopped being
+true on **2026-09-12**:
+
+```
+GET /repos/Sepand-Studio/BroodLine/actions/permissions
+→ {"enabled":true,"allowed_actions":"all","sha_pinning_required":false}
+```
+
+`tests.yml` has run green on `phase_4` pushes, on both `phase_4` pull-request
+events, and on `develop` for the **PR #4** merge. Phase 4's section now carries
+a correction block; the original text is left under it rather than deleted,
+because its second half survived.
+
+**`determinism.yml` has never executed once, and nothing went red about it.**
+This is the part nobody diagnosed. The workflow requires a self-hosted macOS
+runner — deliberately, for the reasons in its own header: hosted macOS bills at
+a 10× multiplier, carries no Unity install and no licence, and this job builds
+a full IL2CPP player. **No runner is registered at either level:**
+
+```
+GET /orgs/Sepand-Studio/actions/runners        → {"total_count":0,"runners":[]}
+GET /repos/Sepand-Studio/BroodLine/actions/runners → {"total_count":0,"runners":[]}
+```
+
+So every trigger queues until something kills it. Three recorded outcomes, all
+cancellations, none of them failures:
+
+| Run | Trigger | Sat for | Ended |
+|---|---|---|---|
+| 34760566697 | schedule | **24h0m02s** | hit the workflow timeout |
+| 34703963157 | push | 5h34m34s | cancelled |
+| 34864133881 | schedule | 8h34m13s | cancelled 2026-09-14, by hand, as part of this finding |
+
+**The failure mode worth naming: a queued run is not a failing run.** No status
+check ever reported red, no PR was ever blocked, and the branch protection that
+would have caught it does not exist — so the gate that exists to stop a
+determinism regression from landing has been decorative since it was written.
+This is the same shape as §8's eleven assertions: green, or at least not-red,
+while proving nothing. `tests.yml` covers the plain `dotnet test` half on hosted
+Ubuntu, so the uncovered surface is precisely **the IL2CPP cross-runtime
+comparison and the Unity EditMode suite** — the two things only this gate runs,
+and the two that make the determinism claim more than an assertion about one
+runtime.
+
+**It is not an emergency, and the reason is worth stating so nobody treats it as
+one.** `implementation/scripts/cross-runtime-diff.sh` and
+`run-unity-tests.sh EditMode` are run by hand at every phase gate, and were run
+again on 2026-09-14. The engine is not unverified; it is unverified *by CI*, and
+the exposure is a regression landing between two hand-runs.
+
+**What closing it needs — not done, and a human's call.** Registering a
+self-hosted macOS runner on a machine carrying the .NET SDK, Unity 6000.6.0f1
+with macOS IL2CPP build support, and an activated licence.
+`implementation/scripts/verify-prereqs.sh` checks exactly that set and is the
+fast way to confirm a candidate machine. **The decision is not technical:** a
+self-hosted runner executes workflow code from the repository on the machine it
+runs on, and it only reports while that machine is awake. A developer laptop
+satisfies the prerequisites and is a poor fit for both halves of that sentence.
+
+**`phase_5` has never been through CI at all** — zero runs on the branch across
+its thirty-odd commits, because `tests.yml` landed after the branch did and no
+pull request has been opened for it. Whatever opens `phase_5` will be the first
+time hosted CI sees this phase's code.
+
+---
+
 *Owns: nothing normative. This is the record of what Phase 5's execution found
 and chose not to fix, so the next person does not rediscover it. Each item's
 real home is the code, migration or design section it names. Where this file and

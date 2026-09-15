@@ -2562,11 +2562,21 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 > ### 🟡 PARTIAL — the local half is done; the deployed half is held with Task 11
 >
 > **Landed (2026-09-14):** Steps 1, 2, 4, 5 and 6 complete. Step 3's file exists
-> and carries everything this branch can evidence. All six gates re-run and
-> `implementation/results/phase5-test-baseline.txt` reproduced **row for row**,
-> including every per-file row — api **176 / 23 files**, typecheck **0**, .NET
-> **186 / 0 skipped** (174 engine + 12 sim), Unity EditMode **35 / 0 / 0**,
-> cross-runtime 500 scenarios agree, contract diff clean. **No count fell.**
+> and carries everything this branch can evidence.
+>
+> **Gates re-run a second time at `b623711`, and the baseline was regenerated.**
+> api **189 / 24 files**, typecheck **0**, .NET **186 / 0 skipped** (174 engine
+> + 12 sim), Unity EditMode **35 / 0 / 0**, cross-runtime 500 scenarios agree,
+> contract diff clean. **No per-file count fell**; the diff against the previous
+> baseline is one added line, `api.file.sim-auth.test.ts` at 13 tests.
+>
+> **The first measurement said 176 / 23 and went stale for two commits.**
+> `5619d6f` added a test file and did not regenerate the baseline, so the gate's
+> own reference disagreed with the tree it was meant to check. Nothing was lost
+> — counts rose, which is the benign direction — but it is the staleness this
+> file exists to prevent, reaching it by the one route it did not guard.
+> **Regenerating the baseline belongs to landing a test change, not to the phase
+> gate that reads it.**
 >
 > **Still owed, and it is owed to Task 11, not to Step 3.** Task 11 is held by
 > human ruling before provisioning billable GCP, so three things could not be
@@ -2574,7 +2584,9 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 > measurement* (§5): what **Step 8** finds about bundle rollback; the
 > `terraform output` empty-outputs-map bug; and design §5.1's **30-day replay
 > lifecycle rule**, which does not exist in `infra/terraform` even as unapplied
-> HCL. **When Task 11 runs, its findings go into the followups file** — that is
+> HCL. *(Two of those three have since been overtaken: the `terraform output`
+> behaviour was diagnosed as correct rather than a bug, and the 30-day
+> lifecycle rule is now written as unapplied HCL — followups §5.)* **When Task 11 runs, its findings go into the followups file** — that is
 > the only place the reasoning behind this branch's thirty-two commits survives
 > a `git clean`.
 >
