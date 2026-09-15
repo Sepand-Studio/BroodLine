@@ -14,6 +14,7 @@ import { accounts, creatures, ledger, players, servers, splices, wallets } from 
 import { LocalReplayStore } from '../src/replays/store.ts'
 import { creatureHp, rosterCount } from '../src/roster/creatures.ts'
 import { SimClient } from '../src/sim/client.ts'
+import { commitSplice } from '../src/splice/commit.ts'
 import { sampleSplice, spliceDistribution, type TraitRef } from '../src/splice/distribution.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 import { balance, setupPlayer } from './wave-helpers.ts'
@@ -549,30 +550,75 @@ describe('POST /v1/splice/commit', () => {
   })
 
   it('refuses two concurrent splices that share a parent', async () => {
-    // The double-spend under CONCURRENCY, which `withIdempotency` does not
+    // THE DOUBLE-SPEND UNDER CONCURRENCY, which `withIdempotency` does not
     // close: it makes ONE key run once, and this uses two. The guard is the
-    // FOR UPDATE on both parent rows in commitSplice.
+    // FOR UPDATE that `lockParents` takes on both parent rows.
     //
-    // HONEST ABOUT WHAT THIS PROVES: with the lock the outcome is
-    // deterministic (the loser blocks, then reads the consumed parent and is
-    // refused). Without it the two transactions have to actually interleave
-    // to produce two children, so a green here is not by itself proof the
-    // lock exists - see the task report's weakening row.
+    // THE INTERLEAVING IS CONSTRUCTED, not hoped for, and the first version
+    // of this test did not construct it - it raced two HTTP requests through
+    // `Promise.all` and stayed GREEN against a `lockParents` with its
+    // FOR UPDATE removed. Measured, then fixed the way node-claim.test.ts
+    // fixed the identical problem: splice A is paused by a hook in its own
+    // read-to-write window, so splice B is guaranteed to arrive after A has
+    // read the parents and before A has written anything, which is the only
+    // ordering the race exists in.
+    //
+    // WHAT THE LOCK CHANGES, precisely: with it, B blocks on the parent row
+    // and - once A commits - re-reads a consumed parent and is REFUSED.
+    // Without it, B reads straight past A, decides the splice is legal, and
+    // is stopped only by `consume`'s own row count, which throws and aborts
+    // the transaction. A refusal and a thrown error are both "no second
+    // child", but only one of them is a route answering a player.
     const { a, b } = await pair()
     const c = await give(PALE)
-    const body = (second: string) => ({
+    const bundle = await loadBundle(deps.bundleStore)
+    const req = (second: string) => ({
       parentA: a, parentB: second, locked: LOCK_A1, bodyFrom: 'Vetch',
     })
 
-    const [one, two] = await Promise.all([
-      commit(body(b), { key: randomUUID() }),
-      commit(body(c), { key: randomUUID() }),
-    ])
+    let release!: () => void
+    const paused = new Promise<void>((r) => { release = r })
+    let aReachedTheWindow!: () => void
+    const aIsInTheWindow = new Promise<void>((r) => { aReachedTheWindow = r })
 
-    const statuses = [one.status, two.status].sort()
-    expect(statuses).toEqual([200, 404])
+    const txA = withServer(deps.db, SERVER_ID, async (tx) => {
+      const r = await commitSplice(
+        tx, SERVER_ID, playerId, bundle, req(b), new Date(), randomUUID(), {
+          afterParentsLocked: async () => { aReachedTheWindow(); await paused },
+        })
+      if (r.kind !== 'ok') throw new Error(`first splice refused: ${r.kind}`)
+      return r
+    })
+
+    // A holds both parent locks and has written nothing. No sleep: waiting
+    // on the hook itself is what makes this deterministic.
+    await aIsInTheWindow
+
+    let bSettled = false
+    const txB = withServer(deps.db, SERVER_ID, async (tx) => {
+      const r = await commitSplice(
+        tx, SERVER_ID, playerId, bundle, req(c), new Date(), randomUUID())
+      bSettled = true
+      return r
+    })
+
+    await new Promise((r) => setTimeout(r, 400))
+    // B IS BLOCKED, and here that means something specific: A has taken the
+    // two parent locks and made no other write, so there is nothing else in
+    // flight for B to be stuck on. Without the lock, B reads straight past A.
+    expect(bSettled).toBe(false)
+
+    release()
+    await txA
+    const outcome = await txB
+
+    // B is REFUSED, not thrown at, and it is refused for the right reason -
+    // parent A is no longer a live creature.
+    expect(outcome.kind).toBe('not_owned')
+    expect(await isLive(c)).toBe(true)
     expect(await spliceRows()).toHaveLength(1)
     expect(await balance('splice_charges')).toBe(STARTING_CHARGES - 1)
+    expect(await liveCount()).toBe(2) // the child, and the untouched c
   })
 
   it('requires an Idempotency-Key', async () => {

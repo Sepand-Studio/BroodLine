@@ -173,6 +173,26 @@ async function lockCharges(tx: Tx, serverId: number, playerId: string): Promise<
 const CHARGE_COST = 1
 
 /**
+ * TEST-ONLY seam, and the same idiom map/claim.ts's `ClaimHooks` already uses
+ * for the same class of problem.
+ *
+ * `afterParentsLocked` is awaited between the parents being locked and every
+ * write this splice makes. THE RACE LIVES IN THAT WINDOW, and no test driving
+ * two HTTP requests can produce the interleaving reliably - it needs a second
+ * commit to READ the parents after the first has read them and before the
+ * first has written. Measured, not supposed: the HTTP-level race test in
+ * splice-commit.test.ts stayed GREEN against a `lockParents` with its
+ * `FOR UPDATE` removed, because two requests through one app rarely overlap
+ * in that window at all.
+ *
+ * A no-op for every real caller - the parameter defaults to `{}` and nothing
+ * under `src/routes/` passes it.
+ */
+export interface SpliceHooks {
+  afterParentsLocked?: () => Promise<void>
+}
+
+/**
  * The splice, in one transaction.
  *
  * THE ORDER OF THE REFUSALS IS DELIBERATE and runs cheapest-and-most-
@@ -191,10 +211,15 @@ const CHARGE_COST = 1
 export async function commitSplice(
   tx: Tx, serverId: number, playerId: string, bundle: TraitTable,
   req: SpliceRequest, now: Date, idempotencyKey: string,
+  hooks: SpliceHooks = {},
 ): Promise<SpliceResult> {
   const parents = await lockParents(tx, serverId, playerId, [req.parentA, req.parentB])
   if (parents === undefined) return { kind: 'not_owned' }
   const [a, b] = parents
+  // The read-to-write window, and the ONLY place a test can stand to see
+  // whether the line above took a lock - see SpliceHooks. A no-op for every
+  // real caller.
+  if (hooks.afterParentsLocked) await hooks.afterParentsLocked()
 
   // design 2.5, and the race this closes rather than a nicety: the
   // deployment stored on a live issuance was resolved FROM these rows, so
