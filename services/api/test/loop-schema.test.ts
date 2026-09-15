@@ -1,18 +1,21 @@
-import { sql } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { withServer } from '../src/db/client.ts'
 import {
-  accounts, arks, creatures, creatureTombstones, harvestPositions, nodeDepletion, players,
-  servers, splices,
+  accounts, arks, creatures, harvestPositions, nodeDepletion, players, servers, splices,
 } from '../src/db/schema.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 
 const SERVER_A = 1
 const SERVER_B = 2
 
-/** The six tables 0005 adds, as the isolation gate would enumerate them. */
+/**
+ * The FIVE tables 0005 adds, as the isolation gate would enumerate them.
+ * There is no creature_tombstones: design 3.2 as amended keeps a pruned
+ * creature in `creatures` behind a `pruned` flag.
+ */
 const NEW_TABLES = [
-  'creatures', 'creature_tombstones', 'arks', 'node_depletion', 'harvest_positions', 'splices',
+  'creatures', 'arks', 'node_depletion', 'harvest_positions', 'splices',
 ] as const
 
 let t: TestDb
@@ -67,20 +70,24 @@ const insertCreature = (o: CreatureFields = {}, serverId = SERVER_A) =>
   }).returning())
 
 /**
- * design 3.2's prune: the live row is DELETED and a tombstone takes its
- * place. Both halves matter - a "prune" that left the creature row behind
- * would make the reuse test below pass on the primary key instead of on the
- * trigger, which is the vacuity this file's regexes are written to catch.
+ * design 3.2's prune, as amended: an UPDATE, not a DELETE. The row keeps its
+ * id and its parent pointers and is stripped to
+ * {species, generation, is_founder}.
+ *
+ * Written as raw SQL naming every stripped column rather than through the
+ * typed surface, because what is being pinned is that the SCHEMA tolerates
+ * this exact statement - the NOT NULLs that used to sit on trait_1, trait_2,
+ * instinct and hp_current would each reject it.
  */
-const pruneToTombstone = async (creatureId: string) => {
-  await withServer(t.db, SERVER_A, async (tx) => {
-    const gone = await tx.execute(sql`
-      DELETE FROM creatures WHERE server_id = ${SERVER_A} AND creature_id = ${creatureId}`)
-    expect(gone.rowCount).toBe(1)
-    await tx.insert(creatureTombstones).values({
-      serverId: SERVER_A, creatureId, species: 'vetch', generation: 1, wasFounder: false,
-    })
-  })
+const prune = async (creatureId: string) => {
+  const res = await withServer(t.db, SERVER_A, (tx) => tx.execute(sql`
+    UPDATE creatures
+       SET pruned = true,
+           trait_1 = NULL, tier_1 = NULL, trait_2 = NULL, tier_2 = NULL,
+           instinct = NULL, name = NULL, hp_current = NULL,
+           regen_until = NULL, committed_to = NULL
+     WHERE server_id = ${SERVER_A} AND creature_id = ${creatureId}`))
+  expect(res.rowCount).toBe(1)
   return creatureId
 }
 
@@ -132,32 +139,118 @@ describe('creatures', () => {
   })
 })
 
-describe('creature ids are allocated, never recycled', () => {
-  it('keeps a tombstone id unusable by a live creature', async () => {
-    // design 3.2: ids are never reused, including for pruned records. A
-    // reused id attaches a dead creature's lineage to a living one, which
-    // gets reported as a ghost rather than as a bug.
-    const [victim] = await insertCreature()
-    const id = await pruneToTombstone(victim!.creatureId)
+describe('a pruned creature keeps its row - design 3.2, as amended', () => {
+  // THE PROPERTY THIS WHOLE RULING EXISTS TO PROTECT. The first version of
+  // this schema put tombstones in a second table and kept composite parent
+  // keys back onto creatures; those are mutually exclusive, because every
+  // ancestor is referenced by its own child and the keys are NO ACTION, so
+  // the prune could delete nothing at all.
 
-    // /pruned/, not a bare toThrow(). A bare rejection would also be
-    // satisfied by a primary-key violation - i.e. by the creature row still
-    // being there - which would pass while the trigger did not exist.
-    await expect(insertCreature({ creatureId: id })).rejects.toThrow(/pruned/)
+  it('prunes an ancestor that still has a living descendant', async () => {
+    // The exact operation that was impossible before the ruling. Measured
+    // then: `update or delete on table "creatures" violates foreign key
+    // constraint "creatures_server_id_parent_a_fkey"`.
+    // NOT a Founder - founders_are_never_pruned forbids that, and this
+    // test's first draft tripped on it. A pruned row therefore always
+    // carries is_founder = false, which is exactly data_model 4's tombstone
+    // shape: {id, species, generation, was_founder: false}.
+    const [ancestor] = await insertCreature({ name: null, isFounder: false })
+    const [child] = await insertCreature({ parentA: ancestor!.creatureId, generation: 2 })
+
+    await prune(ancestor!.creatureId)
+
+    // The descendant is untouched and STILL POINTS AT IT. An ON DELETE
+    // SET NULL resolution - which the ruling rejected - would have blanked
+    // this, and the lineage view would have lost the row it exists to reach.
+    const [stillThere] = await withServer(t.db, SERVER_A, (tx) => tx.select().from(creatures)
+      .where(eq(creatures.creatureId, child!.creatureId)))
+    expect(stillThere?.parentA).toBe(ancestor!.creatureId)
+
+    // And the pointer RESOLVES - to a row that is stripped but real, with
+    // exactly the three fields a lineage view renders.
+    const [tombstone] = await withServer(t.db, SERVER_A, (tx) => tx.select().from(creatures)
+      .where(eq(creatures.creatureId, stillThere!.parentA!)))
+    expect(tombstone).toBeDefined()
+    expect(tombstone?.pruned).toBe(true)
+    expect(tombstone?.species).toBe('vetch')
+    expect(tombstone?.generation).toBe(1)
+    // is_founder SURVIVES the strip - false here, and false rather than
+    // null, which is the part that matters: the column is NOT NULL so the
+    // prune cannot blank it even by naming it. It is what distinguishes a
+    // prunable ancestor from a Founder that must never be stripped at all.
+    expect(tombstone?.isFounder).toBe(false)
+    // The payload is gone - this is the forty bytes, not a live creature
+    // wearing a flag.
+    expect(tombstone?.trait1).toBeNull()
+    expect(tombstone?.instinct).toBeNull()
+    expect(tombstone?.hpCurrent).toBeNull()
+    // only_founders_named still holds across the strip: the prune nulls
+    // `name`, so the constraint is satisfied rather than merely unexamined.
+    expect(tombstone?.name).toBeNull()
   })
 
-  it('keeps a tombstone id unreachable by an UPDATE, not only by an INSERT', async () => {
-    // The guard is about the ID SPACE, not about one statement shape. A
-    // trigger scoped to INSERT alone is bypassed by a single UPDATE, which
-    // attaches the dead creature's lineage just as effectively.
-    const [victim] = await insertCreature()
-    const id = await pruneToTombstone(victim!.creatureId)
-    const [live] = await insertCreature()
+  it('refuses to DELETE a creature that is still someone\'s parent', async () => {
+    // The NO ACTION keys, pinned. ON DELETE CASCADE would take the living
+    // descendant with the ancestor; ON DELETE SET NULL would blank the
+    // child's pointer. Both make this DELETE succeed, so both redden here -
+    // which is the point: the prune is an UPDATE and nothing needs this
+    // DELETE to work.
+    const [ancestor] = await insertCreature()
+    await insertCreature({ parentA: ancestor!.creatureId, generation: 2 })
 
-    await expect(withServer(t.db, SERVER_A, (tx) => tx.execute(sql`
-      UPDATE creatures SET creature_id = ${id}
-       WHERE server_id = ${SERVER_A} AND creature_id = ${live!.creatureId}`)))
-      .rejects.toThrow(/pruned/)
+    await expect(t.ownerDb.execute(sql`
+      DELETE FROM creatures WHERE server_id = ${SERVER_A} AND creature_id = ${ancestor!.creatureId}`))
+      .rejects.toThrow(/foreign key/)
+  })
+
+  it('refuses a LIVE creature with no trait, instinct or hp', async () => {
+    // The prune needed those four column-level NOT NULLs dropped. Without
+    // live_creatures_are_whole that would have quietly made a live creature
+    // with no trait insertable - a strictly worse schema than the one the
+    // ruling replaced, arrived at as a side effect of fixing something else.
+    await expect(insertCreature({ trait1: null })).rejects.toThrow(/live_creatures_are_whole/)
+    await expect(insertCreature({ instinct: null })).rejects.toThrow(/live_creatures_are_whole/)
+    await expect(insertCreature({ hpCurrent: null })).rejects.toThrow(/live_creatures_are_whole/)
+  })
+
+  it('refuses to prune a Founder', async () => {
+    // design 3.2: "Retain all Founders permanently." Pruning one nulls the
+    // name bible 3.3 makes the anchor of every descendant's tree, and
+    // only_founders_named means it could never be written back.
+    const [founder] = await insertCreature({ name: 'Ossuary', isFounder: true })
+    await expect(prune(founder!.creatureId)).rejects.toThrow(/founders_are_never_pruned/)
+
+    // "Retained permanently" means the WHOLE row, not merely a surviving id:
+    // the refusal above would be worth little if the statement had stripped
+    // the name on its way to being rejected.
+    const [intact] = await withServer(t.db, SERVER_A, (tx) => tx.select().from(creatures)
+      .where(eq(creatures.creatureId, founder!.creatureId)))
+    expect(intact?.name).toBe('Ossuary')
+    expect(intact?.trait1).toBe('chill')
+    expect(intact?.pruned).toBe(false)
+  })
+
+  it('the availability predicate must say NOT pruned - committed_to IS NULL is true of a tombstone', async () => {
+    // THE TRAP, demonstrated rather than described, because Tasks 5 and 7
+    // write the Hatchery-cap query and this is the schema fact that decides
+    // whether they get it right. Pruning nulls committed_to, so a stripped
+    // ancestor satisfies `committed_to IS NULL` - the exact predicate
+    // creatures_available carried before the ruling, when pruned rows lived
+    // in a different table and could not possibly have matched it.
+    const [doomed] = await insertCreature()
+    await prune(doomed!.creatureId)
+
+    const naive = await withServer(t.db, SERVER_A, (tx) => tx.select().from(creatures)
+      .where(sql`player_id = ${playerA} AND committed_to IS NULL`))
+    const correct = await withServer(t.db, SERVER_A, (tx) => tx.select().from(creatures)
+      .where(sql`player_id = ${playerA} AND committed_to IS NULL AND NOT pruned`))
+
+    // The naive predicate DOES pick the tombstone up. If this assertion ever
+    // flips, the hazard is gone and this test should go with it - but it
+    // must not flip silently.
+    expect(naive.some((c) => c.creatureId === doomed!.creatureId)).toBe(true)
+    expect(correct.some((c) => c.creatureId === doomed!.creatureId)).toBe(false)
+    expect(correct.length).toBeLessThan(naive.length)
   })
 })
 
@@ -176,7 +269,7 @@ describe('arks', () => {
   })
 })
 
-describe('row-level security on the six new tables', () => {
+describe('row-level security on the five new tables', () => {
   it('has FORCE ROW LEVEL SECURITY on every new table', async () => {
     // Picked up by the existing pg_class isolation gate WITHOUT being named
     // in it - the gate enumerates tables rather than listing them, so a new
@@ -187,8 +280,8 @@ describe('row-level security on the six new tables', () => {
         FROM pg_class c
         JOIN pg_namespace n ON n.oid = c.relnamespace
        WHERE n.nspname = 'public'
-         AND c.relname IN ('creatures', 'creature_tombstones', 'arks',
-                           'node_depletion', 'harvest_positions', 'splices')
+         AND c.relname IN ('creatures', 'arks', 'node_depletion',
+                           'harvest_positions', 'splices')
        ORDER BY c.relname`)
 
     // Asserted BEFORE the flags: the brief's shape ("select the ones missing
@@ -203,7 +296,7 @@ describe('row-level security on the six new tables', () => {
     }
   })
 
-  it('shows a scoped read only its own server, on every one of the six', async () => {
+  it('shows a scoped read only its own server, on every one of the five', async () => {
     // ENABLE/FORCE above is metadata: it says a policy exists, not that it
     // DISCRIMINATES. isolation.test.ts learned this twice already (its own
     // comments on idempotency_keys, campaign_progress and wave_issuances) -
@@ -214,9 +307,6 @@ describe('row-level security on the six new tables', () => {
       serverId: s, creatureId: nextId(), playerId: s === SERVER_A ? playerA : playerB,
       species: 'vetch', generation: 1, trait1: 'chill', tier1: 1, trait2: 'lash', tier2: 1,
       instinct: 'forage', hpCurrent: 100,
-    })))
-    await t.ownerDb.insert(creatureTombstones).values([SERVER_A, SERVER_B].map((s) => ({
-      serverId: s, creatureId: nextId(), species: 'vetch', generation: 1, wasFounder: false,
     })))
     await t.ownerDb.insert(arks).values(
       { serverId: SERVER_B, playerId: playerB, regionId: 'verdant-shelf' })
@@ -236,7 +326,6 @@ describe('row-level security on the six new tables', () => {
 
     const seen = await withServer(t.db, SERVER_A, async (tx) => ({
       creatures: await tx.select().from(creatures),
-      creatureTombstones: await tx.select().from(creatureTombstones),
       arks: await tx.select().from(arks),
       nodeDepletion: await tx.select().from(nodeDepletion),
       harvestPositions: await tx.select().from(harvestPositions),
@@ -245,7 +334,6 @@ describe('row-level security on the six new tables', () => {
 
     const scoped: Array<[string, Array<{ serverId: number }>]> = [
       ['creatures', seen.creatures],
-      ['creature_tombstones', seen.creatureTombstones],
       ['arks', seen.arks],
       ['node_depletion', seen.nodeDepletion],
       ['harvest_positions', seen.harvestPositions],

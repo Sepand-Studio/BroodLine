@@ -172,40 +172,52 @@ export const creatures = pgTable('creatures', {
   // CHECK (tier_N IS NULL OR tier_N BETWEEN 1 AND 3) so zero can never be
   // stored - zero would sort and display as "less than tier I" and the two
   // must not be conflated. Nothing here enforces that; 0005 does.
-  trait1: text('trait_1').notNull(),
+  //
+  // trait/instinct/hp_current are NULLABLE here because they are nullable in
+  // SQL, and they are nullable in SQL only so the prune can strip them. The
+  // guarantee the column-level NOT NULL used to give is restored by 0005's
+  // live_creatures_are_whole CHECK, which this file - like every other
+  // constraint - does not enforce. A live creature inserted without a trait
+  // compiles and is refused by Postgres.
+  trait1: text('trait_1'),
   tier1: integer('tier_1'),
-  trait2: text('trait_2').notNull(),
+  trait2: text('trait_2'),
   tier2: integer('tier_2'),
-  instinct: text('instinct').notNull(),
+  instinct: text('instinct'),
   // Founders only - SQL's only_founders_named.
   name: text('name'),
+  // Never nulled by the prune, and NOT NULL so it cannot be. design 3.2
+  // retains Founders permanently; SQL's founders_are_never_pruned refuses a
+  // pruned Founder outright.
   isFounder: boolean('is_founder').notNull().default(false),
   // SQL ties these to creatures (server_id, creature_id) with a COMPOSITE
   // foreign key, so a parent on another server is unrepresentable rather
   // than merely wrong. A single uuid here says none of that.
   parentA: uuid('parent_a'),
   parentB: uuid('parent_b'),
-  hpCurrent: integer('hp_current').notNull(),
+  hpCurrent: integer('hp_current'),
   regenUntil: timestamp('regen_until', { withTimezone: true }),
   committedTo: uuid('committed_to'),
   acquiredAt: timestamp('acquired_at', { withTimezone: true }).notNull().defaultNow(),
+  // design 3.2's tombstone, in this table rather than a second one. A pruned
+  // creature keeps its id and its parent pointers and is stripped to
+  // {species, generation, is_founder} - so the lineage view still resolves
+  // through parent_a/parent_b to a row that exists, and an id can never be
+  // reused because the row never goes away.
+  pruned: boolean('pruned').notNull().default(false),
 }, (t) => ({
   pk: primaryKey({ columns: [t.serverId, t.creatureId] }),
-  byPlayer: index('creatures_by_player').on(t.serverId, t.playerId, t.acquiredAt),
-  // Partial, mirroring 0005: the roster screen and the Hatchery cap both ask
-  // only about uncommitted creatures.
+  // BOTH partial on NOT pruned, mirroring 0005. Pruned rows share this table
+  // now, so an unfiltered roster index would be mostly dead entries. Note
+  // the trap the predicate warns about but cannot close: a pruned row has
+  // committed_to nulled, so `committed_to IS NULL` is true of it, and an
+  // availability query must say `AND NOT pruned` itself or it counts dead
+  // ancestors against the Hatchery cap. The index cannot enforce that; only
+  // the query can.
+  byPlayer: index('creatures_by_player').on(t.serverId, t.playerId, t.acquiredAt)
+    .where(sql`NOT ${t.pruned}`),
   available: index('creatures_available').on(t.serverId, t.playerId)
-    .where(sql`${t.committedTo} IS NULL`),
-}))
-
-export const creatureTombstones = pgTable('creature_tombstones', {
-  serverId: integer('server_id').notNull(),
-  creatureId: uuid('creature_id').notNull(),
-  species: text('species').notNull(),
-  generation: integer('generation').notNull(),
-  wasFounder: boolean('was_founder').notNull(),
-}, (t) => ({
-  pk: primaryKey({ columns: [t.serverId, t.creatureId] }),
+    .where(sql`${t.committedTo} IS NULL AND NOT ${t.pruned}`),
 }))
 
 export const arks = pgTable('arks', {

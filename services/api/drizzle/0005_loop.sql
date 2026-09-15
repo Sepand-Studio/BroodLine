@@ -9,6 +9,23 @@
 -- for the same reason 0003's one-live index is an index: a handler can be
 -- forgotten and a constraint cannot.
 --
+-- THERE IS NO SECOND TABLE FOR PRUNED CREATURES. design 3.2, amended during
+-- execution (specs commit f66834d): tombstones-in-their-own-table and
+-- composite parent foreign keys back onto creatures are mutually exclusive,
+-- and the design did not notice. Every ancestor is referenced by its own
+-- child and the keys are NO ACTION, so DELETE on any prunable row violates
+-- its own child's key - the prune could delete nothing at all, and
+-- data_model 4's nine-thousand-rows-per-player problem would have gone
+-- unsolved while looking solved. Measured, not argued, before the ruling.
+--
+-- Resolved by removing the second table rather than by weakening the keys.
+-- Pruning is an UPDATE: it nulls a creature down to
+-- {species, generation, is_founder} and sets `pruned`. The keys stay
+-- declarative and planner-enforced, the lineage view resolves through them
+-- to a row that really exists, and ID REUSE IS IMPOSSIBLE BY CONSTRUCTION
+-- because the row never goes away - which retired the reuse trigger this
+-- file used to carry.
+--
 -- WHAT THIS FILE DOES NOT FOLLOW FROM THE TASK BRIEF, and why:
 --   * The RLS policy is 0002's shape verbatim - named `server_isolation`,
 --     FOR ALL, USING *and* WITH CHECK, reading the setting through
@@ -33,19 +50,32 @@ CREATE TABLE IF NOT EXISTS creatures (
   generation     integer NOT NULL,
   -- A TraitInstance is (trait, coverage_tier) - data_model 2. Two combat
   -- slots: 1 is the locked slot, 2 is the rolled one (design 5.2).
-  trait_1        text    NOT NULL,
+  -- NULLABLE, and only because of the prune: a pruned row is nulled down to
+  -- {species, generation, is_founder}, so these four cannot carry a
+  -- column-level NOT NULL. live_creatures_are_whole below restores exactly
+  -- that guarantee for every row that is not pruned, so a LIVE creature
+  -- missing a trait is still refused - by a CHECK instead of by the column.
+  trait_1        text,
   tier_1         integer,
-  trait_2        text    NOT NULL,
+  trait_2        text,
   tier_2         integer,
-  instinct       text    NOT NULL,
+  instinct       text,
   name           text,
+  -- NOT NULL, so the prune cannot null it even by accident. design 3.2
+  -- retains Founders permanently and this flag is the only thing that
+  -- distinguishes one afterwards; founders_are_never_pruned below says the
+  -- rest of that sentence.
   is_founder     boolean NOT NULL DEFAULT false,
   parent_a       uuid,
   parent_b       uuid,
-  hp_current     integer NOT NULL,
+  hp_current     integer,
   regen_until    timestamptz,
   committed_to   uuid,
   acquired_at    timestamptz NOT NULL DEFAULT now(),
+  -- design 3.2's tombstone, in place. A pruned row keeps its identity
+  -- (server_id, creature_id), its parent pointers, and the three fields a
+  -- lineage view renders - "an unnamed Gen-4 Vetch" - and nothing else.
+  pruned         boolean NOT NULL DEFAULT false,
 
   PRIMARY KEY (server_id, creature_id),
 
@@ -62,8 +92,21 @@ CREATE TABLE IF NOT EXISTS creatures (
   CONSTRAINT coverage_tier_2_not_zero CHECK (tier_2 IS NULL OR tier_2 BETWEEN 1 AND 3),
   -- Base stock is 1, a child is max(parents) + 1 - design 3.1.
   CONSTRAINT generation_positive CHECK (generation >= 1),
-  -- data_model 2: only Founders may be named.
+  -- data_model 2: only Founders may be named. A pruned row nulls `name`, so
+  -- this holds for one trivially - checked, not assumed (see the test).
   CONSTRAINT only_founders_named CHECK (name IS NULL OR is_founder),
+  -- What the column-level NOT NULLs above used to say, restricted to rows
+  -- the prune has not stripped. Without this, dropping those NOT NULLs to
+  -- make the prune expressible would ALSO have made a live creature with no
+  -- trait and no instinct insertable, which is a strictly worse schema than
+  -- the one the ruling replaced.
+  CONSTRAINT live_creatures_are_whole CHECK (
+    pruned OR (trait_1 IS NOT NULL AND trait_2 IS NOT NULL
+               AND instinct IS NOT NULL AND hp_current IS NOT NULL)),
+  -- design 3.2: "Retain all Founders permanently." Pruning a Founder would
+  -- null the name bible 3.3 makes the emotional anchor of every descendant's
+  -- tree, and only_founders_named means it could never be written back.
+  CONSTRAINT founders_are_never_pruned CHECK (NOT (pruned AND is_founder)),
 
   FOREIGN KEY (server_id, player_id) REFERENCES players (server_id, player_id),
 
@@ -72,75 +115,66 @@ CREATE TABLE IF NOT EXISTS creatures (
   -- SOMEWHERE - 0001 makes the same argument for players.account_id, before
   -- money landed on it.
   --
-  -- !! OPEN AGAINST TASK 7 (the prune), and recorded here because this is
-  -- where the constraint lives. These FKs are NO ACTION, so a creature that
-  -- is any creature's parent CANNOT BE DELETED. Every dead ancestor is
-  -- pointed at by its own child, so under this FK design 3.2's "prune
-  -- everything else to a tombstone" can delete nothing at all, and
-  -- data_model 4's nine-thousand-rows-per-player arithmetic is not solved.
-  -- The two resolutions both cost something the design has not chosen
-  -- between - ON DELETE SET NULL (parent_a) orphans the tombstone the child
-  -- was supposed to be able to render, and dropping the FK gives up the
-  -- cross-server guarantee above - so neither is taken here unilaterally.
+  -- NO ACTION, deliberately, and this is the settled end of the collision
+  -- the header describes. A creature that is any creature's parent cannot be
+  -- deleted - which is now correct rather than obstructive, because the
+  -- prune is an UPDATE and needs no delete at all.
+  --
+  -- ON DELETE CASCADE and ON DELETE SET NULL are both WRONG here and a
+  -- future reader should not "fix" this by adding either. CASCADE would take
+  -- the living descendant with the ancestor; SET NULL would blank the
+  -- child's pointer, so the lineage view could no longer reach the very row
+  -- the prune exists to preserve. `refuses to DELETE a creature that is
+  -- still someone's parent` reddens for both.
   FOREIGN KEY (server_id, parent_a)  REFERENCES creatures (server_id, creature_id),
   FOREIGN KEY (server_id, parent_b)  REFERENCES creatures (server_id, creature_id)
 );
 
-CREATE INDEX IF NOT EXISTS creatures_by_player ON creatures (server_id, player_id, acquired_at);
--- Partial: the roster screen and the Hatchery cap both ask only about
--- uncommitted creatures, and committed ones are the minority.
-CREATE INDEX IF NOT EXISTS creatures_available ON creatures (server_id, player_id)
-  WHERE committed_to IS NULL;
-
--- design 3.2 / data_model 4. About forty bytes a row, kept indefinitely:
--- enough to render "an unnamed Gen-4 Vetch" where a tree reaches past the
--- retained depth.
-CREATE TABLE IF NOT EXISTS creature_tombstones (
-  server_id   integer NOT NULL,
-  creature_id uuid    NOT NULL,
-  species     text    NOT NULL,
-  generation  integer NOT NULL,
-  was_founder boolean NOT NULL,
-  PRIMARY KEY (server_id, creature_id)
-);
-
--- Ids are never reused across the LIVE and PRUNED spaces. Postgres cannot
--- express a uniqueness constraint spanning two tables, so the guard is a
--- trigger - and it is a trigger rather than a handler check for the same
--- reason the one-live issuance is an index. A reused id attaches a dead
--- creature's lineage to a living one, which gets reported as a ghost rather
--- than as a bug.
+-- BOTH indexes are partial on `NOT pruned`, and that is a direct consequence
+-- of the ruling rather than a tidy-up. While tombstones lived in their own
+-- table these indexes were live-only for free; with pruned rows in THIS
+-- table every index carries them unless told not to.
 --
--- The EXISTS below is read under the reader's own row security (plpgsql is
--- SECURITY INVOKER, as 0002's and 0003's trigger functions are). That is
--- correct for both roles that exist: broodline_app only ever inserts inside
--- withServer, where app.server_id is set and the tombstone policy admits
--- exactly the rows on that server; and the migration/owner connection is a
--- superuser, which is exempt from RLS entirely. A future NON-superuser
--- owner writing with no app.server_id would see an empty tombstone table
--- here and the guard would pass silently - noted because nothing else in
--- this repo has a trigger that READS a table.
-CREATE OR REPLACE FUNCTION creature_id_never_reused() RETURNS trigger AS $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM creature_tombstones
-             WHERE server_id = NEW.server_id AND creature_id = NEW.creature_id) THEN
-    RAISE EXCEPTION 'creature id % was pruned and cannot be reused', NEW.creature_id;
-  END IF;
-  RETURN NEW;
-END $$ LANGUAGE plpgsql;
+-- For creatures_by_player that is a size argument: data_model 4 puts the
+-- pruned population at roughly nine thousand rows per player over two years
+-- against a live roster the Hatchery caps at twenty, so an unfiltered index
+-- would be ~99% dead entries that no roster query ever wants.
+--
+-- For creatures_available the predicate ALSO carries a warning, and it is
+-- worth stating precisely rather than dramatically. A pruned row has
+-- committed_to nulled, so `committed_to IS NULL` is TRUE of it: the test
+-- `the availability predicate must say NOT pruned` demonstrates that
+-- directly. A Hatchery-cap query written as `committed_to IS NULL` alone -
+-- the predicate this index carried before the ruling - therefore counts
+-- every dead ancestor against the player's roster cap.
+--
+-- The index does not PREVENT that; only the query's own WHERE can, and
+-- Tasks 5 and 7 own those queries. What the predicate does is keep the
+-- index's definition and the meaning of "available" in one place, so a
+-- query that forgets `NOT pruned` loses the index rather than matching it.
+-- That is an access-path argument, not a correctness one, and it is why no
+-- test reddens when this predicate alone is weakened - recorded as a
+-- finding in the task report rather than papered over with a test that
+-- would only be re-asserting the query it already wrote.
+CREATE INDEX IF NOT EXISTS creatures_by_player ON creatures (server_id, player_id, acquired_at)
+  WHERE NOT pruned;
+CREATE INDEX IF NOT EXISTS creatures_available ON creatures (server_id, player_id)
+  WHERE committed_to IS NULL AND NOT pruned;
 
--- DROP first, matching 0003's and 0004's idiom for this statement.
-DROP TRIGGER IF EXISTS creatures_id_never_reused ON creatures;
--- INSERT *and* UPDATE OF creature_id, not INSERT alone. The guard is about
--- the ID SPACE, not about one statement shape: a trigger scoped to INSERT
--- is bypassed by a single UPDATE that moves a live creature onto a dead
--- one's id, which attaches the dead lineage exactly as effectively. The
--- column list is 0004's lesson applied at the point the trigger is written
--- rather than one migration later - every statement that could reach a
--- tombstoned id names creature_id, and no other statement enters plpgsql.
-CREATE TRIGGER creatures_id_never_reused
-  BEFORE INSERT OR UPDATE OF creature_id ON creatures
-  FOR EACH ROW EXECUTE FUNCTION creature_id_never_reused();
+-- NO creature_tombstones TABLE, and no creature_id_never_reused trigger.
+-- Both were in this file and both are gone - see the header. The tombstone
+-- is the `pruned` row above, and id reuse is not guarded because it is not
+-- POSSIBLE: a pruned creature keeps its primary key, so a second creature
+-- claiming that id collides with the row itself.
+--
+-- Worth keeping on the record, because it was measured rather than reasoned
+-- about: the trigger this replaces shipped as
+-- `BEFORE INSERT OR UPDATE OF creature_id`, widened from the brief's
+-- `BEFORE INSERT` after a weakening showed a single UPDATE could move a live
+-- creature onto a dead one's id and attach its lineage. That scope was the
+-- right fix for the design as it then stood. It is moot now - the primary
+-- key does the whole job, for both statement shapes, with no plpgsql
+-- entered on any write.
 
 -- design 3.3. One row per player: the region the Ark is parked in (a
 -- constant this phase - there is one region) and three facility tiers.
@@ -195,12 +229,18 @@ CREATE TABLE IF NOT EXISTS splices (
   server_id   integer NOT NULL,
   splice_id   uuid    NOT NULL DEFAULT gen_random_uuid(),
   player_id   uuid    NOT NULL,
-  -- NO foreign key on parent_a/parent_b/child_id, deliberately. The splice
-  -- CONSUMES both parents (design 5.5), so by the time this row is
-  -- committed those creatures are gone or on their way to a tombstone, and
-  -- the child may itself be pruned later. An FK here would make the splice
-  -- record's own subject undeletable - the same interaction recorded
-  -- against creatures.parent_a above, but here it is avoidable and avoided.
+  -- NO foreign key on parent_a/parent_b/child_id - and the reason is no
+  -- longer the one this comment first gave. That reason was "the splice
+  -- consumes both parents, so those rows are gone by the time this one is
+  -- committed", which the amended design 3.2 makes FALSE: a consumed parent
+  -- is pruned, not deleted, so all three ids now name rows that still exist
+  -- and composite FKs here WOULD be satisfiable and would make a
+  -- cross-server splice unrepresentable, exactly as they do on creatures.
+  --
+  -- Left unadded because Task 7 owns the splice write path and adding them
+  -- constrains its statement order; recorded as OWED rather than settled, so
+  -- the next writer decides it deliberately instead of inheriting a stale
+  -- justification.
   parent_a    uuid    NOT NULL,
   parent_b    uuid    NOT NULL,
   child_id    uuid    NOT NULL,
@@ -224,12 +264,14 @@ CREATE INDEX IF NOT EXISTS splices_by_player ON splices (server_id, player_id, c
 -- below fails silently, which is why isolation.test.ts gates the latter and
 -- not the former.
 --
--- No DELETE except on creatures, and that one is design 3.2's prune. A
--- tombstone is permanent by definition, and a splice is a record of
--- something that happened - neither has a writer that should be able to
--- remove it, and 0003 declined DELETE on wave_issuances for the same reason.
-GRANT SELECT, INSERT, UPDATE, DELETE ON creatures           TO broodline_app;
-GRANT SELECT, INSERT                 ON creature_tombstones TO broodline_app;
+-- NO DELETE ANYWHERE, creatures included. The first version of this file
+-- granted DELETE on creatures because design 3.2's prune was a delete; under
+-- the amended 3.2 the prune is an UPDATE, so the grant lost its only
+-- justification and is withdrawn rather than left lying around. A handler
+-- that could delete a creature could break a living descendant's lineage,
+-- which is exactly what the parent keys above exist to prevent - and 0003
+-- declined DELETE on wave_issuances on the same reasoning.
+GRANT SELECT, INSERT, UPDATE         ON creatures           TO broodline_app;
 GRANT SELECT, INSERT, UPDATE         ON arks                TO broodline_app;
 GRANT SELECT, INSERT, UPDATE         ON node_depletion      TO broodline_app;
 GRANT SELECT, INSERT, UPDATE         ON harvest_positions   TO broodline_app;
@@ -243,7 +285,7 @@ GRANT SELECT, INSERT                 ON splices             TO broodline_app;
 DO $$
 DECLARE t text;
 BEGIN
-  FOREACH t IN ARRAY ARRAY['creatures','creature_tombstones','arks',
+  FOREACH t IN ARRAY ARRAY['creatures','arks',
                            'node_depletion','harvest_positions','splices']
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
