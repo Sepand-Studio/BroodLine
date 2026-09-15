@@ -1,0 +1,56 @@
+-- The deployment an issuance was issued FOR - design 6.1, and the column the
+-- entitlement boundary is built on.
+--
+-- `POST /v1/wave/start` grows a body carrying creature ids and pockets. `api`
+-- checks those ids against the roster, resolves each one to a CreatureSpec
+-- READ OFF THE ROW IT NAMES, and stores the resolved specs here. The point is
+-- not the check: there is no path from a client-supplied value to a spec, so a
+-- deployment the player does not own is INEXPRESSIBLE rather than refused. At
+-- submit, `sim` echoes the deployment it simulated and `api` compares it
+-- against this column - the comparison Phase 5 already runs on `seed` and
+-- `wave_id`, extended by one field.
+--
+-- THIS FILE IS THE EXPAND STEP AND NOTHING ELSE, which is why the column is
+-- NULLABLE and why it lands in its own commit with no reader.
+-- solo_execution 7.0 and the plan's Global Constraints: a schema migration
+-- and the code that requires it never deploy together, because that is what
+-- makes a rollback possible. The other five tables of this phase satisfy that
+-- by living in Task 3 while their readers live in Tasks 5-7; this column
+-- would otherwise be the one place the phase broke its own rule, since its
+-- reader is written in the same task.
+--
+-- So, in order: this migration is applied against the RUNNING service, whose
+-- handler neither writes nor reads the column; every issuance it is still
+-- minting reads and writes this table correctly because the column is
+-- nullable. Only then does the handler that populates it deploy. Rolling THAT
+-- deployment back leaves live rows carrying a deployment nobody reads, which
+-- is inert.
+--
+-- NULLABLE IS ALSO A PERMANENT STATEMENT, not only a deploy-order one: for
+-- the two hours of ISSUANCE_TTL_MS after the handler ships, a player can hold
+-- a live issuance minted by the previous build, and that row has no
+-- deployment and never will. services/api/src/schemas.ts's WaveStartResponse
+-- says so in the contract rather than pretending otherwise.
+--
+-- NOT AN AMENDMENT TO 0005. src/db/migrate.ts keys `_migrations` on filename
+-- with no checksum, so editing an applied file is a change that silently
+-- never runs. 0005 has been amended in place several times on the premise
+-- that nothing is deployed; this is a NEW column rather than a correction to
+-- an existing one, and it gets a new file.
+--
+-- jsonb, not json: the comparison at submit is an equality test over a small
+-- document, jsonb normalises key order and whitespace so two spellings of the
+-- same deployment cannot read as different, and nothing here needs to
+-- preserve the input's byte form. No index - the only read is by primary key,
+-- via the issuance the submission already names.
+--
+-- NO CHECK ON ITS SHAPE. The engine's cap (Stats.DeploymentCap, 5) is a
+-- BALANCE CONSTANT, and engine/Runtime/Combat/Replay.cs makes the same ruling
+-- about the same number for the same reason - a constraint here would freeze
+-- a tuning value into a migration, and changing it would then need one.
+-- routes/wave.ts's parse layer is where the cap lives.
+--
+-- RLS needs no change: a column inherits the policies already on this table
+-- (0002_rls.sql), and every read of it is scoped by the same server_id and
+-- player_id its row always was.
+ALTER TABLE wave_issuances ADD COLUMN deployment jsonb;

@@ -119,6 +119,42 @@ export const campaignProgress = pgTable('campaign_progress', {
   pk: primaryKey({ columns: [t.serverId, t.playerId] }),
 }))
 
+/**
+ * A creature AS DEPLOYED - engine `CreatureSpec`
+ * (engine/Runtime/Combat/SimState.cs), field for field, plus nothing.
+ *
+ * NO IDENTITY, and that is the design rather than an omission. design 2.1:
+ * the engine simulates seven fields and has no business holding a creature
+ * id; identity is a storage concern. `committed_to` on the creature row is
+ * the pointer back, in the one direction anything needs it.
+ *
+ * DECLARED HERE, beside the column that holds it, because this is the file
+ * whose job is making a query fail to compile when it drifts from the SQL -
+ * `wave/issuance.ts` re-exports it so the wave path has one import rather
+ * than two. Putting it in `wave/issuance.ts` instead would make this file
+ * import from a module that imports it back.
+ *
+ * `trait_N` ARE THE ROW'S STRINGS ('Taunt', 'Chill'), not the engine's Trait
+ * ordinals, and `tier_N` IS NULLABLE for the reason the creature column is:
+ * null is an Aberrant, which has no coverage, and data_model 2 refuses to
+ * conflate that with zero. Both are stored exactly as the owned row carries
+ * them - "resolved from the row" has to mean the row's values, or it means
+ * nothing. Translating either into the engine's encoding is the submit-side
+ * comparison's problem (design 6.2, and a later task), and doing it here
+ * would put a second, unauthored mapping in the path the whole mechanism
+ * rests on.
+ */
+export interface CreatureSpec {
+  species: string
+  trait1: string
+  tier1: number | null
+  trait2: string
+  tier2: number | null
+  instinct: string
+  /** The one field of a spec the REQUEST supplies - design 6.1. */
+  pocket: number
+}
+
 export const waveIssuances = pgTable('wave_issuances', {
   serverId: integer('server_id').notNull(),
   issuanceId: uuid('issuance_id').notNull(),
@@ -143,6 +179,17 @@ export const waveIssuances = pgTable('wave_issuances', {
   // both the index and the handler's liveness check now share.
   settledAt: timestamp('settled_at', { withTimezone: true }),
   settlement: text('settlement'),
+  // design 6.1's deployment, resolved from the player's OWN rows at
+  // issuance and stored here. NULLABLE, mirroring 0006_issuance_deployment
+  // exactly: that file is the expand step, so the column ships with no
+  // reader, and for ISSUANCE_TTL_MS after the reader does ship a player can
+  // still hold a live issuance minted by the previous build that has none.
+  //
+  // $type, not a bare jsonb: without it every read of this column is `any`
+  // wearing a different name, and the ONE property this task exists to
+  // guarantee - that what is stored came off an owned row - would be
+  // unstated in the types that carry it.
+  deployment: jsonb('deployment').$type<CreatureSpec[]>(),
 }, (t) => ({
   pk: primaryKey({ columns: [t.serverId, t.issuanceId] }),
   // design 4.3: the one-live-issuance-per-player rule, enforced by Postgres.
