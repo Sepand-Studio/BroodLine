@@ -78,16 +78,27 @@ import {
  * marker) and `cannot submit a replay claiming a deployment it was not
  * issued`.
  *
- * TASK 11 ADDED ONE MORE, so this file ships SEVENTEEN as of Phase 6's own
- * Task 11. `pays the ISSUED wave reward, never the submitted one` is row 5,
+ * TASK 11 ADDED TWO MORE, so this file ships EIGHTEEN as of Phase 6's own
+ * Task 11, across two fix rounds. `pays the ISSUED wave reward, never the
+ * submitted one` is row 5's SINGLE-EDIT weakening (reward source only),
  * finally run against real source rather than argued about - and the
  * measured result is that it, and the rest of the file, STAY GREEN under
- * the weakening. That is not this file failing to catch something: submit
- * step 5 (`matchesIssuance`) proves `echo.waveId === issuance.waveId`
+ * that weakening alone. That is not this file failing to catch something:
+ * submit step 5 (`matchesIssuance`) proves `echo.waveId === issuance.waveId`
  * before the reward lookup is ever reached, on every path, so nothing this
- * file can send over HTTP disagrees with itself at that line. The test's
- * own comment carries the full argument; weakenings.md's Task 11 section
- * carries the measured run.
+ * file can send over HTTP disagrees with itself at that line.
+ *
+ * `cannot claim wave 7's reward against a wave 6 issuance` is row 5's
+ * COMBINED weakening (Phase 5's own decision register names this one, not
+ * the single edit, as the version that "needs two authored waves with
+ * different rewards" - fix round 1 re-read that register rather than
+ * accepting the single-edit result as the whole row). Delete matchesIssuance's
+ * waveId comparison AS WELL AS reading the reward from the echo, and THIS
+ * test goes RED: `expected 200 to be 409`, balance inflated by exactly the
+ * difference between what was issued and what was claimed. That is the hole
+ * row 5 was always about. weakenings.md's Task 11 section and task-11-
+ * report.md carry both measured runs, single-edit and combined, side by
+ * side.
  */
 
 // fileURLToPath, not .pathname - this repo lives under a directory
@@ -624,6 +635,62 @@ describe('adversarial: what a modified client cannot do', () => {
     expect(res.status).toBe(200)
     expect(await res.json()).toMatchObject({ result: 'Win', reward: { currency: 'shards', amount: WAVE_7_REWARD } })
     expect(await balance('shards')).toBe(before + WAVE_7_REWARD)
+  })
+
+  it('cannot claim wave 7\'s reward against a wave 6 issuance (weakenings.md row 5, THE COMBINED WEAKENING)', async () => {
+    // FIX ROUND 1. The single-edit weakening above (read the reward from
+    // the echo) is masked, and `pays the ISSUED wave reward...` proves that
+    // by measurement. But Phase 5's own decision register - quoted back at
+    // this task rather than re-derived from a citation - names a SECOND,
+    // COMBINED weakening as the one that was never run: "the combined
+    // weakening needs two authored waves with different rewards, which the
+    // engine cannot supply." Task 11 supplies them. This is that run.
+    //
+    // THE ATTACK. A player who has cleared NOTHING (no clearThrough - wave 6
+    // is startable from zero progress, like every other test in this file)
+    // issues wave 6 - reward 40 - with a roster that happens to equal
+    // `wave7WinningDeployment`'s composition. Nothing about issuing a wave
+    // cares whether the roster would WIN it; `wave/start` only checks
+    // ownership, liveness and the deployment floor/cap. They then submit a
+    // GENUINELY WINNING WAVE-7 REPLAY, at the wave-6 issuance's own real
+    // seed and the SAME five creatures - so the only field that disagrees
+    // between the issuance and the echo is the wave id itself: 6 issued, 7
+    // simulated.
+    //
+    // MEASURED AGAINST THE COMBINED WEAKENING (matchesIssuance's waveId
+    // half deleted, AND the reward read from the echo): **the attack
+    // succeeds.** `status: 200`, `result: 'Win'`, `reward: 230`, balance
+    // `before + 230` - task-11-report.md carries the verbatim run. That is
+    // the hole weakenings.md row 5 was always about, finally constructible
+    // and finally observed rather than argued.
+    //
+    // A SEPARATE, PRE-EXISTING TEST ALSO CATCHES THE ISOLATED GUARD CHANGE -
+    // sim-client.test.ts's `matchesIssuance > refuses a genuine mismatch
+    // regardless of which branch the type took` reddens the moment the
+    // waveId comparison is deleted, independent of anything here. That is a
+    // real, valuable protection, and it is NOT this property: it proves
+    // `matchesIssuance` still obeys its own contract, never that a
+    // WEAKENED `matchesIssuance` cannot still get a wrong reward paid. This
+    // test is what closes THAT gap - the reward path's only protection
+    // against this exact exploit, once matchesIssuance's waveId half is
+    // gone, is THIS assertion.
+    //
+    // ASSERT THE REASON, NOT ONLY THE BALANCE. On real source the refusal
+    // must come from matchesIssuance's waveId half specifically (the seed
+    // matches; only the wave id disagrees), so the code pins WHICH guard
+    // fired - `cannot submit against a self-chosen seed`'s reasoning, same
+    // shape, the other field.
+    const roster = await giveRoster(wave7WinningRosterSpecs())
+    const { issuanceId, seed } = await (await startWave(6, roster)).json() as { issuanceId: string; seed: string }
+    const before = await balance('shards')
+
+    const res = await submit(
+      issuanceId, buildReplayOf(7, BigInt(seed), wave7WinningDeployment()), crypto.randomUUID())
+
+    expect(res.status).toBe(409)
+    expect(await res.json()).toMatchObject({ code: 'submission_rejected' })
+    expect(await balance('shards')).toBe(before)
+    expect(await liveIssuance()).toBeUndefined()
   })
 
   it('cannot farm a cleared wave past the daily cap', async () => {

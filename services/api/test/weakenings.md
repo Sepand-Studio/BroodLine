@@ -24,16 +24,23 @@ actually run, and the failing test's name actually recorded. Nothing here is
 predicted. **Row 5 was the one standing exception to that sentence for the
 whole of Phase 5** — it was struck rather than run, because there was no
 second authored wave to run it against — and Task 11 is what closes that
-gap; see "Row 5" below for the run.
+gap, in two stages: a single-edit run that stayed masked, and (fix round 1,
+re-reading Phase 5's own register rather than stopping at the first result)
+the COMBINED weakening Phase 5 actually named, which does not stay masked.
+See "Row 5" below for both runs.
 
 Where a weakening left the suite green that is written down as a finding,
-not smoothed over — **six rows did**. Three produced a new test (rows 3, 4b
-and 7). Three did not, and each says why in its own section: row 4 is a
-guard no sequence of HTTP requests can reach, row 5 is a guard of the same
-shape (confirmed by actually running it, at Task 11, once a second authored
-wave existed to run it against), and row 10 is a genuine hole in this gate
-that a controller ruling deliberately leaves open, because closing it here
-would put a non-adversarial property in the adversarial suite.
+not smoothed over — **six rows did**, one of them (row 5) only in its
+single-edit form. Row 5's COMBINED form — the one Phase 5's own register
+names — is discriminating instead, and belongs with rows 1, 3, 6, 7, 8 and 9,
+which reddened a named test. Three of the six that stayed green produced a
+new test (rows 3, 4b and 7); three did not, and each says why in its own
+section: row 4 is a guard no
+sequence of HTTP requests can reach, row 5's SINGLE EDIT is a guard of the
+same shape (today — see "Row 5" for why that is not the same claim as "the
+row is safe"), and row 10 is a genuine hole in this gate that a controller
+ruling deliberately leaves open, because closing it here would put a
+non-adversarial property in the adversarial suite.
 
 Every run is `pnpm --filter @broodline/api test adversarial` against the file
 as it ships (**15 tests**), on branch `phase_5`, with file parallelism on.
@@ -51,7 +58,8 @@ re-run to green.
 | 3 | `settle()` moved outside the credit's transaction and the credit un-gated on it | `routes/wave.ts` submit handler | **RED — discriminating (1/15)**, *after a new test was written* | `cannot replay a winning submission twice under a genuinely concurrent second attempt` |
 | 4 | The settlement write-once trigger not created | `drizzle/0004_trigger_scope_and_bounds.sql` — **not `0003`**, see below | **GREEN — 15/15. FINDING.** | none in this file — see below |
 | 4b | The abandoned row settled `'consumed'` rather than `'expired'` | `wave/issuance.ts` `issueWave` check 4 | **RED — discriminating (1/15)**, *after a new test was written* | `cannot spend a replay it never took by abandoning a wave` |
-| 5 | Read the reward from `verdict.echo.waveId` | `routes/wave.ts` submit step 6, `rewardForWave`'s argument | **GREEN — 17/17 (`adversarial`), 49/49 (`wave-submit adversarial replays`). FINDING, run at Task 11.** | none — masked by step 5's own `matchesIssuance`, see "Row 5" below |
+| 5 | Read the reward from `verdict.echo.waveId` ALONE | `routes/wave.ts` submit step 6, `rewardForWave`'s argument | **GREEN — 17/17 (`adversarial`), 49/49 (`wave-submit adversarial replays`). FINDING, run at Task 11.** | none — masked by step 5's own `matchesIssuance`, see "Row 5" below |
+| 5c | THE COMBINED WEAKENING: 5, AND `matchesIssuance`'s `waveId` comparison deleted (seed comparison kept) | `routes/wave.ts` `matchesIssuance` + submit step 6 | **RED — discriminating in `adversarial` (1/18); ALSO reddens a second, unrelated test (1/7 in `sim-client`)** | `cannot claim wave 7's reward against a wave 6 issuance`; separately, `sim-client.test.ts`'s `matchesIssuance > refuses a genuine mismatch regardless of which branch the type took` |
 | 6 | Issuance check 2 (the replay cap) deleted | `wave/issuance.ts` `issueWave` | **RED (3/15)** | `cannot farm a cleared wave past the daily cap`, `counts a consumed issuance against the UTC day boundary, to the second`, `counts against midnight UTC even when the session TimeZone is not UTC` |
 | 7 | `'consumed'` issuances aged out at 3 hours rather than the UTC day boundary | `wave/issuance.ts` check 2's count window | **RED (2/15)**, *after a new test was written, then rewritten* — **but the row is NOT closed: see the OWED ruling below** | `counts a consumed issuance against the UTC day boundary, to the second`, `counts against midnight UTC even when the session TimeZone is not UTC` |
 | 8 | `sim`'s rejection returned as a `5xx` instead of a `200` verdict | `services/sim/Program.cs` | **RED — discriminating (1/15)** | `cannot submit forged bytes` |
@@ -165,20 +173,28 @@ that could only reach the trigger by reaching around the API into raw SQL
 would be `issuance-schema.test.ts` with extra steps. Recorded as "the gate row
 is mis-specified", not as "the guard is unproven".
 
-## Row 5 — struck through Phase 5, **run and closed at Task 11**
+## Row 5 — struck through Phase 5, **run in two stages at Task 11**
 
-> **CLOSED AT TASK 11, Phase 6.** Struck for the whole of Phase 5 because
-> `WaveDef.ForId` authored exactly one wave, so there was no second reward to
-> inflate toward and the weakening could not be applied to a real submission
-> at all. The three-point argument immediately below is preserved exactly as
-> Phase 5 wrote it — re-derivation, not memory, is what this file runs on —
-> and it turned out to hold. Task 11 authored wave 7 (230 shards against
-> wave 6's 40), applied the weakening to real source, and ran it: **GREEN,
-> 17/17 in `adversarial`, 49/49 across `wave-submit adversarial replays`,
-> full suite 383/383.** The weakening is masked on every HTTP-reachable path,
-> confirmed by measurement rather than argued a second time. See "Task 11 —
-> measured, not argued" below the original argument for the run, and
-> task-11-report.md for the verbatim output.
+> **CLOSED AT TASK 11 FIX ROUND 1, Phase 6 — and the first stage's "closed"
+> was premature.** Struck for the whole of Phase 5 because `WaveDef.ForId`
+> authored exactly one wave, so there was no second reward to inflate toward.
+> The three-point argument immediately below is preserved exactly as Phase 5
+> wrote it — re-derivation, not memory, is what this file runs on.
+>
+> **Point 2 of that argument is the one that matters, and the first pass
+> through this row under-weighted it.** Phase 5's own decision register
+> calls out **the combined weakening** by name as the one that "needs two
+> authored waves with different rewards" — not the single-line reward-source
+> edit in isolation. Task 11's first pass ran only the single edit, found it
+> masked, and called the row closed. **That was the wrong half of the
+> argument to treat as the whole row.** Fix round 1 ran the combined
+> weakening Phase 5 actually named — `matchesIssuance`'s `waveId` comparison
+> deleted AS WELL AS the reward source — and it is **not** masked:
+> **RED. `expected 200 to be 409`, balance inflated by exactly 230.** See
+> "Task 11, fix round 1" below for the attack, the run, and the new
+> permanent test; "Task 11, single edit" for the first pass's result, kept
+> because it is also true and says something the combined run does not.
+> task-11-report.md carries both runs verbatim.
 
 "Read the reward from `verdict.echo.waveId`" cannot break anything, and the
 brief's three-layer argument was re-derived against the code rather than taken
@@ -219,7 +235,7 @@ different reward exists — at which point the weakening becomes constructible
 and must be run. Do not let this row be quietly dropped at Phase 6.~~ **Task
 11 is that content fill; see below for what running it found.**
 
-### Task 11 — measured, not argued: still masked, and that is the closure
+### Task 11, single edit — measured, not argued: masked, but not the whole row
 
 Phase 6 authored wave 7 (`engine/Runtime/Combat/WaveDef.cs Wave7()`: 1 Lash,
 6 Skirmishers, integrity 3; `config/bundles/0.1.2/waves.json`: 230 shards
@@ -274,14 +290,119 @@ not merely unexercised, and an honest end-to-end test is what makes that
 checkable rather than assumed. `adversarial.test.ts`'s pre-existing
 `describe("the reward's source of truth (design §2.2)")` block — the
 synthetic-bundle stand-in Phase 5 wrote in place of a real second wave —
-remains the row's ONLY discriminating gate, and it remains one for the same
-reason: it calls `rewardForWave` directly, with nothing standing between the
-mutated argument and the call.
+remains the ONLY thing that discriminates THIS SINGLE-EDIT weakening in
+isolation, for the same reason as always: it calls `rewardForWave` directly,
+with nothing standing between the mutated argument and the call. (Fix round
+1, next, finds a second discriminating gate — but only for the COMBINED
+weakening; it does not catch the single edit alone, because
+`matchesIssuance`'s waveId half is still standing in that scenario and
+refuses the request before the reward line runs, exactly as this section
+found.)
 
-**Closed, not smoothed over.** Row 5 joins rows 4 and 10 as a weakening that
-leaves this file green and says why in its own section, rather than being
-counted among the seven that reddened a named test. Full detail, verbatim
-output and the reachability argument are in task-11-report.md.
+**This result stands, and it is real — it is just not the row.** The
+single-edit weakening leaves this file green and says why, which is worth
+recording precisely the way rows 4 and 10 are: `matchesIssuance`'s waveId
+half is redundant, TODAY, with the reward line's own argument, so cutting
+only the reward line changes nothing observable. What it does not show is
+what happens if that redundancy is ever the ONLY protection left — which is
+exactly the question fix round 1 asked next.
+
+### Task 11, fix round 1 — the combined weakening, and this is the one Phase 5 meant
+
+**The attack Phase 5's point 2 describes, built for real.** A player who has
+cleared NOTHING issues wave 6 (reward 40) with a roster that happens to equal
+a deliberately-built wave-7-winning composition (Taunt/Vetch and Splash/Ember
+at tier III, two Hollow — the same one `pays the ISSUED wave reward...`
+verified against the real engine at four seeds). They then submit a
+GENUINELY WINNING WAVE-7 REPLAY at that issuance's own real seed, with the
+SAME five creatures. Every field matches between the issuance and the echo
+except one: 6 was issued, 7 was simulated.
+
+**Both halves of the combined weakening, applied to real source together,
+confirmed present with `git diff` before anything was trusted:**
+
+```diff
+ export function matchesIssuance(echo: SimulateEcho, issuance: Pick<Issuance, 'seed' | 'waveId'>): boolean {
+-  return echo.seed === issuance.seed && toInt(echo.waveId) === issuance.waveId
++  return echo.seed === issuance.seed
+ }
+```
+```diff
+-          const reward = rewardForWave(bundle, issuance.waveId)
++          const reward = rewardForWave(bundle, toInt(verdict.echo.waveId))
+```
+
+**Measured result: RED — the attack succeeds.**
+
+```
+PROBE result {"status":200,"body":{"result":"Win","integrityRemaining":3,
+"breaches":[],"reward":{"currency":"shards","amount":230}},
+"before":250,"after":480}
+```
+
+`before + 230 = after`, exactly. A player who never played wave 7 at all —
+who was ISSUED wave 6 — was paid wave 7's reward, in full, end to end,
+through the real handler. **This is the hole weakenings.md row 5 was always
+about**, and it is now observed rather than argued.
+
+**A second, unrelated test also reddens — and it is worth naming precisely
+why that is not the same finding.** `sim-client.test.ts`'s `matchesIssuance
+> refuses a genuine mismatch regardless of which branch the type took`
+directly unit-tests `matchesIssuance(<waveId: 7>, <issuance waveId: 6>)`
+and expects `false`; deleting the waveId comparison makes it `true`, so that
+test fails independent of anything about money. **That test proves
+`matchesIssuance` still obeys ITS OWN contract. It does not prove the
+reward is safe** — it is testing a different function's correctness, not
+the property row 5 is about, and a regression shaped differently enough to
+satisfy that specific assertion (or a future refactor that quietly drops
+the test as "redundant with the seed check") would sail through it while
+still paying the wrong reward. The end-to-end test below is what closes
+that gap; `matchesIssuance`'s own unit coverage is a good, real, but
+INDEPENDENT protection, not a substitute.
+
+**The permanent test:** `cannot claim wave 7's reward against a wave 6
+issuance` (`adversarial.test.ts`). On real source it asserts the refusal
+that actually happens — `409`, `submission_rejected` (from
+`matchesIssuance`'s waveId half specifically; the seed matches, so that is
+the only guard left that can fire) — and the balance unchanged. Run against
+the combined weakening:
+
+```
+pnpm --filter @broodline/api test sim-client wave-submit adversarial replays
+ × adversarial: what a modified client cannot do > cannot claim wave 7's
+   reward against a wave 6 issuance (weakenings.md row 5, THE COMBINED WEAKENING)
+   → expected 200 to be 409
+ × matchesIssuance > refuses a genuine mismatch regardless of which branch
+   the type took
+   → expected true to be false
+ Test Files  2 failed | 2 passed (4)
+      Tests  2 failed | 55 passed (57)
+```
+
+**Reverted (`git checkout -- services/api/src/routes/wave.ts`), confirmed
+clean (`git diff --quiet`), and re-run to green:**
+
+```
+pnpm --filter @broodline/api test sim-client wave-submit adversarial replays
+ Test Files  4 passed (4)
+      Tests  57 passed (57)
+
+pnpm --filter @broodline/api test          # full suite
+ Test Files  34 passed (34)
+      Tests  384 passed (384)
+```
+
+**Closed, and this time by a discriminating gate, not by an unreachability
+argument.** Row 5 moves to the same bucket as rows 1, 3, 6, 7, 8 and 9: a
+named test goes red under the weakening this row describes. The single-edit
+result above stays on the record too, because it answers a real and
+different question — "does the reward line's own argument matter, given
+`matchesIssuance` today" — and the answer to that one is still no, today,
+by itself. The combined result answers the question that was actually
+asked: **is the reward a function of the issuance and never of the
+submission, PROVABLY, rather than merely as an accident of where two
+independent guards currently happen to sit.** Full detail, both verbatim
+runs, and the reachability argument are in task-11-report.md.
 
 ---
 
