@@ -1,0 +1,107 @@
+# Phase 6 recorded test baseline — DATA, NOT PROSE.
+#
+# Same contract as implementation/results/phase5-test-baseline.txt, whose
+# header carries the full rationale and is not repeated here: a count written
+# into a sentence goes stale silently (Phase 4 wrote "71" and was wrong by
+# three for a whole phase). THE NUMBERS HERE SUPERSEDE ANY COUNT WRITTEN INTO
+# A SENTENCE ANYWHERE IN implementation/ OR specs/, including the Phase 6
+# record beside this file.
+#
+# PER-FILE ROWS, for the same reason Phase 5 has them: the question a gate must
+# answer is not "did the total move" but "did a count FALL", because a fall is
+# a deletion nobody noticed. A total says something vanished; the api.file.*
+# rows say from where.
+#
+# ---------------------------------------------------------------------------
+# HOW TO REGENERATE (all six gates, from the repo root)
+#
+#   PATH="$HOME/.nvm/versions/node/v22.22.2/bin:$PATH"   # the default pnpm on
+#                                                        # PATH is 3.7.5
+#   dotnet test Broodline.sln --nologo
+#   ./implementation/scripts/cross-runtime-diff.sh
+#   pnpm --filter @broodline/api test
+#   pnpm --filter @broodline/api typecheck
+#   ./implementation/scripts/generate-contract.sh && \
+#     git diff --quiet -- openapi/ client/Assets/Generated/ services/api/src/generated/
+#   ./implementation/scripts/run-unity-tests.sh EditMode
+#
+# The api.file.* rows come from vitest's own per-file summary lines:
+#
+#   grep -E "^ ✓ test/" <api-log> \
+#     | sed -E 's/^ ✓ test\/([^ ]+) \(([0-9]+) tests?\).*/api.file.\1\t\2/' \
+#     | sort
+#
+# ---------------------------------------------------------------------------
+# THE ONE RED ROW IS DELIBERATE AND MUST STAY RED.
+#
+# dotnet.failed is 1, not 0, and the failure is
+#   Broodline.Sim.Tests.Combat.ReplayArtifactPresenceTests.TheTrackedCapturesAreCurrent
+#
+# SimVersion moved 0.2.0 -> 0.3.0 in Task 1, which supersedes the tracked
+# device and editor captures under solo_execution 9.4. No iOS hardware was
+# available to re-capture. A human ruled that execution continue with the test
+# FAILING rather than skipping, because a skip is indistinguishable from
+# success while a failure is visible and blocks the Definition of Done.
+#
+# DO NOT re-baseline, skip, or "fix" this row. Phase 6 CANNOT CLOSE until the
+# device capture happens. dotnet.skipped is 0 and must stay 0 - there is no
+# Skip anywhere in the solution, so no count will report this for you.
+#
+# ---------------------------------------------------------------------------
+# Measured 2026-09-15 on phase_6 at commit 832bfb6.
+
+gate.dotnet.total	221
+gate.dotnet.passed	220
+gate.dotnet.failed	1	TheTrackedCapturesAreCurrent — DELIBERATE, see above
+gate.dotnet.skipped	0
+gate.dotnet.engine.total	204
+gate.dotnet.engine.passed	203
+gate.dotnet.engine.failed	1
+gate.dotnet.sim-service.total	17
+gate.dotnet.sim-service.passed	17
+gate.cross-runtime.scenarios	500	PASS: 500 scenarios agree
+gate.api.files	35
+gate.api.total	396
+gate.api.failed	0
+gate.typecheck.errors	0
+gate.contract.diff.files	0	git diff --quiet exit 0
+gate.unity.editmode.total	86
+gate.unity.editmode.passed	86
+gate.unity.editmode.failed	0
+gate.unity.editmode.skipped	0
+
+api.file.account.test.ts	8
+api.file.accrual.test.ts	11
+api.file.adversarial.test.ts	18
+api.file.base-stock.test.ts	9
+api.file.child-reaper.test.ts	8
+api.file.config-validate.test.ts	5
+api.file.config.test.ts	15
+api.file.contract.test.ts	4
+api.file.dotnet-build-lock.test.ts	6
+api.file.hash.test.ts	4
+api.file.health.test.ts	2
+api.file.idempotency.test.ts	4
+api.file.identity.test.ts	22
+api.file.isolation.test.ts	12
+api.file.issuance-schema.test.ts	9
+api.file.ledger.test.ts	8
+api.file.lineage.test.ts	9
+api.file.loop-schema.test.ts	30
+api.file.masked-teardown.test.ts	2
+api.file.node-claim.test.ts	17
+api.file.pool-teardown.test.ts	3
+api.file.preflight.test.ts	11
+api.file.replays.test.ts	7
+api.file.roster.test.ts	9
+api.file.rotation.test.ts	5
+api.file.session.test.ts	6
+api.file.sim-auth.test.ts	13
+api.file.sim-client.test.ts	7
+api.file.splice-commit.test.ts	26
+api.file.splice-distribution.test.ts	29
+api.file.splice-preview.test.ts	13
+api.file.sync.test.ts	5
+api.file.validate-rewards.test.ts	2
+api.file.wave-start.test.ts	32
+api.file.wave-submit.test.ts	25
