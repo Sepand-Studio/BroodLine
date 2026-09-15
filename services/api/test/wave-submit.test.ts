@@ -394,6 +394,37 @@ describe('POST /v1/wave/submit', () => {
     expect(await balance('shards')).toBe(before)
   })
 
+  it('answers a malformed issuanceId with 400, not with a 500 from Postgres', async () => {
+    // A LIVE DEFECT SINCE PHASE 5, found while Task 6 gave creature ids the
+    // same shape check on /v1/splice/preview. `parseSubmit` accepted any
+    // non-empty string, so the value reached `loadLiveIssuance`'s comparison
+    // against `wave_issuances.issuance_id` - a Postgres `uuid` column - where
+    // 22P02 was raised inside the read and app.ts's onError turned it into
+    // `internal`. Any authenticated player could make the API report 500 for
+    // a body they had malformed.
+    //
+    // Measured before the fix: HTTP 500 `{"code":"internal"}`.
+    await setupPlayer(deps)
+    const res = await submit('not-a-uuid', buildWinningReplay(6, 1n), 'key-bad-uuid')
+
+    expect(res.status).toBe(400)
+    expect(await res.json()).toMatchObject({ code: 'invalid_request' })
+  })
+
+  it('still refuses a WELL-FORMED issuanceId nobody issued the ordinary way', async () => {
+    // THE OTHER HALF, and without it the test above is satisfied by a check
+    // that swallowed every unknown id into 400. The shape check is not a
+    // statement about which issuances exist - the same thing wave/start's
+    // MAX_WAVE_ID and region.ts's MAX_NODE_SLOT say about their own bounds -
+    // so a fabricated uuid must still travel to step 2 and come back
+    // `issuance_invalid`, exactly as it did before.
+    await setupPlayer(deps)
+    const res = await submit(randomUUID(), buildWinningReplay(6, 1n), 'key-unknown-uuid')
+
+    expect(res.status).toBe(409)
+    expect(await res.json()).toMatchObject({ code: 'issuance_invalid' })
+  })
+
   it('refuses a replay whose seed is not the issued one', async () => {
     await setupPlayer(deps)
     const { issuanceId } = await (await startWave(6)).json() as { issuanceId: string }

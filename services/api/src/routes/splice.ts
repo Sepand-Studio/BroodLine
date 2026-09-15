@@ -6,6 +6,7 @@ import { withServer, type Tx } from '../db/client.ts'
 import { creatures, players } from '../db/schema.ts'
 import { requireSession } from '../http/auth.ts'
 import { fail } from '../http/errors.ts'
+import { isUuid } from '../http/ids.ts'
 import { toCreatureDto } from '../roster/creatures.ts'
 import {
   coverageLost, spliceDistribution, type CombatSlot, type SpliceParent, type TraitRef,
@@ -26,21 +27,6 @@ import {
  * changes in splice/distribution.ts, where `commit` reads it too.
  */
 
-/**
- * The parse layer's shape check on a creature id, in the same spirit as
- * wave.ts's MAX_WAVE_ID and region.ts's MAX_NODE_SLOT: it is not a statement
- * about which creatures exist - the roster read below stays the only
- * authority on that, and every well-formed id still goes to it.
- *
- * `creatures.creature_id` is a Postgres `uuid` (drizzle/0005_loop.sql), so a
- * string that is not one cannot be stored by this schema under any bundle. It
- * is malformed by construction rather than merely absent, which is the
- * `invalid_request` (400) / `not_found` (404) distinction this check keeps -
- * and without it Postgres answers `22P02 invalid input syntax for type uuid`
- * from inside the read and the caller gets a 500 for a bad request.
- */
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
 const SLOTS: readonly CombatSlot[] = ['trait_1', 'trait_2']
 
 interface PreviewBody {
@@ -60,8 +46,11 @@ function parseLocked(raw: unknown): TraitRef | null {
 function parsePreview(raw: unknown): PreviewBody | null {
   if (typeof raw !== 'object' || raw === null) return null
   const b = raw as Record<string, unknown>
-  if (typeof b.parentA !== 'string' || !UUID.test(b.parentA)) return null
-  if (typeof b.parentB !== 'string' || !UUID.test(b.parentB)) return null
+  // `creatures.creature_id` is a Postgres `uuid` (drizzle/0005_loop.sql) -
+  // see http/ids.ts for why the shape is checked here rather than met as a
+  // 22P02 inside the roster read.
+  if (!isUuid(b.parentA)) return null
+  if (!isUuid(b.parentB)) return null
   // A splice CONSUMES both parents (design §5.1), so one creature cannot be
   // both. Refused here rather than at commit because a forecast for a splice
   // that can never happen is worse than no forecast: the pool it would

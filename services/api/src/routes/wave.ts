@@ -6,6 +6,7 @@ import { withServer, type Tx } from '../db/client.ts'
 import { players } from '../db/schema.ts'
 import { requireSession } from '../http/auth.ts'
 import { fail } from '../http/errors.ts'
+import { isUuid } from '../http/ids.ts'
 import { hashRequest } from '../http/hash.ts'
 import type { SessionClaims } from '../identity/jwt.ts'
 import { IdempotencyMismatchError, withIdempotency } from '../money/idempotency.ts'
@@ -56,7 +57,16 @@ interface SubmitBody { issuanceId: string; replay: string }
 function parseSubmit(raw: unknown): SubmitBody | null {
   if (typeof raw !== 'object' || raw === null) return null
   const b = raw as Record<string, unknown>
-  if (typeof b.issuanceId !== 'string' || b.issuanceId.length === 0) return null
+  // `wave_issuances.issuance_id` is a Postgres `uuid`
+  // (drizzle/0003_wave_issuances.sql), and `loadLiveIssuance` compares this
+  // value against it. Checking only for a non-empty string let
+  // `issuanceId: 'not-a-uuid'` reach that comparison, where Postgres raises
+  // `22P02` and app.ts's onError returns `internal` - so any authenticated
+  // player could make a well-formed request answer 500 for a body they
+  // malformed. See http/ids.ts; this is a shape check and NOT a claim about
+  // which issuances exist, so a fabricated uuid still gets step 2's
+  // ordinary `issuance_invalid`.
+  if (!isUuid(b.issuanceId)) return null
   if (typeof b.replay !== 'string' || b.replay.length === 0) return null
   return { issuanceId: b.issuanceId, replay: b.replay }
 }
@@ -198,7 +208,14 @@ export function registerWaveRoutes(app: Hono, deps: Deps): void {
 
     const raw = await c.req.json().catch(() => null)
     const body = parseSubmit(raw)
-    if (body === null) return fail('invalid_request', 'issuanceId and replay are required.')
+    // The message names the whole rule rather than only the missing-field
+    // half of it - `issuanceId: 'not-a-uuid'` IS present, and "required"
+    // would be a refusal that misstates its own reason. The client switches
+    // on `code`, never on this text (solo_execution §6.2). Same correction
+    // region.ts's parseClaim message already carries.
+    if (body === null) {
+      return fail('invalid_request', 'issuanceId must be a uuid, and replay is required.')
+    }
 
     // 2. LIVENESS FIRST - design §4.2's own step 2, restored to the position
     // that table specifies ("The sequence, and the order matters"). This
