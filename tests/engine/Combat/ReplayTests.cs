@@ -151,9 +151,16 @@ namespace Broodline.Sim.Tests.Combat
             // catch (ReplayFormatException) - would let it escape, so the single
             // most likely single-field corruption crashed the verifier rather
             // than being rejected. Validate translates it at the boundary.
+            //
+            // 8, not 7. This said 7 until wave 7 was authored, at which point
+            // the test asserted that a VALID wave id is rejected - and it went
+            // red rather than silently passing, which is the only reason the
+            // number is worth pinning to an unauthored wave rather than to a
+            // wild one like 99: it has to be the next id someone will author,
+            // so the day it stops being unauthored is a day someone looks.
             var record = Replay.Deserialize(Record());
 
-            record.WaveId = 7;
+            record.WaveId = 8;
             var e = Assert.Throws<ReplayFormatException>(() => record.Validate());
             Assert.Contains("not authored", e.Message);
         }
@@ -214,8 +221,8 @@ namespace Broodline.Sim.Tests.Combat
         [Fact]
         public void AFutureEngineRecordIsDiagnosedAsSupersededAndNotAsCorrupt()
         {
-            // Every bound in Validate is THIS engine's width. Trait has two
-            // members and combat_engine names seven more, so a legitimate
+            // Every bound in Validate is THIS engine's width. Trait has five
+            // members and combat_numbers names seven more, so a legitimate
             // record from a later engine trips them - and checked last, as the
             // version was, the diagnosis came back "creature 0 carries an
             // unknown trait", which sends the reader after a forgery that is
@@ -241,12 +248,18 @@ namespace Broodline.Sim.Tests.Combat
             // Species 6, Trait 2, Tier 7 and Instinct 9 each produced a
             // 212-byte record that Validate then rejected. On the verification
             // path that reads as an honest player's raid being corrupt.
+            //
+            // Trait 2 was that measurement's out-of-range value and is now
+            // Taunt, so the case moved to 5 - one past Carapace. Every value
+            // here is "the first one this engine does not have", so each moves
+            // when its enum widens, and each of them going red is the intended
+            // way to be told the width changed.
             AssertBothRefuse(d => d[0].Pocket = 5);
             AssertBothRefuse(d => d[0].Pocket = -1);
             AssertBothRefuse(d => d[0].Pocket = 178956971);
             AssertBothRefuse(d => d[0].Species = (Species)6);
             AssertBothRefuse(d => d[0].Instinct = (Instinct)9);
-            AssertBothRefuse(d => d[0].Trait1 = (Trait)2);
+            AssertBothRefuse(d => d[0].Trait1 = (Trait)5);
             AssertBothRefuse(d => d[0].Tier1 = 7);
         }
 

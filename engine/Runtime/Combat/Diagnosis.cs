@@ -68,8 +68,22 @@ namespace Broodline.Sim.Combat
             return false;
         }
 
-        private static int CapacityFor(SimState s, Trait trait) =>
-            trait == Trait.Chill ? Capacity.TotalChillCapacity(s) : 0;
+        /// Coverage is a capacity question, and only a counter that HAS a
+        /// capacity rule can answer it.
+        ///
+        /// Written as a chain rather than a ternary because it grew a second
+        /// arm the moment CounterFor stopped being total over one raider.
+        /// Splash is the arm that is deliberately missing: it is declared, it
+        /// answers Skirmisher, and Counters.cs still lists it as deferred - so
+        /// zero here is the honest report that the counter does nothing yet,
+        /// and it is an arm to ADD when Splash lands rather than a default
+        /// quietly covering for it.
+        private static int CapacityFor(SimState s, Trait trait)
+        {
+            if (trait == Trait.Chill) return Capacity.TotalChillCapacity(s);
+            if (trait == Trait.Taunt) return Capacity.TotalTauntCapacity(s);
+            return 0;
+        }
 
         private static bool CanBeReached(SimState s, Trait trait, int tile)
         {

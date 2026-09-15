@@ -25,6 +25,11 @@ namespace Broodline.Sim.Combat
                 s.RaiderProgress[r] = Fix64.Zero;
                 s.RaiderAlive[r] = true;
                 s.RaiderChilled[r] = false;
+                // 0 rather than s.Tick: a raider may swing on the first tick it
+                // has a defender in reach, which is how creatures work too -
+                // CreatureNextAttackAt starts at 0 and fires immediately.
+                s.RaiderTargetCreature[r] = -1;
+                s.RaiderNextAttackAt[r] = 0;
                 s.RaiderCount++;
             }
         }
@@ -105,9 +110,44 @@ namespace Broodline.Sim.Combat
                         s.CreatureAcquireAt[c] = s.Tick + Stats.RetargetLockoutTicks;
                 }
             }
+
+            RaiderTargeting(s);
+        }
+
+        /// The raider half of phase 4.
+        ///
+        /// Taunt runs FIRST and the order is the rule: combat_numbers 4.2 says
+        /// it FORCES the target, so a preference computed first and overridden
+        /// afterwards would be the same answer by a longer route only until the
+        /// day the default acquires a lockout. ApplyTaunt clears every slot to
+        /// -1 and fills in the ones it holds; this fills in the rest.
+        ///
+        /// No retarget lockout here. combat_numbers section 5 gives the 0.4s
+        /// delay to creatures - "Retarget delay is 0.4s for every creature" -
+        /// and a lockout on this side would fight Taunt, which has to be free
+        /// to move a Lash the instant its carrier dies or walks out of reach.
+        /// Recomputed every tick, like Chill, for the same reason.
+        private static void RaiderTargeting(SimState s)
+        {
+            Counters.ApplyTaunt(s);
+
+            for (int r = 0; r < s.RaiderCount; r++)
+            {
+                if (s.RaiderTargetCreature[r] >= 0) continue;   // held by Taunt
+                s.RaiderTargetCreature[r] = Combat.Targeting.SelectDefender(s, r);
+            }
         }
 
         /// Phase 5 - Attack. Resolve attacks whose interval has elapsed.
+        ///
+        /// Creatures first, then raiders. Within one phase the order is a
+        /// choice, and this is the one section 4 already implies: a raider that
+        /// dies this tick "has already moved and already been hit", and phase 6
+        /// is what ends it - so a Lash taken to zero by the creature pass still
+        /// swings in the raider pass, exactly as a creature taken to zero by
+        /// the raider pass is only cleared in phase 6. Reversing it would let a
+        /// defender kill an attacker before it ever answers, which is the
+        /// same-tick cascade section 4 exists to forbid.
         public static void Attack(SimState s)
         {
             for (int c = 0; c < s.CreatureCount; c++)
@@ -120,6 +160,34 @@ namespace Broodline.Sim.Combat
 
                 s.RaiderHp[target] -= Attacks.Damage(s, c);
                 s.CreatureNextAttackAt[c] = s.Tick + Attacks.IntervalTicks(s, c);
+            }
+
+            RaiderAttack(s);
+        }
+
+        /// The raider half of phase 5.
+        ///
+        /// Lash is the only raider in combat_numbers section 6 that attacks;
+        /// every other type has interval 0 and is skipped here, which is why
+        /// this is a no-op for wave 6 and for all 500 corpus scenarios. A zero
+        /// interval means "does not attack" rather than "attacks every tick",
+        /// and the guard is the first thing in the loop so it can never be read
+        /// the other way.
+        private static void RaiderAttack(SimState s)
+        {
+            for (int r = 0; r < s.RaiderCount; r++)
+            {
+                if (!s.RaiderAlive[r]) continue;
+
+                int interval = Attacks.RaiderIntervalTicks(s, r);
+                if (interval <= 0) continue;
+                if (s.Tick < s.RaiderNextAttackAt[r]) continue;
+
+                int target = s.RaiderTargetCreature[r];
+                if (target < 0 || !s.CreatureAlive(target)) continue;
+
+                s.CreatureHp[target] -= Attacks.DamageTaken(s, target, Attacks.RaiderDamage(s, r));
+                s.RaiderNextAttackAt[r] = s.Tick + interval;
             }
         }
 

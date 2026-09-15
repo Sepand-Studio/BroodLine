@@ -145,6 +145,7 @@ namespace Broodline.Sim.Combat
         public ReadOnlySpan<Fix64> RaiderProgress => _s.RaiderProgress;
         public ReadOnlySpan<bool> RaiderAlive => _s.RaiderAlive;
         public ReadOnlySpan<bool> RaiderChilled => _s.RaiderChilled;
+        public ReadOnlySpan<int> RaiderTargetCreature => _s.RaiderTargetCreature;
 
         public ReadOnlySpan<Species> CreatureSpecies => _s.CreatureSpecies;
         public ReadOnlySpan<int> CreatureHp => _s.CreatureHp;
@@ -393,6 +394,23 @@ namespace Broodline.Sim.Combat
         /// Folds the whole visible world into the run hash, every tick. A
         /// whole-run hash that only sampled the end state would let a
         /// mid-simulation divergence that self-corrects pass the gate.
+        ///
+        /// RaiderTargetCreature is deliberately NOT here, and it is the one
+        /// omission worth defending, because CreatureTarget one block down IS
+        /// folded. Two reasons, and the second is the real one.
+        ///
+        /// It would cost a re-baseline for nothing. Folding one more field per
+        /// raider moves all 500 corpus hashes and every recorded replay's,
+        /// while no behaviour changed - and the whole point of the corpus is
+        /// that a moved hash means a moved outcome.
+        ///
+        /// And it would detect nothing. A Lash that picked a different defender
+        /// on two runtimes lands its 30 on a different index of CreatureHp,
+        /// which IS folded, on its very next swing - including when the two
+        /// defenders are identical, since the array is folded in order and
+        /// [70, 100] is not [100, 70]. The divergence is caught one hit later
+        /// rather than one tick later. CreatureTarget's presence here is
+        /// history, not a rule this has to match.
         private static void FoldTick(ref Hash hash, SimState s)
         {
             hash.Add(s.Tick);

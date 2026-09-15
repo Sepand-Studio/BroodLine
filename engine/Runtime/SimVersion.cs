@@ -21,6 +21,6 @@ namespace Broodline.Sim
     /// unchanged, which is the proof the release was non-behavioural.
     public static class SimVersion
     {
-        public const string Value = "0.2.0";
+        public const string Value = "0.3.0";
     }
 }

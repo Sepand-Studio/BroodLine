@@ -35,6 +35,18 @@ namespace Broodline.Sim.Combat
         public readonly Fix64[] RaiderProgress;
         public readonly bool[] RaiderAlive;
         public readonly bool[] RaiderChilled;      // recomputed every tick
+        /// The defender this raider attacks, or -1. Recomputed every tick in
+        /// phase 4 rather than held under a lockout: combat_numbers section 5
+        /// gives the 0.4s retarget delay to CREATURES, and Taunt is a forcing
+        /// rule whose carrier can die at any tick, so a raider that kept a
+        /// stale target would keep swinging at a corpse.
+        ///
+        /// Named for the RAIDER, not for the Lash, even though Lash is the
+        /// only raider in combat_numbers section 6 that attacks. It sits in
+        /// the same dense parallel block as every other Raider* array and is
+        /// indexed the same way.
+        public readonly int[] RaiderTargetCreature;
+        public readonly int[] RaiderNextAttackAt;  // tick it may next fire
         public int RaiderCount;                    // spawned so far
 
         // --- Creatures. Index == deployment order. ---
@@ -78,6 +90,12 @@ namespace Broodline.Sim.Combat
             RaiderProgress = new Fix64[capacity];
             RaiderAlive = new bool[capacity];
             RaiderChilled = new bool[capacity];
+            RaiderTargetCreature = new int[capacity];
+            RaiderNextAttackAt = new int[capacity];
+            // -1 is "no target" and the array's default is 0, which would name
+            // creature 0. Phases.Spawn sets it again per raider; this covers a
+            // state read before the first spawn.
+            for (int r = 0; r < capacity; r++) RaiderTargetCreature[r] = -1;
             RaiderCount = 0;
 
             CreatureCount = deployment.Length;

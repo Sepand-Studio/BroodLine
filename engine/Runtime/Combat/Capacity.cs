@@ -107,5 +107,92 @@ namespace Broodline.Sim.Combat
             int slowed = n < capacity ? n : capacity;
             for (int i = 0; i < slowed; i++) s.RaiderChilled[scratch[i]] = true;
         }
+
+        // --- Taunt, the same resource shape against a different raider ---
+
+        /// Summed across every LIVE carrier, exactly as Chill is. A dead
+        /// carrier contributes nothing, so the Lash it was holding is released
+        /// on the tick it dies rather than on the next retarget.
+        public static int TotalTauntCapacity(SimState s)
+        {
+            int total = 0;
+            for (int c = 0; c < s.CreatureCount; c++)
+            {
+                if (!s.CreatureAlive(c)) continue;
+                if (s.CreatureCarries(c, Trait.Taunt, out int tier))
+                    total += Stats.TauntCapacity(tier);
+            }
+            return total;
+        }
+
+        /// The carrier a taunted raider is forced onto, or -1 when none can
+        /// hold it.
+        ///
+        /// Gated on the RAIDER's range, not the carrier's - the opposite of
+        /// NearestCarrierDistSq above, and deliberately. Chill is something a
+        /// creature does TO a raider, so the creature has to reach it. Taunt
+        /// changes who the raider attacks, so a taunt thrown from outside the
+        /// raider's own reach would pin it to a target it can never hit: that
+        /// is a stun, and combat_numbers section 4.2 gives Taunt no such
+        /// effect. Ungated, one Vetch in the back pocket would freeze every
+        /// Lash on the board.
+        ///
+        /// Nearest first, tie-broken on creature index ascending - the scan
+        /// runs in ascending creature order and a challenger only wins on a
+        /// STRICT improvement, so an equal distance leaves the earlier carrier
+        /// in place.
+        public static int NearestTaunter(SimState s, int raider)
+        {
+            int tile = s.RaiderTile(raider);
+            int range = Stats.RaiderRange(s.RaiderType[raider]);
+            if (range <= 0) return -1;
+
+            int best = -1;
+            int bestDistSq = 0;
+
+            for (int c = 0; c < s.CreatureCount; c++)
+            {
+                if (!s.CreatureAlive(c)) continue;
+                if (!s.CreatureCarries(c, Trait.Taunt, out int tier) || tier <= 0) continue;
+
+                int pocket = s.CreaturePocket[c];
+                if (!s.Lane.InRange(pocket, tile, range)) continue;
+
+                int d = s.Lane.DistSq(pocket, tile);
+                if (best < 0 || d < bestDistSq) { best = c; bestDistSq = d; }
+            }
+            return best;
+        }
+
+        /// Squared distance from a raider to the carrier NearestTaunter picked,
+        /// or -1 when there is none. Split out so the assignment scan can rank
+        /// on it without a second search returning a different answer.
+        public static int NearestTaunterDistSq(SimState s, int raider)
+        {
+            int c = NearestTaunter(s, raider);
+            if (c < 0) return -1;
+            return s.Lane.DistSq(s.CreaturePocket[c], s.RaiderTile(raider));
+        }
+
+        /// The (distance, spawnIndex) total order of combat_engine 5.1, applied
+        /// to the raiders competing for a finite Taunt capacity.
+        ///
+        /// int.MaxValue rather than Compare's -1 for "no carrier". Compare can
+        /// afford -1 because AssignChill filters those raiders out before it
+        /// sorts; spelling it as the worst key instead makes this one correct
+        /// whether or not its caller filters first, and a comparator that ranks
+        /// "unreachable" BEST is the kind of thing that survives until the day
+        /// someone reuses it.
+        public static int CompareTaunt(SimState s, int raiderA, int raiderB)
+        {
+            int da = NearestTaunterDistSq(s, raiderA);
+            int db = NearestTaunterDistSq(s, raiderB);
+            if (da < 0) da = int.MaxValue;
+            if (db < 0) db = int.MaxValue;
+
+            if (da != db) return da < db ? -1 : 1;
+            if (raiderA != raiderB) return raiderA < raiderB ? -1 : 1;
+            return 0;
+        }
     }
 }
