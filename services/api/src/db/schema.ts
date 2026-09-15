@@ -14,7 +14,7 @@
  */
 import { sql } from 'drizzle-orm'
 import {
-  bigint, customType, index, integer, jsonb, pgEnum, pgTable, primaryKey,
+  bigint, boolean, customType, index, integer, jsonb, pgEnum, pgTable, primaryKey,
   smallint, text, timestamp, uniqueIndex, uuid,
 } from 'drizzle-orm/pg-core'
 
@@ -154,4 +154,119 @@ export const waveIssuances = pgTable('wave_issuances', {
   // an 'expired' row was never played.
   replayCount: index('wave_issuances_replay_count').on(t.serverId, t.playerId, t.waveId, t.issuedAt)
     .where(sql`${t.settlement} = 'consumed'`),
+}))
+
+// --- 0005_loop.sql: the roster, the map's node state, and the splice record.
+
+export const creatures = pgTable('creatures', {
+  serverId: integer('server_id').notNull(),
+  creatureId: uuid('creature_id').notNull().defaultRandom(),
+  playerId: uuid('player_id').notNull(),
+  species: text('species').notNull(),
+  generation: integer('generation').notNull(),
+  // Two combat TraitInstances as (trait, coverage_tier) pairs - data_model
+  // 2, design 3.1. Slot 1 is the locked slot, slot 2 the rolled one.
+  //
+  // tier_N is NULLABLE and that is load-bearing: null means the slot holds
+  // an Aberrant, which has no coverage. SQL adds
+  // CHECK (tier_N IS NULL OR tier_N BETWEEN 1 AND 3) so zero can never be
+  // stored - zero would sort and display as "less than tier I" and the two
+  // must not be conflated. Nothing here enforces that; 0005 does.
+  trait1: text('trait_1').notNull(),
+  tier1: integer('tier_1'),
+  trait2: text('trait_2').notNull(),
+  tier2: integer('tier_2'),
+  instinct: text('instinct').notNull(),
+  // Founders only - SQL's only_founders_named.
+  name: text('name'),
+  isFounder: boolean('is_founder').notNull().default(false),
+  // SQL ties these to creatures (server_id, creature_id) with a COMPOSITE
+  // foreign key, so a parent on another server is unrepresentable rather
+  // than merely wrong. A single uuid here says none of that.
+  parentA: uuid('parent_a'),
+  parentB: uuid('parent_b'),
+  hpCurrent: integer('hp_current').notNull(),
+  regenUntil: timestamp('regen_until', { withTimezone: true }),
+  committedTo: uuid('committed_to'),
+  acquiredAt: timestamp('acquired_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.serverId, t.creatureId] }),
+  byPlayer: index('creatures_by_player').on(t.serverId, t.playerId, t.acquiredAt),
+  // Partial, mirroring 0005: the roster screen and the Hatchery cap both ask
+  // only about uncommitted creatures.
+  available: index('creatures_available').on(t.serverId, t.playerId)
+    .where(sql`${t.committedTo} IS NULL`),
+}))
+
+export const creatureTombstones = pgTable('creature_tombstones', {
+  serverId: integer('server_id').notNull(),
+  creatureId: uuid('creature_id').notNull(),
+  species: text('species').notNull(),
+  generation: integer('generation').notNull(),
+  wasFounder: boolean('was_founder').notNull(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.serverId, t.creatureId] }),
+}))
+
+export const arks = pgTable('arks', {
+  serverId: integer('server_id').notNull(),
+  playerId: uuid('player_id').notNull(),
+  regionId: text('region_id').notNull(),
+  harvestArrayTier: smallint('harvest_array_tier').notNull().default(1),
+  hatcheryTier: smallint('hatchery_tier').notNull().default(1),
+  // 3, not 1 - design 3.3. Tiers 1-2 cap a creature at G2 and therefore at
+  // Tier I coverage, which would leave design 5.3's recessive downtier with
+  // nothing to drop to. The default lives in SQL; this mirror exists so a
+  // reader of the typed surface does not "correct" it there either.
+  splicingChamberTier: smallint('splicing_chamber_tier').notNull().default(3),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.serverId, t.playerId] }),
+}))
+
+export const nodeDepletion = pgTable('node_depletion', {
+  serverId: integer('server_id').notNull(),
+  regionId: text('region_id').notNull(),
+  nodeSlot: smallint('node_slot').notNull(),
+  // The epoch comes from the server's tick fields - a small counter, not a
+  // seed, so mode 'number' carries no precision risk. Same judgement (and
+  // the same escape hatch) as wallets.balance.
+  epoch: bigint('epoch', { mode: 'number' }).notNull(),
+  harvestedUnits: bigint('harvested_units', { mode: 'number' }).notNull().default(0),
+  depletedAt: timestamp('depleted_at', { withTimezone: true }),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.serverId, t.regionId, t.nodeSlot, t.epoch] }),
+}))
+
+export const harvestPositions = pgTable('harvest_positions', {
+  serverId: integer('server_id').notNull(),
+  playerId: uuid('player_id').notNull(),
+  regionId: text('region_id').notNull(),
+  nodeSlot: smallint('node_slot').notNull(),
+  epoch: bigint('epoch', { mode: 'number' }).notNull(),
+  lastSettledAt: timestamp('last_settled_at', { withTimezone: true }).notNull(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.serverId, t.playerId, t.regionId, t.nodeSlot, t.epoch] }),
+}))
+
+export const splices = pgTable('splices', {
+  serverId: integer('server_id').notNull(),
+  spliceId: uuid('splice_id').notNull().defaultRandom(),
+  playerId: uuid('player_id').notNull(),
+  // No FK in SQL either - the splice consumes both parents, so an FK would
+  // make the record's own subject undeletable.
+  parentA: uuid('parent_a').notNull(),
+  parentB: uuid('parent_b').notNull(),
+  childId: uuid('child_id').notNull(),
+  // int8String, exactly as waveIssuances.seed: the roll is reproducible
+  // after the fact (design 5.1) and the value is serialised into the
+  // splice/commit response, where a JS BigInt is what JSON.stringify throws
+  // on and a JS number loses precision above 2^53. (SQL adds
+  // CHECK (seed >= 0) - bigint is signed and the seed is not.)
+  seed: int8String('seed').notNull(),
+  mutated: boolean('mutated').notNull(),
+  aberrant: boolean('aberrant').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.serverId, t.spliceId] }),
+  byPlayer: index('splices_by_player').on(t.serverId, t.playerId, t.createdAt),
 }))
