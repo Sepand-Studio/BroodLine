@@ -75,6 +75,14 @@ implementation/results/*
 # 3.5 MB of logs.
 !implementation/results/*.csv
 
+# ...and the recorded test baselines, for the opposite reason: they ARE
+# regenerated, cheaply, and that is exactly why they must be committed. A
+# baseline exists to be diffed against a later run by a later phase, and a
+# file the phase gate cannot read out of the repo is a file it will replace
+# with a number typed into a paragraph - which is how Phase 4's "71" outlived
+# the truth (74) unnoticed. A few hundred bytes.
+!implementation/results/*-test-baseline.txt
+
 # Xcode / iOS (if used later)
 DerivedData/
 *.xcuserstate
@@ -101,9 +109,23 @@ client/.git.disabled/
 # Claude Code worktrees - isolated workspaces, never committed
 .claude/worktrees/
 
+# Claude Code permission grants. MACHINE-LOCAL, never shared: settings.json
+# was committed once by accident on 2026-09-14 carrying Bash(gcloud:*) and
+# Bash(terraform:*), which hands every clone the ability to run any command
+# against any cloud project the cloner is authenticated to. A permission grant
+# is a property of one developer's machine and trust, not of the repository.
+.claude/settings.json
+.claude/settings.local.json
+
 # Phase 4 - the TypeScript half
 services/**/dist/
 services/**/*.tsbuildinfo
+
+# Phase 5 - services/sim, the C# half. Same reasoning as tests/ and tools/
+# above: a pure .NET service with no Unity import concern, so standard
+# bin/obj names rather than engine/'s bin~/obj~/.
+services/**/bin/
+services/**/obj/
 
 # Terraform
 infra/terraform/.terraform/

@@ -1,5 +1,5 @@
 {
-  "runtime": "Net90",
+  "runtime": "Default",
   "documentGenerator": {
     "fromDocument": { "url": "openapi/broodline.json" }
   },

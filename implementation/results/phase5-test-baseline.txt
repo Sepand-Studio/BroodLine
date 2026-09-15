@@ -1,0 +1,183 @@
+# Phase 5 recorded test baseline — DATA, NOT PROSE.
+#
+# WHY THIS FILE EXISTS. Phase 4 recorded its api test count as "71" inside a
+# sentence. Tests were added, the sentence was not, and nobody noticed: the
+# real count was 74. That stale 71 was then copied forward, and Phase 5's plan
+# has been carrying a corrected-but-still-typed number in a paragraph ever
+# since. A count that lives in a paragraph is a count that goes stale silently.
+# This file is the machine-readable replacement. THE NUMBERS HERE SUPERSEDE ANY
+# COUNT WRITTEN INTO A SENTENCE ANYWHERE IN implementation/ OR specs/.
+#
+# WHO READS IT. The phase gate (Task 12 of implementation/2026-09-13-phase5-
+# validation.md, "Check the counts against Task 0"). It must diff this file
+# against a freshly measured one rather than compare against a number a human
+# typed. Task 12 Step 2 was pointed at this file at dd57e9c and no longer
+# carries the "roughly thirty from 74" sentence this file exists to retire;
+# the numbers it still prints are labelled "for orientation only, superseded
+# by the file". See the NOTE FOR TASK 12 at the bottom.
+#
+# WHY PER-FILE ROWS. The gate's real question is not "did the total move" but
+# "did a count FALL", because a fall is a deletion nobody noticed. A total tells
+# you that something vanished; the api.file.* rows tell you which file it
+# vanished from. They are the reason this is a table and not four numbers.
+#
+# ---------------------------------------------------------------------------
+# HOW TO REGENERATE (all four gates, from the repo root)
+#
+#   PATH="$HOME/.nvm/versions/node/v22.22.2/bin:$PATH"   # nvm's default v10 is
+#                                                        # x86: "Bad CPU type"
+#   pnpm --filter @broodline/api test
+#   pnpm --filter @broodline/api typecheck
+#   dotnet test Broodline.sln --nologo
+#   ./implementation/scripts/run-unity-tests.sh EditMode
+#
+# The api.file.* rows come from vitest's own per-file summary lines:
+#
+#   grep -E "^ ✓" <api-log> \
+#     | sed -E 's/^ ✓ test\/([^ ]+) \(([0-9]+) tests?\).*/api.file.\1\t\2/' \
+#     | sort
+#
+# HOW TO DIFF. Strip the comments; the data block is sorted and stable, so a
+# plain diff is the whole comparison:
+#
+#   diff <(grep -v '^#' implementation/results/phase5-test-baseline.txt) \
+#        <(grep -v '^#' /path/to/newly-measured.txt)
+#
+# Empty output = no drift. Any '<' line whose value exceeds its '>' counterpart
+# is a count that FELL — find the deletion before closing the phase.
+#
+# ---------------------------------------------------------------------------
+# WHAT MOVED SINCE THE FIRST MEASUREMENT (e57608b -> b623711)
+#
+#   api.tests  176 -> 189    api.files  23 -> 24
+#
+# One file added, api.file.sim-auth.test.ts (13 tests), by 5619d6f - the
+# required-SimAuth work. NO PER-FILE COUNT FELL; the diff against the previous
+# baseline is a single added line. That is the benign direction: this gate
+# hunts for falls, because a fall is a deletion nobody noticed.
+#
+# The previous baseline was NOT regenerated when 5619d6f landed, so it read
+# 176/23 against a tree producing 189/24 for two commits. That is exactly the
+# staleness this file exists to prevent, arriving by a route it did not guard:
+# the file is only correct if regenerating it is part of landing a test change.
+#
+# # PROVENANCE (comments, so they never pollute a diff)
+#
+#   measured   2026-09-14, Phase 5 Task 12 re-run (second measurement; the
+#              first was Phase 5 remediation Task 6 at e57608b, api 176 / 23)
+#   branch     phase_5
+#   commit     b623711  (no source file differed from HEAD: the only modified
+#              files were implementation/*.md, cloudbuild.yaml and
+#              implementation/scripts/deploy.sh, none of which is a test input)
+#   host       darwin/arm64, node v22.22.2, pnpm 9.12.0, dotnet 10.0.401,
+#              Unity 6000.6.0f1, Docker running (testcontainers)
+#   parallel   vitest file parallelism ON. It stays on: each sim-hosting file
+#              binds its own port and shares the dotnet build through
+#              withDotnetBuildLock precisely so it can. Do not add
+#              --no-file-parallelism to reproduce these.
+#   flakes     none observed on this run. Two known, neither a source of drift:
+#              "No host port found for host IP" (~1 in 8-10, one file at
+#              container start) and a rarer "Health check not healthy after
+#              120000ms" across many files at once, which cleared on an
+#              immediate re-run of the unchanged tree. Re-run once before
+#              believing a disagreement.
+#
+# ---------------------------------------------------------------------------
+# FORMAT: <key>\t<value>, one per line, sorted, no blank lines in the block.
+
+
+api.file.account.test.ts	8
+api.file.adversarial.test.ts	15
+api.file.child-reaper.test.ts	8
+api.file.config.test.ts	15
+api.file.contract.test.ts	4
+api.file.dotnet-build-lock.test.ts	6
+api.file.hash.test.ts	4
+api.file.health.test.ts	2
+api.file.idempotency.test.ts	4
+api.file.identity.test.ts	22
+api.file.isolation.test.ts	12
+api.file.issuance-schema.test.ts	9
+api.file.ledger.test.ts	4
+api.file.masked-teardown.test.ts	2
+api.file.pool-teardown.test.ts	3
+api.file.preflight.test.ts	8
+api.file.replays.test.ts	6
+api.file.session.test.ts	6
+api.file.sim-auth.test.ts	13
+api.file.sim-client.test.ts	7
+api.file.sync.test.ts	5
+api.file.validate-rewards.test.ts	2
+api.file.wave-start.test.ts	12
+api.file.wave-submit.test.ts	12
+api.files	24
+api.tests	189
+api.typecheck.errors	0
+dotnet.engine.Broodline.Sim.Tests	174
+dotnet.failed	0
+dotnet.passed	186
+dotnet.service.Broodline.Sim.Service.Tests	12
+dotnet.skipped	0
+dotnet.total	186
+unity.editmode.failed	0
+unity.editmode.passed	35
+unity.editmode.skipped	0
+unity.editmode.total	35
+
+# ---------------------------------------------------------------------------
+# NOTE FOR TASK 12 — what this file can and cannot tell you.
+#
+# 1. dotnet.skipped 0 DOES NOT MEAN THE DEVICE ROUND-TRIP IS LIVE, and an
+#    earlier version of this note said it did. That note read: "a skip is how
+#    [the round-trip] quietly stops being true while the suite still reports
+#    green." It named a mechanism this repo DELIBERATELY RETIRED.
+#    tests/engine/Combat/DeviceReplayTests.cs contains no Skip, and neither
+#    does any other test in the solution — the class comment on
+#    ReplayArtifactPresenceTests records why (a Skip-on-missing-artifact
+#    attribute inverted the gate: deleting the artifact that IS Phase 3's
+#    done-when produced "Failed: 0, Passed: 139, Skipped: 2" and exit 0). So
+#    this row is close to a constant. It can only move if someone reintroduces
+#    Skip — worth knowing, but not the guard the old note was selling.
+#
+#    TODAY THE ROUND-TRIP IS DARK AND dotnet.skipped IS 0, SIMULTANEOUSLY.
+#    The tracked captures were recorded under engine 0.1.0; SimVersion.Value
+#    is 0.2.0. ReplayArtifact.AreCurrent is therefore false, so both
+#    round-trip tests — TheDeviceRunReSimulatesToTheSameHash and
+#    TheDeviceRunsRallyActuallyChangedTheSimulation — hit their
+#    `if (ReplayArtifact.Superseded(record, _out)) return;` guard and bail
+#    before their own asserts ever run. They report PASSED, not skipped. All
+#    that executed was Superseded's proof that Sim.Replay THROWS on a
+#    superseded record: the artifact being refused, not re-simulated.
+#
+#    THE REAL MARKER IS A TEST, AND ITS POLARITY IS INVERTED. It is
+#    TheDeviceRunIsSupersededAndIsNotReSimulated, whose asserts are
+#
+#        Assert.NotEqual(SimVersion.Value, ReplayArtifact.CapturedUnder);
+#        Assert.Equal("0.1.0", ReplayArtifact.CapturedUnder);
+#
+#    and CapturedUnder is read out of the artifact BYTES, not from a
+#    hand-maintained constant. That test PASSING is the executable statement
+#    that the round-trip is dark — its green is the bad news. It goes RED the
+#    moment someone re-captures on hardware under the current engine, and that
+#    red is the instruction to restore the hash comparison (the test's own
+#    comment says exactly this). Read it as:
+#
+#        green -> captures superseded; design §2.5 NOT proven by this suite
+#        red   -> captures were re-captured; go restore the strong asserts
+#
+#    Two neighbours guard the artifacts rather than their version:
+#    BothRoundTripArtifactsArePresent fails if a tracked artifact was deleted,
+#    and TheTwoCapturesAgreeAboutTheirEngine fails on a half-done re-capture.
+#    NONE of the three is observable in dotnet.skipped.
+#
+#    TASK 12's JOB HERE: do not read dotnet.skipped 0 as proof of anything
+#    about the round-trip. Either re-capture the device artifact under 0.2.0
+#    per Task 10 of the Phase 3 plan and restore the hash comparison, or close
+#    the phase stating plainly that design §2.5's device round-trip is not
+#    being proven right now.
+#
+# 2. (Retired at this round.) This slot recorded that Task 12 Step 2 still
+#    read "grown by roughly thirty from 74" and was owed an edit. That edit
+#    landed at dd57e9c: Step 2 now points here, and the stale sentence is gone
+#    from implementation/. Kept as a stub, not deleted, so the header's
+#    back-reference resolves.

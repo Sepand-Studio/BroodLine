@@ -7,7 +7,7 @@ export type Db = NodePgDatabase<typeof schema>
 export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0]
 
 export function createPool(connectionString: string): pg.Pool {
-  return new pg.Pool({
+  const pool = new pg.Pool({
     connectionString,
     // Cloud Run scales to hundreds of instances and each opens a pool;
     // Postgres runs out of connections long before CPU. solo_execution 5.7
@@ -31,6 +31,37 @@ export function createPool(connectionString: string): pg.Pool {
     // wait reasonably should.
     options: '-c lock_timeout=5000 -c statement_timeout=30000',
   })
+
+  // NOT optional, and not a test concession. pg.Pool extends EventEmitter,
+  // and an EventEmitter with zero 'error' listeners RETHROWS what it is
+  // asked to emit - so the line below is the difference between logging a
+  // dropped connection and killing the process.
+  //
+  // A query's error reaches whoever awaited the query. This channel is for
+  // the other kind: a client sitting IDLE in the pool whose backend goes
+  // away underneath it. Nobody is awaiting that client, so pg-pool's
+  // internal idle listener removes it and re-emits here (pg-pool's
+  // makeIdleListener -> pool.emit('error', err, client)). With no listener,
+  // Node turns it into an uncaught exception from inside a socket data
+  // handler, which no try/catch anywhere up the stack can intercept.
+  //
+  // Idle backends DO go away in normal operation: Cloud SQL maintenance and
+  // failover both drop live connections with FATAL 57P01 ("terminating
+  // connection due to administrator command"), and so does the test
+  // harness's own container.stop(). Without this handler a routine Cloud
+  // SQL restart takes the Cloud Run instance with it, and in the test suite
+  // it was a ~1-in-8 whole-run failure attributed to whichever file's
+  // worker happened to be holding the connection - see harness.ts's stop()
+  // for the teardown half of that story.
+  //
+  // The client is already removed from the pool by the time this fires;
+  // there is nothing to clean up and nothing to retry. Log and continue -
+  // the next checkout just opens a fresh connection.
+  pool.on('error', (err) => {
+    console.error('pg pool: idle client error, connection discarded', err)
+  })
+
+  return pool
 }
 
 export function createDb(pool: pg.Pool): Db {

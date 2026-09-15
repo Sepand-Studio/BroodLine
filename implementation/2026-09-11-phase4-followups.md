@@ -18,6 +18,27 @@
 
 ## 1. Blocked on a human
 
+> ### ✅ RESOLVED 2026-09-12, and this section was stale for two days
+>
+> **Actions is enabled.** `GET /repos/Sepand-Studio/BroodLine/actions/permissions`
+> returns `{"enabled":true,"allowed_actions":"all"}`, and `tests.yml` has been
+> running since **2026-09-12** — green on `phase_4` pushes, green on both
+> `phase_4` pull-request runs, and green on `develop` for the PR #4 merge. The
+> claim below that "no workflow has ever run on this repository" is false and
+> has been since that date. It is kept rather than deleted because the *second*
+> half of it is still true and is easy to lose in a deletion.
+>
+> **What did not get fixed, and was never diagnosed here:** `determinism.yml`
+> has still never executed once. It requires a self-hosted macOS runner and
+> **none is registered** — `orgs/Sepand-Studio/actions/runners` and the repo
+> equivalent both return `total_count: 0`. Every trigger therefore queues until
+> something kills it: one run cancelled at **24h0m02s**, one at 5h34m, one at
+> 8h34m. **A queued run is not a failing run**, so nothing ever went red and no
+> status check reported the absence. Phase 5's followups §11 carries the full
+> finding and what registering a runner would require.
+>
+> The original text follows, unaltered.
+
 **GitHub Actions is disabled at the `Sepand-Studio` organisation level.** No
 workflow has ever run on this repository. `tests.yml` and `determinism.yml` are
 both committed and both unexecuted, so neither has ever been debugged against

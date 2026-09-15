@@ -180,16 +180,22 @@ For whoever is briefed.
 
 ### 8.3 The performance budget
 
-**Per-asset budget — PROVISIONAL.** Measured on an **A14 / 4 GB proxy** (iPad Air 4), not on the A13 / 3 GB reference device, then reduced by 30% to cover the gap. Source and reasoning: `implementation/2026-09-08-phase0-entity-count-proof.md`.
+**Per-asset budget — MEASURED.** Measured on the **A14 / 4 GB reference device** (iPad Air 4, `iPad13,1`): 40 combinations at 104 entities, 300 frames each, rigs animated every frame. **No margin is applied, because this is the floor device rather than a proxy for one** — the measured value is the budget. The earlier 30% reduction existed only to cover an A14→A13 gap that the floor change on 2026-09-14 removed. Source and reasoning: `implementation/2026-09-08-phase0-entity-count-proof.md`.
 
 | | Budget | Why |
 |---|---|---|
-| Triangles per body | **7000** | Wave 44 puts 104 entities on screen at once; 10000 held 60 fps on the proxy, less the 30% margin |
+| Triangles per body | **10000** | Wave 44 puts 104 entities on screen at once. 10000 held 60 fps on the floor device at every bone count swept; 16000 failed at every bone count |
 | Bones per rig | **Not a constraint** | 80 bones per rig held 60 fps at every triangle count; no ceiling was reached |
 | Materials per body | **2** | Each material is a draw call before batching |
 | Trait part | Within the body budget, not additional | A body carries two parts, and a crown cue if §9.3 keeps them |
 
-**This is sufficient for the rig proof and not for production.** §7 makes the proof's two bodies throwaway — *"They will be remade"* — and also states the proof is not a performance test. A provisional budget is therefore adequate to commission it. **Re-measure on an A13 / 3 GB device and replace these numbers before any of the remaining four species are modelled.**
+**This budget is valid for production assets, and it carries one measured caveat and one unmeasured one.**
+
+*Measured:* at 10000 triangles the worst row is **12.58 ms GPU p95 against a 16.667 ms frame** — roughly a quarter of the frame is unspent. **That headroom is not spare capacity to re-budget.** It is what the next paragraph is reserved against.
+
+*Unmeasured:* the sweep drove rigs with a `BoneAnimator` writing local rotations directly, and drew them as synthetic meshes. **A real `Animator` evaluating a graph, sampling curves and blending clips — and a production shader with real textures — were never measured.** Both cost time this budget has not seen. A rig that is expensive to *evaluate* rather than expensive to *skin* remains unmeasured, which is the one way a body can hit 10000 triangles and still be too expensive.
+
+**What is still owed against these numbers is not a re-measure on different hardware. It is a re-run on real geometry.** `broodline_client_architecture.md` §4 requires the proof be made *"with real creature meshes rather than capsules"*, and no synthetic mesh can satisfy that. **When this commission delivers Vetch and Pale, re-run the same harness with `SyntheticCreature.Build` swapped for the delivered prefabs and every threshold unchanged — before any of the remaining four species are modelled.** §7 makes these two bodies throwaway, *"They will be remade"*, so a number that moves on that run moves it for the four species nobody has paid for yet. That is the whole point of running it here.
 
 **Bones are measured, and they are not what constrains you.** The Phase 0 harness now animates every bone every frame and sweeps rigs from 12 to 80 bones. Going from 12 bones to 80 — nearly seven times as many — costs **0.3 to 0.7 ms of CPU across all 104 on-screen creatures combined**, against a 16.667 ms frame, and about 5 MB of memory. Every bone count tested held 60 fps at every triangle count that passed, so no bone ceiling was found and none is quoted: inventing one from an unreached limit would be worse than saying it is not binding.
 
@@ -197,7 +203,9 @@ For whoever is briefed.
 
 **The number that does bind is triangles**, and it binds on the GPU.
 
-**The triangle figure is optimistic, and by a knowable amount.** Every vertex in the synthetic meshes carries a single bone influence, while rigged art normally carries two to four — this project's own quality settings allow four. Per-vertex skinning is therefore cheaper in the proof than in the real thing, which inflates the triangle number rather than the bone one. The correction is not another synthetic run: `client_architecture` §4 already requires this harness to re-run against Vetch and Pale once they are delivered, and real meshes carry real weights. **Treat 7000 as an upper bound that will move down, not a target to fill.**
+**The triangle figure is optimistic, and by a knowable amount.** Every vertex in the synthetic meshes carries a single bone influence, while rigged art normally carries two to four — this project's own quality settings allow four. Per-vertex skinning is therefore cheaper in the proof than in the real thing, which inflates the triangle number rather than the bone one. The correction is not another synthetic run: §8.3 requires this harness to re-run against Vetch and Pale once they are delivered, and real meshes carry real weights. **Treat 10000 as an upper bound that will move down, not a target to fill.**
+
+**The 2026-09-14 floor change raised this number and did not make it safer.** Withdrawing the A13 margin took the budget from 7000 to the measured 10000, but the margin was never what covered *this* — single-influence vertices, an unmeasured `Animator`, and a shader that is not a production shader are gaps in the harness, not in the hardware, and no device change touches them. **The headroom that covers them is the ~25% of frame left unspent at 10000** (§8.3), and it is the reason the re-run against real meshes is a gate rather than a formality.
 
 **A body over budget is not a rejection of the art**; it is a request to hit the number, and it is far cheaper to hear now than after six bodies are final.
 

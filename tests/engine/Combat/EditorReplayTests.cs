@@ -19,13 +19,17 @@ namespace Broodline.Sim.Tests.Combat
     /// The artifact is tracked, so this runs everywhere, including CI - there
     /// is no skip and no hardware gate.
     ///
-    /// Captured 2026-09-11 from Assets/Scenes/Wave.unity in the Unity 6 Editor.
-    /// The tap landed at tick 78, twelve ticks before the Courser spawns - but
-    /// Rally lasts 120 ticks, so the window runs 78..197 and covers most of
-    /// creature 0's engagement (ticks 184..240). It is NOT inert, and an
-    /// earlier version of this comment said it was: "spent on an empty lane"
-    /// reasons from the tap instant rather than the window, which is the same
-    /// mistake that made the first two device captures look acceptable.
+    /// Re-captured 2026-09-14 from Assets/Scenes/Wave.unity in the Unity 6
+    /// Editor under engine 0.2.0, replacing the 0.1.0 capture the engine had
+    /// moved past. The tap landed at tick 200, inside creature 0's engagement
+    /// (ticks 184..240), so the Rally window 200..319 overlaps it directly.
+    ///
+    /// JUDGE A CAPTURE BY ITS WINDOW, NOT THE TAP INSTANT. Rally lasts 120
+    /// ticks. The 2026-09-11 capture tapped at 78 - twelve ticks before the
+    /// Courser even spawns - and was still valid, because 78..197 covered most
+    /// of the engagement. An earlier comment called that one inert by reasoning
+    /// from the instant alone, which is the same mistake that made the first
+    /// two device captures look acceptable.
     public class EditorReplayTests
     {
         private readonly ITestOutputHelper _out;
@@ -68,9 +72,25 @@ namespace Broodline.Sim.Tests.Combat
             // what survived into the record is a TICK. If the accumulator ever
             // starts recording timestamps, or consumes input outside a tick
             // boundary, this is where it shows.
+            //
+            // ASSERTED AS A RANGE, NOT A LITERAL. This was
+            // Assert.Equal(78, record.RallyTick), pinning whatever the
+            // 2026-09-11 capture happened to record - so it failed on the first
+            // re-capture for a reason with nothing to do with the property
+            // under test. That is the same fault ReplayArtifact.CapturedUnder
+            // was rewritten to remove: a constant duplicating a fact already in
+            // the file, carrying a maintenance cost and enforcing nothing.
+            //
+            // THE RANGE IS THE TEST. A tick index is bounded by the wave that
+            // produced it. A millisecond timestamp for the same tap would be
+            // roughly 6,600 against a 540-tick wave and fails loudly, which is
+            // exactly the regression this test exists to catch. Every honest
+            // human tap passes, so a re-capture never edits this file again.
             var record = Record();
+            var lines = File.ReadAllLines(ReplayArtifact.Require(ReplayArtifact.EditorOutcome));
+            int ticks = int.Parse(lines[2]);
 
-            Assert.Equal(78, record.RallyTick);
+            Assert.InRange(record.RallyTick, 0, ticks - 1);
             Assert.Equal(0, record.RallyCreature);
         }
 

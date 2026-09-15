@@ -1,0 +1,5 @@
+[
+  { "id": 6, "integrity": 2, "laneCount": 1,
+    "reward": { "currency": "shards", "amount": 40 },
+    "spawns": [ { "tick": 90, "type": "Courser" } ] }
+]

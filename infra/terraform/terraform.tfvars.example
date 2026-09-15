@@ -1,3 +1,16 @@
 project_id = "your-gcp-project"
 region     = "us-central1"
 image      = "us-central1-docker.pkg.dev/your-gcp-project/broodline/api:latest"
+sim_image  = "us-central1-docker.pkg.dev/your-gcp-project/broodline/sim:latest"
+
+# db_password is REQUIRED and is deliberately absent from this file.
+#
+# It must not be written into terraform.tfvars either. Pass it through the
+# environment instead, so it never sits on disk next to the config:
+#
+#   export TF_VAR_db_password="$(openssl rand -base64 32 | tr -d '\n')"
+#
+# terraform.tfvars is gitignored (.gitignore:126), but "gitignored" and
+# "not on disk in the repo" are different things, and only the second one
+# survives someone zipping the directory. See variables.tf for where the
+# value does and does not end up.

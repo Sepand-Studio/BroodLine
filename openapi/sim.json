@@ -1,0 +1,256 @@
+{
+    "components": {
+        "schemas": {
+            "BreachDto": {
+                "properties": {
+                    "access": {
+                        "type": "boolean"
+                    },
+                    "coverage": {
+                        "type": "boolean"
+                    },
+                    "lane": {
+                        "format": "int32",
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "type": [
+                            "integer",
+                            "string"
+                        ]
+                    },
+                    "placement": {
+                        "type": "boolean"
+                    },
+                    "raider": {
+                        "format": "int32",
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "type": [
+                            "integer",
+                            "string"
+                        ]
+                    },
+                    "tick": {
+                        "format": "int32",
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "type": [
+                            "integer",
+                            "string"
+                        ]
+                    },
+                    "type": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "tick",
+                    "raider",
+                    "type",
+                    "lane",
+                    "access",
+                    "coverage",
+                    "placement"
+                ],
+                "type": "object"
+            },
+            "SimulateEcho": {
+                "properties": {
+                    "laneCount": {
+                        "format": "int32",
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "type": [
+                            "integer",
+                            "string"
+                        ]
+                    },
+                    "rallyCreature": {
+                        "format": "int32",
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "type": [
+                            "integer",
+                            "string"
+                        ]
+                    },
+                    "rallyTick": {
+                        "format": "int32",
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "type": [
+                            "integer",
+                            "string"
+                        ]
+                    },
+                    "seed": {
+                        "type": "string"
+                    },
+                    "terrain": {
+                        "type": "string"
+                    },
+                    "waveId": {
+                        "format": "int32",
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "type": [
+                            "integer",
+                            "string"
+                        ]
+                    }
+                },
+                "required": [
+                    "waveId",
+                    "seed",
+                    "terrain",
+                    "laneCount",
+                    "rallyTick",
+                    "rallyCreature"
+                ],
+                "type": "object"
+            },
+            "SimulateOutcome": {
+                "properties": {
+                    "breaches": {
+                        "items": {
+                            "$ref": "#/components/schemas/BreachDto"
+                        },
+                        "type": "array"
+                    },
+                    "hash": {
+                        "type": "string"
+                    },
+                    "integrityRemaining": {
+                        "format": "int32",
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "type": [
+                            "integer",
+                            "string"
+                        ]
+                    },
+                    "result": {
+                        "type": "string"
+                    },
+                    "ticks": {
+                        "format": "int32",
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "type": [
+                            "integer",
+                            "string"
+                        ]
+                    }
+                },
+                "required": [
+                    "result",
+                    "ticks",
+                    "integrityRemaining",
+                    "hash",
+                    "breaches"
+                ],
+                "type": "object"
+            },
+            "SimulateRequest": {
+                "properties": {
+                    "replay": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "replay"
+                ],
+                "type": "object"
+            },
+            "SimulateResponse": {
+                "properties": {
+                    "echo": {
+                        "oneOf": [
+                            {
+                                "type": "null"
+                            },
+                            {
+                                "$ref": "#/components/schemas/SimulateEcho"
+                            }
+                        ]
+                    },
+                    "engineVersion": {
+                        "type": "string"
+                    },
+                    "outcome": {
+                        "oneOf": [
+                            {
+                                "type": "null"
+                            },
+                            {
+                                "$ref": "#/components/schemas/SimulateOutcome"
+                            }
+                        ]
+                    },
+                    "reason": {
+                        "type": [
+                            "null",
+                            "string"
+                        ]
+                    },
+                    "verdict": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "verdict",
+                    "reason",
+                    "engineVersion",
+                    "echo",
+                    "outcome"
+                ],
+                "type": "object"
+            }
+        }
+    },
+    "info": {
+        "title": "Broodline.Sim.Service | v1",
+        "version": "1.0.0"
+    },
+    "openapi": "3.1.1",
+    "paths": {
+        "/healthz": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                },
+                "tags": [
+                    "Broodline.Sim.Service"
+                ]
+            }
+        },
+        "/internal/simulate": {
+            "post": {
+                "operationId": "Simulate",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SimulateRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SimulateResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "tags": [
+                    "Broodline.Sim.Service"
+                ]
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Broodline.Sim.Service"
+        }
+    ]
+}

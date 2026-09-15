@@ -71,9 +71,11 @@ Three consequences that are easy to get wrong:
 
 ## 3. Frame and memory budgets
 
-**Reference device: A13 with 3 GB — iPhone 11, iPhone SE (2020), iPad 9th gen.**
+**Reference device: A14 with 4 GB — iPhone 12, 12 mini, 12 Pro, 12 Pro Max, iPad Air 4, iPad 10th gen.**
 
-The floor is set by the cheap devices, not the old flagships. The SE line and the base iPad are exactly the price-sensitive hardware a free-to-play audience runs, and excluding them is a revenue decision rather than a technical one. The consequential difference between the A13 and A14 bands is **memory, not GPU** — the SE (2020) and iPad 9 carry 3 GB where every A14 device carries 4.
+**Changed from A13 / 3 GB on 2026-09-14, and the original objection stands rather than having been answered.** The floor was set by the cheap devices, not the old flagships: the SE line and the base iPad are exactly the price-sensitive hardware a free-to-play audience runs, and **excluding them is a revenue decision rather than a technical one.** That is still true. It is the price of this change, not a point that was refuted. The change was taken for one reason — **no A13 device is available to measure on, and a budget measured on the floor beats a budget extrapolated to it by judgment.** The consequential difference between the A13 and A14 bands is **memory, not GPU** — the SE (2020) and iPad 9 carry 3 GB where every A14 device carries 4 — so the band that was dropped is precisely the one the 600 MB ceiling was derived from. What that did and did not change is in §12.
+
+**This is a performance-budget floor, not a compatibility gate, and the build does not enforce it.** `iOSTargetOSVersionString` is 15.0, and there is no iOS version that excludes A13 while keeping A14 — iOS 26 still supports the iPhone 11 and the SE (2020). An A13 device therefore installs and runs, below target. Whether to add a runtime gate is open (§12).
 
 **Frame rate: 60 target, 30 fallback.** At 30 Hz simulation and 60 Hz rendering, one simulation step lands every other frame, so the worst frame carries a full tick plus a full render inside **16.667 ms** — that is 1000/60, and the rounding matters: a hardcoded 16.6 makes a flawless 60 fps read as a failure, which is precisely what the first device run of the Phase 0 proof reported. A locked 30 fps is the last rung of the degradation ladder (§4) and a battery option in settings, which doubles the budget to 33.333 ms when it engages.
 
@@ -81,19 +83,23 @@ The floor is set by the cheap devices, not the old flagships. The SE line and th
 
 The engine is not the problem. A hundred entities of integer arithmetic with one targeting pass is well under a millisecond. **Rendering owns essentially the whole budget**, which is why it needs a number and a proof rather than an assumption.
 
-**Memory: 600 MB peak.** iOS terminates on memory pressure without a crash log worth reading, and the reference device sets the ceiling. 600 MB leaves room under jetsam on a **3 GB** device with a wave running, the UI resident and Addressables warm. This is the single tightest constraint in the client and it is a direct consequence of the device floor.
+**Memory: 600 MB peak — unchanged by the move to a 4 GB floor, deliberately.** iOS terminates on memory pressure without a crash log worth reading. The number was derived as the room left under jetsam on a **3 GB** device with a wave running, the UI resident and Addressables warm, so a 4 GB floor could justify raising it. **It is not being raised.** The Phase 0 sweep peaked at **394 MB** in its deliberately pessimistic case — 104 unique meshes, which wave 44 does not draw — and at the roughly seven shared meshes the wave actually uses, the same rows imply about **183 MB**. Memory is nowhere near binding, so a higher ceiling would buy nothing and spend margin that costs nothing to keep. **It is no longer the single tightest constraint in the client: the triangle ceiling is, and it is GPU-bound.**
 
 ---
 
 ## 4. The entity-count proof — a Phase 0 gate
 
-`broodline_combat_engine.md` §9 asks for this explicitly and it has not been scheduled.
+`broodline_combat_engine.md` §9 asks for this explicitly. **It was scheduled as Phase 0 and delivered on 2026-09-14** — `implementation/2026-09-08-phase0-entity-count-proof.md` holds the run, the budget and the reasoning.
 
 **Wave 44 is the test case.** `broodline_waves_37_44.md` §7 and both later wave documents flag the same worry: wave 44 and five of chapter 8's waves put close to **a hundred entities** on the board — sixty Skirmishers, three Broods becoming thirty-nine, five creatures.
 
-> **The proof: wave 44's entity count, rendered on an A13 / 3 GB device with real creature meshes rather than capsules, measured at both 60 and 30 fps and against the 600 MB ceiling.**
+> **The proof: wave 44's entity count, rendered on an A14 / 4 GB device, measured at both 60 and 30 fps and against the 600 MB ceiling.**
 
-It runs alongside `broodline_rig_proof.md` in Phase 1 of `broodline_build_order.md` — Phase 0 of `broodline_solo_execution.md` §8.2 — and for the same reason: **it can invalidate an assumption that everything downstream is built on.** If a hundred skinned meshes cannot hold 60 fps, the answer is a rendering strategy change — crowd impostors, baked vertex animation, fewer unique bodies on screen — and that changes the art budget. Discovering it in Phase 3 means rebuilding the renderer after the content is authored against it.
+**Delivered 2026-09-14 on synthetic meshes. PASS at 10000 triangles per body**, GPU p95 12.58 ms of a 16.667 ms frame, 394 MB of 600.
+
+This statement originally also required the run be made *"with real creature meshes rather than capsules"*. That clause is **not** satisfied by the delivered run, and it has been **moved rather than dropped**: it cannot be met until the rig proof delivers Vetch and Pale. It now lives in `broodline_rig_proof.md` §8.3 as a re-run of this same harness against the delivered prefabs with every threshold unchanged, and **it gates production species rather than this phase.**
+
+It was scheduled alongside `broodline_rig_proof.md` in Phase 1 of `broodline_build_order.md` — Phase 0 of `broodline_solo_execution.md` §8.2 — for the same reason, though **the two have since been split: this proof is delivered, and the rig proof moved to the art track because it is blocked on a commission rather than on engineering.** The reason they shared a phase was: **it can invalidate an assumption that everything downstream is built on.** If a hundred skinned meshes cannot hold 60 fps, the answer is a rendering strategy change — crowd impostors, baked vertex animation, fewer unique bodies on screen — and that changes the art budget. Discovering it in Phase 3 means rebuilding the renderer after the content is authored against it.
 
 Two things `broodline_combat_engine.md` §9 already asks the engine for, which this depends on:
 
@@ -289,9 +295,9 @@ Three things this buys: the raid mail list is browsable without loading a 3D sce
 
 | | |
 |---|---|
-| **Reference device** | A13 / 3 GB — iPhone 11, iPhone SE (2020), iPad 9th gen. The floor is set by the cheap devices, and memory is the binding constraint |
+| **Reference device** | **A14 / 4 GB** — iPhone 12 and its variants, iPad Air 4, iPad 10th gen. Changed from A13 / 3 GB on 2026-09-14 because no A13 hardware was available to measure on. Knowingly a revenue decision (§3), and a budget floor rather than an enforced compatibility gate |
 | **Frame rate** | 60 target with a locked-30 fallback as the last degradation rung and a battery setting. Interpolation stays |
-| **Memory ceiling** | 600 MB peak, a direct consequence of the 3 GB floor |
+| **Memory ceiling** | 600 MB peak. Originally a direct consequence of the 3 GB floor; **kept unchanged** under the 4 GB floor, because the sweep peaked at 394 MB in its pessimistic case and memory is not the binding constraint (§3) |
 | **Binary contents** | Four species — Vetch, Ember, Hollow, Pale. Skitter and Loam prefetch against a 24–48 hour window |
 | **Install target** | 150 MB, estimated at 117–132 MB. The engine binary and the region environment carry the risk |
 | **iPad** | Portrait only, discrete resizing, size-tolerant layout. No all-four-orientations workaround |
@@ -303,6 +309,7 @@ Three things this buys: the raid mail list is browsable without loading a 3D sce
 1. **Does Unity 6 expose what iPadOS 27 now needs?** §10's requirements assume access to the scene-based lifecycle and `UIWindowScene.sizeRestriction`. Whether Unity 6's iOS player surfaces those cleanly, or needs a native plugin, is unverified — and there is active discussion about iPadOS 27 behaviour with Unity games specifically. **This should be checked during the Phase 0 entity-count proof**, since that proof already puts a real build on a real device.
 2. **Does 150 MB survive real art?** §6's budget is an estimate against stylised mobile assets. The first honest measurement comes from the rig proof, which produces two finished species — enough to extrapolate the other two.
 3. **Re-verify the iPad rules before the layout work.** §10 is dated and describes beta-period behaviour.
+4. **Should an A13 device be hard-gated, or allowed to run below target?** The A14 floor is a budget, and nothing enforces it — §3. There is no minimum-iOS setting that draws the line, so enforcement means a runtime device check and a refusal screen, and refusing a device that would in fact run is the same revenue decision a second time. Unresolved on purpose: it needs a install-base number this project does not have yet.
 
 ---
 

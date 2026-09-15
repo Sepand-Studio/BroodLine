@@ -11,12 +11,17 @@ import { LocalBundleStore } from '../src/config/store.ts'
 import { withServer } from '../src/db/client.ts'
 import { accounts, ledger, players, servers, wallets } from '../src/db/schema.ts'
 import { redeemRefreshToken } from '../src/identity/jwt.ts'
+import { LocalReplayStore } from '../src/replays/store.ts'
+import { SimClient } from '../src/sim/client.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 
 // fileURLToPath, not .pathname - a path containing a space would arrive
 // percent-encoded and every join below would miss.
 const REPO = fileURLToPath(new URL('../../../', import.meta.url))
-const SEED = join(REPO, 'config/bundles/0.1.0')
+// 0.1.1, not 0.1.0: wave 6 carries no reward in 0.1.0, and Task 7 makes a
+// missing reward a publish-time validation failure - 0.1.0 is already
+// published to GCS and must stay byte-identical to what shipped in Phase 4.
+const SEED = join(REPO, 'config/bundles/0.1.1')
 
 let t: TestDb
 let app: ReturnType<typeof createApp>
@@ -30,16 +35,26 @@ beforeAll(async () => {
 
   bundleRoot = await mkdtemp(join(tmpdir(), 'broodline-acct-'))
   const store = new LocalBundleStore(bundleRoot)
-  await publishBundle(store, SEED, '0.1.0')
-  await store.setPointer('0.1.0')
+  await publishBundle(store, SEED, '0.1.1')
+  await store.setPointer('0.1.1')
   clearBundleCache()
 
-  app = createApp({ db: t.db, bundleStore: store })
+  app = createApp({
+    db: t.db, bundleStore: store, simClient: new SimClient('http://127.0.0.1:1', SimClient.noAuth('a deliberately dead address - no route under test here calls sim')),
+    // This file never submits a wave, so a replay store that shares the
+    // bundle's temp root (a disjoint 'replays/' subtree - see
+    // LocalReplayStore) is only ever asked to exist, never written to.
+    replayStore: new LocalReplayStore(bundleRoot),
+  })
 }, 240_000)
 
 afterAll(async () => {
   await t?.stop()
-  await rm(bundleRoot, { recursive: true, force: true })
+  // Guarded: bundleRoot is assigned partway through beforeAll, so an
+  // aborted beforeAll left this throwing ERR_INVALID_ARG_TYPE on top of the
+  // real error and burying it. See wave-submit.test.ts's afterAll for the
+  // full account, and masked-teardown.test.ts for the test.
+  if (bundleRoot) await rm(bundleRoot, { recursive: true, force: true })
 })
 
 function create(key: string, body: Record<string, unknown> = { birthdateBand: 'adult', storefrontRegion: 'us-central1' }) {

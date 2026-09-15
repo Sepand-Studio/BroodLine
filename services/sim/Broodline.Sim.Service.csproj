@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- The engine's Directory.Build.props does NOT reach here. services/ is
+         outside engine/, and the analyzer, the banned-symbol list and the
+         float scan are engine rules. This is an ASP.NET service that happens
+         to be C#. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Shared SOURCE, not a package - solo_execution 9.2. A ProjectReference
+         cannot be stale the way a rebuilt-and-copied DLL can. -->
+    <ProjectReference Include="../../engine/Broodline.Sim.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
+  </ItemGroup>
+</Project>

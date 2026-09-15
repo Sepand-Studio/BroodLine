@@ -1,0 +1,6 @@
+{
+  "grants": [
+    { "currency": "splice_charges", "amount": 3 },
+    { "currency": "shards", "amount": 250 }
+  ]
+}

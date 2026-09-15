@@ -2,22 +2,39 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-> **STATUS — all tasks complete, gate NOT closed.** Every task in this plan is
-> done (40/40) and the budget below is delivered and in the commission brief.
-> The plan is not signed off, and cannot be until two external inputs exist:
+> **STATUS — COMPLETE AND SIGNED OFF, 2026-09-14.** Every task in this plan is
+> done (40/40), the budget is delivered and in the commission brief, and the
+> gate is closed.
 >
-> | Blocker | Needs | State as of 2026-09-10 |
-> |---|---|---|
-> | **Reference device** | An A13 / 3 GB device — iPhone 11, iPhone SE (2020), iPad 9th gen — to replace the A14 proxy measurement | Not available. The budget stays **PROVISIONAL**, and `rig_proof` §8.3 requires this re-measure *before the remaining four species are modelled* |
-> | **Real meshes** | `client_architecture` §4 requires the sweep run "with real creature meshes rather than capsules" — the rig proof's delivered Vetch and Pale | Not available. The rig proof commission (`whats_left` §3 item 3) has not been placed; it runs three weeks once it is |
+> **It closed by changing the floor, not by measuring the old one — and that
+> distinction is the whole story.** This plan was written against an A13 / 3 GB
+> reference device and measured on an A14 / 4 GB proxy, which is why the budget
+> was published as PROVISIONAL behind a 30% margin. No A13 device was ever
+> available. On 2026-09-14 the reference device was changed to **A14 / 4 GB**;
+> `client_architecture` §3 and §12 carry the decision and its cost, which is a
+> revenue cost, knowingly taken. **The iPad Air 4 stopped being a proxy and
+> became the floor.** The measurement did not change. Its status did.
 >
-> **What closes it:** swap `SyntheticCreature.Build` for the delivered prefabs,
-> re-run the sweep with every threshold unchanged, and re-measure on an A13.
-> See "What this plan deliberately does not do" at the end for the full
-> statement. Until both happen, treat the budget as sufficient to commission
-> the rig proof and insufficient for production assets.
+> | Was blocking | Resolution |
+> |---|---|
+> | **Reference device** — an A13 / 3 GB device to replace the A14 proxy measurement | **Discharged by the floor change.** The A14 run is now a floor run, so the 0.7 margin has nothing left to cover and is withdrawn. The budget is the measured **10000 triangles**, not 7000 |
+> | **Real meshes** — `client_architecture` §4 requires the sweep run "with real creature meshes rather than capsules" | **Moved, not closed, and not waived.** It cannot be met until the rig proof delivers Vetch and Pale, so it now lives in `rig_proof` §8.3 as a re-run of this harness against the delivered prefabs. **It gates production species, not this phase** |
+>
+> **Phase 0's other half moved with it.** `solo_execution` §8.2 scheduled this
+> proof alongside the rig proof, as "two proofs". The rig proof has never been
+> commissioned and is blocked on procurement rather than on engineering, so it
+> moved to the art track and keeps its gate there. **Phase 0 closes as an
+> engineering gate and nothing downstream waits on it.**
+>
+> **How to read the task steps below.** They record what was done between
+> 2026-09-08 and 2026-09-10 and they predate the floor change. Where a step
+> quotes A13, a 30% margin, or a 7000-triangle budget, it is **accurate as
+> history and superseded as fact** — it has been left intact rather than
+> rewritten, because rewriting it would claim commits inserted text they did
+> not. **The live numbers are in "Phase 0 result" at the end of this file and
+> in `rig_proof` §8.3, and nowhere else.**
 
-**Goal:** Produce a per-creature rendering budget — triangles, bones, materials — under which wave 44's ~100 entities hold 60 fps and stay inside 600 MB on an A13 / 3 GB device, so the rig proof commission can be briefed with a number instead of a hope.
+**Goal:** Produce a per-creature rendering budget — triangles, bones, materials — under which wave 44's ~100 entities hold 60 fps and stay inside 600 MB on an A14 / 4 GB device, so the rig proof commission can be briefed with a number instead of a hope.
 
 **Architecture:** A Unity 6 project containing one benchmark scene that spawns **procedurally generated synthetic skinned meshes** at wave 44's entity counts, sweeps triangle/bone/material parameters, and records frame-time percentiles and peak memory. Synthetic geometry rather than real art, so the proof runs before any asset exists and its output constrains the art brief rather than waiting on it. The same harness re-runs against real meshes later as validation.
 
@@ -27,7 +44,7 @@
 
 Copied verbatim from `specs/plans/broodline_client_architecture.md`:
 
-- **Reference device: A13 / 3 GB** — iPhone 11, iPhone SE (2020), iPad 9th gen.
+- **Reference device: A14 / 4 GB** — iPhone 12 and its variants, iPad Air 4, iPad 10th gen. *(Was A13 / 3 GB when this plan was written; changed 2026-09-14.)*
 - **Frame rate: 60 target**, with a locked 30 fps fallback as the last degradation rung.
 - **Memory: 600 MB peak.**
 - **Wave 44 is the test case:** sixty Skirmishers, three Broods becoming thirty-nine, plus five creatures — close to a hundred entities.
@@ -895,26 +912,28 @@ It builds with `BuildOptions.Development`, deliberately: that keeps managed stac
 | Tier | Device | What the run is worth |
 |---|---|---|
 | **Ceiling** | A17 / 8 GB, e.g. iPhone 15 Pro | Proves the harness end to end, upper bound only. **Never a budget** |
-| **Proxy** | **A14 / 4 GB**, e.g. iPad Air 4 | A **provisional** budget, with the margin below. Good enough to commission the rig proof, whose bodies are throwaway |
-| **Floor** | **A13 / 3 GB** — iPhone 11, iPhone SE (2020), iPad 9th gen | The only run that produces a budget for **production** assets |
+| **Floor** | **A14 / 4 GB** — iPhone 12 and its variants, iPad Air 4, iPad 10th gen | The reference device since 2026-09-14. **A run here produces the budget for production assets, with no margin applied** |
+| ~~Proxy~~ | ~~A14 / 4 GB standing in for an A13 floor~~ | **Retired 2026-09-14.** The proxy tier existed only because the floor was A13 and no A13 device could be obtained. There is nothing left for it to stand in for |
 
-### The proxy margin, and why it is a judgment rather than a measurement
+### Why the iPad Air 4 is the worst-case A14, and why no margin is applied
 
-An iPad Air 4 is not the floor, and it differs in two directions at once:
+**Rewritten 2026-09-14.** This section previously justified multiplying the measured triangle and bone counts by 0.7. That margin covered, in its own words, *"the generational GPU gap plus uncertainty in the fill-versus-vertex mix"* between an A14 proxy and an A13 floor. **With A14 as the floor there is no generational gap left to cover, so the margin is withdrawn rather than reduced.** What follows is why the remaining uncertainty also resolves in the budget's favour.
 
-| | iPhone SE (2020) — floor | iPad Air 4 — proxy |
+The iPad Air 4 is not the weakest A14 device. For this benchmark it is the hardest one:
+
+| | iPhone 12 — the phone floor | iPad Air 4 — measured |
 |---|---|---|
-| SoC | A13 | A14, roughly 15–25% faster GPU |
-| Memory | 3 GB | 4 GB |
-| Pixels | 1334×750 ≈ 1.0M | 2360×1640 ≈ 3.9M |
+| SoC | A14 | A14, identical |
+| Memory | 4 GB | 4 GB (3868 MB reported) |
+| Pixels | 2532×1170 ≈ 2.96M | 2360×1640 ≈ 3.87M |
 
-The iPad pushes **nearly four times the pixels**, so for fill-bound work it is *harder* than the SE, while for vertex and skinning work it is easier. This benchmark is skinned-mesh heavy and lands between the two.
+The iPad pushes **about 1.3× the pixels of an iPhone 12 on the same silicon**, and the measured ceiling is **GPU-bound**: 16000 triangles fails at 19.2–20.1 ms GPU p95 while the main thread sits at 7.3–7.7 ms. In the one dimension that actually binds, the device measured is harder than the phone it stands for. **A budget that passes here passes on every A14 phone.**
 
-**Memory measured on the proxy is conservative** — larger framebuffers mean the iPad's peak overstates the SE's, so a proxy run passing 600 MB is a genuine pass.
+Memory runs conservative in the same direction — larger framebuffers mean the iPad's peak overstates a phone's, so a pass under 600 MB is a genuine pass.
 
-**Timing is not conservative**, so apply a margin: **take the highest passing combination and multiply triangles and bones by 0.7.** That 30% is an engineering judgment covering the generational GPU gap plus uncertainty in the fill-versus-vertex mix. It is not derived from measurement and must not be presented as though it were.
+**What no margin would ever have fixed, and what the headroom is actually for.** `BoneAnimator` writes local rotations directly; a real `Animator` also evaluates a graph, samples curves and blends clips. The meshes are synthetic and the shader is not a production shader. **None of that was measured at any tier, on any device, under any margin.** It is a gap in the harness, not a gap in the hardware, and shrinking the triangle number was never the right instrument for it. The **25% of the frame left unspent at 10000 triangles** — 12.58 ms GPU p95 against 16.667 — is what absorbs it. It is reserved, not spare, and must not be re-budgeted as capacity.
 
-A modern phone holds 60 fps at triangle and bone counts an SE (2020) cannot approach, and 600 MB is nothing against 8 GB. A budget derived from the ceiling looks authoritative and fails on the hardware the audience owns — worse than having no number, because it arrives after the art is paid for.
+A budget derived from the ceiling looks authoritative and fails on the hardware the audience owns — worse than having no number, because it arrives after the art is paid for. That reasoning is why the ceiling tier still produces no budget, and it is unaffected by the floor change.
 
 Take the device off charge and let it reach a steady thermal state before trusting anything. A cold phone on mains reports a device you do not ship to.
 
@@ -936,7 +955,7 @@ Append to this file, filling in the measured values:
 ## Phase 0 result — recorded <date>
 
 **Device:** <model, iOS version — copy from the CSV's `# device=` line>
-**Tier:** <floor (A13/3GB — budget is valid) | ceiling (budget NOT valid, upper bound only)>
+**Tier:** <floor (A14/4GB — budget is valid, no margin) | ceiling (budget NOT valid, upper bound only)>
 **Per-creature budget at 104 entities, 60 fps, under 600 MB:**
 
 | | Budget |
@@ -982,6 +1001,8 @@ The proof is only useful if it reaches the artist. `specs/broodline_rig_proof.md
 - Produces: a commission brief an artist can hit or reject on cost grounds.
 
 - [x] **Step 1: Add a budget subsection to §8**
+
+> **The block below is what was inserted on 2026-09-10 and is NOT what `rig_proof` §8.3 says today.** The floor change of 2026-09-14 withdrew the margin and replaced the A13 re-measure instruction with the real-mesh re-run. It is reproduced unaltered because this is the record of what that commit did. **Read the live text in `specs/broodline_rig_proof.md` §8.3, never this copy.**
 
 Insert immediately before the `**Deliverables:**` line, substituting the measured numbers:
 
@@ -1042,19 +1063,22 @@ section 2 already recorded as a taken decision."
 ## Phase 0 result — recorded 2026-09-10
 
 **Device:** `iPad13,1` — iPad Air (4th generation), Apple A14 GPU, 3868 MB, iPadOS 27.0, Unity 6000.6.0f1.
-**Tier:** **proxy** (A14 / 4 GB). **PROVISIONAL** — sufficient to commission the rig proof, not valid for production assets.
+**Tier:** **floor** (A14 / 4 GB), as of the 2026-09-14 reference-device change. **MEASURED — valid for production assets**, subject only to the real-mesh re-run booked in `rig_proof` §8.3. Recorded on 2026-09-10 as *proxy / PROVISIONAL*: **the measurement never changed, the floor did.**
 **Source:** `implementation/results/entity-budget-ipadair4-run4-animated-bones.csv` — 40 combinations, 300 measured frames each, rigs animated every frame.
 
 **Per-creature budget at 104 entities, 60 fps, under 600 MB:**
 
-| | Measured | After the 0.7 proxy margin |
+| | Measured | Budget |
 |---|---|---|
-| Triangles | 10000 | **7000** |
+| Triangles | 10000 | **10000** — no margin. The device measured *is* the floor |
 | Bones | 80, **no ceiling found** | **not a constraint — see below** |
 | Materials | 2 | **2** |
-| Measured p95 cost | 11.64 ms (GPU-bound) | |
-| Measured p95 main thread | 6.37 ms | |
-| Measured peak memory | 394 MB | |
+| p95 cost at (10000, 80, 2) | 11.64 ms (GPU-bound) | |
+| **p95 cost, worst 10000-triangle row** — (10000, 12, 2) | **12.58 ms of a 16.667 ms frame** | **the binding measurement; ~25% of frame unspent** |
+| p95 main thread at (10000, 80, 2) | 6.37 ms | |
+| Peak memory | 394 MB of 600 | |
+
+**Cite 12.58 ms, not 11.64 ms, when the question is whether the budget fits.** 11.64 is the row at the highest bone count; 12.58 is the worst row anywhere at 10000 triangles, and it is the one the budget has to survive.
 
 **Verdict: PASS.** Every combination at or below 10000 triangles holds 60 fps under 600 MB at every bone count swept. Every combination at 16000 triangles fails: GPU p95 19.2–20.1 ms against a 16.667 ms frame, wall clock 33.4 ms as the device falls to 30 fps, 526 MB peak. The ceiling sits between 10000 and 16000 triangles and is **GPU-bound, not CPU-bound or bone-bound**.
 
@@ -1072,7 +1096,7 @@ Task 5 premised the bone axis on *"skinning is the dominant per-entity CPU cost.
 
 Nearly seven times the bones costs **0.3–0.7 ms of main thread across all 104 entities**, against a 16.667 ms frame. The effect is small but it is real: positive at every triangle count, which is what separates it from the previous run's exact zeros. Peak memory moves 318 → 323 MB over the same range.
 
-**80 bones passed, so the bone ceiling was not found.** Applying the 0.7 margin to an unfound ceiling would invent a limit rather than record one, so the brief states that bones are unconstrained at the counts a creature rig plausibly needs, and gives the measured slope instead of a number.
+**80 bones passed, so the bone ceiling was not found.** Applying a margin to an unfound ceiling would have invented a limit rather than recorded one, so the brief states that bones are unconstrained at the counts a creature rig plausibly needs, and gives the measured slope instead of a number. The 2026-09-14 withdrawal of the margin changes nothing here — there was never a bone number for it to reduce.
 
 **Why it is cheap:** `gpuSkinning` is enabled, so per-vertex skinning is GPU work that scales with vertices rather than with rig complexity, and Unity's transform hierarchy update is jobified off the main thread. What remains on the main thread is the per-bone write itself.
 
@@ -1095,7 +1119,7 @@ This also means the sweep is a *conservative* memory test rather than a represen
 
 ### The triangle figure held across the change
 
-Run 2 measured a static rig and put the ceiling between 10000 and 16000 triangles. Run 4 animates every bone up to 80 and puts it in exactly the same place. The triangle budget is therefore robust to the defect that invalidated the bone figure — which is why 7000 did not move.
+Run 2 measured a static rig and put the ceiling between 10000 and 16000 triangles. Run 4 animates every bone up to 80 and puts it in exactly the same place. The triangle budget is therefore robust to the defect that invalidated the bone figure — which is why the published number did not move when run 4 replaced run 2. It moved later, from 7000 to 10000, and for an unrelated reason: the floor changed and the margin was withdrawn. **The measurement behind it has been the same since run 2.**
 
 ### Runs that produced no budget, and why
 
@@ -1112,7 +1136,7 @@ Recorded so the same ground is not re-covered:
 - **No simulation code.** The engine is Phase 1: the `netstandard2.1` library, the banned-API analyzer, the Cecil float scan, and the four determinism test layers. Entities here are render-only stand-ins with no tick loop.
 - **No real art.** Synthetic meshes are the point — they let the proof run before the commission and let its output shape the brief.
 - **No degradation ladder.** `client_architecture` §4's instancing and animation-rate rungs are Phase 3 work. This measures the *unoptimised* cost, which is the number the art budget must be set against.
-- **This is not yet §4's gate.** `client_architecture` §4 requires the proof to run "with real creature meshes rather than capsules." Synthetic meshes cannot satisfy that — they establish the budget the commission is briefed with. **The gate itself closes when the rig proof delivers Vetch and Pale and this same harness re-runs against them**, with `SyntheticCreature.Build` swapped for the delivered prefabs and every threshold unchanged. That run is one task, and it belongs to whichever plan follows the commission. Until it happens, Phase 0 is not signed off.
+- **It does not run on real meshes, and that clause has moved rather than closed.** `client_architecture` §4 required the proof to run "with real creature meshes rather than capsules." Synthetic meshes cannot satisfy that — they establish the budget the commission is briefed with, which is the only order these two can happen in. **That run — `SyntheticCreature.Build` swapped for the delivered Vetch and Pale, every threshold unchanged — now lives in `rig_proof` §8.3 and gates production species, not this phase.** It is one task for whichever plan follows the commission. **Phase 0 is signed off without it, deliberately**: waiting would have blocked an engineering phase on a procurement item that has not been started.
 
 ## If the proof fails
 

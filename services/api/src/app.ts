@@ -3,12 +3,18 @@ import type { BundleStore } from './config/store.ts'
 import type { Db } from './db/client.ts'
 import { HttpError } from './http/auth.ts'
 import { fail } from './http/errors.ts'
+import type { ReplayStore } from './replays/store.ts'
 import { registerAccountRoutes } from './routes/account.ts'
+import { registerSessionRoutes } from './routes/session.ts'
 import { registerSyncRoutes } from './routes/sync.ts'
+import { registerWaveRoutes } from './routes/wave.ts'
+import type { SimClient } from './sim/client.ts'
 
 export interface Deps {
   db: Db
   bundleStore: BundleStore
+  simClient: SimClient
+  replayStore: ReplayStore
 }
 
 /**
@@ -22,7 +28,9 @@ export function createApp(deps: Deps): Hono {
   app.get('/healthz', (c) => c.json({ ok: true }))
 
   registerAccountRoutes(app, deps)
+  registerSessionRoutes(app, deps)
   registerSyncRoutes(app, deps)
+  registerWaveRoutes(app, deps)
 
   app.notFound(() => fail('not_found', 'No such route.'))
   app.onError((err) => {

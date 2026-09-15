@@ -2,7 +2,9 @@ import { fileURLToPath } from 'node:url'
 import { writeFile } from 'node:fs/promises'
 import { OpenAPIRegistry, OpenApiGeneratorV31 } from '@asteasolutions/zod-to-openapi'
 import {
-  CreateAccountRequest, CreateAccountResponse, DeleteAccountResponse, ErrorResponse, SyncResponse,
+  CreateAccountRequest, CreateAccountResponse, DeleteAccountResponse, ErrorResponse,
+  RefreshRequest, RefreshResponse, SyncResponse,
+  WaveStartRequest, WaveStartResponse, WaveSubmitRequest, WaveSubmitResponse,
 } from './schemas.ts'
 
 const registry = new OpenAPIRegistry()
@@ -57,6 +59,53 @@ registry.registerPath({
   responses: {
     200: { description: 'Deleted', content: { 'application/json': { schema: DeleteAccountResponse } } },
     ...errors([401]),
+  },
+})
+
+// Added after Task 5's review: this route existed in code but was never
+// registered here, so it shipped absent from the client NSwag generates -
+// see the phase 5 task-6-brief.md header for the finding.
+registry.registerPath({
+  method: 'post',
+  path: '/v1/wave/start',
+  operationId: 'startWave',
+  security: [{ [bearerAuth.name]: [] }],
+  request: { body: { content: { 'application/json': { schema: WaveStartRequest } } } },
+  responses: {
+    200: { description: 'The live issuance for this wave', content: { 'application/json': { schema: WaveStartResponse } } },
+    ...errors([400, 401, 404, 409, 429]),
+  },
+})
+
+registry.registerPath({
+  method: 'post',
+  path: '/v1/wave/submit',
+  operationId: 'submitWave',
+  security: [{ [bearerAuth.name]: [] }],
+  parameters: [{
+    name: 'Idempotency-Key', in: 'header', required: true,
+    schema: { type: 'string' },
+    description: 'Generated when the action is taken, not when it is sent.',
+  }],
+  request: { body: { content: { 'application/json': { schema: WaveSubmitRequest } } } },
+  responses: {
+    200: { description: 'The verified outcome, paid at most once', content: { 'application/json': { schema: WaveSubmitResponse } } },
+    ...errors([400, 401, 409, 422, 426, 503]),
+  },
+})
+
+// Phase 5, Task 9. Registered the same way Task 6 registered the wave
+// routes - a route the Unity client must call and has no generated method
+// for is the gap Task 6 was extended to close; this route existed in code
+// before it existed here, and that gap does not get to reopen.
+registry.registerPath({
+  method: 'post',
+  path: '/v1/session/refresh',
+  operationId: 'refreshSession',
+  request: { body: { content: { 'application/json': { schema: RefreshRequest } } } },
+  responses: {
+    200: { description: 'A fresh access token; the refresh token is unchanged', content: { 'application/json': { schema: RefreshResponse } } },
+    ...errors([400, 401]),
   },
 })
 

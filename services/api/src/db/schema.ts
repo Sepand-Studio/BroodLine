@@ -12,12 +12,30 @@
  * from this file would silently produce a materially weaker schema - no
  * constraints, no RLS - with no warning that anything was lost.
  */
+import { sql } from 'drizzle-orm'
 import {
-  bigint, index, integer, jsonb, pgEnum, pgTable, primaryKey,
+  bigint, customType, index, integer, jsonb, pgEnum, pgTable, primaryKey,
   smallint, text, timestamp, uniqueIndex, uuid,
 } from 'drizzle-orm/pg-core'
 
 export const currency = pgEnum('currency', ['shards', 'splice_charges', 'marks', 'premium'])
+
+/**
+ * int8 presented as a decimal string, both directions.
+ *
+ * drizzle-orm 0.38 offers no 'string' bigint mode - only 'number' (the
+ * precision cliff above 2^53 this column exists to avoid) and 'bigint'
+ * (exact, but a JS BigInt is what JSON.stringify throws on - and the seed
+ * is serialised into a response body by both wave/start and wave/submit,
+ * Tasks 5 and 6). A string is exact AND JSON-safe, and node-postgres
+ * already hands int8 back as a string, so fromDriver is a normalisation
+ * rather than a conversion.
+ */
+const int8String = customType<{ data: string; driverData: string }>({
+  dataType: () => 'bigint',
+  fromDriver: (v) => String(v),
+  toDriver: (v) => v,
+})
 
 export const servers = pgTable('servers', {
   serverId: integer('server_id').primaryKey(),
@@ -99,4 +117,41 @@ export const campaignProgress = pgTable('campaign_progress', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   pk: primaryKey({ columns: [t.serverId, t.playerId] }),
+}))
+
+export const waveIssuances = pgTable('wave_issuances', {
+  serverId: integer('server_id').notNull(),
+  issuanceId: uuid('issuance_id').notNull(),
+  playerId: uuid('player_id').notNull(),
+  waveId: integer('wave_id').notNull(),
+  // int8 as a STRING via int8String, not bigint()'s built-in modes. seed is
+  // a ulong in the engine and a JS number loses precision above 2^53 - the
+  // same reason Task 2 sends the hash as a decimal string - which rules out
+  // mode:'number'. mode:'bigint' is exact but returns a JS BigInt, which
+  // JSON.stringify throws on, and this column is serialised into a response
+  // body by both wave/start and wave/submit (Tasks 5, 6). (SQL adds
+  // CHECK (seed >= 0) - bigint is signed and the engine's seed is not.)
+  seed: int8String('seed').notNull(),
+  issuedAt: timestamp('issued_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  // NULL while live. Set once, by trigger-enforced write-once, to the moment
+  // the row stopped being live - never by the clock. design 4.3, amended
+  // after review: a single consumed_at column and an index keyed on it being
+  // NULL locked a player out on the abandoned-wave path, because expiry
+  // cannot appear in a partial index's predicate (IMMUTABLE required, now()
+  // is STABLE). settled_at/settlement together are the one terminal state
+  // both the index and the handler's liveness check now share.
+  settledAt: timestamp('settled_at', { withTimezone: true }),
+  settlement: text('settlement'),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.serverId, t.issuanceId] }),
+  // design 4.3: the one-live-issuance-per-player rule, enforced by Postgres.
+  // Mirrors 0003's wave_issuances_one_live exactly - keyed on settled_at,
+  // not expiry.
+  oneLive: uniqueIndex('wave_issuances_one_live').on(t.serverId, t.playerId)
+    .where(sql`${t.settledAt} IS NULL`),
+  // Mirrors 0003's wave_issuances_replay_count. Only 'consumed' rows count -
+  // an 'expired' row was never played.
+  replayCount: index('wave_issuances_replay_count').on(t.serverId, t.playerId, t.waveId, t.issuedAt)
+    .where(sql`${t.settlement} = 'consumed'`),
 }))

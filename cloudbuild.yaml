@@ -1,13 +1,22 @@
-# Build config for the api container.
+# Build config for the api AND sim containers.
 #
 # `gcloud builds submit --tag` cannot express this build: it requires a
-# Dockerfile at the ROOT of the uploaded source, and ours lives at
-# services/api/Dockerfile while its context must be the repo root (it copies
-# the workspace manifests, the pnpm lockfile, services/api and config/).
-# Those two requirements are irreconcilable with --tag, so the build is
-# described here instead.
+# Dockerfile at the ROOT of the uploaded source, and ours live at
+# services/api/Dockerfile and services/sim/Dockerfile while both need the
+# repo root as their context. The api copies the workspace manifests, the
+# pnpm lockfile, services/api and config/; sim copies engine/ as well as
+# services/sim/, because the service holds the engine by ProjectReference
+# and a context scoped to services/sim/ cannot see it. Those requirements
+# are irreconcilable with --tag, so the build is described here instead.
+#
+# TWO images, not two tags of one. They share a build context and nothing
+# else - different base images, different toolchains, different runtimes.
+# design 3.1 makes api and sim separate deployables; this is where that
+# starts, and variables.tf's `sim_image` says the same thing from the
+# infrastructure side.
 steps:
   - name: gcr.io/cloud-builders/docker
+    id: api
     args:
       - build
       - -f
@@ -15,7 +24,30 @@ steps:
       - -t
       - ${_IMAGE}
       - .
+  - name: gcr.io/cloud-builders/docker
+    id: sim
+    # SEQUENTIAL, deliberately. These two are independent and `waitFor: ['-']`
+    # would start them together, but the first apply of this project is not
+    # the place to discover that two concurrent docker builds exhaust the
+    # default build machine: a build OOM reports as a failed step with no
+    # obvious cause. Serialised, each step's failure names itself. Flip this
+    # to `waitFor: ['-']` once the build has run green a few times and the
+    # wall clock is worth optimising.
+    args:
+      - build
+      - -f
+      - services/sim/Dockerfile
+      - -t
+      - ${_SIM_IMAGE}
+      - .
 images:
   - ${_IMAGE}
+  - ${_SIM_IMAGE}
+# The default is 10 minutes and these two together will exceed it on a cold
+# machine: the .NET SDK base image is ~1 GB before `dotnet publish` starts,
+# and the api pulls a full pnpm install. A timeout that fires mid-build
+# reports as a FAILED build rather than a slow one, which sends the reader
+# looking for a defect that is not there.
+timeout: 1800s
 options:
   logging: CLOUD_LOGGING_ONLY

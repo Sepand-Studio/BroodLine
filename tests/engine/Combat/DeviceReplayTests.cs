@@ -32,12 +32,29 @@ namespace Broodline.Sim.Tests.Combat
         public static bool AreCurrent => CapturedUnder == SimVersion.Value;
 
         /// What is owed once they are not.
+        ///
+        /// THE TICK WINDOW HERE USED TO BE WRONG, and wrong in the direction
+        /// that costs a device trip. It said 184..240 - creature 0's
+        /// engagement - while TheDeviceRunsRallyActuallyChangedTheSimulation
+        /// separately demands 150..207, the Courser still below the first
+        /// defender. Aiming by the first number alone yields a capture that
+        /// round-trips perfectly and proves nothing, which is exactly how the
+        /// first two device captures (taps at 373 and 480) passed review. The
+        /// message a person actually reads now names the OVERLAP.
         public static string ReCaptureOwed =>
             "The tracked captures were recorded under engine " + CapturedUnder +
             " and this engine is " + SimVersion.Value + ", so solo_execution 9.4 supersedes them " +
             "and the renderer round-trip is NOT being proven right now. Re-capture per Task 10 of " +
-            "the Phase 3 plan: play Assets/Scenes/Wave.unity in the Editor and on device, with a " +
-            "tap between ticks 184 and 240, then commit the four files in implementation/results/.";
+            "the Phase 3 plan: play Assets/Scenes/Wave.unity in the Editor and on device, then " +
+            "commit the four files in implementation/results/.\n" +
+            "ON DEVICE, aim for a tap at ticks 184..207. That is the overlap of two separate " +
+            "requirements - creature 0 holds a target during 184..240, and the Courser must still " +
+            "be below the first defender, which ends at 207 - and a tap outside it can round-trip " +
+            "perfectly while proving nothing. The two known-good captures landed at 204 and 205. " +
+            "The HUD prints the live tick beside Integrity; expect roughly ten ticks of reaction " +
+            "lag, so aim near 190.\n" +
+            "IN THE EDITOR it is looser: Rally lasts 120 ticks, so any tap whose window overlaps " +
+            "184..240 is valid - the 2026-09-11 capture tapped at 78 and was fine.";
 
         /// The supersession half of every test that re-simulates a capture.
         ///
@@ -124,43 +141,35 @@ namespace Broodline.Sim.Tests.Combat
         }
 
         [Fact]
-        public void TheDeviceRunIsSupersededAndIsNotReSimulated()
+        public void TheTrackedCapturesAreCurrent()
         {
-            // Recorded under 0.1.0, before Task 1 bumped the engine to 0.2.0
-            // for Phase 3's own unbumped behaviour change. solo_execution 9.4:
-            // a replay from a superseded engine shows its stored outcome and
-            // is never re-simulated.
+            // RESTORED 2026-09-14 by re-capturing both artifacts on hardware
+            // under engine 0.2.0 - an iPhone 15 Pro for the device half, the
+            // Unity 6 Editor for the other.
             //
-            // This test used to be TheTrackedCapturesAreCurrent, asserting
-            // ReplayArtifact.AreCurrent - that the artifact and the running
-            // engine agreed. That was Phase 3's guard against comparing a
-            // hash across an unrelated balance change, and it is genuinely
-            // gone now that the engine has moved past the artifact. The
-            // honest options are to re-capture the artifact on a device under
-            // 0.2.0, or to pin the exact version it was recorded under, which
-            // is what this does. Re-capturing needs the physical device and
-            // is the better answer - do it at Task 12 if the device is to
-            // hand, and restore the strong assertion then.
+            // From 2026-09-11 until then this test was
+            // TheDeviceRunIsSupersededAndIsNotReSimulated and asserted the
+            // OPPOSITE: that the captures were stale, pinned to "0.1.0". That
+            // was the honest thing to write while it was true - saying outright
+            // that the round-trip was dark beats a green suite implying
+            // coverage it did not have - but it was always meant to be
+            // temporary, and its own comment said so.
             //
-            // The round-trip tests above do NOT still prove the round-trip.
-            // ReplayArtifact.Superseded opens with `if (AreCurrent) return
-            // false;`, and AreCurrent is now false, so both
-            // TheDeviceRunReSimulatesToTheSameHash and
-            // TheDeviceRunsRallyActuallyChangedTheSimulation hit their
-            // `if (ReplayArtifact.Superseded(...)) return;` guard and bail
-            // before their own asserts ever run. All Superseded proves at
-            // that point is that Sim.Replay THROWS on a superseded record -
-            // the artifact being refused, not re-simulated.
-            //
-            // So Phase 3's done-when - a device wave re-simulating to the
-            // same hash - is NOT being proven by this suite right now, and
-            // `dotnet test` going green does not cover it. That is exactly
-            // the "sentence someone has to remember to check" the deleted
-            // TheTrackedCapturesAreCurrent warned about, stated outright
-            // rather than softened: re-capturing the device artifact under
-            // 0.2.0 at Task 12 is what restores real coverage.
-            Assert.NotEqual(SimVersion.Value, ReplayArtifact.CapturedUnder);
-            Assert.Equal("0.1.0", ReplayArtifact.CapturedUnder);
+            // WHY ONE ASSERT CARRIES MORE THAN IT LOOKS. Every re-simulating
+            // test opens with `if (ReplayArtifact.Superseded(record, _out))
+            // return;`. The moment AreCurrent goes false, all of them bail
+            // BEFORE their assertions and report PASSED. Nothing counts that,
+            // because there is no Skip anywhere in this solution and
+            // `dotnet test` reporting "Skipped: 0" says nothing about it - the
+            // README records exactly this trap. So when the engine next moves
+            // past these artifacts, THIS test is the only thing that goes red.
+            // It is the guard on the guard, and deleting it would take the
+            // whole round-trip dark silently.
+            // ReCaptureOwed already names both versions; repeating them here
+            // printed the same pair twice in the failure output.
+            Assert.True(ReplayArtifact.AreCurrent,
+                "every round-trip test in this file is now bailing before its assertions and " +
+                "reporting PASSED. " + ReplayArtifact.ReCaptureOwed);
         }
     }
 

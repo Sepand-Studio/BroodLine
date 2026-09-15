@@ -1,7 +1,9 @@
 import { eq, sql } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { withServer } from '../src/db/client.ts'
-import { accounts, campaignProgress, idempotencyKeys, ledger, players, servers, wallets } from '../src/db/schema.ts'
+import {
+  accounts, campaignProgress, idempotencyKeys, ledger, players, servers, waveIssuances, wallets,
+} from '../src/db/schema.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 
 const SERVER_A = 1
@@ -55,6 +57,23 @@ beforeAll(async () => {
   await t.ownerDb.insert(campaignProgress).values([
     { serverId: SERVER_A, playerId: playerA, highestWaveCleared: 3, milestonesClaimed: 1 },
     { serverId: SERVER_B, playerId: playerB, highestWaveCleared: 9, milestonesClaimed: 4 },
+  ])
+  // wave_issuances is new since Task 4. A policy that merely exists but
+  // compares the wrong column - or an omitted policy under ENABLE/FORCE
+  // alone - would pass 'is invisible without a server scope' identically to
+  // a correct one, exactly the gap the repo already learned about
+  // idempotencyKeys and campaignProgress above. Seeded here so the scoped
+  // cross-server read below actually exercises discrimination on this
+  // table, not just default-deny.
+  await t.ownerDb.insert(waveIssuances).values([
+    {
+      serverId: SERVER_A, issuanceId: '11111111-0000-0000-0000-000000000001', playerId: playerA,
+      waveId: 1, seed: '1', expiresAt: new Date(Date.now() + 7_200_000),
+    },
+    {
+      serverId: SERVER_B, issuanceId: '11111111-0000-0000-0000-000000000002', playerId: playerB,
+      waveId: 1, seed: '2', expiresAt: new Date(Date.now() + 7_200_000),
+    },
   ])
 }, 180_000)
 
@@ -116,6 +135,7 @@ describe('cross-server isolation', () => {
       ledger: await tx.select().from(ledger),
       idempotencyKeys: await tx.select().from(idempotencyKeys),
       campaignProgress: await tx.select().from(campaignProgress),
+      waveIssuances: await tx.select().from(waveIssuances),
     }))
 
     expect(seen.players.map((p) => p.serverId)).toEqual([SERVER_A])
@@ -123,11 +143,17 @@ describe('cross-server isolation', () => {
     expect(seen.ledger.map((l) => l.serverId)).toEqual([SERVER_A])
     expect(seen.idempotencyKeys.map((k) => k.serverId)).toEqual([SERVER_A])
     expect(seen.campaignProgress.map((c) => c.serverId)).toEqual([SERVER_A])
+    expect(seen.waveIssuances.map((w) => w.serverId)).toEqual([SERVER_A])
 
     // Named explicitly: server B's rows must not appear anywhere.
     expect(seen.wallets.some((w) => w.balance === 999)).toBe(false)
     expect(seen.idempotencyKeys.some((k) => k.key === 'fixture-b')).toBe(false)
     expect(seen.campaignProgress.some((c) => c.highestWaveCleared === 9)).toBe(false)
+    // seed is a genuine string end-to-end (schema.ts's int8String custom
+    // type), so this is a real comparison, not the vacuous bigint-vs-string
+    // one it would have been against drizzle-orm's built-in bigint modes -
+    // see the Task 4 report's typecheck finding for why that mattered.
+    expect(seen.waveIssuances.some((w) => w.seed === '2')).toBe(false)
   })
 
   it('returns ZERO rows when nothing scoped the query, rather than everything', async () => {
