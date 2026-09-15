@@ -123,9 +123,11 @@ type CreatureRow = typeof creatures.$inferSelect
  */
 async function lockParents(
   tx: Tx, serverId: number, playerId: string, ids: [string, string],
+  hooks: SpliceHooks = {},
 ): Promise<[CreatureRow, CreatureRow] | undefined> {
   const rows = new Map<string, CreatureRow>()
   for (const id of [...ids].sort()) {
+    if (rows.size === 1 && hooks.betweenParentLocks) await hooks.betweenParentLocks()
     const [row] = await tx.select().from(creatures)
       .where(and(
         eq(creatures.serverId, serverId),
@@ -190,6 +192,15 @@ const CHARGE_COST = 1
  */
 export interface SpliceHooks {
   afterParentsLocked?: () => Promise<void>
+  /**
+   * Awaited BETWEEN the two parent locks - the only window in which a
+   * reversed lock order can deadlock, and therefore the only place a test
+   * can stand to show that sorting prevents one. Without it, `lockParents`
+   * taking its locks in request order instead of sorted order leaves the
+   * suite green: the two statements are back to back and two callers
+   * essentially never interleave between them on their own.
+   */
+  betweenParentLocks?: () => Promise<void>
 }
 
 /**
@@ -213,7 +224,7 @@ export async function commitSplice(
   req: SpliceRequest, now: Date, idempotencyKey: string,
   hooks: SpliceHooks = {},
 ): Promise<SpliceResult> {
-  const parents = await lockParents(tx, serverId, playerId, [req.parentA, req.parentB])
+  const parents = await lockParents(tx, serverId, playerId, [req.parentA, req.parentB], hooks)
   if (parents === undefined) return { kind: 'not_owned' }
   const [a, b] = parents
   // The read-to-write window, and the ONLY place a test can stand to see

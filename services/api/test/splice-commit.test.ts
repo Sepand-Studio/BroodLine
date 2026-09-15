@@ -621,6 +621,59 @@ describe('POST /v1/splice/commit', () => {
     expect(await liveCount()).toBe(2) // the child, and the untouched c
   })
 
+  it('does not deadlock when two splices name the same pair in opposite orders', async () => {
+    // THE LOCK ORDER, and it is a property rather than a comment only
+    // because there is a seam to stand in. `lockParents` takes its two
+    // FOR UPDATE locks in SORTED id order; taking them in REQUEST order
+    // instead lets (a, b) hold a while (b, a) holds b, and Postgres breaks
+    // the cycle by aborting one transaction with 40P01 - a 500 on a route
+    // that is destroying player property, where a clean refusal was
+    // available.
+    //
+    // The window is between the two lock statements and is microseconds
+    // wide, so `betweenParentLocks` is what makes the interleaving real
+    // instead of hoped for: A pauses holding exactly one lock, and B is
+    // given its chance to take the other.
+    const { a, b } = await pair()
+    const bundle = await loadBundle(deps.bundleStore)
+
+    let release!: () => void
+    const paused = new Promise<void>((r) => { release = r })
+    let bTookOne!: () => void
+    const bTookItsFirstLock = new Promise<void>((r) => { bTookOne = r })
+
+    const txA = withServer(deps.db, SERVER_ID, (tx) => commitSplice(
+      tx, SERVER_ID, playerId, bundle,
+      { parentA: a, parentB: b, locked: LOCK_A1, bodyFrom: 'Vetch' },
+      new Date(), randomUUID(), {
+        betweenParentLocks: async () => {
+          // Hold one lock and wait - either for B to take the other (which
+          // is what an UNSORTED order would let it do, and the deadlock),
+          // or for the timeout, which is B being correctly blocked.
+          await Promise.race([bTookItsFirstLock, paused])
+        },
+      }))
+
+    // B names the SAME pair in the opposite order.
+    const txB = withServer(deps.db, SERVER_ID, (tx) => commitSplice(
+      tx, SERVER_ID, playerId, bundle,
+      { parentA: b, parentB: a, locked: LOCK_A1, bodyFrom: 'Vetch' },
+      new Date(), randomUUID(), {
+        betweenParentLocks: async () => { bTookOne() },
+      }))
+
+    setTimeout(release, 400)
+    const outcomes = await Promise.all([txA, txB])
+
+    // Exactly one splice happened, and NEITHER transaction was aborted by
+    // the deadlock detector - which is what `await` above would have
+    // surfaced as a rejection.
+    expect(outcomes.filter((o) => o.kind === 'ok')).toHaveLength(1)
+    expect(outcomes.filter((o) => o.kind === 'not_owned')).toHaveLength(1)
+    expect(await spliceRows()).toHaveLength(1)
+    expect(await balance('splice_charges')).toBe(STARTING_CHARGES - 1)
+  })
+
   it('requires an Idempotency-Key', async () => {
     const { a, b } = await pair()
     const res = await commit(
