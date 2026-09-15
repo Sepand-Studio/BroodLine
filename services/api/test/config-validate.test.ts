@@ -49,10 +49,11 @@ describe('node rates', () => {
   // BigInt; a fractional rate throws a cryptic RangeError deep inside a
   // claim instead of failing here, at publish time. Fix round 1's finding.
   //
-  // No fixture in this file carries a nodes.json - config/bundle.ts does
-  // not load it yet, so none of the other fixtures were ever given one, and
-  // adding a dedicated fixture directory here would mean duplicating six
-  // files just to change a seventh. A scratch copy of the real, valid 0.1.2
+  // No fixture in this file carries a nodes.json - none was ever given one,
+  // because every one of them predates config/bundle.ts reading the file at
+  // all (Task 5, bundle.ts:119; this comment claimed that had not happened
+  // for three tasks after it did). Adding a dedicated fixture directory here
+  // would mean duplicating six files just to change a seventh. A scratch copy of the real, valid 0.1.2
   // bundle with only nodes.json swapped gets the same isolation more
   // cheaply - and it never touches config/bundles/0.1.2 itself, which must
   // stay immutable (config/store.ts's whole argument). Same `cp(src, dest,

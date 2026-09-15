@@ -23,11 +23,18 @@ export interface ServerTick {
 
 /**
  * The slice of the config bundle this module needs. Defined locally rather
- * than imported from config/bundle.ts's `Bundle` - which does not load
- * nodes.json today, and which this module must not depend on for its own
- * purity to stay structurally checkable - so this stays decoupled from the
- * config-loading and database layers. TypeScript's structural typing lets
- * the real bundle satisfy this the moment a future task adds `nodes` to it.
+ * than imported from config/bundle.ts's `Bundle`, which this module must not
+ * depend on for its own purity to stay structurally checkable - so this stays
+ * decoupled from the config-loading and database layers.
+ *
+ * NOT a placeholder waiting for the real bundle to grow a `nodes` field.
+ * That happened in Task 5 - config/bundle.ts:119 reads nodes.json - and this
+ * comment went on claiming the opposite for three tasks afterwards, in the
+ * same words as config/validate.ts's docstring and config-validate.test.ts's,
+ * all three corrected together rather than one at a time. What structural
+ * typing buys is that the real `Bundle` ALREADY satisfies this interface with
+ * neither side importing the other. That is the decoupling, not a migration
+ * still owed.
  */
 export interface BundleNode {
   id: string
