@@ -832,7 +832,9 @@ apply itself is unrun, and it is unrun because it was blocked, not because it
 failed.
 
 **Verified state of the target project** (`broodline-508416`, created
-2026-09-12): ACTIVE, **billing enabled** (`<redacted: read it with gcloud billing projects describe>`), and every
+2026-09-12): ACTIVE, **billing enabled** (the account id is deliberately not recorded
+here - this repository is public; read it with `gcloud billing projects
+describe broodline-508416`), and every
 API the stack needs is on — `sqladmin`, `run`, `secretmanager`,
 `servicenetworking`, `storage`, `artifactregistry`, `cloudbuild`, `compute`,
 `dns`, `iam`, `serviceusage`. `cloudresourcemanager.googleapis.com` was
