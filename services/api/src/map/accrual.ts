@@ -30,8 +30,18 @@ export interface AccrueArgs {
  * docs, not because this phase reaches them. Every OTHER tier has no
  * specified multiplier anywhere and is refused rather than interpolated or
  * guessed - a wrong guess here is a currency bug, not a cosmetic one.
+ *
+ * EXPORTED ONLY so loop-schema.test.ts can probe it directly. That test
+ * diffs this table against 0005_loop.sql's `harvest_array_tier_calibrated`
+ * CHECK, which is the one thing keeping the two from drifting, and probing
+ * it through `accrue` instead would be probing the wrong function: accrue
+ * returns 0 on a non-positive interval BEFORE it ever reaches this lookup,
+ * so a reordering there would quietly turn the gate into "accepts
+ * everything". `rosterCap` and `maxGeneration` - the other two halves of
+ * the same pattern - are already exported, and the gate treats all three
+ * identically because they ARE the same thing three times.
  */
-function shardMultiplierHundredths(arrayTier: number): number {
+export function shardMultiplierHundredths(arrayTier: number): number {
   const knownTiers: Record<number, number> = { 1: 100, 4: 135, 8: 200, 12: 300 }
   const mult = knownTiers[arrayTier]
   if (mult === undefined) throw new Error(`no calibrated Harvest Array multiplier for tier ${arrayTier}`)

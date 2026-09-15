@@ -4,6 +4,9 @@ import { withServer } from '../src/db/client.ts'
 import {
   accounts, arks, creatures, harvestPositions, nodeDepletion, players, servers, splices,
 } from '../src/db/schema.ts'
+import { shardMultiplierHundredths } from '../src/map/accrual.ts'
+import { rosterCap } from '../src/roster/creatures.ts'
+import { maxGeneration } from '../src/splice/commit.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 
 const SERVER_A = 1
@@ -549,6 +552,121 @@ describe('arks', () => {
       splicingChamberTier: 9,
     }))).resolves.toBeDefined()
   })
+})
+
+/**
+ * THE THREE COUPLINGS, PINNED - and until this block existed they were
+ * enforced by nothing but cross-referencing comments.
+ *
+ * Each of the three CHECKs above exists to name the SAME SET as a pure
+ * function: `hatchery_tier = 1` and `rosterCap`, `harvest_array_tier IN
+ * (1,4,8,12)` and `shardMultiplierHundredths`, `splicing_chamber_tier
+ * BETWEEN 1 AND 12` and `maxGeneration`. 0005_loop.sql says "WIDEN THIS ...
+ * in step with rosterCap's table" and creatures.ts points back at the
+ * CHECK, and that instruction is the whole mechanism: three comments, each
+ * asking a future editor to remember. The tests above this one pin each
+ * CHECK against ONE hand-written refused value and ONE hand-written
+ * accepted value, which is a different claim - widen `rosterCap` to
+ * `{1: 20, 2: 40}` and every one of them stays green, because 2 is still
+ * refused by the column and nothing compares the two sets.
+ *
+ * So compare the sets. The permitted side is asked of POSTGRES, not parsed
+ * out of the definition text by hand: pg_get_constraintdef is deparsed, so
+ * `IN (...)` comes back as `= ANY (ARRAY[...])` and `BETWEEN` as a pair of
+ * comparisons, and a regex over those three shapes would be a fourth thing
+ * that can drift. Substituting the column for a generate_series value and
+ * letting the server evaluate its own predicate cannot misread a form it
+ * has never seen.
+ *
+ * Verified to discriminate, not assumed: widening `rosterCap` alone gives
+ * `[1] vs [1, 2]` and reddens. It reddens in BOTH directions, which is the
+ * point - a CHECK widened without its function is the same defect facing
+ * the other way, and it is the more dangerous one, because it ends in a
+ * throw from inside a paid action rather than in a refused write.
+ */
+describe('the constraint <-> function couplings', () => {
+  // Wider than any authored ladder on either side, so a widening lands
+  // INSIDE the probe rather than past its end where nothing would see it.
+  const PROBE_LO = 0
+  const PROBE_HI = 20
+
+  /** The values a CHECK on `arks` admits, over the probe range. */
+  const permittedByConstraint = async (constraint: string, column: string): Promise<number[]> => {
+    const r = await t.db.execute(sql`
+      SELECT pg_get_constraintdef(oid) AS def
+        FROM pg_constraint
+       WHERE conrelid = 'arks'::regclass AND conname = ${constraint}`)
+    const rows = r.rows as Array<{ def: string }>
+    // FAIL CLOSED. A dropped or renamed constraint returns no row, and no
+    // row must not be readable as "admits nothing" (which would then have to
+    // be matched by a function that accepts nothing, and is not the claim).
+    expect(rows, `pg_constraint has no ${constraint} on arks`).toHaveLength(1)
+
+    const def = rows[0]!.def
+    const predicate = def.replace(/^CHECK\s*/, '')
+    expect(predicate, `${constraint} is not a CHECK: ${def}`).not.toBe(def)
+
+    // Deparsed output may wrap the column in a cast - `(col)::integer` - so
+    // substitute on a word boundary and let whatever surrounds it stand.
+    const substituted = predicate.replace(new RegExp(`\\b${column}\\b`, 'g'), 'v')
+    // FAIL CLOSED again, and this one matters most: a predicate that does
+    // not mention the column substitutes to a CONSTANT, which would admit
+    // the entire probe range and read as a spectacularly wide CHECK.
+    expect(substituted, `${constraint} does not mention ${column}: ${def}`).not.toBe(predicate)
+
+    // ::int on both bounds, not decoration: pg binds an unadorned parameter as
+    // `unknown`, and generate_series is overloaded (int/bigint/numeric/
+    // timestamp), so without them the server answers `function
+    // generate_series(unknown, unknown) is not unique` rather than running.
+    const admitted = await t.db.execute(sql`
+      SELECT v FROM generate_series(${PROBE_LO}::int, ${PROBE_HI}::int) AS v
+       WHERE ${sql.raw(substituted)}
+       ORDER BY v`)
+    return (admitted.rows as Array<{ v: number }>).map((row) => Number(row.v))
+  }
+
+  /** The values a lookup function returns for rather than throwing on. */
+  const acceptedByFunction = (fn: (tier: number) => number): number[] => {
+    const accepted: number[] = []
+    for (let v = PROBE_LO; v <= PROBE_HI; v++) {
+      try {
+        fn(v)
+        accepted.push(v)
+      } catch {
+        // The refusal each of these CHECKs exists to mirror.
+      }
+    }
+    return accepted
+  }
+
+  const couplings = [
+    { constraint: 'hatchery_tier_authored', column: 'hatchery_tier', name: 'rosterCap', fn: rosterCap },
+    {
+      constraint: 'harvest_array_tier_calibrated', column: 'harvest_array_tier',
+      name: 'shardMultiplierHundredths', fn: shardMultiplierHundredths,
+    },
+    {
+      constraint: 'splicing_chamber_tier_authored', column: 'splicing_chamber_tier',
+      name: 'maxGeneration', fn: maxGeneration,
+    },
+  ] as const
+
+  for (const c of couplings) {
+    it(`${c.constraint} admits exactly the tiers ${c.name} accepts`, async () => {
+      const permitted = await permittedByConstraint(c.constraint, c.column)
+      const accepted = acceptedByFunction(c.fn)
+
+      // Neither side may be empty. Two empty sets compare equal, so a probe
+      // that reached nothing at all would pass this while proving nothing -
+      // the exact failure shape this whole block exists to rule out.
+      expect(permitted.length, `${c.constraint} admits nothing in ${PROBE_LO}..${PROBE_HI}`)
+        .toBeGreaterThan(0)
+      expect(accepted.length, `${c.name} accepts nothing in ${PROBE_LO}..${PROBE_HI}`)
+        .toBeGreaterThan(0)
+
+      expect(accepted, `${c.name} vs ${c.constraint}`).toEqual(permitted)
+    })
+  }
 })
 
 describe('splices', () => {
