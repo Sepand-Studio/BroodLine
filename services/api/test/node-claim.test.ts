@@ -478,6 +478,15 @@ describe('POST /v1/node/claim', () => {
     // insert(creatures) in src/, with starter.json granting currency only.
     // So this is not a test about variety for its own sake; it is what
     // makes Task 7's body choice reachable at all.
+    // THE NODE MUST START FULL. Slot 1 enters this test carrying whatever
+    // earlier tests harvested (measured: 1,440 of 8,640), and each iteration
+    // takes 720 - so without this only ten of the twelve iterations below
+    // have any yield to grant from, and a run of identical rolls would fail
+    // as `expected 1 to be >= 2`, blaming the species roll for depletion.
+    // That is a ~1-in-20,000 flake that points at the wrong cause, which is
+    // worse than a louder one: eight more tasks run this suite.
+    await clearDepletion()
+
     const seen = new Set<string>()
     for (let i = 0; i < 12 && seen.size < 2; i++) {
       await clearRoster()

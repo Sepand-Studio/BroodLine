@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { baseStockSpecies, rosterCap, speciesForSeed } from '../src/roster/creatures.ts'
+import { CREATURE_HP, SPECIES } from './replay-format.ts'
 
 /**
  * The pure half of the base-stock grant. No container: `speciesForSeed` and
@@ -38,6 +39,29 @@ describe('the base-stock species table', () => {
     for (const v of baseStockSpecies) {
       const trait = TRAITS.traits.find((t) => t.id === v.trait1)!
       expect(trait.species).toBe(v.species)
+    }
+  })
+
+  it('gives the two combat slots DIFFERENT traits', () => {
+    // Nothing above forbids `trait2 === trait1`, and a Pale granted
+    // Chill/Chill would pass every other assertion in this file while
+    // holding its own counter twice. Two reasons that is wrong, and neither
+    // is cosmetic: data_model §2 makes a creature two DISTINCT combat
+    // TraitInstances, and design §5.2 rolls a splice's second slot from
+    // "the remaining three" of the parents' four - a parent with a doubled
+    // trait shrinks that pool without anything saying so.
+    for (const v of baseStockSpecies) expect(v.trait2).not.toBe(v.trait1)
+  })
+
+  it('carries the ENGINE\'s hit points for its own species', () => {
+    // Pinned against the mirror in replay-format.ts rather than against
+    // numbers retyped here: a grant whose HP agrees only with itself would
+    // put a creature on the roster that the engine would simulate
+    // differently the moment it was deployed.
+    for (const v of baseStockSpecies) {
+      const speciesId = SPECIES[v.species as keyof typeof SPECIES]
+      expect(speciesId).toBeDefined()
+      expect(v.hpCurrent).toBe(CREATURE_HP[speciesId]!)
     }
   })
 

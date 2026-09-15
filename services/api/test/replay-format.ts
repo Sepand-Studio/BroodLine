@@ -30,13 +30,18 @@ const FORMAT_VERSION = 1
 const DEFAULT_ENGINE_VERSION = '0.3.0' // engine/Runtime/SimVersion.cs SimVersion.Value
 
 // engine/Runtime/Combat/Ids.cs
-const SPECIES = { Vetch: 0, Ember: 1, Skitter: 2, Hollow: 3, Loam: 4, Pale: 5 } as const
+// Exported (with CREATURE_HP below) so base-stock.test.ts can pin the
+// roster's granted HP against the ENGINE's numbers rather than against
+// numbers retyped beside the grant - which would agree with themselves and
+// with nothing else. This file is already the one place the engine's
+// creature stats are mirrored on the TypeScript side.
+export const SPECIES = { Vetch: 0, Ember: 1, Skitter: 2, Hollow: 3, Loam: 4, Pale: 5 } as const
 const TRAIT = { None: 0, Chill: 1 } as const
 const INSTINCT = { Vanguard: 1 } as const
 const TERRAIN_DEFILE = 0 // engine/Runtime/Combat/Ids.cs Terrain.Defile
 
 // engine/Runtime/Combat/Stats.cs CreatureHp
-const CREATURE_HP: Record<number, number> = {
+export const CREATURE_HP: Record<number, number> = {
   [SPECIES.Vetch]: 260, [SPECIES.Ember]: 130, [SPECIES.Skitter]: 80,
   [SPECIES.Hollow]: 60, [SPECIES.Loam]: 190, [SPECIES.Pale]: 120,
 }

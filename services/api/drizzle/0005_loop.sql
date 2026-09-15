@@ -240,6 +240,26 @@ CREATE TABLE IF NOT EXISTS arks (
   -- one - which is exactly when a CHECK is cheap and an 0006 migration is
   -- not: this file has not been deployed yet.
   CONSTRAINT harvest_array_tier_calibrated CHECK (harvest_array_tier IN (1, 4, 8, 12)),
+  -- THE SAME GAP as harvest_array_tier above, found in the same way and
+  -- closed the same way. roster/creatures.ts's rosterCap (Task 5) is a
+  -- lookup against the Hatchery tiers content actually authors a capacity
+  -- for, and throws rather than guessing one: bible 7.2 gives a FLOOR of 20
+  -- "scaling upward" and authors no ladder, and
+  -- broodline_playtest_tuning_sheet.md carries the 20 -> 60 curve as an
+  -- explicit placeholder. A guessed cap is not a cosmetic error - the cap
+  -- decides whether a player's creatures are REFUSED.
+  --
+  -- Without this, nothing stops hatchery_tier from holding a value that
+  -- function refuses, and GET /v1/region/state - which reads the cap so a
+  -- client can predict the roster_full 409 - would answer 500 on a plain
+  -- READ. A write refused at the source is legible; a 500 on the region
+  -- screen is not.
+  --
+  -- `= 1` rather than `IN (...)` because one is genuinely all there is
+  -- today. WIDEN THIS the moment the capacity ladder is authored, in step
+  -- with rosterCap's table - the two must name the same set, exactly as
+  -- harvest_array_tier and the two multiplier tables do.
+  CONSTRAINT hatchery_tier_authored CHECK (hatchery_tier = 1),
   FOREIGN KEY (server_id, player_id) REFERENCES players (server_id, player_id)
 );
 

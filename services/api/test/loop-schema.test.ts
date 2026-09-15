@@ -399,6 +399,30 @@ describe('arks', () => {
       serverId: SERVER_A, playerId: acceptedPlayer, regionId: 'verdant-shelf', harvestArrayTier: 12,
     }))).resolves.toBeDefined()
   })
+
+  it('refuses a Hatchery tier no roster capacity is authored for', async () => {
+    // The same gap as the tier above, one column over.
+    // roster/creatures.ts's rosterCap (Task 5) throws for any tier but 1,
+    // because bible 7.2 gives a floor of 20 and authors no ladder above it.
+    // Without this CHECK the column could hold a tier that function
+    // refuses, and GET /v1/region/state - which reads the cap so a client
+    // can predict the roster_full 409 - would answer 500 on a plain READ
+    // rather than the write being refused here.
+    const refusedPlayer = await freshPlayer()
+    await expect(withServer(t.db, SERVER_A, (tx) => tx.insert(arks).values({
+      serverId: SERVER_A, playerId: refusedPlayer, regionId: 'verdant-shelf', hatcheryTier: 2,
+    }))).rejects.toThrow(/hatchery_tier/)
+
+    // The positive control, and here it is the DEFAULT rather than a second
+    // authored value - there is no second value to reach for, which is the
+    // whole reason this constraint is `= 1`. Without this line the test
+    // above would be satisfied by a CHECK that refused every tier,
+    // including the one every Ark actually ships with.
+    const acceptedPlayer = await freshPlayer()
+    await expect(withServer(t.db, SERVER_A, (tx) => tx.insert(arks).values({
+      serverId: SERVER_A, playerId: acceptedPlayer, regionId: 'verdant-shelf', hatcheryTier: 1,
+    }))).resolves.toBeDefined()
+  })
 })
 
 describe('row-level security on the five new tables', () => {
