@@ -61,6 +61,15 @@ function shardMultiplierHundredths(arrayTier: number): number {
  * holds; the node's `remaining` yield bounds the result last. Reversed, a
  * long absence against a nearly-dead node reports units the node cannot
  * supply, and the credit would be written before anything noticed.
+ *
+ * `remaining` can itself arrive negative - `node_depletion.harvested_units`
+ * carries no CHECK against a node's `total_yield`, so two concurrent claims
+ * against a nearly-dead node can overshoot it, and the next caller computes
+ * a negative `remaining`. `Math.min(units, remaining)` alone would return
+ * that negative number unchanged: a negative credit against a currency
+ * ledger, reported far from where the real bug (the missing overshoot
+ * guard upstream) lives - the exact class of problem the non-positive-
+ * interval guard above exists for. Floored at zero for the same reason.
  */
 export function accrue(a: AccrueArgs): number {
   const nowMs = a.now.getTime()
@@ -75,5 +84,5 @@ export function accrue(a: AccrueArgs): number {
   const lower = (BigInt(effectiveLastSettledMs) * rate * mult) / denom
   const units = Number(upper - lower)
 
-  return a.remaining === null ? units : Math.min(units, a.remaining)
+  return a.remaining === null ? units : Math.max(0, Math.min(units, a.remaining))
 }

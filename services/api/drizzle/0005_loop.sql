@@ -229,6 +229,17 @@ CREATE TABLE IF NOT EXISTS arks (
   -- choice is one integer.
   splicing_chamber_tier smallint NOT NULL DEFAULT 3,
   PRIMARY KEY (server_id, player_id),
+  -- accrual.ts's shardMultiplierHundredths (Task 4) is a lookup against the
+  -- four Harvest Array tiers economy_model actually calibrates - 1, 4, 8, 12
+  -- - and throws rather than interpolating a currency multiplier for any
+  -- other tier. Without this, the column would happily hold a value that
+  -- pure function refuses, and the failure would surface as an exception
+  -- thrown deep inside a claim instead of as a write refused at the source.
+  -- Phase 6 pins every Ark at tier 1 with no upgrade path (this file's own
+  -- header above), so today this only guards a future writer, not a live
+  -- one - which is exactly when a CHECK is cheap and an 0006 migration is
+  -- not: this file has not been deployed yet.
+  CONSTRAINT harvest_array_tier_calibrated CHECK (harvest_array_tier IN (1, 4, 8, 12)),
   FOREIGN KEY (server_id, player_id) REFERENCES players (server_id, player_id)
 );
 

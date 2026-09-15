@@ -361,6 +361,44 @@ describe('arks', () => {
     expect(ark!.hatcheryTier).toBe(1)
     expect(ark!.splicingChamberTier).toBe(3)
   })
+
+  /**
+   * Fresh player per insert - arks' PRIMARY KEY is (server_id, player_id)
+   * and the test above already owns playerA's only row, so reusing it here
+   * would fail on the PRIMARY KEY rather than exercise the CHECK this test
+   * is actually about.
+   */
+  const freshPlayer = async () => {
+    const [acc] = await t.ownerDb.insert(accounts)
+      .values({ birthdateBand: 'adult', homeRegion: 'us-central1', serverId: SERVER_A }).returning()
+    const [p] = await t.ownerDb.insert(players)
+      .values({ serverId: SERVER_A, accountId: acc!.accountId }).returning()
+    return p!.playerId
+  }
+
+  it('refuses a Harvest Array tier the shard-rate multiplier table does not calibrate', async () => {
+    // accrual.ts's shardMultiplierHundredths (Task 4) throws for any tier
+    // other than the four economy_model actually calibrates - 1, 4, 8, 12 -
+    // rather than interpolating a currency multiplier. This CHECK is what
+    // keeps the column and that function in agreement BY CONSTRUCTION:
+    // without it, nothing stops harvest_array_tier from holding a value the
+    // pure function refuses, and accrue() would throw deep inside a claim
+    // instead of the write being refused here, before a row exists to reach
+    // it at all.
+    const refusedPlayer = await freshPlayer()
+    await expect(withServer(t.db, SERVER_A, (tx) => tx.insert(arks).values({
+      serverId: SERVER_A, playerId: refusedPlayer, regionId: 'verdant-shelf', harvestArrayTier: 2,
+    }))).rejects.toThrow(/harvest_array_tier/)
+
+    // The positive control: a calibrated non-default tier must still be
+    // insertable, or this CHECK would be refusing more than the four values
+    // it names and the test above would be indistinguishable from a CHECK
+    // that (for example) refused every tier but the column default.
+    const acceptedPlayer = await freshPlayer()
+    await expect(withServer(t.db, SERVER_A, (tx) => tx.insert(arks).values({
+      serverId: SERVER_A, playerId: acceptedPlayer, regionId: 'verdant-shelf', harvestArrayTier: 12,
+    }))).resolves.toBeDefined()
+  })
 })
 
 describe('row-level security on the five new tables', () => {

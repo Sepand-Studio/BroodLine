@@ -37,9 +37,9 @@ const VERSION_PATTERN = /^\d+\.\d+\.\d+$/
  * this validator and production - so both are checked here alongside waves,
  * the pack ladder, wave rewards and locales.
  *
- * Phase 6 adds two more, both authored-content completeness checks in the
- * same sense as reward completeness above - neither is a game rule, so
- * neither belongs in the C# CLI:
+ * Phase 6 adds three more, all authored-content completeness checks in the
+ * same sense as reward completeness above - none is a game rule, so none
+ * belongs in the C# CLI:
  *
  *   - trait dominance (validateTraitDominance): design 5.3 says the rolled
  *     slot in a splice carries at full coverage if the trait is dominant and
@@ -51,6 +51,11 @@ const VERSION_PATTERN = /^\d+\.\d+\.\d+$/
  *     not construct the reward-inflation weakening because only one wave was
  *     authored; this stops a future bundle from quietly re-creating that
  *     one-wave condition by giving two authored waves equal rewards.
+ *   - node rates (validateNodeRates): map/accrual.ts's accrue() (Task 4)
+ *     converts a node's ratePerHour to a BigInt; a non-integer rate throws a
+ *     cryptic RangeError deep inside a claim instead of failing here, at
+ *     publish time, where it is legible and cheap. See that function for the
+ *     fix-round-1 finding this closes.
  */
 export async function validateBundle(dir: string): Promise<string[]> {
   const violations: string[] = []
@@ -62,6 +67,7 @@ export async function validateBundle(dir: string): Promise<string[]> {
   violations.push(...(await validateStarterGrants(dir)))
   violations.push(...(await validateManifest(dir)))
   violations.push(...(await validateTraitDominance(dir)))
+  violations.push(...(await validateNodeRates(dir)))
   return violations
 }
 
@@ -324,6 +330,45 @@ async function validateTraitDominance(dir: string): Promise<string[]> {
   for (const trait of traits) {
     if (typeof trait.dominant !== 'boolean') {
       violations.push(`trait ${trait.id}: dominance flag is required`)
+    }
+  }
+  return violations
+}
+
+interface AuthoredNode { id: string; ratePerHour: unknown; totalYield: unknown }
+
+/**
+ * map/accrual.ts's accrue() (Task 4) does `BigInt(a.ratePerHour)` - a
+ * fractional rate throws `RangeError: The number 20.5 cannot be converted
+ * to a BigInt because it is not an integer`, deep inside a claim, instead of
+ * failing here as a config problem, at publish time, where it is cheap and
+ * legible (solo_execution 5.2's whole argument for this file). `totalYield`
+ * feeds `remaining` the same way and is checked for the same reason.
+ *
+ * nodes.json is OPTIONAL here, deliberately: config/bundle.ts's loadBundle
+ * does not read it yet (see the Task 2 and Task 4 reports), so no fixture in
+ * this suite carries one, and every one of them must keep passing. A bundle
+ * that is supposed to ship nodes.json but omits it is not this check's
+ * problem to catch.
+ */
+async function validateNodeRates(dir: string): Promise<string[]> {
+  const raw = await readFile(join(dir, 'nodes.json'), 'utf8').catch(() => null)
+  if (raw === null) return []
+
+  const nodes = JSON.parse(raw) as AuthoredNode[]
+  const violations: string[] = []
+
+  for (const node of nodes) {
+    if (typeof node.ratePerHour !== 'number' || !Number.isInteger(node.ratePerHour) || node.ratePerHour <= 0) {
+      violations.push(
+        `nodes.json node '${node.id}' has a ratePerHour of ${String(node.ratePerHour)}, ` +
+        `which must be a positive integer.`)
+    }
+    if (node.totalYield !== null
+        && (typeof node.totalYield !== 'number' || !Number.isInteger(node.totalYield) || node.totalYield <= 0)) {
+      violations.push(
+        `nodes.json node '${node.id}' has a totalYield of ${String(node.totalYield)}, ` +
+        `which must be null or a positive integer.`)
     }
   }
   return violations

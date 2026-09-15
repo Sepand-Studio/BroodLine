@@ -51,4 +51,18 @@ describe('accrue', () => {
       ratePerHour: 20, arrayTier: 1, remaining: null,
     })).toBe(0)
   })
+
+  it('pays nothing when remaining has already gone negative', () => {
+    // node_depletion.harvested_units carries no CHECK against total_yield,
+    // so two concurrent claims on a nearly-dead node can overshoot it - the
+    // next call's `remaining` then arrives negative. `Math.min(units,
+    // remaining)` alone returns that negative number unchanged, which is a
+    // negative credit against a currency ledger: the same class of hazard
+    // the non-positive-interval guard above exists for, unguarded one line
+    // later.
+    expect(accrue({
+      lastSettledAt: new Date(0), now: new Date(HOUR),
+      ratePerHour: 20, arrayTier: 1, remaining: -5,
+    })).toBe(0)
+  })
 })
