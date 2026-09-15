@@ -635,6 +635,63 @@
           "parentB",
           "locked"
         ]
+      },
+      "SpliceCommitResponse": {
+        "type": "object",
+        "properties": {
+          "child": {
+            "$ref": "#/components/schemas/CreatureDto"
+          },
+          "spliceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "seed": {
+            "type": "string"
+          },
+          "mutated": {
+            "type": "boolean"
+          },
+          "aberrant": {
+            "type": "boolean"
+          },
+          "balance": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "child",
+          "spliceId",
+          "seed",
+          "mutated",
+          "aberrant",
+          "balance"
+        ]
+      },
+      "SpliceCommitRequest": {
+        "type": "object",
+        "properties": {
+          "parentA": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "parentB": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "locked": {
+            "$ref": "#/components/schemas/SpliceLock"
+          },
+          "bodyFrom": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "parentA",
+          "parentB",
+          "locked",
+          "bodyFrom"
+        ]
       }
     },
     "parameters": {}
@@ -1221,6 +1278,108 @@
             }
           },
           "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/splice/commit": {
+      "post": {
+        "operationId": "spliceCommit",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Generated when the action is taken, not when it is sent."
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpliceCommitRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The child, and the roll that produced it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpliceCommitResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
             "description": "Error",
             "content": {
               "application/json": {

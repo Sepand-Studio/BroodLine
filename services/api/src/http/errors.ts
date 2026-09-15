@@ -20,6 +20,9 @@ export type ErrorCode =
   | 'sim_unavailable'
   // Phase 6
   | 'roster_full'
+  | 'creature_committed'
+  | 'generation_ceiling'
+  | 'insufficient_charges'
 
 export interface ErrorBody {
   code: ErrorCode
@@ -55,6 +58,23 @@ const STATUS: Record<ErrorCode, number> = {
   // this is the only answer a full roster can get - a partial grant that
   // silently drops creatures is a loss a player reports as theft.
   roster_full: 409,
+  // THREE DISTINCT CODES FOR ONE STATUS, and the distinctions are the whole
+  // point of solo_execution 6.2's rule that a client switches on `code`.
+  // All three are 409 because all three refuse a well-formed request on
+  // state the caller can change - and each needs a different sentence and a
+  // different next action on the Splice Chamber screen:
+  //
+  //   creature_committed  - recall it, or wait for the wave to settle
+  //   generation_ceiling  - upgrade the Splicing Chamber (design 5.2 wants
+  //                         the upgrade surfaced, not a bare error), and the
+  //                         details carry the ceiling so the screen can say
+  //                         which tier
+  //   insufficient_charges - wait for regen, or buy
+  //
+  // Collapsing them into `conflict` would make the screen guess.
+  creature_committed: 409,
+  generation_ceiling: 409,
+  insufficient_charges: 409,
 }
 
 export function fail(code: ErrorCode, message: string, details?: unknown): Response {

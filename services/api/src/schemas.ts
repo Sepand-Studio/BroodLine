@@ -252,3 +252,43 @@ export const SplicePreviewResponse = z.object({
     tier: z.number().int().nullable(),
   })),
 }).openapi('SplicePreviewResponse')
+
+// Phase 6, Task 7. design §5.1's paid half - the route that samples the
+// forecast above and destroys both parents.
+//
+// Registered into openapi.ts's registry in the SAME task that adds the route,
+// the discipline the map's routes and the preview route both state.
+export const SpliceCommitRequest = z.object({
+  parentA: z.string().uuid(),
+  parentB: z.string().uuid(),
+  locked: SpliceLock,
+  // design §5.2's body is a FREE choice between the two parents' species -
+  // "free" meaning unrandomised, NOT unconstrained. A body that is neither
+  // parent's species would let a client mint any species it liked out of two
+  // it owns, so the server refuses it; this is a string rather than an enum
+  // because species are engine content and a list retyped here would refuse
+  // a species a later bundle adds.
+  bodyFrom: z.string(),
+}).openapi('SpliceCommitRequest')
+
+export const SpliceCommitResponse = z.object({
+  child: CreatureDto,
+  spliceId: z.string().uuid(),
+  // A DECIMAL STRING, exactly as WaveStartResponse.seed is one. The seed is
+  // stored so a paid randomised action with published odds can be
+  // re-derived after the fact (design §5.1), so it must be exact - and a JS
+  // number loses precision above 2^53 while a BigInt is what
+  // JSON.stringify throws on.
+  seed: z.string(),
+  // The two halves of the mutation roll, reported separately because
+  // `splice_confirm_spec` §2 shows them separately: 9% of splices mutate and
+  // 5% OF THOSE are Aberrant. `aberrant` is never true without `mutated`.
+  mutated: z.boolean(),
+  aberrant: z.boolean(),
+  // Splice Charges left after the debit. `broodline_screen_inventory_v2.md`
+  // §2 keeps them in the persistent top bar, so a client that had to call
+  // /v1/sync to refresh them after every splice would be refetching the
+  // world for one integer. NodeClaimResponse carries its balance for the
+  // same reason.
+  balance: z.number().int(),
+}).openapi('SpliceCommitResponse')

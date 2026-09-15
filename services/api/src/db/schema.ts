@@ -199,6 +199,19 @@ export const creatures = pgTable('creatures', {
   regenUntil: timestamp('regen_until', { withTimezone: true }),
   committedTo: uuid('committed_to'),
   acquiredAt: timestamp('acquired_at', { withTimezone: true }).notNull().defaultNow(),
+  // NULL while the creature is alive; set by the splice that destroyed it.
+  // A THIRD STATE, and not a synonym for `pruned` below - a consumed parent
+  // is dead but WHOLE, because design 3.2 retains five generations of
+  // ancestors for the lineage view and splice_confirm_spec 5 makes their
+  // traits surviving in the pedigree the FTUE's lesson. 0005_loop.sql's
+  // column comment carries the full argument, including why
+  // founders_are_never_pruned makes this unavoidable rather than merely
+  // tidier.
+  //
+  // EVERY ROSTER PREDICATE MUST SAY `consumed_at IS NULL`, and `NOT pruned`
+  // does not imply it. roster/creatures.ts's `liveCreature()` is the one
+  // place both halves are written.
+  consumedAt: timestamp('consumed_at', { withTimezone: true }),
   // design 3.2's tombstone, in this table rather than a second one. A pruned
   // creature keeps its id and its parent pointers and is stripped to
   // {species, generation, is_founder} - so the lineage view still resolves
@@ -207,17 +220,19 @@ export const creatures = pgTable('creatures', {
   pruned: boolean('pruned').notNull().default(false),
 }, (t) => ({
   pk: primaryKey({ columns: [t.serverId, t.creatureId] }),
-  // BOTH partial on NOT pruned, mirroring 0005. Pruned rows share this table
-  // now, so an unfiltered roster index would be mostly dead entries. Note
-  // the trap the predicate warns about but cannot close: a pruned row has
-  // committed_to nulled, so `committed_to IS NULL` is true of it, and an
-  // availability query must say `AND NOT pruned` itself or it counts dead
-  // ancestors against the Hatchery cap. The index cannot enforce that; only
-  // the query can.
+  // BOTH partial on `NOT pruned AND consumed_at IS NULL`, mirroring 0005.
+  // Pruned AND consumed rows share this table, so an unfiltered roster index
+  // would be mostly dead entries. Note the trap the predicate warns about
+  // but cannot close: a pruned row has committed_to nulled, so
+  // `committed_to IS NULL` is true of it, and a CONSUMED row is not pruned
+  // at all - so an availability query must carry both predicates itself or
+  // it counts dead ancestors against the Hatchery cap. The index cannot
+  // enforce that; only the query can, which is why there is exactly one
+  // definition of it (roster/creatures.ts's `liveCreature`).
   byPlayer: index('creatures_by_player').on(t.serverId, t.playerId, t.acquiredAt)
-    .where(sql`NOT ${t.pruned}`),
+    .where(sql`NOT ${t.pruned} AND ${t.consumedAt} IS NULL`),
   available: index('creatures_available').on(t.serverId, t.playerId)
-    .where(sql`${t.committedTo} IS NULL AND NOT ${t.pruned}`),
+    .where(sql`${t.committedTo} IS NULL AND NOT ${t.pruned} AND ${t.consumedAt} IS NULL`),
 }))
 
 export const arks = pgTable('arks', {
@@ -264,8 +279,12 @@ export const splices = pgTable('splices', {
   serverId: integer('server_id').notNull(),
   spliceId: uuid('splice_id').notNull().defaultRandom(),
   playerId: uuid('player_id').notNull(),
-  // No FK in SQL either - the splice consumes both parents, so an FK would
-  // make the record's own subject undeletable.
+  // COMPOSITE foreign keys onto creatures in SQL, added by Task 7 - the
+  // decision 0005 recorded as owed to whoever wrote the splice path. All
+  // three ids name rows that still exist (a consumed parent keeps its row, a
+  // pruned one keeps its row, and the child is inserted in the same
+  // transaction first), so the keys are satisfiable and they make a splice
+  // across two servers unrepresentable. A single uuid here says none of that.
   parentA: uuid('parent_a').notNull(),
   parentB: uuid('parent_b').notNull(),
   childId: uuid('child_id').notNull(),

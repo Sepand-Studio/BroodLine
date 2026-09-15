@@ -4,7 +4,8 @@ import { OpenAPIRegistry, OpenApiGeneratorV31 } from '@asteasolutions/zod-to-ope
 import {
   CreateAccountRequest, CreateAccountResponse, DeleteAccountResponse, ErrorResponse,
   NodeClaimRequest, NodeClaimResponse, RefreshRequest, RefreshResponse,
-  RegionStateResponse, SplicePreviewRequest, SplicePreviewResponse, SyncResponse,
+  RegionStateResponse, SpliceCommitRequest, SpliceCommitResponse,
+  SplicePreviewRequest, SplicePreviewResponse, SyncResponse,
   WaveStartRequest, WaveStartResponse, WaveSubmitRequest, WaveSubmitResponse,
 } from './schemas.ts'
 
@@ -153,6 +154,27 @@ registry.registerPath({
   responses: {
     200: { description: 'The odds this splice rolls against, and the coverage it destroys', content: { 'application/json': { schema: SplicePreviewResponse } } },
     ...errors([400, 401, 404, 500]),
+  },
+})
+
+// Phase 6, Task 7. design 5.1's paid half. The FIRST route in this API that
+// destroys player property, which is why its error list is long: every
+// refusal it can answer with is one the Splice Chamber screen has to be able
+// to say out loud before the CTA is tapped (splice_confirm_spec 2).
+registry.registerPath({
+  method: 'post',
+  path: '/v1/splice/commit',
+  operationId: 'spliceCommit',
+  security: [{ [bearerAuth.name]: [] }],
+  parameters: [{
+    name: 'Idempotency-Key', in: 'header', required: true,
+    schema: { type: 'string' },
+    description: 'Generated when the action is taken, not when it is sent.',
+  }],
+  request: { body: { content: { 'application/json': { schema: SpliceCommitRequest } } } },
+  responses: {
+    200: { description: 'The child, and the roll that produced it', content: { 'application/json': { schema: SpliceCommitResponse } } },
+    ...errors([400, 401, 404, 409, 422, 500]),
   },
 })
 

@@ -1,13 +1,14 @@
 import { createHash } from 'node:crypto'
-import { and, count, eq, sql } from 'drizzle-orm'
+import { and, count, eq, sql, type SQL } from 'drizzle-orm'
 import type { Tx } from '../db/client.ts'
 import { creatures } from '../db/schema.ts'
 
 /**
  * Roster reads, the Hatchery cap, and the base-stock grant.
  *
- * The one place a roster COUNT is written, on purpose - see rosterCount for
- * the predicate that has to be in it and the measured cost of leaving it out.
+ * The one place a roster COUNT is written, and the one place the LIVENESS
+ * predicate behind it is written - see `liveCreature` for the two halves it
+ * has to carry and the measured cost of leaving either out.
  */
 
 export interface CreatureDto {
@@ -33,6 +34,12 @@ type CreatureRow = typeof creatures.$inferSelect
  * the only paths that reach this function are roster reads that have already
  * excluded them. Throwing says so, rather than emitting `null` into a
  * response for a creature that does not exist any more.
+ *
+ * A CONSUMED ROW STILL HAS ONE, deliberately: it is whole, and rendering it
+ * is the entire reason design 3.2 retains it (splice_confirm_spec 5 - the
+ * consumed parents appear in the lineage immediately after the splice). This
+ * function is not the thing that keeps a dead parent off the roster;
+ * `liveCreature()` in the query is.
  */
 export function toCreatureDto(row: CreatureRow): CreatureDto {
   if (row.pruned || row.trait1 === null || row.trait2 === null || row.instinct === null) {
@@ -76,36 +83,74 @@ export function rosterCap(hatcheryTier: number): number {
 }
 
 /**
- * Live creatures this player holds. `NOT pruned` IS THE LOAD-BEARING HALF.
+ * THE ONE DEFINITION OF "THIS CREATURE IS STILL ON THE ROSTER".
  *
- * A pruned creature keeps its row (0005_loop.sql's header: tombstones-in-a-
- * second-table and composite parent keys were mutually exclusive, and the
- * keys won), and the prune NULLS `committed_to` - so `committed_to IS NULL`
- * is TRUE of every dead ancestor. A cap query written as "available means
- * uncommitted" therefore counts them, and data_model 4 puts that population
- * at roughly nine thousand rows per player over two years against a cap of
- * twenty. Measured on this schema during Task 3, not argued: eleven against
- * a correct five.
+ * TWO PREDICATES, AND NEITHER IMPLIES THE OTHER IN THE DIRECTION THAT
+ * MATTERS. `creatures` carries two kinds of dead row and they are different
+ * states, not two words for one:
  *
- * COMMITTED CREATURES DO COUNT, which is the other half and the one that
- * looks like the bug. A creature that is out fighting still occupies a
- * Hatchery slot - it comes back. Excluding it would let a player hold more
- * creatures than the cap by deploying some of them, and design 2.5 makes
- * `committed_to` the thing that stops a commitment from being spliced away,
- * not a thing that stops it from being owned.
+ *  - PRUNED is stripped - design 3.2's forty-byte tombstone. The prune NULLS
+ *    `committed_to`, so `committed_to IS NULL` is TRUE of every tombstone: a
+ *    cap query written as "available means uncommitted" counts them. Measured
+ *    on this schema during Task 3, not argued: eleven against a correct five.
+ *  - CONSUMED is dead but WHOLE - a parent some splice destroyed, kept intact
+ *    for five generations so the lineage view can render it (0005_loop.sql's
+ *    `consumed_at`). It is NOT pruned, so `NOT pruned` alone counts every one
+ *    of them, and they outnumber the tombstones for the first five
+ *    generations of every line.
  *
- * So the predicate is `NOT pruned` ALONE. It is spelled with the same words
- * 0005's partial indexes use, so a query that forgets it loses the index
- * rather than matching it.
+ * So the predicate is BOTH, it is spelled in exactly the words 0005's partial
+ * indexes use - so a query that forgets a half loses the index rather than
+ * matching it - and it lives here rather than being retyped at each call
+ * site, because a liveness predicate duplicated across three files is one
+ * that drifts in three directions.
+ *
+ * COMMITTED CREATURES ARE LIVE, which is the part that looks like the bug. A
+ * creature that is out fighting still occupies a Hatchery slot - it comes
+ * back. Excluding it would let a player hold more creatures than the cap by
+ * deploying some of them, and design 2.5 makes `committed_to` the thing that
+ * stops a commitment from being SPLICED AWAY, not a thing that stops it from
+ * being owned. Callers that need "live AND uncommitted" say so themselves.
  */
+export function liveCreature(): SQL {
+  return sql`NOT ${creatures.pruned} AND ${creatures.consumedAt} IS NULL`
+}
+
+/** Live creatures this player holds - the Hatchery cap's left-hand side. */
 export async function rosterCount(tx: Tx, serverId: number, playerId: string): Promise<number> {
   const [row] = await tx.select({ n: count() }).from(creatures)
     .where(and(
       eq(creatures.serverId, serverId),
       eq(creatures.playerId, playerId),
-      sql`NOT ${creatures.pruned}`,
+      liveCreature(),
     ))
   return Number(row?.n ?? 0)
+}
+
+/**
+ * Starting HP for a species - engine `Stats.CreatureHp`
+ * (engine/Runtime/Combat/Stats.cs), transcribed.
+ *
+ * A TRANSCRIPTION, OWNING NO DECISION, exactly as that file says of itself:
+ * the numbers come from `combat_numbers` 3 and a change here is a balance
+ * patch. It is mirrored on this side because `hp_current` is stored per
+ * creature (data_model 2) while the STAT is not (design 3.1: no stored
+ * stats), so every grant path needs the starting value and none of them can
+ * call into C#.
+ *
+ * THROWS for a species the table does not name, where the engine's own
+ * switch returns 0. Zero is a creature that is already dead, and
+ * live_creatures_are_whole would accept it happily - a splice minting a
+ * 0-HP child is a loss the player would report as theft, so this is the same
+ * refusal `rosterCap` makes for an unknown Hatchery tier.
+ */
+export function creatureHp(species: string): number {
+  const authored: Record<string, number> = {
+    Vetch: 260, Ember: 130, Skitter: 80, Hollow: 60, Loam: 190, Pale: 120,
+  }
+  const hp = authored[species]
+  if (hp === undefined) throw new Error(`no authored creature HP for species ${species}`)
+  return hp
 }
 
 /**
@@ -119,8 +164,10 @@ export async function rosterCount(tx: Tx, serverId: number, playerId: string): P
  * one would have to invent both of its slots.
  *
  * WHY NOT VETCH ALONE, which is what the first version of this shipped:
- * this function is the ONLY `insert(creatures)` in `src/`, and
- * `starter.json` grants currency only - so single-species base stock makes
+ * this function was the only `insert(creatures)` in `src/` when it was
+ * written (splice/commit.ts is now the second, and mints exactly one child
+ * from two rows this grants), and `starter.json` grants currency only - so
+ * single-species base stock makes
  * every obtainable creature a Vetch, and design 5.2's body choice (the
  * child takes EITHER parent's species) has no reachable input. A rule that
  * can only be exercised by hand-writing rows is a rule nothing tests.
@@ -145,8 +192,10 @@ export async function rosterCount(tx: Tx, serverId: number, playerId: string): P
  *   tier 1/2     - Tier I. Gen-1; `combat_numbers` 7 ties the coverage
  *                  ceiling to generation, and design 5.3 derives Tier I as
  *                  the floor coverage never drops below.
- *   hpCurrent    - engine `Stats.CreatureHp`, mirrored in
- *                  test/replay-format.ts's CREATURE_HP.
+ *   hpCurrent    - `creatureHp` above, which is the engine's
+ *                  `Stats.CreatureHp` transcribed; also mirrored in
+ *                  test/replay-format.ts's CREATURE_HP, which base-stock.test.ts
+ *                  pins these against.
  *
  * OWED, and marked the way `UNITS_PER_CREATURE` is: `base_stock` 4.2 weights
  * node-sourced species by REGION (30/30 for the region's two, 10 each for
@@ -158,9 +207,9 @@ export async function rosterCount(tx: Tx, serverId: number, playerId: string): P
  * supplies (tests/engine/Combat/GoldenTests.cs).
  */
 const BASE_STOCK_SPECIES = [
-  { species: 'Vetch', trait1: 'Taunt', trait2: 'Carapace', hpCurrent: 260 },
-  { species: 'Pale', trait1: 'Chill', trait2: 'Carapace', hpCurrent: 120 },
-  { species: 'Ember', trait1: 'Splash', trait2: 'Carapace', hpCurrent: 130 },
+  { species: 'Vetch', trait1: 'Taunt', trait2: 'Carapace', hpCurrent: creatureHp('Vetch') },
+  { species: 'Pale', trait1: 'Chill', trait2: 'Carapace', hpCurrent: creatureHp('Pale') },
+  { species: 'Ember', trait1: 'Splash', trait2: 'Carapace', hpCurrent: creatureHp('Ember') },
 ] as const
 
 export type BaseStockSpecies = (typeof BASE_STOCK_SPECIES)[number]

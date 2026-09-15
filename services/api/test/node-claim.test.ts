@@ -180,9 +180,21 @@ async function ledgerRowCount(who = () => playerId): Promise<number> {
   return rows.length
 }
 
+/**
+ * The live roster, written out by hand rather than through
+ * roster/creatures.ts's `liveCreature()`.
+ *
+ * Deliberate: a weakening that drops a half from the shipped predicate must
+ * not also move what these assertions mean. BOTH halves are here because
+ * `creatures` carries two kinds of dead row - stripped tombstones, and
+ * consumed parents that are whole and unpruned.
+ */
 async function rosterCount(who = () => playerId): Promise<number> {
   const rows = await withServer(deps.db, SERVER_ID, (tx) => tx.select().from(creatures)
-    .where(and(eq(creatures.playerId, who()), sql`NOT ${creatures.pruned}`)))
+    .where(and(
+      eq(creatures.playerId, who()),
+      sql`NOT ${creatures.pruned} AND ${creatures.consumedAt} IS NULL`,
+    )))
   return rows.length
 }
 
@@ -235,17 +247,28 @@ const LIVE_CREATURE = {
   instinct: 'Vanguard', hpCurrent: 260,
 }
 
+/** Any past instant. What matters is that it is not NULL. */
+const DEAD_AT = new Date('2026-09-01T00:00:00Z')
+
 async function addCreatures(
-  n: number, o: { pruned?: boolean; committed?: boolean } = {}, who = () => playerId,
+  n: number, o: { pruned?: boolean; committed?: boolean; consumed?: boolean } = {},
+  who = () => playerId,
 ): Promise<void> {
   if (n === 0) return
   await withServer(deps.db, SERVER_ID, (tx) => tx.insert(creatures).values(
     Array.from({ length: n }, () => (o.pruned === true
       // A born-pruned row - 0005_loop.sql allows it explicitly, and it is
       // the only way to manufacture a dead ancestor without first building
-      // a lineage to prune.
-      ? { serverId: SERVER_ID, playerId: who(), species: 'Vetch', generation: 1, pruned: true }
+      // a lineage to prune. `consumedAt` is part of the skeleton: a
+      // tombstone is a creature some splice destroyed, and
+      // pruned_creatures_are_consumed refuses one that claims never to have
+      // died.
+      ? {
+        serverId: SERVER_ID, playerId: who(), species: 'Vetch', generation: 1,
+        pruned: true, consumedAt: DEAD_AT,
+      }
       : {
+        consumedAt: o.consumed === true ? DEAD_AT : null,
         serverId: SERVER_ID, playerId: who(), ...LIVE_CREATURE,
         committedTo: o.committed === true ? randomUUID() : null,
       })),
@@ -429,6 +452,27 @@ describe('POST /v1/node/claim', () => {
     expect(res.status).toBe(200)
     const body = await res.json() as { shards: number; creatures: unknown[] }
     expect(body.shards).toBe(12 * RICH.ratePerHour)     // 720
+    expect(body.creatures.length).toBeGreaterThan(0)
+    expect(await rosterCount()).toBe(5 + body.creatures.length)
+  })
+
+  it('does not count CONSUMED parents against the Hatchery cap either', async () => {
+    // The other dead state, and the one `NOT pruned` alone does not exclude.
+    // A creature a splice destroyed keeps its row AND its whole payload -
+    // design 3.2 retains five generations of ancestors so the lineage view
+    // can render them - so it is indistinguishable from a live creature to
+    // any predicate that looks only at `pruned`. There are more of these
+    // than there are tombstones for the first five generations of every
+    // line.
+    await addCreatures(15, { consumed: true })
+    await addCreatures(5)
+    expect(await rosterCount()).toBe(5)
+
+    await setLastSettled(1, hoursAgo(12))
+    const res = await claim(1)
+
+    expect(res.status).toBe(200)
+    const body = await res.json() as { creatures: unknown[] }
     expect(body.creatures.length).toBeGreaterThan(0)
     expect(await rosterCount()).toBe(5 + body.creatures.length)
   })

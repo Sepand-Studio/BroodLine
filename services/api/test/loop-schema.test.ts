@@ -69,6 +69,18 @@ const insertCreature = (o: CreatureFields = {}, serverId = SERVER_A) =>
     ...o,
   }).returning())
 
+/** Any past instant. What matters throughout is that it is not NULL. */
+const DEAD_AT = new Date('2026-09-01T00:00:00Z')
+
+/** Marks a creature as destroyed by a splice - dead, but still WHOLE. */
+const consume = async (creatureId: string) => {
+  const res = await withServer(t.db, SERVER_A, (tx) => tx.execute(sql`
+    UPDATE creatures SET consumed_at = ${DEAD_AT}
+     WHERE server_id = ${SERVER_A} AND creature_id = ${creatureId}`))
+  expect(res.rowCount).toBe(1)
+  return creatureId
+}
+
 /**
  * design 3.2's prune, as amended: an UPDATE, not a DELETE. The row keeps its
  * id and its parent pointers and is stripped to
@@ -78,8 +90,14 @@ const insertCreature = (o: CreatureFields = {}, serverId = SERVER_A) =>
  * typed surface, because what is being pinned is that the SCHEMA tolerates
  * this exact statement - the NOT NULLs that used to sit on trait_1, trait_2,
  * instinct and hp_current would each reject it.
+ *
+ * CONSUMES FIRST, because a tombstone is a creature some splice destroyed
+ * and `pruned_creatures_are_consumed` refuses one that claims never to have
+ * died. That constraint has its own test below; here it is satisfied rather
+ * than exercised.
  */
 const prune = async (creatureId: string) => {
+  await consume(creatureId)
   const res = await withServer(t.db, SERVER_A, (tx) => tx.execute(sql`
     UPDATE creatures
        SET pruned = true,
@@ -229,7 +247,7 @@ describe('a pruned creature keeps its row - design 3.2, as amended', () => {
     // leaves every `NOT pruned` roster query while still holding a live
     // committed_to, so a garrison is held by a creature the roster cannot
     // show and the player cannot recall.
-    const [whole] = await insertCreature()
+    const [whole] = await insertCreature({ consumedAt: DEAD_AT })
     await expect(withServer(t.db, SERVER_A, (tx) => tx.execute(sql`
       UPDATE creatures SET pruned = true
        WHERE server_id = ${SERVER_A} AND creature_id = ${whole!.creatureId}`)))
@@ -237,7 +255,7 @@ describe('a pruned creature keeps its row - design 3.2, as amended', () => {
 
     // The near miss, which is the realistic shape of the bug: everything
     // stripped EXCEPT committed_to.
-    const [garrisoned] = await insertCreature({ committedTo: nextId() })
+    const [garrisoned] = await insertCreature({ committedTo: nextId(), consumedAt: DEAD_AT })
     await expect(withServer(t.db, SERVER_A, (tx) => tx.execute(sql`
       UPDATE creatures
          SET pruned = true, trait_1 = NULL, tier_1 = NULL, trait_2 = NULL,
@@ -245,6 +263,77 @@ describe('a pruned creature keeps its row - design 3.2, as amended', () => {
              regen_until = NULL
        WHERE server_id = ${SERVER_A} AND creature_id = ${garrisoned!.creatureId}`)))
       .rejects.toThrow(/pruned_creatures_are_stripped/)
+  })
+
+  it('refuses a tombstone that never died', async () => {
+    // pruned_creatures_are_consumed. Every prunable row is an ANCESTOR, and
+    // an ancestor is a creature some splice consumed - so a pruned row with
+    // consumed_at NULL is a tombstone for a creature that is, as far as any
+    // liveness predicate can tell, still alive. It is also what lets a
+    // roster query written as `consumed_at IS NULL` alone be correct in the
+    // safe direction: no tombstone can satisfy it.
+    const [alive] = await insertCreature()
+    await expect(withServer(t.db, SERVER_A, (tx) => tx.execute(sql`
+      UPDATE creatures
+         SET pruned = true, trait_1 = NULL, tier_1 = NULL, trait_2 = NULL,
+             tier_2 = NULL, instinct = NULL, name = NULL, hp_current = NULL,
+             regen_until = NULL, committed_to = NULL
+       WHERE server_id = ${SERVER_A} AND creature_id = ${alive!.creatureId}`)))
+      .rejects.toThrow(/pruned_creatures_are_consumed/)
+
+    // The positive control: the SAME statement succeeds once the row has
+    // died, so this constraint refuses the one thing it names rather than
+    // every prune.
+    await consume(alive!.creatureId)
+    await expect(prune(alive!.creatureId)).resolves.toBeDefined()
+  })
+
+  it('keeps a CONSUMED creature whole, and out of the roster indexes', async () => {
+    // THE THIRD STATE, and the one Task 7 had to add: a parent a splice
+    // destroyed is dead but NOT pruned. design 3.2 retains five generations
+    // of ancestors so bible 2.1's lineage view can render them, and
+    // splice_confirm_spec 5 makes "their traits live on in the pedigree" the
+    // lesson of the mechanic - so stripping at consumption would leave
+    // nothing to retain at any depth. And founders_are_never_pruned makes it
+    // unavoidable rather than merely tidier: without this column, consuming
+    // a Founder is a CHECK violation on a paid action.
+    const [spent] = await insertCreature()
+    await consume(spent!.creatureId)
+
+    const [row] = await withServer(t.db, SERVER_A, (tx) => tx.select().from(creatures)
+      .where(eq(creatures.creatureId, spent!.creatureId)))
+    expect(row?.pruned).toBe(false)
+    expect(row?.consumedAt).not.toBeNull()
+    expect(row?.trait1).toBe('chill')
+    expect(row?.instinct).toBe('forage')
+
+    // A FOUNDER can be consumed, which is the case the flag alone cannot
+    // express. splice_confirm_spec 4 considered forbidding it and rejected
+    // it - "it leaves five dead roster slots by month six".
+    const [founder] = await insertCreature({ name: 'Ossuary', isFounder: true })
+    await expect(consume(founder!.creatureId)).resolves.toBeDefined()
+    await expect(prune(founder!.creatureId)).rejects.toThrow(/founders_are_never_pruned/)
+  })
+
+  it('the liveness predicate must say consumed_at IS NULL as well as NOT pruned', async () => {
+    // THE SECOND HALF OF THE TRAP, demonstrated the way the first half is.
+    // A consumed parent satisfies `NOT pruned` - it is whole - so the
+    // predicate Task 5 shipped counts every dead ancestor for the first five
+    // generations of every line, which is a LARGER population than the
+    // tombstones. This is the direction no constraint can close, because a
+    // consumed row legitimately is not pruned.
+    const owner = playerA
+    const [doomed] = await insertCreature()
+    await consume(doomed!.creatureId)
+
+    const naive = await withServer(t.db, SERVER_A, (tx) => tx.select().from(creatures)
+      .where(sql`player_id = ${owner} AND NOT pruned`))
+    const correct = await withServer(t.db, SERVER_A, (tx) => tx.select().from(creatures)
+      .where(sql`player_id = ${owner} AND NOT pruned AND consumed_at IS NULL`))
+
+    expect(naive.some((c) => c.creatureId === doomed!.creatureId)).toBe(true)
+    expect(correct.some((c) => c.creatureId === doomed!.creatureId)).toBe(false)
+    expect(correct.length).toBeLessThan(naive.length)
   })
 
   it('permits a BORN-PRUNED skeleton, deliberately', async () => {
@@ -258,8 +347,16 @@ describe('a pruned creature keeps its row - design 3.2, as amended', () => {
     // test is the place the decision is written down.
     await expect(insertCreature({
       pruned: true, trait1: null, tier1: null, trait2: null, tier2: null,
-      instinct: null, name: null, hpCurrent: null,
+      instinct: null, name: null, hpCurrent: null, consumedAt: DEAD_AT,
     })).resolves.toBeDefined()
+
+    // WITHOUT consumed_at it is refused, which is the half Task 7 added: a
+    // merge re-inserting a pruned ancestor knows when it died and has to say
+    // so, rather than minting a tombstone that reads as never having lived.
+    await expect(insertCreature({
+      pruned: true, trait1: null, tier1: null, trait2: null, tier2: null,
+      instinct: null, name: null, hpCurrent: null,
+    })).rejects.toThrow(/pruned_creatures_are_consumed/)
   })
 
   it('refuses to prune a Founder', async () => {
@@ -279,7 +376,7 @@ describe('a pruned creature keeps its row - design 3.2, as amended', () => {
     expect(intact?.pruned).toBe(false)
   })
 
-  it('keeps both roster indexes partial on NOT pruned', async () => {
+  it('keeps both roster indexes partial on NOT pruned AND consumed_at IS NULL', async () => {
     // A CATALOG assertion, not an EXPLAIN one. This file previously recorded
     // that the index predicate could only be pinned by asserting on a query
     // plan - which would pin the planner rather than the schema - and that
@@ -300,8 +397,14 @@ describe('a pruned creature keeps its row - design 3.2, as amended', () => {
     // Both present first: a missing index contributes no row, and "every row
     // I found mentions NOT pruned" is vacuously true of no rows.
     expect([...defs.keys()]).toEqual(['creatures_available', 'creatures_by_player'])
-    for (const [name, def] of defs) expect(def, name).toMatch(/NOT pruned/)
-    // creatures_available carries BOTH halves of its predicate.
+    for (const [name, def] of defs) {
+      expect(def, name).toMatch(/NOT pruned/)
+      // The other dead state. A consumed parent is whole and unpruned, so an
+      // index partial on `NOT pruned` alone carries every ancestor of every
+      // line down to depth five.
+      expect(def, name).toMatch(/consumed_at IS NULL/)
+    }
+    // creatures_available carries ALL THREE halves of its predicate.
     expect(defs.get('creatures_available')).toMatch(/committed_to IS NULL/)
   })
 
@@ -423,6 +526,97 @@ describe('arks', () => {
       serverId: SERVER_A, playerId: acceptedPlayer, regionId: 'verdant-shelf', hatcheryTier: 1,
     }))).resolves.toBeDefined()
   })
+
+  it('refuses a Splicing Chamber tier no generation ceiling is authored for', async () => {
+    // The third instance of the same gap, closed by Task 7 because Task 7 is
+    // what put a pure function behind this column. splice/commit.ts's
+    // `maxGeneration` is combat_numbers 7's ladder - tiers 1-12, capping at
+    // G2/G4/G6/G9 - and throws rather than extrapolating. Without this CHECK
+    // an unauthored tier surfaces as a 500 from inside a PAID action, after
+    // two creatures have been chosen, instead of as a write refused here.
+    const refusedPlayer = await freshPlayer()
+    await expect(withServer(t.db, SERVER_A, (tx) => tx.insert(arks).values({
+      serverId: SERVER_A, playerId: refusedPlayer, regionId: 'verdant-shelf',
+      splicingChamberTier: 13,
+    }))).rejects.toThrow(/splicing_chamber_tier/)
+
+    // The positive control, and a non-default value: the ladder is
+    // contiguous, so this CHECK must admit every tier combat_numbers 7
+    // authors rather than only the 3 every Ark ships with.
+    const acceptedChamber = await freshPlayer()
+    await expect(withServer(t.db, SERVER_A, (tx) => tx.insert(arks).values({
+      serverId: SERVER_A, playerId: acceptedChamber, regionId: 'verdant-shelf',
+      splicingChamberTier: 9,
+    }))).resolves.toBeDefined()
+  })
+})
+
+describe('splices', () => {
+  /** Two parents and a child on one server - what a real splice writes. */
+  const trio = async (serverId = SERVER_A) => {
+    const [p1] = await insertCreature({}, serverId)
+    const [p2] = await insertCreature({}, serverId)
+    const [kid] = await insertCreature({}, serverId)
+    return { parentA: p1!.creatureId, parentB: p2!.creatureId, childId: kid!.creatureId }
+  }
+
+  const insertSplice = (o: Partial<typeof splices.$inferInsert>, serverId = SERVER_A) =>
+    withServer(t.db, serverId, (tx) => tx.insert(splices).values({
+      serverId,
+      spliceId: nextId(),
+      playerId: serverId === SERVER_A ? playerA : playerB,
+      seed: '1', mutated: false, aberrant: false,
+      ...o,
+    } as typeof splices.$inferInsert).returning())
+
+  it('refuses a splice naming a creature that does not exist', async () => {
+    // THE DECISION 0005 RECORDED AS OWED, taken by Task 7. The original
+    // justification - "the parents are gone by the time this row is
+    // committed" - was made false by the amended design 3.2: a consumed
+    // parent keeps its row, a pruned one keeps its row, and the child is
+    // written first. So all three ids name rows that exist and the keys are
+    // satisfiable.
+    const real = await trio()
+    for (const field of ['parentA', 'parentB', 'childId'] as const) {
+      await expect(insertSplice({ ...real, [field]: nextId() }), field)
+        .rejects.toThrow(/foreign key/)
+    }
+  })
+
+  it('refuses a splice whose parents live on another server', async () => {
+    // COMPOSITE, so a cross-server splice is unrepresentable rather than
+    // merely wrong - the same argument creatures' own parent keys make, and
+    // the reason solo_execution 4's re-keying merge can trust this table.
+    const mine = await trio(SERVER_A)
+    const [onB] = await insertCreature({}, SERVER_B)
+
+    await expect(insertSplice({ ...mine, parentA: onB!.creatureId }))
+      .rejects.toThrow(/foreign key/)
+  })
+
+  it('accepts a splice over three real creatures - the positive control', async () => {
+    // Without this the two tests above are satisfied by keys that reject
+    // EVERY splice, and "a cross-server splice is unrepresentable" would be
+    // indistinguishable from "a splice is unrepresentable".
+    await expect(insertSplice(await trio())).resolves.toBeDefined()
+  })
+
+  it('refuses a splice of a creature with itself', async () => {
+    // routes/splice.ts refuses parentA === parentB at the parse layer on
+    // both splice routes; splice_parents_differ is the same rule where a
+    // handler cannot forget it.
+    const real = await trio()
+    await expect(insertSplice({ ...real, parentB: real.parentA }))
+      .rejects.toThrow(/splice_parents_differ/)
+  })
+
+  it('refuses a negative seed', async () => {
+    // bigint is signed and the roll's seed is not - the same CHECK 0003 puts
+    // on wave_issuances, and for the same reason: a sign-flip re-derives a
+    // DIFFERENT roll from a row that looks intact.
+    await expect(insertSplice({ ...await trio(), seed: '-1' }))
+      .rejects.toThrow(/seed_non_negative/)
+  })
 })
 
 describe('row-level security on the five new tables', () => {
@@ -473,12 +667,21 @@ describe('row-level security on the five new tables', () => {
       serverId: s, playerId: s === SERVER_A ? playerA : playerB, regionId: 'verdant-shelf',
       nodeSlot: 1, epoch: 1, lastSettledAt: new Date(),
     })))
-    await t.ownerDb.insert(splices).values([SERVER_A, SERVER_B].map((s) => ({
-      serverId: s, spliceId: `dddddddd-0000-0000-0000-00000000000${s}`,
-      playerId: s === SERVER_A ? playerA : playerB,
-      parentA: nextId(), parentB: nextId(), childId: nextId(),
-      seed: String(s), mutated: false, aberrant: false,
-    })))
+    // REAL creature ids, not invented ones: Task 7 added the composite
+    // foreign keys 0005 recorded as owed, so a splice naming three ids that
+    // are not creatures is now refused - and this test would fail for a
+    // reason that has nothing to do with RLS.
+    for (const s of [SERVER_A, SERVER_B]) {
+      const [p1] = await insertCreature({}, s)
+      const [p2] = await insertCreature({}, s)
+      const [kid] = await insertCreature({}, s)
+      await t.ownerDb.insert(splices).values({
+        serverId: s, spliceId: `dddddddd-0000-0000-0000-00000000000${s}`,
+        playerId: s === SERVER_A ? playerA : playerB,
+        parentA: p1!.creatureId, parentB: p2!.creatureId, childId: kid!.creatureId,
+        seed: String(s), mutated: false, aberrant: false,
+      })
+    }
 
     const seen = await withServer(t.db, SERVER_A, async (tx) => ({
       creatures: await tx.select().from(creatures),

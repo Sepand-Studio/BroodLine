@@ -90,6 +90,7 @@ interface NewCreature {
   instinct?: string
   owner?: string
   pruned?: boolean
+  consumed?: boolean
 }
 
 /**
@@ -112,6 +113,11 @@ async function give(c: NewCreature): Promise<string> {
     instinct: c.instinct ?? 'Vanguard',
     hpCurrent: 260,
     isFounder: false,
+    // A creature a splice destroyed: dead, but WHOLE. Pruning is a further
+    // state, below - 0005's pruned_creatures_are_consumed makes every
+    // tombstone a consumed row too, so a pruned fixture carries both.
+    consumedAt: c.consumed === true || c.pruned === true
+      ? new Date('2026-09-01T00:00:00Z') : null,
   }).returning()
   const id = row!.creatureId
   if (c.pruned === true) {
@@ -239,6 +245,19 @@ describe('POST /v1/splice/preview', () => {
     const ancestor = await give({ ...PALE, pruned: true })
 
     const res = await preview({ parentA: a, parentB: ancestor, locked: LOCK_A1 })
+    expect(res.status).toBe(404)
+  })
+
+  it('refuses a CONSUMED parent - the state `NOT pruned` does not exclude', async () => {
+    // A creature an earlier splice destroyed keeps every trait it had
+    // (design §3.2 retains it so the lineage can render it), so a liveness
+    // predicate written as `NOT pruned` alone forecasts against it happily -
+    // and the commit route would then splice it a second time. The pruned
+    // case above cannot catch this: these rows are not pruned.
+    const a = await give(VETCH)
+    const spent = await give({ ...PALE, consumed: true })
+
+    const res = await preview({ parentA: a, parentB: spent, locked: LOCK_A1 })
     expect(res.status).toBe(404)
   })
 

@@ -18,6 +18,18 @@
 -- data_model 4's nine-thousand-rows-per-player problem would have gone
 -- unsolved while looking solved. Measured, not argued, before the ruling.
 --
+-- AMENDED AGAIN BY TASK 7, and for a collision the first amendment left
+-- standing: PRUNED IS NOT THE SAME STATE AS CONSUMED, and this table had a
+-- marker for only one of them. A splice destroys two parents; design 3.2
+-- then retains them - WHOLE - for five generations so bible 2.1's lineage
+-- view can render them. Stripping them at consumption makes every ancestor a
+-- tombstone at depth one, leaves the prune with nothing to do at any depth,
+-- and makes splicing a FOUNDER a founders_are_never_pruned violation on a
+-- paid action - which splice_confirm_spec 4 explicitly declines to forbid.
+-- Leaving them unmarked instead puts every dead ancestor back on the roster
+-- and inside the Hatchery cap. `consumed_at` is the third state; see its
+-- column comment.
+--
 -- Resolved by removing the second table rather than by weakening the keys.
 -- Pruning is an UPDATE: it nulls a creature down to
 -- {species, generation, is_founder} and sets `pruned`. The keys stay
@@ -72,6 +84,36 @@ CREATE TABLE IF NOT EXISTS creatures (
   regen_until    timestamptz,
   committed_to   uuid,
   acquired_at    timestamptz NOT NULL DEFAULT now(),
+  -- THE MOMENT A SPLICE DESTROYED THIS CREATURE, or NULL while it is alive.
+  -- Added by Task 7, and it is a third state this table did not have.
+  --
+  -- CONSUMED IS NOT PRUNED, and conflating them breaks three things at once.
+  -- `pruned` means STRIPPED - the forty-byte tombstone below. A consumed
+  -- parent is dead but WHOLE: design 3.2 retains ancestors five generations
+  -- deep precisely so bible 2.1's lineage view can render them, and
+  -- splice_confirm_spec 5 makes "the consumed parents appearing in the tree
+  -- immediately after" the FTUE's lesson - "their traits live on in the
+  -- pedigree". Strip them at consumption and there is nothing left to
+  -- retain, no depth at which pruning changes anything, and data_model 4's
+  -- "retained ancestors ~300" names a population that never exists.
+  --
+  -- founders_are_never_pruned is the half that makes it unarguable rather
+  -- than merely wrong: a consumed Founder cannot be marked pruned AT ALL, so
+  -- with only `pruned` to say "gone", splicing a Founder is a CHECK
+  -- violation on a paid action. splice_confirm_spec 4 considered blocking
+  -- Founder consumption and REJECTED it - "it leaves five dead roster slots
+  -- by month six" - and specifies the second, never-suppressible dialog
+  -- instead.
+  --
+  -- And leaving a consumed parent unmarked is worse than either: roster
+  -- reads are `NOT pruned` (roster/creatures.ts rosterCount), so every dead
+  -- ancestor would count against the Hatchery's cap of twenty and a player
+  -- would be locked out of base stock after ~17 splices.
+  --
+  -- NOT stripped by the prune (it is absent from
+  -- pruned_creatures_are_stripped below, deliberately): it is the liveness
+  -- marker, and a tombstone is the most dead a row gets.
+  consumed_at    timestamptz,
   -- design 3.2's tombstone, in place. A pruned row keeps its identity
   -- (server_id, creature_id), its parent pointers, and the three fields a
   -- lineage view renders - "an unnamed Gen-4 Vetch" - and nothing else.
@@ -137,6 +179,22 @@ CREATE TABLE IF NOT EXISTS creatures (
                    AND tier_2 IS NULL AND instinct IS NULL AND name IS NULL
                    AND hp_current IS NULL AND regen_until IS NULL
                    AND committed_to IS NULL)),
+  -- A TOMBSTONE IS DEAD, and this is what lets a query that forgets one of
+  -- the two liveness predicates still be correct in the safe direction.
+  -- Every prunable row is an ancestor, and an ancestor is a creature some
+  -- splice consumed - so `consumed_at IS NULL` alone already excludes every
+  -- pruned row, and a roster read that says only that cannot resurrect one.
+  -- (The dangerous direction is the other one, and no constraint can close
+  -- it: a CONSUMED row is not pruned, so `NOT pruned` alone still counts
+  -- dead parents. roster/creatures.ts's `liveCreature()` is the one
+  -- predicate both halves are written in, for that reason.)
+  --
+  -- It also puts the born-pruned skeleton on the record correctly: a server
+  -- merge re-inserting a pruned ancestor must say when it died, which it
+  -- knows, rather than minting a tombstone that reads as never having
+  -- lived.
+  CONSTRAINT pruned_creatures_are_consumed CHECK (
+    NOT pruned OR consumed_at IS NOT NULL),
 
   FOREIGN KEY (server_id, player_id) REFERENCES players (server_id, player_id),
 
@@ -192,10 +250,22 @@ CREATE TABLE IF NOT EXISTS creatures (
 -- pruned` asserts exactly that. The overstatement is recorded in the task
 -- report rather than quietly corrected, on the same principle that put the
 -- previous one there.
+--
+-- BOTH PREDICATES GREW `consumed_at IS NULL` IN TASK 7, and it is the same
+-- argument one state further on. A consumed parent is dead but NOT pruned -
+-- it keeps its traits so the lineage view can render it (see consumed_at
+-- above) - so it satisfies `NOT pruned` and would sit in both indexes and in
+-- every roster query built on them. That population is larger than the
+-- pruned one for the first five generations of every line, and it is the one
+-- that would count against the Hatchery cap while looking alive.
+--
+-- Spelled here in exactly the words roster/creatures.ts's `liveCreature()`
+-- emits, so a query that forgets a half loses the index rather than matching
+-- it.
 CREATE INDEX IF NOT EXISTS creatures_by_player ON creatures (server_id, player_id, acquired_at)
-  WHERE NOT pruned;
+  WHERE NOT pruned AND consumed_at IS NULL;
 CREATE INDEX IF NOT EXISTS creatures_available ON creatures (server_id, player_id)
-  WHERE committed_to IS NULL AND NOT pruned;
+  WHERE committed_to IS NULL AND NOT pruned AND consumed_at IS NULL;
 
 -- NO creature_tombstones TABLE, and no creature_id_never_reused trigger.
 -- Both were in this file and both are gone - see the header. The tombstone
@@ -260,6 +330,22 @@ CREATE TABLE IF NOT EXISTS arks (
   -- with rosterCap's table - the two must name the same set, exactly as
   -- harvest_array_tier and the two multiplier tables do.
   CONSTRAINT hatchery_tier_authored CHECK (hatchery_tier = 1),
+  -- THE THIRD INSTANCE of the same gap, closed by Task 7 because Task 7 is
+  -- what put a pure function behind this column. splice/commit.ts's
+  -- `maxGeneration` is a lookup against combat_numbers 7's authored table -
+  -- tiers 1-12, capping at G2/G4/G6/G9 - and throws rather than extrapolating
+  -- a generation ceiling nobody wrote down. A ceiling decides whether a
+  -- SPLICE IS REFUSED after two creatures have been chosen, so a guessed one
+  -- is a refusal nobody authored; and without this CHECK an unauthored tier
+  -- in the column surfaces as a 500 from inside a paid action instead of as
+  -- a write refused at the source.
+  --
+  -- A RANGE rather than the `IN (...)` its two neighbours use, because
+  -- combat_numbers 7 authors a contiguous ladder rather than a set of
+  -- calibration points. WIDEN IT in step with `maxGeneration`'s table, the
+  -- way harvest_array_tier and the two multiplier tables already move
+  -- together.
+  CONSTRAINT splicing_chamber_tier_authored CHECK (splicing_chamber_tier BETWEEN 1 AND 12),
   FOREIGN KEY (server_id, player_id) REFERENCES players (server_id, player_id)
 );
 
@@ -304,18 +390,30 @@ CREATE TABLE IF NOT EXISTS splices (
   server_id   integer NOT NULL,
   splice_id   uuid    NOT NULL DEFAULT gen_random_uuid(),
   player_id   uuid    NOT NULL,
-  -- NO foreign key on parent_a/parent_b/child_id - and the reason is no
-  -- longer the one this comment first gave. That reason was "the splice
-  -- consumes both parents, so those rows are gone by the time this one is
-  -- committed", which the amended design 3.2 makes FALSE: a consumed parent
-  -- is pruned, not deleted, so all three ids now name rows that still exist
-  -- and composite FKs here WOULD be satisfiable and would make a
-  -- cross-server splice unrepresentable, exactly as they do on creatures.
+  -- THE OWED DECISION, TAKEN. This comment used to say there were no keys
+  -- here because "the splice consumes both parents, so those rows are gone
+  -- by the time this one is committed" - which the amended design 3.2 made
+  -- false, and which Task 3 then re-recorded as owed to whoever wrote the
+  -- splice path rather than leaving a stale justification standing.
   --
-  -- Left unadded because Task 7 owns the splice write path and adding them
-  -- constrains its statement order; recorded as OWED rather than settled, so
-  -- the next writer decides it deliberately instead of inheriting a stale
-  -- justification.
+  -- Task 7 is that writer, and the keys go in. All three ids name rows that
+  -- still exist: a consumed parent keeps its row (consumed_at above), a
+  -- pruned one keeps its row, and the child is inserted in this same
+  -- transaction BEFORE this row. So the keys are satisfiable, and they make
+  -- a splice whose parents or child live on ANOTHER SERVER unrepresentable
+  -- rather than merely wrong - the same argument creatures' parent keys
+  -- make, and the reason solo_execution 4's re-keying merge can trust this
+  -- table at all.
+  --
+  -- The cost is the one Task 3 named: they constrain this task's statement
+  -- order. That is a cost worth paying rather than avoiding - the order they
+  -- force (child first, then the record OF the child) is the order the
+  -- record's own meaning requires, and commit.ts states it as load-bearing.
+  --
+  -- NO ACTION, like creatures': a creature named by a splice record cannot
+  -- be deleted. Nothing deletes creatures (there is no DELETE grant below),
+  -- so this constrains nothing today and refuses the one statement that
+  -- would orphan the audit trail for a paid action.
   parent_a    uuid    NOT NULL,
   parent_b    uuid    NOT NULL,
   child_id    uuid    NOT NULL,
@@ -330,7 +428,14 @@ CREATE TABLE IF NOT EXISTS splices (
   created_at  timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (server_id, splice_id),
   CONSTRAINT seed_non_negative CHECK (seed >= 0),
-  FOREIGN KEY (server_id, player_id) REFERENCES players (server_id, player_id)
+  -- A splice consumes two DIFFERENT creatures. routes/splice.ts refuses
+  -- parentA === parentB at the parse layer on both splice routes; this is
+  -- the same rule where a handler cannot forget it.
+  CONSTRAINT splice_parents_differ CHECK (parent_a <> parent_b),
+  FOREIGN KEY (server_id, player_id) REFERENCES players (server_id, player_id),
+  FOREIGN KEY (server_id, parent_a) REFERENCES creatures (server_id, creature_id),
+  FOREIGN KEY (server_id, parent_b) REFERENCES creatures (server_id, creature_id),
+  FOREIGN KEY (server_id, child_id) REFERENCES creatures (server_id, creature_id)
 );
 CREATE INDEX IF NOT EXISTS splices_by_player ON splices (server_id, player_id, created_at);
 
