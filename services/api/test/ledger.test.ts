@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { withServer } from '../src/db/client.ts'
-import { InsufficientFundsError, credit } from '../src/money/ledger.ts'
+import { InsufficientFundsError, credit, debit } from '../src/money/ledger.ts'
 import { findDrift } from '../src/money/invariant.ts'
 import { accounts, ledger, players, servers, wallets } from '../src/db/schema.ts'
 import { startTestDb, type TestDb } from './harness.ts'
@@ -55,16 +55,79 @@ describe('credit', () => {
     expect(w!.version).toBe(1)
   })
 
+  it('refuses a negative delta outright - a debit is a different statement', async () => {
+    // THIS TEST USED TO PASS FOR THE WRONG REASON, and Task 7 is what found
+    // it. It called credit() with delta -1000 against a wallet holding 15 and
+    // asserted InsufficientFundsError - which arrived, and NOT because the
+    // wallet was short.
+    //
+    // credit()'s statement is INSERT ... ON CONFLICT DO UPDATE, and Postgres
+    // evaluates a table's CHECK constraints against the PROPOSED INSERT TUPLE
+    // before probing for the conflict. The proposed tuple carries
+    // `balance = -1000`, so wallets_balance_check fires whatever the real
+    // balance is. Measured directly: Task 7's first splice raised
+    // "Insufficient splice_charges" against a wallet holding three.
+    //
+    // No caller before that task had ever passed a negative delta - every one
+    // is a grant or a reward - so the trap sat here unsprung, with a green
+    // test standing over it.
+    await expect(
+      withServer(t.db, S, (tx) =>
+        credit(tx, { serverId: S, playerId: player, currency: 'marks', delta: -1, reasonCode: 'OVERDRAW' })),
+    ).rejects.toThrow(/use debit/)
+  })
+})
+
+describe('debit', () => {
+  it('spends from an existing wallet and writes its ledger row', async () => {
+    // The positive control the old overdraw test never had: a debit a wallet
+    // CAN afford must succeed. Without this, "debit refuses" is
+    // indistinguishable from "debit refuses everything", which is exactly the
+    // state credit() was in.
+    await withServer(t.db, S, (tx) =>
+      credit(tx, { serverId: S, playerId: player, currency: 'premium', delta: 5, reasonCode: 'SEED' }))
+
+    const after = await withServer(t.db, S, (tx) =>
+      debit(tx, { serverId: S, playerId: player, currency: 'premium', delta: -2, reasonCode: 'SPEND' }))
+
+    expect(after).toBe(3)
+    const [row] = await withServer(t.db, S, (tx) =>
+      tx.select().from(ledger).where(and(eq(ledger.playerId, player), eq(ledger.reasonCode, 'SPEND'))))
+    expect(row!.delta).toBe(-2)
+    expect(row!.balanceAfter).toBe(3)
+  })
+
   it('refuses to overdraw, and leaves nothing behind', async () => {
     await expect(
       withServer(t.db, S, (tx) =>
-        credit(tx, { serverId: S, playerId: player, currency: 'marks', delta: -1000, reasonCode: 'OVERDRAW' })),
+        debit(tx, { serverId: S, playerId: player, currency: 'marks', delta: -1000, reasonCode: 'OVERDRAW' })),
     ).rejects.toBeInstanceOf(InsufficientFundsError)
 
     // The whole transaction rolled back, so no orphan ledger row survives.
     const orphans = await withServer(t.db, S, (tx) =>
       tx.select().from(ledger).where(eq(ledger.reasonCode, 'OVERDRAW')))
     expect(orphans).toEqual([])
+  })
+
+  it('refuses a currency the player has no wallet for', async () => {
+    // No row is exactly zero, and creating a wallet in order to overdraw it
+    // would be a stranger thing to do than refusing. Distinct from the
+    // overdraw case above, which has a row.
+    await expect(
+      withServer(t.db, S, (tx) =>
+        debit(tx, { serverId: S, playerId: player, currency: 'splice_charges', delta: -1, reasonCode: 'NOWALLET' })),
+    ).rejects.toBeInstanceOf(InsufficientFundsError)
+
+    const orphans = await withServer(t.db, S, (tx) =>
+      tx.select().from(ledger).where(eq(ledger.reasonCode, 'NOWALLET')))
+    expect(orphans).toEqual([])
+  })
+
+  it('refuses a positive delta - that is a credit, and naming it matters', async () => {
+    await expect(
+      withServer(t.db, S, (tx) =>
+        debit(tx, { serverId: S, playerId: player, currency: 'marks', delta: 5, reasonCode: 'WRONG' })),
+    ).rejects.toThrow(/use credit/)
   })
 })
 
