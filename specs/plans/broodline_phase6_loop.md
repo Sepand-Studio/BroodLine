@@ -232,7 +232,34 @@ six deep is never displayed and never needs to exist.
 attaches a dead creature's lineage to a living one, and that is a bug that gets
 reported as a ghost.
 
-> **Amended during execution — a pruned creature keeps its row.** This section
+> **Amended twice during execution. First: consumption is not pruning.** This
+> section, and the plan built from it, treated a spliced-away parent as pruned.
+> It is not, and Task 7 found three reasons the conflation fails — the third
+> fatal:
+>
+> 1. **It defeats this section's own rule.** Pruning at consumption tombstones
+>    every ancestor at depth 1, so "retain ancestors five generations deep"
+>    protects nothing and the prune itself becomes dead code.
+> 2. **It forbids what `splice_confirm_spec` §4 deliberately allows.** Founders
+>    are never pruned, so a consumed-means-pruned rule makes splicing a Founder a
+>    constraint violation — and §4 explicitly considered forbidding Founder
+>    consumption and **rejected** it, because blocking it leaves five dead roster
+>    slots by month six.
+> 3. **It locks the player out.** An unmarked consumed parent still counts inside
+>    the Hatchery cap. From a starting roster, the cap binds after roughly
+>    seventeen splices and base stock stops arriving.
+>
+> **Resolved: a creature has three states, not two.** *Live* — on the roster,
+> deployable, counted against the cap. *Consumed* (`consumed_at`) — destroyed by
+> a splice, off the roster and out of the cap, but its lineage record **whole**,
+> which is what `splice_confirm_spec` §5 needs when the consumed parents appear
+> in the tree immediately after the splice. *Pruned* — past the retained depth,
+> stripped to a skeleton. Deriving "consumed" from the `splices` table instead
+> was considered and is unavailable: index predicates cannot carry subqueries, so
+> both partial roster indexes become inexpressible and the hot cap query degrades
+> to a semi-join.
+
+> **Second: a pruned creature keeps its row.** This section
 > originally put tombstones in a second table, `creature_tombstones`, and kept
 > composite foreign keys from `creatures.parent_a`/`parent_b` back onto
 > `creatures`. **Those two decisions are mutually exclusive and the design did not
