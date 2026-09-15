@@ -334,3 +334,126 @@ describe('sampleSplice', () => {
     }
   })
 })
+
+/**
+ * THE SEED TO OUTCOME MAP - golden vectors.
+ *
+ * splice/distribution.ts's `uniforms` calls its channel layout and its hashed
+ * text FILE FORMAT, because Task 7 stores a seed on every `splices` row so a
+ * disputed splice can be re-derived (design §5.1). Until this block existed
+ * NOTHING TESTED THAT CLAIM: reordering the four digest words, or hashing
+ * `seed + 1` instead of `seed`, left all nineteen tests GREEN - measured,
+ * not supposed. Every splice already recorded would then re-derive to a
+ * different outcome, the stored seed would prove nothing, and the audit trail
+ * would be void with no test reddening at any point.
+ *
+ * That is the distinction row h in the report draws from the other side:
+ * one-function-two-callers guarantees the forecast and the roll AGREE. It
+ * does not pin WHICH outcome a seed selects, and agreement with a moved map
+ * is still agreement.
+ *
+ * SO THESE NUMBERS ARE THE CONTRACT. If a change here is deliberate, it is
+ * not a test to update - it is a migration, because every seed already on
+ * disk means something different afterwards.
+ */
+describe('the seed to outcome map', () => {
+  /**
+   * A PROBE distribution rather than a real forecast, and it is built to be
+   * maximally sensitive to which digest word feeds which channel:
+   *
+   *  - four equal combat outcomes and four equal Instincts, so each channel
+   *    reads off the top two bits of its own word rather than a rare tail;
+   *  - `mutation` and `aberrant` at 0.5, because at the real 0.09/0.05 a
+   *    transposed word almost never flips either boolean, and a vector that
+   *    cannot change is a vector that pins nothing.
+   *
+   * The tiers deliberately include `null` - an Aberrant carried forward -
+   * so the map is pinned over the full shape of an outcome.
+   */
+  const PROBE: Distribution = {
+    combat2: [
+      { trait: 'Q0', tier: 1, p: 0.25 },
+      { trait: 'Q1', tier: 2, p: 0.25 },
+      { trait: 'Q2', tier: 3, p: 0.25 },
+      { trait: 'Q3', tier: null, p: 0.25 },
+    ],
+    instinct: [
+      { instinct: 'R0', p: 0.25 }, { instinct: 'R1', p: 0.25 },
+      { instinct: 'R2', p: 0.25 }, { instinct: 'R3', p: 0.25 },
+    ],
+    mutation: 0.5,
+    aberrant: 0.5,
+  }
+
+  /**
+   * The seeds are CHOSEN FOR COVERAGE, not taken in order: between them they
+   * reach all four combat quartiles, all four Instincts, and all three
+   * mutation states - clean, mutated-only, and Aberrant. Without the Aberrant
+   * vector (seed 3) a sampler that returned `aberrant: false` unconditionally
+   * would satisfy every other row here. `2n ** 64n - 1n` is the largest seed
+   * a `ulong` can carry into `splices.seed`.
+   */
+  const VECTORS: Array<[bigint, { trait: string; tier: number | null }, string, boolean, boolean]> = [
+    [0n, { trait: 'Q1', tier: 2 }, 'R3', false, false],
+    [1n, { trait: 'Q1', tier: 2 }, 'R2', true, false],
+    [2n, { trait: 'Q3', tier: null }, 'R3', true, false],
+    [3n, { trait: 'Q1', tier: 2 }, 'R1', true, true],
+    [4n, { trait: 'Q1', tier: 2 }, 'R0', false, false],
+    [8n, { trait: 'Q0', tier: 1 }, 'R0', true, false],
+    [14n, { trait: 'Q2', tier: 3 }, 'R1', false, false],
+    [18_446_744_073_709_551_615n, { trait: 'Q0', tier: 1 }, 'R0', false, false],
+  ]
+
+  it.each(VECTORS)('maps seed %s to exactly one outcome, permanently', (seed, combat2, instinct, mutated, aberrant) => {
+    expect(sampleSplice(PROBE, seed)).toEqual({ combat2, instinct, mutated, aberrant })
+  })
+
+  it('covers every channel value, so no vector can be satisfied by a constant', () => {
+    // A guard on the TABLE rather than on the code: if someone trims these
+    // vectors, this says what the trimmed set stopped covering. Without it,
+    // a table that had lost its only Aberrant row would still look thorough.
+    expect(new Set(VECTORS.map((v) => v[1].trait)).size).toBe(PROBE.combat2.length)
+    expect(new Set(VECTORS.map((v) => v[2])).size).toBe(PROBE.instinct.length)
+    expect(VECTORS.some((v) => v[3] && v[4])).toBe(true)    // an Aberrant
+    expect(VECTORS.some((v) => v[3] && !v[4])).toBe(true)   // mutated, not Aberrant
+    expect(VECTORS.some((v) => !v[3])).toBe(true)           // neither
+  })
+
+  /**
+   * And through the REAL thing, end to end: the bundle's dominance flags, the
+   * merge, the first-appearance ORDER of the merged array - which
+   * distribution.ts also calls file format, for the same reason - and the
+   * sampler on top of it. Seeds 0 and 2 select different entries of a
+   * three-outcome forecast whose first and third entries are the same trait
+   * at different tiers, so a reordering of the merge moves them.
+   *
+   * IF THIS FAILS AND THE VECTORS ABOVE DO NOT, the map is intact and the
+   * CONTENT moved: check `the dominance table this file is pinned against`
+   * at the top of this file first. That is a real event - the four flags are
+   * provisional and owed to `combat_numbers` §4 - and it is worth knowing
+   * that ratifying them re-derives every splice already recorded.
+   */
+  it('maps a seed through the real forecast, merge order and all', () => {
+    const a = parent('Vetch')                                     // Taunt I, Carapace I
+    const b = parent('Pale', { trait2: 'Carapace', tier2: 3, instinct: 'Bloodscent' })
+    const d = spliceDistribution(a, b, LOCK_A1, BUNDLE)
+
+    expect(d.combat2).toEqual([
+      { trait: 'Carapace', tier: 1, p: 1 / 3 },
+      { trait: 'Chill', tier: 1, p: 1 / 3 },
+      { trait: 'Carapace', tier: 2, p: 1 / 3 },
+    ])
+    expect(sampleSplice(d, 0n)).toEqual({
+      combat2: { trait: 'Chill', tier: 1 }, instinct: 'Bloodscent',
+      mutated: false, aberrant: false,
+    })
+    expect(sampleSplice(d, 2n)).toEqual({
+      combat2: { trait: 'Carapace', tier: 2 }, instinct: 'Bloodscent',
+      mutated: true, aberrant: false,
+    })
+    expect(sampleSplice(d, 14n)).toEqual({
+      combat2: { trait: 'Chill', tier: 1 }, instinct: 'Vanguard',
+      mutated: false, aberrant: false,
+    })
+  })
+})
