@@ -37,7 +37,7 @@ the done-when is unreachable — §2.2.
 
 | | In scope | Deferred |
 |---|---|---|
-| **Schema** | `creatures`, `creature_tombstones`, `arks`, `node_depletion`, `harvest_positions`, `splices` | Convoys, alliances, stakes, sample stacks |
+| **Schema** | `creatures` (live and pruned), `arks`, `node_depletion`, `harvest_positions`, `splices` | Convoys, alliances, stakes, sample stacks |
 | **Routes** | A deployment on `wave/start`; `region/state`, `node/claim`, `splice/preview`, `splice/commit` | Relocation, retirement, fusing, the Transit Board |
 | **Contract** | `SimulateEcho` gains the deployment. Additive, `api` → `sim` direction only | Nothing on the Unity → `api` direction beyond the routes below |
 | **Engine** | Traits up from one, the raiders their counters answer, a second authored wave | The remaining raiders, Aberrant traits, region defence |
@@ -230,8 +230,26 @@ six deep is never displayed and never needs to exist.
 
 **Creature ids are never reused, including for pruned records.** A reused id
 attaches a dead creature's lineage to a living one, and that is a bug that gets
-reported as a ghost. The id space is therefore allocated, never recycled, and
-`creature_tombstones` holds the pruned rows at about forty bytes each.
+reported as a ghost.
+
+> **Amended during execution — a pruned creature keeps its row.** This section
+> originally put tombstones in a second table, `creature_tombstones`, and kept
+> composite foreign keys from `creatures.parent_a`/`parent_b` back onto
+> `creatures`. **Those two decisions are mutually exclusive and the design did not
+> notice.** Every ancestor is referenced by its own child, the parent keys are
+> `NO ACTION`, so `DELETE` on any prunable row violates its own child's key — the
+> prune could delete nothing, and `data_model` §4's nine-thousand-rows problem
+> would have gone unsolved while looking solved.
+>
+> **Resolved: there is no second table.** Pruning nulls a creature down to
+> `{species, generation, is_founder}` and sets a `pruned` flag. The parent keys
+> stay declarative and planner-enforced, the lineage view still resolves through
+> them to a row that really exists, and **id reuse becomes impossible by
+> construction** — the row never goes away — which retires the trigger that was
+> guarding it. `data_model` §4's storage argument is unaffected: it already
+> expects tombstones to persist and grow at about forty bytes each, and a
+> stripped row is that. Its "~300 records" line counts live creatures and
+> retained ancestors, which this does not change.
 
 Pruning runs on the splice path, where the depth changes, rather than as a
 sweep — the same reasoning as §2.3, applied to a different problem: work that
