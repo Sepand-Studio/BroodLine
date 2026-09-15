@@ -234,7 +234,7 @@ describe('POST /v1/splice/commit', () => {
     expect(res.status).toBe(200)
     const body = await res.json() as {
       child: { creatureId: string; generation: number; species: string; isFounder: boolean; name: string | null }
-      spliceId: string; seed: string; mutated: boolean; aberrant: boolean; balance: number
+      spliceId: string; seed: string; balance: number
     }
 
     // The parents are gone FROM THE ROSTER.
@@ -263,8 +263,10 @@ describe('POST /v1/splice/commit', () => {
     expect(rows).toHaveLength(1)
     expect(rows[0]).toMatchObject({
       spliceId: body.spliceId, parentA: a, parentB: b, childId: body.child.creatureId,
-      mutated: body.mutated, aberrant: body.aberrant,
     })
+    // The roll is RECORDED even though it is not reported - see the next test.
+    expect(typeof rows[0]?.mutated).toBe('boolean')
+    expect(typeof rows[0]?.aberrant).toBe('boolean')
   })
 
   it('leaves the consumed parents WHOLE, so the lineage can still render them', async () => {
@@ -316,7 +318,7 @@ describe('POST /v1/splice/commit', () => {
     const res = await commit({ parentA: a, parentB: b, locked: LOCK_A1, bodyFrom: 'Pale' })
     const body = await res.json() as {
       child: { trait2: string; tier2: number | null; instinct: string }
-      seed: string; mutated: boolean; aberrant: boolean
+      seed: string
     }
 
     const [row] = await spliceRows()
@@ -681,6 +683,32 @@ describe('POST /v1/splice/commit', () => {
 
     expect(res.status).toBe(400)
     await nothingConsumed(a, b)
+  })
+
+  it('stores the mutation roll but does NOT report it', async () => {
+    // design §10 defers Aberrant traits out of this phase, so a mutation has
+    // nothing to produce and the child is identical whichever way the roll
+    // lands. Reporting `mutated: true` for an event with no effect shows the
+    // player a mutation that did not happen - so the flags are withheld
+    // until the content lands, and the seed on the row is what keeps the
+    // roll re-derivable in the meantime.
+    //
+    // ONE SPLICE IS NOT ENOUGH to pin this: at a 9% rate a single roll is
+    // almost always `false`, so `mutated: false` in a response would look
+    // identical to the field being absent. The assertion is on the KEYS.
+    const { a, b } = await pair()
+    const res = await commit({ parentA: a, parentB: b, locked: LOCK_A1, bodyFrom: 'Vetch' })
+    const body = await res.json() as Record<string, unknown>
+
+    expect(Object.keys(body).sort()).toEqual(['balance', 'child', 'seed', 'spliceId'])
+    expect(body).not.toHaveProperty('mutated')
+    expect(body).not.toHaveProperty('aberrant')
+
+    // And the row DOES carry them, so this is a withheld field rather than an
+    // unrolled one.
+    const [row] = await spliceRows()
+    expect(row).toHaveProperty('mutated')
+    expect(row).toHaveProperty('aberrant')
   })
 
   it('refuses a creature spliced with itself under a DIFFERENT CASE', async () => {

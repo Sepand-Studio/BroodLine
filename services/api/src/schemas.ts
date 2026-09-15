@@ -280,11 +280,16 @@ export const SpliceCommitResponse = z.object({
   // number loses precision above 2^53 while a BigInt is what
   // JSON.stringify throws on.
   seed: z.string(),
-  // The two halves of the mutation roll, reported separately because
-  // `splice_confirm_spec` §2 shows them separately: 9% of splices mutate and
-  // 5% OF THOSE are Aberrant. `aberrant` is never true without `mutated`.
-  mutated: z.boolean(),
-  aberrant: z.boolean(),
+  // NO `mutated` / `aberrant`, and their absence is a decision rather than an
+  // oversight. Both are rolled on every splice and stored on the `splices`
+  // row - the seed makes the roll re-derivable either way - but design §10
+  // defers Aberrant traits out of this phase, so there is nothing for a
+  // mutation to produce and the child is identical whichever way the roll
+  // lands. A client told `mutated: true` would show the player a mutation
+  // that did not happen, which is worse than not telling them: withholding
+  // is the safe direction, and `splice_confirm_spec` §2's separate display
+  // of the two rates belongs with the content that makes them mean
+  // something. They join this response when that content does.
   // Splice Charges left after the debit. `broodline_screen_inventory_v2.md`
   // §2 keeps them in the persistent top bar, so a client that had to call
   // /v1/sync to refresh them after every splice would be refetching the

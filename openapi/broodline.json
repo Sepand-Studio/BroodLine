@@ -649,12 +649,6 @@
           "seed": {
             "type": "string"
           },
-          "mutated": {
-            "type": "boolean"
-          },
-          "aberrant": {
-            "type": "boolean"
-          },
           "balance": {
             "type": "integer"
           }
@@ -663,8 +657,6 @@
           "child",
           "spliceId",
           "seed",
-          "mutated",
-          "aberrant",
           "balance"
         ]
       },

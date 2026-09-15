@@ -256,9 +256,18 @@ export function registerSpliceRoutes(app: Hono, deps: Deps): void {
           const splice = await commitSplice(
             tx, session.serverId, playerId, bundle, body, now, key)
           if (splice.kind === 'ok') {
+            // `mutated` and `aberrant` ARE ROLLED AND STORED, and are
+            // deliberately NOT here. design §10 defers Aberrant traits out of
+            // this phase, so the bundle authors nothing for a mutation to
+            // produce and the child's slots are identical either way -
+            // reporting `mutated: true` for an event with no effect is the
+            // lossy direction, not the safe one, because a client would show
+            // the player a mutation that did not happen. The seed on the row
+            // is what makes the roll re-derivable, so nothing is lost by
+            // withholding the flags until the content lands.
             return {
               child: splice.child, spliceId: splice.spliceId, seed: splice.seed,
-              mutated: splice.mutated, aberrant: splice.aberrant, balance: splice.balance,
+              balance: splice.balance,
             }
           }
           // RETURNED, never thrown, so a refusal is stored under this key
@@ -343,8 +352,6 @@ type CommitOutcome =
      * a BigInt is what JSON.stringify throws on.
      */
     seed: string
-    mutated: boolean
-    aberrant: boolean
     /** Splice Charges left. The top bar shows them on every screen. */
     balance: number
   }

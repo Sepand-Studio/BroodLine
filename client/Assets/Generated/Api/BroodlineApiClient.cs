@@ -1907,12 +1907,6 @@ namespace Broodline.Api
         [Newtonsoft.Json.JsonProperty("seed", Required = Newtonsoft.Json.Required.Always)]
         public string Seed { get; set; }
 
-        [Newtonsoft.Json.JsonProperty("mutated", Required = Newtonsoft.Json.Required.Always)]
-        public bool Mutated { get; set; }
-
-        [Newtonsoft.Json.JsonProperty("aberrant", Required = Newtonsoft.Json.Required.Always)]
-        public bool Aberrant { get; set; }
-
         [Newtonsoft.Json.JsonProperty("balance", Required = Newtonsoft.Json.Required.Always)]
         public int Balance { get; set; }
 
