@@ -48,7 +48,9 @@
 # Skip anywhere in the solution, so no count will report this for you.
 #
 # ---------------------------------------------------------------------------
-# Measured 2026-09-15 on phase_6 at commit 832bfb6.
+# Measured 2026-09-15 on phase_6, api rows re-measured after the loop drive was
+# committed as test/loop.test.ts (fix round 2). The other gates are unchanged by
+# that commit and were last run at 832bfb6.
 
 gate.dotnet.total	221
 gate.dotnet.passed	220
@@ -60,8 +62,8 @@ gate.dotnet.engine.failed	1
 gate.dotnet.sim-service.total	17
 gate.dotnet.sim-service.passed	17
 gate.cross-runtime.scenarios	500	PASS: 500 scenarios agree
-gate.api.files	35
-gate.api.total	396
+gate.api.files	36
+gate.api.total	399
 gate.api.failed	0
 gate.typecheck.errors	0
 gate.contract.diff.files	0	git diff --quiet exit 0
@@ -88,6 +90,7 @@ api.file.issuance-schema.test.ts	9
 api.file.ledger.test.ts	8
 api.file.lineage.test.ts	9
 api.file.loop-schema.test.ts	30
+api.file.loop.test.ts	3
 api.file.masked-teardown.test.ts	2
 api.file.node-claim.test.ts	17
 api.file.pool-teardown.test.ts	3
