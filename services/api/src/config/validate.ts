@@ -21,7 +21,7 @@ const VERSION_PATTERN = /^\d+\.\d+\.\d+$/
  * published, and that is the entire safety model - a bad bundle is shipped to
  * every player at once and cannot be recalled by an app update.
  *
- * Six checks now. Wave *shape* rules are the engine's and are invoked, never
+ * Eight checks now. Wave *shape* rules are the engine's and are invoked, never
  * copied - see tools/config-validate. Reward completeness is different: Design
  * 2.2 pays a wave's reward by looking it up from the bundle - rewardForWave in
  * wave/rewards.ts, called from routes/wave.ts's submit handler - so a wave
@@ -36,15 +36,32 @@ const VERSION_PATTERN = /^\d+\.\d+\.\d+$/
  * credit() call and routes/sync.ts's isBelow() call with nothing between
  * this validator and production - so both are checked here alongside waves,
  * the pack ladder, wave rewards and locales.
+ *
+ * Phase 6 adds two more, both authored-content completeness checks in the
+ * same sense as reward completeness above - neither is a game rule, so
+ * neither belongs in the C# CLI:
+ *
+ *   - trait dominance (validateTraitDominance): design 5.3 says the rolled
+ *     slot in a splice carries at full coverage if the trait is dominant and
+ *     one tier lower if recessive - spliceDistribution (a later task) reads
+ *     that flag directly off the bundle. A trait authored with no `dominant`
+ *     makes that roll undefined on a paid action.
+ *   - wave reward distinctness (validateWaveRewardDistinctness): guards
+ *     test/weakenings.md row 5, not a general content rule. Phase 5 could
+ *     not construct the reward-inflation weakening because only one wave was
+ *     authored; this stops a future bundle from quietly re-creating that
+ *     one-wave condition by giving two authored waves equal rewards.
  */
 export async function validateBundle(dir: string): Promise<string[]> {
   const violations: string[] = []
   violations.push(...(await validateWaves(dir)))
   violations.push(...(await validatePackLadder(dir)))
   violations.push(...(await validateWaveRewards(dir)))
+  violations.push(...(await validateWaveRewardDistinctness(dir)))
   violations.push(...(await validateLocales(dir)))
   violations.push(...(await validateStarterGrants(dir)))
   violations.push(...(await validateManifest(dir)))
+  violations.push(...(await validateTraitDominance(dir)))
   return violations
 }
 
@@ -119,6 +136,34 @@ async function validateWaveRewards(dir: string): Promise<string[]> {
     }
   }
   return violations
+}
+
+/**
+ * test/weakenings.md row 5's guard, not a general rule about content. Row 5
+ * records a reward-inflation weakening ("read the reward from the wrong
+ * wave") that Phase 5 could not construct because only wave 6 was authored -
+ * there was no second reward for a misattributed lookup to pay out. Once a
+ * second authored wave exists, that proof is only meaningful if the two
+ * rewards actually differ: a bundle that quietly gave two waves the same
+ * reward would make the weakening's assertion pass for a reason that has
+ * nothing to do with the guard it is meant to exercise.
+ *
+ * Waves with no reward are skipped here - validateWaveRewards above already
+ * rejects those on their own terms, and folding them into this Set would
+ * report a confusing second violation for the same missing field.
+ */
+async function validateWaveRewardDistinctness(dir: string): Promise<string[]> {
+  const raw = await readFile(join(dir, 'waves.json'), 'utf8').catch(() => null)
+  if (raw === null) return ['waves.json is missing.']
+
+  const waves = JSON.parse(raw) as AuthoredWave[]
+  const rewards = new Set(
+    waves.filter((w) => w.reward !== undefined).map((w) => `${w.reward!.currency}:${w.reward!.amount}`),
+  )
+  if (waves.length > 1 && rewards.size < 2) {
+    return ['authored waves must carry at least two distinct reward values']
+  }
+  return []
 }
 
 interface Pack { id: string; priceUsdCents: number; value: number }
@@ -251,4 +296,35 @@ async function validateManifest(dir: string): Promise<string[]> {
     ]
   }
   return []
+}
+
+interface AuthoredTrait { id: string; dominant?: unknown }
+
+/**
+ * design 5.3: the rolled slot in a splice carries at full coverage if the
+ * trait is dominant and one tier lower if recessive - spliceDistribution (a
+ * later task) reads `bundle.traitById(t.trait).dominant` directly off this
+ * file. A trait authored with no `dominant` flag makes that roll undefined,
+ * and an undefined roll on a paid action (splicing spends splice_charges) is
+ * the failure this check exists to make unshippable.
+ *
+ * As of Phase 6 the bundle's `dominant` values are themselves provisional -
+ * bible 2.2 adopts dominance as a mechanic but assigns it to no trait in the
+ * authored set, and the flags in config/bundles/0.1.2/traits.json are owed
+ * to combat_numbers 4 for ratification. This check only enforces that the
+ * flag is PRESENT and boolean, not any particular value.
+ */
+async function validateTraitDominance(dir: string): Promise<string[]> {
+  const raw = await readFile(join(dir, 'traits.json'), 'utf8').catch(() => null)
+  if (raw === null) return ['traits.json is missing.']
+
+  const traits = (JSON.parse(raw) as { traits: AuthoredTrait[] }).traits
+  const violations: string[] = []
+
+  for (const trait of traits) {
+    if (typeof trait.dominant !== 'boolean') {
+      violations.push(`trait ${trait.id}: dominance flag is required`)
+    }
+  }
+  return violations
 }

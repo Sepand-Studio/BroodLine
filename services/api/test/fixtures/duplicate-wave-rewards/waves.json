@@ -1,0 +1,8 @@
+[
+  { "id": 6, "integrity": 2, "laneCount": 1,
+    "reward": { "currency": "shards", "amount": 40 },
+    "spawns": [] },
+  { "id": 7, "integrity": 3, "laneCount": 1,
+    "reward": { "currency": "shards", "amount": 40 },
+    "spawns": [] }
+]

@@ -1,0 +1,13 @@
+[
+  { "id": 6, "integrity": 2, "laneCount": 1,
+    "reward": { "currency": "shards", "amount": 40 },
+    "spawns": [ { "tick": 90, "type": "Courser" } ] },
+  { "id": 7, "integrity": 3, "laneCount": 1,
+    "reward": { "currency": "shards", "amount": 230 },
+    "spawns": [
+      { "tick": 120, "type": "Lash" },
+      { "tick": 180, "type": "Skirmisher" }, { "tick": 225, "type": "Skirmisher" },
+      { "tick": 270, "type": "Skirmisher" }, { "tick": 315, "type": "Skirmisher" },
+      { "tick": 360, "type": "Skirmisher" }, { "tick": 405, "type": "Skirmisher" }
+    ] }
+]
