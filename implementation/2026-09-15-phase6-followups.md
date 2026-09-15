@@ -160,11 +160,60 @@ response *and* credited to the balance (1730 → 1960); **exactly one ledger row
 **the child on the roster**; **`committed_to` cleared** on every creature; and
 the issuance settled rather than left live.
 
-**The one thing simulated was the passage of time.** Harvest accrual is measured
-from `harvest_positions.last_settled_at`, so a node on a minutes-old player has
-accrued nothing. That row was backdated twelve hours rather than waiting twelve
-hours. Nothing else was written directly — every other mutation above is the
-result of an HTTP request.
+**Two things were simulated, and the first draft of this section named only
+one of them.** What it said is kept struck through, because the correction is
+the point:
+
+> ~~The one thing simulated was the passage of time. … Nothing else was written
+> directly — every other mutation above is the result of an HTTP request.~~
+
+**That last clause was FALSE**, caught in review by arithmetic this file's own
+transcript could not support: the run reports thirteen creatures on the closing
+roster and only two node claims, and no supply line reaches thirteen from two.
+The counts were right; the sentence was wrong. Corrected, and re-measured by
+re-running the driver with a per-step roster ledger rather than by
+reconstruction:
+
+| | |
+|---|---|
+| **EARNED** via HTTP responses | **3** |
+| **SEEDED** via a direct `tx.insert(creatures)` | **10** |
+| **Total booked** | **13** |
+| `GET /v1/roster` reports | **13** |
+
+```
+  +1  EARNED  node/claim on slot 1 granted base stock
+  +1  EARNED  node/claim on slot 1 granted base stock
+  -2  EARNED  splice consumed both parents
+  +1  EARNED  splice produced the child
+  +5  SEEDED  giveRoster minted the wave-6 deployment
+  +1  EARNED  wave-6 win granted base stock on the verified submit path
+  +5  SEEDED  giveRoster minted the wave-7 deployment
+  +1  EARNED  wave-7 win granted base stock on the verified submit path
+```
+
+So the two simulations are:
+
+1. **The passage of time.** Harvest accrual is measured from
+   `harvest_positions.last_settled_at`, so a node on a minutes-old player has
+   accrued nothing. That row was backdated twelve hours rather than waiting
+   twelve hours.
+2. **The ten creatures deployed against waves 6 and 7.** `giveRoster`
+   (`test/wave-helpers.ts`) does a direct `tx.insert(creatures)`. Earning five
+   specific Taunt/Splash-at-tier-III creatures through the splice would take
+   far more than the two windows this drive opens, and is not what the wave
+   legs demonstrate — but it means **the harvest→splice leg and the
+   wave→payout leg were each driven for real and were NOT joined by a supply
+   line the player could actually walk.**
+
+**What that does and does not weaken.** The claim-splice leg is fully earned:
+both parents came out of `node/claim` grants, and the child is the splice's own
+output. The wave leg's payout assertions — 230 shards, one ledger row,
+`committed_to` cleared, the issuance settled — are untouched by how the five
+deployed creatures got there, because the deployment is resolved from owned
+rows either way (§2) and the rows are real rows. **What is NOT demonstrated is
+that a player can harvest their way to a wave-7 deployment**, and nothing in
+this phase shows they can.
 
 **The driver was a throwaway and is not committed.** Its full transcript is in
 `.superpowers/sdd/2026-09-14-phase6-loop/task-13-report.md`. Nothing in the
@@ -501,3 +550,11 @@ test green, start there.
    `solo_execution` §3.1's degradation row, `client_architecture` §2.
 8. **An end-to-end test for the loop**, so that "the loop closes" stops being
    something checked by hand. §3.
+9. **A drive whose supply line is unbroken.** §3's reconciliation: ten of the
+   thirteen creatures in the closing roster were inserted directly, so the
+   harvest→splice leg and the wave→payout leg have never been joined by
+   creatures a player actually earned. Closing that needs either content a
+   player can harvest into a wave-7-capable deployment, or an explicit ruling
+   that they cannot and that the two legs are separately sufficient. **Until
+   one of those exists, "the loop closes" is two half-loops that meet on
+   paper.**
