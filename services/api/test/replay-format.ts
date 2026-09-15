@@ -80,10 +80,11 @@ export const CREATURE_HP: Record<number, number> = {
 const LANE_TILES = 24
 const POCKET_COUNT = 5
 
-// engine/Runtime/Combat/WaveDef.cs Wave6(): laneCount 1. The only wave this
-// bundle authors today (config/bundles/0.1.1/waves.json), so this is a
-// one-entry table rather than a general lookup - it grows with content.
-const WAVE_LANE_COUNT: Record<number, number> = { 6: 1 }
+// engine/Runtime/Combat/WaveDef.cs Wave6() and Wave7(): laneCount 1 for
+// both. Task 11 adds wave 7 (config/bundles/0.1.2/waves.json) - still a
+// small table rather than a general lookup, because it grows with content
+// rather than with the lane geometry, which is fixed by Defile alone.
+const WAVE_LANE_COUNT: Record<number, number> = { 6: 1, 7: 1 }
 
 /**
  * Four Vetch holding the first four pockets, mirroring
