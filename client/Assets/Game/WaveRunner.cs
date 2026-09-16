@@ -48,7 +48,7 @@ namespace Broodline.Game
 
         private void Start()
         {
-            _runner = new SimRunner(WaveDef.Wave6(), Lane.Defile(), Deployment(), Seed);
+            _runner = new SimRunner(WaveDef.Wave6(), WaveDef.Wave6().Lane, Deployment(), Seed);
             _clock = new WaveClock();
             _pair = new WavePair(_runner);
             _onTick = () => _pair.Advance(_runner);

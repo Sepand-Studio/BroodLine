@@ -25,6 +25,7 @@ namespace Broodline.Sim.Combat
         public int Id { get; }
         public int Integrity { get; }
         public int LaneCount { get; }
+        public Lane Lane { get; }
 
         private readonly SpawnEntry[] _spawns;
 
@@ -36,18 +37,52 @@ namespace Broodline.Sim.Combat
         /// mid-run took a 540-tick outcome to 650.
         public ReadOnlySpan<SpawnEntry> Spawns => _spawns;
 
+        /// The four-argument form keeps every existing caller compiling and gives
+        /// synthetic waves the geometry they always had. Authored waves use the
+        /// five-argument form, and Deployments.Unrecordable holds a run to it.
         public WaveDef(int id, int integrity, int laneCount, SpawnEntry[] spawns)
+            : this(id, integrity, laneCount, Lane.Defile(), spawns) { }
+
+        public WaveDef(int id, int integrity, int laneCount, Lane lane, SpawnEntry[] spawns)
         {
-            Id = id;
-            Integrity = integrity;
-            LaneCount = laneCount;
+            Id = id; Integrity = integrity; LaneCount = laneCount; Lane = lane;
             _spawns = (SpawnEntry[])spawns.Clone();
+        }
+
+        /// Wave 1, waves_01_12: "6 Skirmishers . One every 2.0s from t=3 .
+        /// Integrity 2 . Defile layout, 6 pockets". Slower and fewer than the
+        /// Skirmisher's designed pattern on purpose - it is showing the player that
+        /// placement produces a result, not testing them.
+        public static WaveDef Wave1()
+        {
+            var spawns = new SpawnEntry[6];
+            for (int i = 0; i < 6; i++)
+                spawns[i] = new SpawnEntry { Tick = 3 * Stats.TicksPerSecond + i * 60, Type = RaiderType.Skirmisher };
+            return new WaveDef(id: 1, integrity: 2, laneCount: 1, Lane.DefileSix(), spawns);
+        }
+
+        /// Wave 2: "8 Skirmishers . 1 Lash . Skirmishers from t=3, 1.5s apart .
+        /// Lash at t=12". The Lash shares tick 360 with the seventh Skirmisher and
+        /// is authored AFTER it, so spawn-index order keeps the lane busy when it
+        /// arrives - "arriving into a busy lane is what makes it register".
+        public static WaveDef Wave2()
+        {
+            var spawns = new SpawnEntry[9];
+            int n = 0;
+            for (int i = 0; i < 8; i++)
+            {
+                int tick = 3 * Stats.TicksPerSecond + i * 45;
+                spawns[n++] = new SpawnEntry { Tick = tick, Type = RaiderType.Skirmisher };
+                if (tick == 12 * Stats.TicksPerSecond)
+                    spawns[n++] = new SpawnEntry { Tick = tick, Type = RaiderType.Lash };
+            }
+            return new WaveDef(id: 2, integrity: 2, laneCount: 1, Lane.DefileSix(), spawns);
         }
 
         /// Wave 6, from broodline_waves_01_12.md section 3:
         /// "1 . Defile . Integrity 2 . 1 Courser. Nothing else . Timeline t=3".
         public static WaveDef Wave6() => new WaveDef(
-            id: 6, integrity: 2, laneCount: 1,
+            id: 6, integrity: 2, laneCount: 1, Lane.Defile(),
             spawns: new[]
             {
                 new SpawnEntry { Tick = 3 * Stats.TicksPerSecond, Type = RaiderType.Courser }
@@ -73,7 +108,7 @@ namespace Broodline.Sim.Combat
                     Type = RaiderType.Skirmisher
                 };
 
-            return new WaveDef(id: 7, integrity: 3, laneCount: 1, spawns: spawns);
+            return new WaveDef(id: 7, integrity: 3, laneCount: 1, Lane.Defile(), spawns: spawns);
         }
 
         /// The two composition invariants of combat_engine section 5.4,
@@ -84,6 +119,8 @@ namespace Broodline.Sim.Combat
         /// re-simulate something else.
         public static WaveDef ForId(int id)
         {
+            if (id == 1) return Wave1();
+            if (id == 2) return Wave2();
             if (id == 6) return Wave6();
             if (id == 7) return Wave7();
             throw new WaveCompositionException("no authored wave with id " + id);

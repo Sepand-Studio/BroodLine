@@ -1,4 +1,3 @@
-using System;
 using Xunit;
 using Broodline.Sim.Combat;
 
@@ -6,6 +5,37 @@ namespace Broodline.Sim.Tests.Combat
 {
     public class WaveDefTests
     {
+        [Fact]
+        public void Wave1_IsSixSkirmishersTwoSecondsApart_OnSixPockets()
+        {
+            var w = WaveDef.Wave1();
+            Assert.Equal(1, w.Id); Assert.Equal(2, w.Integrity); Assert.Equal(1, w.LaneCount);
+            Assert.Equal(6, w.Lane.PocketCount);
+            Assert.Equal(6, w.Spawns.Length);
+            for (int i = 0; i < 6; i++)
+            {
+                Assert.Equal(RaiderType.Skirmisher, w.Spawns[i].Type);
+                Assert.Equal(90 + 60 * i, w.Spawns[i].Tick);
+            }
+        }
+
+        [Fact]
+        public void Wave2_IsEightSkirmishersAndALashAtTwelveSeconds()
+        {
+            var w = WaveDef.Wave2();
+            Assert.Equal(2, w.Id); Assert.Equal(2, w.Integrity);
+            Assert.Equal(6, w.Lane.PocketCount);
+            Assert.Equal(9, w.Spawns.Length);
+            int lashes = 0;
+            for (int i = 0; i < w.Spawns.Length; i++)
+                if (w.Spawns[i].Type == RaiderType.Lash) { lashes++; Assert.Equal(360, w.Spawns[i].Tick); }
+            Assert.Equal(1, lashes);
+            // The tie at 360 keeps the Skirmisher first: the array index is the
+            // spawn index, and the Lash "arrives into a busy lane".
+            Assert.Equal(RaiderType.Skirmisher, w.Spawns[6].Type);
+            Assert.Equal(RaiderType.Lash, w.Spawns[7].Type);
+        }
+
         [Fact]
         public void Wave6_MatchesTheAuthoredDefinition()
         {
@@ -55,11 +85,34 @@ namespace Broodline.Sim.Tests.Combat
         }
 
         [Fact]
-        public void ForId_StillThrowsForAnUnauthoredWave()
+        public void Wave6AndWave7_KeepTheFivePocketDefile()
         {
-            // The throw is the point: a replay naming a wave this engine does not
-            // have must fail at load rather than re-simulate something else.
-            Assert.Throws<WaveCompositionException>(() => WaveDef.ForId(8));
+            // The whole corpus and every tracked replay run on this geometry.
+            foreach (var w in new[] { WaveDef.Wave6(), WaveDef.Wave7() })
+            {
+                Assert.Equal(5, w.Lane.PocketCount);
+                Assert.Equal(new[] { 6, 10, 13, 17, 20 }, w.Lane.PocketTiles.ToArray());
+            }
+        }
+
+        [Fact]
+        public void ForId_AnswersTheFourAuthoredWavesAndNothingElse()
+        {
+            foreach (var id in new[] { 1, 2, 6, 7 }) Assert.Equal(id, WaveDef.ForId(id).Id);
+            foreach (var id in new[] { 0, 3, 4, 5, 8 })
+                Assert.Throws<WaveCompositionException>(() => WaveDef.ForId(id));
+        }
+
+        [Fact]
+        public void ARunOnALaneOtherThanTheWavesOwn_IsUnrecordable()
+        {
+            // Wave 1 on wave 6's five pockets: the record would store wave id 1,
+            // verification would rebuild six pockets, and a creature in pocket
+            // 5 would read back as legal on a lane where it was never placed.
+            var r = new SimRunner(WaveDef.Wave1(), Lane.Defile(),
+                new[] { new CreatureSpec { Species = Species.Vetch, Pocket = 0, Instinct = Instinct.Vanguard } }, 1);
+            Assert.NotNull(r.Unrecordable);
+            Assert.Contains("pocket count", r.Unrecordable);
         }
 
         [Fact]

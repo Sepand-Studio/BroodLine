@@ -111,9 +111,9 @@ namespace Broodline.Sim.Combat
                     return "wave " + wave.Id + "'s spawn " + i +
                            " disagrees with the authored timeline";
 
-            var rebuilt = Lane.ForFamily(lane.Family);
-            if (rebuilt == null)
-                return "terrain family " + (int)lane.Family + " has no authored geometry";
+            var rebuilt = authored.Lane;
+            if (lane.Family != rebuilt.Family)
+                return "terrain " + lane.Family + " disagrees with wave " + wave.Id + "'s " + rebuilt.Family;
             if (lane.Tiles != rebuilt.Tiles)
                 return "lane length " + lane.Tiles + " disagrees with " +
                        lane.Family + "'s " + rebuilt.Tiles;

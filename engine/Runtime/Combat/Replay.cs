@@ -50,13 +50,18 @@ namespace Broodline.Sim.Combat
 
         public string EngineVersion = SimVersion.Value;
 
-        /// Rebuilds the lane the run used. The stored geometry is not trusted -
-        /// it is checked against what the family produces, at Validate.
+        /// Rebuilds the lane the run used, from the WAVE the record names. The
+        /// stored geometry is not trusted - it is checked against what the
+        /// wave's own lane produces, at Validate.
         public Lane BuildLane()
         {
-            var lane = Lane.ForFamily(Terrain);
-            if (lane == null) throw new ReplayFormatException("unknown terrain family " + (int)Terrain);
-            return lane;
+            WaveDef wave;
+            try { wave = WaveDef.ForId(WaveId); }
+            catch (WaveCompositionException e)
+            { throw new ReplayFormatException("wave id " + WaveId + " is not authored: " + e.Message); }
+            if (wave.Lane.Family != Terrain)
+                throw new ReplayFormatException("terrain " + (int)Terrain + " disagrees with wave " + WaveId + "'s " + wave.Lane.Family);
+            return wave.Lane;
         }
 
         /// Whether this engine can re-simulate the record at all.

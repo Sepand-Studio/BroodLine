@@ -15,7 +15,7 @@ namespace Broodline.View.Tests
         internal const ulong Seed = 6UL;
 
         internal static SimRunner Runner() =>
-            new SimRunner(WaveDef.Wave6(), Lane.Defile(), Deployment(), Seed);
+            new SimRunner(WaveDef.Wave6(), WaveDef.Wave6().Lane, Deployment(), Seed);
 
         internal static CreatureSpec[] Deployment() => new[]
         {
