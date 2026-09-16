@@ -313,10 +313,18 @@ describe('the first hour', () => {
       // returns them in. Captured HERE, before anything else can add a second
       // Vetch or Ember - the tutorial pair below is exactly that.
       const opened = await roster()
+      // ASSERTED ON THE ROSTER, not with `!` and a `toBeDefined()` after it.
+      // That shape - `find(...)!.creatureId` followed by
+      // `expect(id).toBeDefined()` - reads as a guard and is not one: a
+      // missing starter throws a TypeError on the line ABOVE and the
+      // assertion never runs, so it can only pass. It was written that way
+      // here and caught in review, which makes it the eleventh instance of
+      // this branch's dominant defect and the first one inside the file
+      // written to close it.
+      expect(opened.map((c) => c.species).sort(),
+        'starter.json authors exactly a Vetch and an Ember').toEqual(['Ember', 'Vetch'])
       const vetchId = opened.find((c) => c.species === 'Vetch')!.creatureId
       const emberId = opened.find((c) => c.species === 'Ember')!.creatureId
-      expect(vetchId, 'the starter Vetch').toBeDefined()
-      expect(emberId, 'the starter Ember').toBeDefined()
       expect(opened.every((c) => !c.isFounder && c.generation === 1 && c.name === null)).toBe(true)
 
       // The pair AS THE REPLAY WILL CLAIM IT. Pinned against the roster rows
@@ -613,9 +621,23 @@ describe('the first hour', () => {
    * reader of either file should be able to find the other.
    */
   it('is the first hour, and not the whole supply line', () => {
-    expect(childId, 'the harvest-free FTUE splice IS fully earned, end to end').toBeDefined()
-    expect(tutorialPair, 'and its two parents came out of a route, not an insert').toBeDefined()
+    // READ OFF THE LEDGER, not off the constant. An earlier version of this
+    // test closed with `expect(EXPECTED_EARNED).toBe(7)`, which compares a
+    // literal to itself and cannot fail - in the very test whose job is to
+    // stop a claim being closed in prose while the code stands still.
+    // `ledger.earned` is a value the drive produced at runtime, so a content
+    // change that grows the first hour reddens HERE and someone has to decide
+    // whether the sentence below is still true.
+    expect(ledger.earned,
+      'seven creatures is the first hour, not the campaign - if this moved, the scope of the '
+      + 'claim this file makes moved with it').toBe(7)
+
+    // The three ids exist only if the drive above reached the beats that
+    // produce them, so these are tripwires against a future edit that
+    // REMOVES a beat while leaving the counts arithmetically satisfiable -
+    // not independent evidence. Stated so nobody reads them as more.
+    expect(childId, 'the guided splice IS fully earned, end to end').toBeDefined()
+    expect(tutorialPair, 'its two parents came out of a route, not an insert').toBeDefined()
     expect(paleId, 'as did the Pale that turns wave 6 from a wall into a lesson').toBeDefined()
-    expect(EXPECTED_EARNED, 'seven creatures is the first hour, not the campaign').toBe(7)
   })
 })

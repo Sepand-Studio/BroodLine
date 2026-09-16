@@ -14,7 +14,10 @@ write*
 > **State at the time of writing:** seventeen implementation tasks are through
 > their review gates on `phase_7` — **1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14,
 > 15, 16, 17, 18, 21** — plus this one, **35 commits** from the branch point at
-> `92b7a70`. **Tasks 2, 12, 19 and 20 have not been started**, and each of them
+> `92b7a70` (36 counting the commit that carries this file, which did not exist
+> when the number was written; `git rev-list --count 92b7a70..HEAD` is the
+> authority, and the parenthetical is here because a record whose thesis is
+> that prose counts go stale silently should not leave one ambiguous). **Tasks 2, 12, 19 and 20 have not been started**, and each of them
 > is a human at a keyboard with hardware, a runner registration, a billing
 > decision or an App Store Connect account — not an engineering task that was
 > skipped. They are §1.
@@ -38,9 +41,11 @@ write*
 
 ## 1. The four gates this phase cannot close
 
-The phase's Definition of Done names eleven clauses. Seven are green and are
-recorded below. **Four are not, and none of the four is blocked on anything
-this session could write.**
+The phase's Definition of Done names eleven clauses. **Four are not green, and
+none of the four is blocked on anything this session could write.** The other
+seven are, and §1.1 names the evidence for each rather than asserting it - an
+earlier draft of this sentence said they were "recorded below" and they were
+not, which is this record's own thesis happening to this record.
 
 | Gate | Blocked on | Verified today |
 |---|---|---|
@@ -48,6 +53,21 @@ this session could write.**
 | **The determinism gate run in CI**, on the self-hosted runner, on this branch's tip | **Task 12** — a self-hosted macOS runner, registered | `gh api repos/:owner/:repo/actions/runners` → `{"total_count":0,"runners":[]}`. `gh run list --workflow determinism.yml`: the newest run has been **queued for 9h5m** and the four before it were all **cancelled** after 8h34m–24h. A queued run is not a failing run, so nothing ever goes red |
 | **`smoke-loop.sh` PASS against Cloud Run** — the loop on a deployed stack | **Task 19** — `terraform apply`, a migration, a seeded `servers` row, a published bundle, two deploys, and a human who has decided the Cloud SQL instance stays up and billing | `gcloud run services list --project broodline-508416` → `Listed 0 items.` `gcloud sql instances list` → `Listed 0 items.` `implementation/scripts/smoke-loop.sh` **does not exist**; the directory holds `smoke-wave.sh` only |
 | **A TestFlight build installed by someone who is not the developer**, and their report in this file | **Task 20** | Not started. There is no build, no upload, and no tester's report — and the section of this file that would carry it verbatim is therefore absent rather than empty |
+
+### 1.1 The seven that ARE green, and what evidences each
+
+Named so a later reader can confirm any one of them without re-deriving it.
+Counts are the baseline file's, not these sentences'.
+
+| Clause | Evidenced by |
+|---|---|
+| **Wave 6's 500 corpus hashes byte-identical across the lane refactor**, and the cross-runtime diff green **before** the bump | `tests/engine/CorpusBaselineTests.cs`, which pins the tracked `tests/engine/corpus-baseline.txt` against `SimVersion` on every `dotnet test`. Task 1's diff across the bump is **header-only** - `0.3.0` → `0.4.0`, all 500 scenario hashes byte-identical - and `cross-runtime-diff.sh` was confirmed run with `SimVersion` still reading `0.3.0` immediately before it, `PASS: 500 scenarios agree`. Re-run at this tree: PASS again |
+| **`WaveContentTests` green** - the cold-open pair wins wave 1 in every pocket pair, the trio wins wave 2, Taunt changes wave 2's outcome | `tests/engine/Combat/WaveContentTests.cs`, three tests: `Wave1_IsWonByTheColdOpenPair_InAnyTwoPockets`, `Wave2_IsWonByTheTrio_WithTauntOnTheVetch`, `Wave2_WithoutTaunt_TheLashReachesPastTheFrontLine`. The third is the contrastive half - without it the first two could hold for a reason that has nothing to do with Taunt |
+| **`ftue.test.ts` green with `seeded === 0`** | `services/api/test/ftue.test.ts`. §2 |
+| **`preview` publishes `mutation: 1` and `commit` mutates**, on the first splice, from **one** row count | `splice-preview.test.ts`'s *"forecasts a guaranteed mutation before this player's first splice, and the base rate after"*; the commit side in `splice-commit.test.ts`; and both together in `ftue.test.ts`, which reads `forecast.mutation === 1` from the route and then `mutated === true` from `GET /v1/lineage`. The **one row count** is `isFirstSplice`'s `count(*)` on `splices`, which both routes read - Task 7's Step 5 weakening is the evidence that they read the SAME one: it left preview 14/14 green and reddened commit on two tests, which is the asymmetry a single shared distribution predicts |
+| **A lost wave 6 grants a Pale once**, and base stock never mints one before it | `wave6-pale.test.ts` (loss grants one, a second loss grants nothing, a win grants it too, and the marker is what gates base stock afterwards) and `founder.test.ts`'s *"base stock never mints a Pale before the wave-6 grant has fired"*, which draws 200 seeds either side of the marker |
+| **`weakenings.md` row 7 a test**, and the 24h weakening seen to redden it | `services/api/test/sweep.test.ts`, and row 7 is **booked CLOSED** in `services/api/test/weakenings.md` with both runs tabulated. **With a correction the record should carry:** the brief predicted the 24h weakening would redden the 23:50/00:10 pair and **it does not** - that pair is twenty minutes wide and nowhere near either threshold, so it stays green under 24h and 48h alike. What reddens is a third, permanently shipped test - *"a consumed row strictly between 24h and 48h old survives the 48h window"* - built for the purpose. The clause is satisfied; the brief's prediction about **which** test satisfies it was wrong, and that is the row 7 pattern repeating on itself |
+| **The coupling guard reddening** when either half of the client floor moves alone | `implementation/scripts/verify-unity-settings.sh`'s client-floor check, run in CI by `tests.yml`'s `client-settings` job. **Both halves were weakened separately and the real FAIL output recorded** in `task-10-report.md` §2 - client `0.3.0` → `0.2.0` against floor `0.3.0`, and floor `0.3.0` → `9.9.9` against client `0.3.0`. Five fail-closed paths were traced besides. This is the one of the seven whose gate is a shell script rather than a test, so its evidence lives in a report rather than in a suite |
 
 **A fifth thing is owed and is not a Definition-of-Done clause**, so it is
 recorded here rather than in the table: **Task 17 Step 6, the eyes-on play
@@ -86,10 +106,14 @@ write that it took until then.
 
 ---
 
-## 2. The first hour IS one line a player can walk
+## 2. The first hour IS one line a player can walk — SERVER-SIDE
 
 This is the claim this phase *did* earn, and it should be recorded as **newly
-earned** rather than assumed.
+earned** rather than assumed. The qualifier in the heading is not decoration:
+what was demonstrated is that **the server serves that line**, in the order
+`FtueDirector` walks it, with every creature earned. **No player-facing code
+executed.** That belongs in the heading because this is the section that will
+be quoted later as what Phase 7 earned, and a heading is what gets quoted.
 
 `services/api/test/ftue.test.ts` drives design §5's beats over the real routes,
 against real Postgres and the real `sim` service built and run as a child
@@ -131,9 +155,23 @@ on paper*.
   Earning five Taunt/Splash-at-tier-III creatures through the splice is not
   something this phase established is reachable, and `ftue.test.ts` says
   nothing about it.
+- **For the CLIENT, it is not closed at all, and this is the gap most likely
+  to be read past.** `ftue.test.ts` walks the api's routes in the order
+  `FtueDirector` walks them; it does not press a button, bind a view, or
+  resume a turn. **Nothing on this branch has ever executed a single
+  director-to-view join** (§5), and the eyes-on walk of beats 1–8 that would
+  is owed (§1). So "one line a player can walk" is, precisely, *one line the
+  server will serve to a client that asks for it in that order* — which is
+  worth a great deal and is not the same sentence.
 
-**Both facts are true at once.** A reader of either file can find the other:
-each file's header names the other by path and says which reading it takes.
+  Stated here rather than only in §5 because **this is the same shape as the
+  error this phase exists to correct, one notch smaller**: a true claim about
+  one half, written where a reader will take it for the whole. `ftue.test.ts`'s
+  own header leads with the disclaimer; this section now does too.
+
+**All three facts are true at once.** A reader of either test file can find the
+other: each file's header names the other by path and says which reading it
+takes.
 
 **And neither file has been run against a deployed stack.** §1.
 
@@ -194,12 +232,17 @@ The device tap window is **ticks 184–207**; the Editor's is the looser
 
 ---
 
-## 4. The dominant defect of this branch: ten instances of one shape
+## 4. The dominant defect of this branch: ELEVEN instances of one shape
 
 **A test that reads as covering a property, passes, and never touches it.**
 
-It appeared ten times across seventeen tasks, in code written by four different
-implementers and caught by five different reviewers. The best formulation
+It appeared **eleven** times across eighteen tasks, in code written by five
+different implementers and caught by six different reviewers — and the
+eleventh is in the file Task 22 wrote to close the pattern, found by the review
+of that task. That is not an embarrassment to bury in a footnote; it is the
+most useful datum in this section, because it says the shape survives being
+named, written down, and read about immediately beforehand. The best
+formulation
 anyone produced is Task 16's implementer's, and it is the sentence to carry
 into any later phase's plan:
 
@@ -209,7 +252,7 @@ Because when the expected value is `0`, `null`, `false` or `""`, the assertion
 passes against a correct implementation, against an omitted assignment, and
 against a hardcoded constant — three hypotheses, one green.
 
-The ten:
+The eleven:
 
 1. **Task 6** — `loop.test.ts` absorbed a real behaviour change. Its player's
    first-ever completion became wave 6, so the grant silently changed from a
@@ -263,6 +306,30 @@ The ten:
     None` **after** `resume(true)` returned, which passes whether `HideSheet`
     runs before or after `TrySetResult` — so it read as covering the ordering
     race at `ScreenFlow.cs:133-136` and did not touch it.
+
+11. **Task 22**, in `ftue.test.ts` — the file whose entire subject is claims
+    that assert more than they prove. It read:
+
+    ```ts
+    const vetchId = opened.find((c) => c.species === 'Vetch')!.creatureId
+    expect(vetchId, 'the starter Vetch').toBeDefined()
+    ```
+
+    The `toBeDefined()` **cannot fail**. A missing starter throws a
+    `TypeError` on the line above and the assertion never executes; a present
+    one makes it trivially true. It reads as a guard on the fixture and is
+    decoration. Replaced by an assertion on the roster itself —
+    `expect(opened.map(c => c.species).sort()).toEqual(['Ember', 'Vetch'])` —
+    which fails on the thing it claims to check. A second instance in the same
+    file's third test closed the same way: `expect(EXPECTED_EARNED).toBe(7)`
+    compared a literal to itself and is now `expect(ledger.earned).toBe(7)`, a
+    runtime value.
+
+    **The variant worth naming separately**, because it is not the
+    type-default shape and the one-line rule does not catch it: *an assertion
+    placed after a non-null assertion that would already have thrown*. Same
+    outcome — a green that carries no information — reached by a different
+    route.
 
 **Applied with judgment, not as a ban.** Task 18's re-reviewer flagged
 `queuedWave.Attempts == 0` as a type default and then correctly concluded it is
@@ -755,18 +822,52 @@ exit 0 where 130 was expected — the shape of the script having finished before
 the SIGINT landed, under load.
 
 **The second run of the identical tree was fully green**, 451/451 across 43
-files, which is what makes this a scheduling race rather than a wall — and what
+files (that tree — the fix round later added three tests, and the baseline
+carries the shipped count), which is what makes this a scheduling race rather
+than a wall — and what
 makes it worth writing down rather than fixing quietly, because a gate that
 passes one run in two is not a gate.
 
 **Raised to 180s on both sides** — `LOCK_ACQUIRE_TIMEOUT_MS` in
-`wave-helpers.ts` and `BUILD_LOCK_TIMEOUT_TENTHS` in `generate-contract.sh`,
-which are hand-kept in sync by that file's own instruction (*"a path or timeout
-edit applied to only one side yields two locks, no exclusion, and a flake
-indistinguishable from the one this exists to close"*). The number is a **bound
-on failing loudly**, not a measurement, and it stays well under `LOCK_STALE_MS`
-(300s) so a genuinely abandoned lock is still reclaimed rather than waited out.
+`wave-helpers.ts` and `BUILD_LOCK_TIMEOUT_TENTHS` in `generate-contract.sh`.
 The third run, with the raise, is the one the baseline file records.
+
+**The arithmetic, which the fix round supplied and the fix did not have.** Each
+sim-hosting file takes the lock **once**, in its `beforeAll`, around the build
+alone — so a waiter's worst case is `(N−1) × build`, not `N ×` anything
+ongoing. At N=8 and a 12s build that is **84s**, which overruns 60s and is an
+exact account of the 60037ms failure rather than a plausible one. 180s holds to
+roughly N=15, so a ninth file does not reintroduce it. The comment saying "a
+ninth should not raise this again" is therefore a **scope judgement** — past
+this point the answer is one shared build, not a longer queue — and not a
+necessity, and it now says which it is.
+
+**Two justifications in that fix were wrong and are corrected**, which is the
+same defect §7 criticises in `wave.ts:386-397`: prescribing correctly and
+justifying badly, two files over.
+
+- *"A path or timeout edit applied to only one side yields two locks, no
+  exclusion"* runs two different failures together. It is **true of the path**
+  — which cannot drift, because both sides derive it by hashing the repo root —
+  and **false of the timeout**: two waiters with different give-up times still
+  exclude correctly, they just fail at different moments, so a contended suite
+  goes red in one place and green in another for no visible reason. A
+  legibility failure, worth syncing for exactly that reason rather than by
+  overstating it.
+- *"It stays well under `LOCK_STALE_MS` (300s) so a genuinely abandoned lock is
+  still reclaimed"* inverts the mechanism. A **dead** owner is reclaimed
+  immediately on `ESRCH`, whatever this timeout is; `LOCK_STALE_MS` governs
+  only the liveness-**unconfirmable** case, which a 180s waiter now gives up
+  *before* reaching. The number is safe — for the opposite reason to the one
+  written.
+
+**And nothing pinned the two constants.** Two comments were the whole
+mechanism, in a package that pins `SIM_PORTS` with a test for precisely this.
+Closed in the fix round: `dotnet-build-lock.test.ts` now asserts all three
+pairs agree, with the TS side exported and the **shell side parsed rather than
+retyped**. Shown to discriminate — desyncing the timeout reddens one assertion
+(`expected 60000 to be 180000`), and renaming the shell variable reddens the
+same one through the parser's own throw rather than passing on a default.
 
 **Honest about what this does and does not establish.** Two green runs after a
 red one do not prove a race is closed; they prove it is not deterministic. The
@@ -785,7 +886,10 @@ it does not make the queue shorter.
 ## 13. What the next session inherits
 
 0. **Run `verify-unity-settings.sh` after the Unity gates, not before.** §12.
-   It is the cheapest item here and the easiest to get wrong.
+   It is the cheapest item here and the easiest to get wrong — and the
+   regenerate recipe in `phase7-test-baseline.txt` will redden its own last
+   line if you run it in the order it lists, which that file now says above the
+   recipe rather than leaving as a trap.
 1. **The device capture.** §1, §3. It has blocked Phase 6's close since
    2026-09-15 and now blocks Phase 7's.
 2. **A self-hosted macOS runner**, and with it the determinism gate — which has

@@ -30,6 +30,33 @@
 #   ./implementation/scripts/run-unity-tests.sh PlayMode
 #   bash implementation/scripts/verify-unity-settings.sh
 #
+# READ THE NEXT PARAGRAPH BEFORE RUNNING THAT LIST, because as written it will
+# fail its own last line. The Unity test runs put SENTIS_ANALYTICS_ENABLED back
+# on iPhone and rewrite two URP assets (the finding below), and here
+# cross-runtime-diff.sh - whose restore_known_churn is what reverts exactly
+# those paths - has already run, two steps earlier. So the settings check runs
+# last against a dirtied tree with nothing left to clean it.
+#
+# THE REMEDY, either one:
+#
+#   (a) revert the three paths by hand after the Unity runs, then re-check:
+#
+#         git checkout -- client/ProjectSettings/ProjectSettings.asset \
+#           client/Assets/Settings/PC_RPAsset.asset \
+#           client/Assets/Settings/UniversalRenderPipelineGlobalSettings.asset
+#         git status --porcelain -- client/Assets/Resources/   # expect empty
+#         bash implementation/scripts/verify-unity-settings.sh
+#
+#   (b) or move cross-runtime-diff.sh to LAST, after both Unity runs, and let
+#       its own restore do it - then run the settings check.
+#
+# The list above is left in gate order rather than in runnable order on
+# purpose: it is the order the Definition of Done names them in, and hiding
+# the interaction by resequencing would lose the finding. Run it with (a) or
+# (b). Either way the settings check must come AFTER the Unity gates - a green
+# taken before the thing that dirties the tree is a green about a different
+# tree.
+#
 # The api.file.* rows come from vitest's own per-file summary lines:
 #
 #   grep -E "^ ✓ test/" <api-log> \
@@ -90,13 +117,26 @@
 # ---------------------------------------------------------------------------
 # WHAT MOVED SINCE PHASE 6 (71e1ea1 -> this tree)
 #
-#   api.tests 409 -> 451    api.files 36 -> 43
+#   api.tests 409 -> 454    api.files 36 -> 43
 #
 # SEVEN files added: founder (4), ftue (3), ftue-markers (3), ftue-stock (6),
-# lineage-route (8), sweep (5), wave6-pale (3) = 32. Six existing files moved
-# and ALL SIX MOVED UP: account +1, config-validate +4, splice-commit +1,
-# splice-distribution +1, splice-preview +1, sync +2 = 10. 409 + 32 + 10 = 451.
+# lineage-route (8), sweep (5), wave6-pale (3) = 32. Seven existing files moved
+# and ALL SEVEN MOVED UP: account +1, config-validate +4, splice-commit +1,
+# splice-distribution +1, splice-preview +1, sync +2, and dotnet-build-lock +3
+# in Task 22's fix round = 13. 409 + 32 + 13 = 454.
 # NO PER-FILE COUNT FELL, which is the only question these rows exist to answer.
+#
+# The dotnet-build-lock +3 are the cross-implementation pin the fix round added:
+# this package's lock and generate-contract.sh's define the same three constants
+# twice, and until then two comments asking an editor to keep them in step were
+# the entire mechanism - in a package that pins SIM_PORTS with a test for
+# exactly this. The TS side exports its constants; the shell side is PARSED,
+# not retyped, so a third copy of the numbers cannot agree with itself and with
+# nothing else. Shown to discriminate rather than assumed: desyncing
+# BUILD_LOCK_TIMEOUT_TENTHS 1800 -> 600 reddens one assertion with
+# "expected 60000 to be 180000", and RENAMING the variable reddens the same one
+# through the parser's own throw rather than passing on a default. Both
+# reverted; the file ships 9/9.
 #
 #   dotnet 223 -> 231 (engine 206 -> 214, sim-service 17 -> 17)
 #   unity EditMode 87 -> 267, and PlayMode is a row for the first time (3)
@@ -175,7 +215,7 @@ gate.dotnet.sim-service.total	17
 gate.dotnet.sim-service.passed	17
 gate.cross-runtime.scenarios	500	PASS: 500 scenarios agree
 gate.api.files	43
-gate.api.total	451
+gate.api.total	454
 gate.api.failed	0
 gate.typecheck.errors	0
 gate.contract.diff.files	0	git status --porcelain over the three generated paths: empty
@@ -203,7 +243,7 @@ api.file.child-reaper.test.ts	8
 api.file.config-validate.test.ts	13
 api.file.config.test.ts	15
 api.file.contract.test.ts	4
-api.file.dotnet-build-lock.test.ts	6
+api.file.dotnet-build-lock.test.ts	9
 api.file.founder.test.ts	4
 api.file.ftue-markers.test.ts	3
 api.file.ftue-stock.test.ts	6

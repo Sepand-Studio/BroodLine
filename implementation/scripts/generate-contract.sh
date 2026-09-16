@@ -172,11 +172,22 @@ BUILD_LOCK_STALE_SECONDS=300            # critical section is ~1-2s; minutes is 
 # wave-helpers.ts's LOCK_ABSOLUTE_CEILING_MS.
 BUILD_LOCK_ABSOLUTE_CEILING_SECONDS=1800  # 30 minutes
 # 180s, in 0.1s polling ticks. RAISED FROM 60s IN TASK 22 together with
-# wave-helpers.ts's LOCK_ACQUIRE_TIMEOUT_MS, which carries the full reasoning:
-# eight files in services/api/test/ now build the sim service through this one
-# lock, a build takes 2.5-12s, and eight contenders intermittently queued past
-# a minute. A bound on failing loudly, not a measurement, and deliberately well
-# under BUILD_LOCK_STALE_SECONDS.
+# wave-helpers.ts's LOCK_ACQUIRE_TIMEOUT_MS, which carries the full reasoning.
+# In short: eight files in services/api/test/ now build the sim service through
+# this one lock, each taking it ONCE around the build alone, so a waiter's
+# worst case is (N-1) x build. At N=8 and 12s that is 84s, which overran the
+# old 60s exactly as observed. 180s holds to roughly N=15.
+#
+# A BOUND ON FAILING LOUDLY, not a measurement - and NOT, as an earlier draft
+# of this comment said, safe because it sits "well under
+# BUILD_LOCK_STALE_SECONDS". That inverts the mechanism: a dead owner is
+# reclaimed immediately on ESRCH regardless of this value, and the staleness
+# window governs only the liveness-unconfirmable case, which a 180s waiter now
+# gives up BEFORE reaching. It is safe because a real build queue cannot
+# plausibly reach it.
+#
+# MUST MOVE WITH wave-helpers.ts's LOCK_ACQUIRE_TIMEOUT_MS. Nothing pins the
+# pair; two comments are the whole mechanism, and closing that is owed.
 BUILD_LOCK_TIMEOUT_TENTHS=1800           # 180s, in 0.1s polling ticks
 
 # Reads the owner file, or prints nothing if it is missing or unreadable.

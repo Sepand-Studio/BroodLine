@@ -2,8 +2,9 @@ import { spawn } from 'node:child_process'
 import { mkdir, mkdtemp, readFile, rm, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
-import { __createDotnetBuildLockForTest } from './wave-helpers.ts'
+import { __createDotnetBuildLockForTest, __LOCK_CONSTANTS_FOR_TEST } from './wave-helpers.ts'
 
 /**
  * Regression tests for the mkdir-based mutex wave-helpers.ts's
@@ -390,5 +391,83 @@ describe("withDotnetBuildLock - release after someone else's reclaim", () => {
     // without also rejecting the legitimate one.
     const afterBRelease = await readFile(join(lockDir, 'owner.pid'), 'utf8').catch(() => undefined)
     expect(afterBRelease).toBeUndefined()
+  })
+})
+
+/**
+ * THE TWO IMPLEMENTATIONS AGREE, ASSERTED RATHER THAN ASKED FOR.
+ *
+ * `wave-helpers.ts` and `implementation/scripts/generate-contract.sh` each
+ * implement this mutex, because a bash script cannot import a TypeScript
+ * module. Both files carry comments instructing an editor to change the
+ * constants together, and until Task 22's fix round **those comments were the
+ * entire mechanism** - which is precisely the shape this package refuses
+ * elsewhere: `preflight.test.ts` pins SIM_PORTS with a test, and
+ * `replay-format.ts` parses SimVersion.cs rather than retyping it, on the
+ * stated grounds that a constant duplicating a fact already in a file "is a
+ * claim with a maintenance cost and no enforcement".
+ *
+ * WHAT DRIFT ACTUALLY COSTS, stated accurately because an earlier version of
+ * the comment in `wave-helpers.ts` overstated it. A divergent lock PATH would
+ * give two locks and no exclusion - but the path cannot drift, because both
+ * sides derive it by hashing the repo root, so there is nothing here to pin.
+ * A divergent TIMEOUT still excludes correctly; the two sides simply give up
+ * at different moments, so a contended suite goes red in one place and green
+ * in another for no reason a reader can see. That is a legibility failure
+ * rather than a correctness one, and it is worth pinning for exactly that
+ * reason - not by pretending it is worse than it is.
+ *
+ * THE SHELL SIDE IS PARSED, NOT RETYPED, for the same reason: a third copy of
+ * the numbers in this file would agree with itself and with nothing else.
+ */
+describe('the build lock is defined twice and the two definitions agree', () => {
+  const SCRIPT = fileURLToPath(
+    new URL('../../../implementation/scripts/generate-contract.sh', import.meta.url))
+
+  /**
+   * Reads `NAME=<digits>` off the script. Throws rather than returning a
+   * default on a miss: a silent fallback here would make this whole file
+   * pass against a script that had renamed the variable, which is one of the
+   * exact drifts it exists to catch.
+   */
+  async function shellConstant(name: string): Promise<number> {
+    const source = await readFile(SCRIPT, 'utf8')
+    const match = new RegExp(`^${name}=(\\d+)`, 'm').exec(source)
+    if (match === null) {
+      throw new Error(
+        `dotnet-build-lock.test.ts: expected a line '${name}=<digits>' in ${SCRIPT}, and found `
+        + 'none. The script\'s shape changed and this parser must move with it - see this '
+        + 'block\'s comment on why the shell side is parsed rather than retyped.')
+    }
+    return Number(match[1])
+  }
+
+  it('the acquire timeout matches, in the unit each side spells it in', async () => {
+    // The shell counts 0.1s polling ticks; TypeScript counts milliseconds.
+    const tenths = await shellConstant('BUILD_LOCK_TIMEOUT_TENTHS')
+    expect(tenths * 100).toBe(__LOCK_CONSTANTS_FOR_TEST.acquireTimeoutMs)
+
+    // NOT A TAUTOLOGY, and this is the assertion that keeps the one above
+    // from becoming one: 0 === 0 would satisfy a multiplication against two
+    // absent values, and the parser's throw only covers a MISSING line, not
+    // a zeroed one.
+    expect(tenths).toBeGreaterThan(0)
+  })
+
+  it('the staleness window and the absolute ceiling match too', async () => {
+    expect(await shellConstant('BUILD_LOCK_STALE_SECONDS') * 1000)
+      .toBe(__LOCK_CONSTANTS_FOR_TEST.staleMs)
+    expect(await shellConstant('BUILD_LOCK_ABSOLUTE_CEILING_SECONDS') * 1000)
+      .toBe(__LOCK_CONSTANTS_FOR_TEST.absoluteCeilingMs)
+  })
+
+  it('the ordering the three constants only make sense in still holds', async () => {
+    // Ordered rather than merely equal, because equality across the two files
+    // would still be satisfied by three numbers that are jointly nonsense -
+    // a ceiling below the staleness window, say, which would make the
+    // confirmed-alive branch fire before the unconfirmable one.
+    const { acquireTimeoutMs, staleMs, absoluteCeilingMs } = __LOCK_CONSTANTS_FOR_TEST
+    expect(acquireTimeoutMs).toBeLessThan(staleMs)
+    expect(staleMs).toBeLessThan(absoluteCeilingMs)
   })
 })

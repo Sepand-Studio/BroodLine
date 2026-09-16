@@ -57,8 +57,9 @@ Task plans and their outputs. Design and architecture live in `specs/`.
   records the sentence this phase **deliberately does not write** and who owes
   it; what `services/api/test/ftue.test.ts` *did* earn — the first hour walked
   end to end with `seeded === 0` — and what it explicitly does not; the branch's
-  dominant defect in ten instances, *a fixture whose expected value is a type's
-  default is not a fixture*; two components that shipped with no production
+  dominant defect in eleven instances, *a fixture whose expected value is a
+  type's default is not a fixture* — the eleventh being in the very file
+  written to close it, which is the most useful thing that section records; two components that shipped with no production
   caller; and roughly fifteen defects found in the plan and the design, one of
   which was retracted and is recorded beside the retraction.
 - `results/` — benchmark output. Logs and test XML are gitignored: they are
