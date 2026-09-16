@@ -4,7 +4,11 @@
   "references": [
     "Broodline.Sim",
     "Broodline.View",
-    "Unity.InputSystem"
+    "Unity.InputSystem",
+    "Broodline.UI",
+    "Broodline.Net",
+    "Broodline.Model",
+    "Generated.Api"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

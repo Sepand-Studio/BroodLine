@@ -1,0 +1,53 @@
+/* client_architecture section 10: safe-area driven, no fixed pixel positions.
+ *
+ * --safe-top/--safe-bottom are declared here as the documented default (0)
+ * for whatever renders before the first frame. UI Toolkit's runtime style API
+ * has no public way to SET a custom property from script (only to read one
+ * that a stylesheet already defines - UnityEngine.UIElements.CustomStyleAccess
+ * only exposes TryGetValue, verified against UnityEngine.UIElementsModule.dll
+ * for this Editor version), so BootController does not actually write through
+ * these variables. It computes the safe-area inset from Screen.safeArea via
+ * RuntimePanelUtils.ScreenToPanel and applies it as concrete padding on
+ * #shell-root directly, which is inline style and wins the cascade over the
+ * rule below regardless. These two lines stay as the spec'd fallback and as
+ * documentation of the intent.
+ */
+:root {
+    --safe-top: 0;
+    --safe-bottom: 0;
+}
+
+.shell-root {
+    flex-grow: 1;
+    flex-direction: column;
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bottom);
+}
+
+.top-bar {
+    flex-direction: row;
+    flex-shrink: 0;
+}
+
+.screen-host {
+    flex-grow: 1;
+}
+
+.sheet-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: none;
+}
+
+.tab-bar-slot {
+    flex-shrink: 0;
+}
+
+.tab-bar {
+    flex-direction: row;
+    justify-content: space-around;
+    flex-shrink: 0;
+}

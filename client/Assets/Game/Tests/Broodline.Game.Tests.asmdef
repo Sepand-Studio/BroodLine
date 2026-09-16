@@ -1,0 +1,13 @@
+{
+  "name": "Broodline.Game.Tests",
+  "rootNamespace": "Broodline.Game.Tests",
+  "references": ["Broodline.Game", "Broodline.Model", "Broodline.UI", "Generated.Api", "UnityEngine.TestRunner", "UnityEditor.TestRunner"],
+  "includePlatforms": ["Editor"],
+  "excludePlatforms": [],
+  "overrideReferences": true,
+  "precompiledReferences": ["nunit.framework.dll", "Newtonsoft.Json.dll"],
+  "autoReferenced": false,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

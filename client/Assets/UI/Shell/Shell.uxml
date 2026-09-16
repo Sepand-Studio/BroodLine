@@ -1,0 +1,9 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <ui:Style src="Shell.uss" />
+    <ui:VisualElement name="shell-root" class="shell-root">
+        <ui:VisualElement name="top-bar" class="top-bar" />
+        <ui:VisualElement name="screen-host" class="screen-host" />
+        <ui:VisualElement name="sheet-layer" class="sheet-layer" />
+        <ui:VisualElement name="tab-bar" class="tab-bar-slot" />
+    </ui:VisualElement>
+</ui:UXML>
