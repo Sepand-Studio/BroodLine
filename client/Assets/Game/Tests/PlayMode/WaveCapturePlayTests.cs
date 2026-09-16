@@ -1,11 +1,12 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using System.Threading.Tasks;
 using Broodline.Game;
 using Broodline.Game.Shell;
 using Broodline.Model;
 using Broodline.Sim.Combat;
+using Broodline.UI.Screens;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -27,26 +28,36 @@ using UnityEngine.UIElements;
 /// break would surface at the next capture session, on hardware, with a person
 /// waiting.
 ///
-/// The EditMode half (`WaveRunnerTests`) asserts the flag's rule and that the
-/// scene asset still carries it. Neither can press Play, and pressing Play is
-/// the part that was worth doubting. This does.
+/// The EditMode half (`WaveRunnerTests`) asserts the flag's rule, the reset
+/// hook that survives a disabled domain reload, and that the scene asset still
+/// carries the default. None of that can press Play, and pressing Play is the
+/// part that was worth doubting. This does.
 public class WaveCapturePlayTests
 {
     const string SceneName = "Wave";
 
-    /// Long enough for wave 6 (540 ticks) at the accelerated rate below, with
-    /// room for a slow batchmode frame rate. Not open-ended: a wave that never
-    /// terminates must fail this test rather than hang the run.
-    const float TimeoutSeconds = 120f;
-
-    /// `WaveClock` caps catch-up at `MaxCatchUpSteps` (8) ticks per frame, so
-    /// a scale past ~16x at 60fps buys nothing. It changes the PACING, not the
-    /// simulation: the engine sees a fixed timestep either way, which is the
-    /// whole point of the accumulator - and the assertions below prove it, by
-    /// re-simulating the record headlessly and demanding the same hash.
+    /// `WaveClock` caps catch-up at `MaxCatchUpSteps` (8) ticks per frame, and
+    /// `Time.deltaTime` is itself capped at `Time.maximumDeltaTime` (0.333s,
+    /// i.e. 10 ticks), so a scale past ~16x buys nothing. It changes the
+    /// PACING, not the simulation: the engine sees a fixed timestep either
+    /// way, which is the whole point of the accumulator - and the assertions
+    /// below prove it, by re-simulating the record headlessly and demanding
+    /// the same hash.
     const float TimeScale = 16f;
 
-    string _artifactDirectory;
+    /// FRAMES, NOT SECONDS, and the unit is the point.
+    ///
+    /// A wall-clock deadline makes this test's outcome depend on how fast the
+    /// machine is, which is how a suite acquires a flaky gate that fails once
+    /// a fortnight on CI and gets muted. The work here is bounded in FRAMES
+    /// instead, and bounded from both ends: a slow frame runs at most 8 ticks
+    /// (the catch-up cap), so wave 6's 540 ticks need at least 68 frames; a
+    /// fast frame runs `unscaledDelta * 16 * 30` ticks, so even a 1ms
+    /// batchmode frame is ~0.5 ticks and needs ~1125. This budget is five
+    /// times the latter, and a machine slow enough to matter needs FEWER
+    /// frames rather than more.
+    const int FrameBudget = 6000;
+
     string _replayPath;
     string _outcomePath;
     byte[] _previousReplay;
@@ -55,9 +66,9 @@ public class WaveCapturePlayTests
     [SetUp]
     public void MoveAnyExistingCaptureAside()
     {
-        _artifactDirectory = Application.persistentDataPath;
-        _replayPath = Path.Combine(_artifactDirectory, "replay.bin");
-        _outcomePath = Path.Combine(_artifactDirectory, "replay-outcome.txt");
+        var directory = Application.persistentDataPath;
+        _replayPath = Path.Combine(directory, "replay.bin");
+        _outcomePath = Path.Combine(directory, "replay-outcome.txt");
 
         // A real capture may be sitting here uncollected. This test writes a
         // run with no tap in it, which would be a WORSE capture than the one
@@ -81,12 +92,26 @@ public class WaveCapturePlayTests
         if (_previousOutcome != null) File.WriteAllText(_outcomePath, _previousOutcome);
     }
 
+    /// Yields until `until` holds, or fails after `FrameBudget` frames.
+    static IEnumerator Until(Func<bool> until, string whatDidNotHappen)
+    {
+        for (var frame = 0; frame < FrameBudget; frame++)
+        {
+            if (until()) yield break;
+            yield return null;
+        }
+        Assert.Fail(whatDidNotHappen + " within " + FrameBudget + " frames");
+    }
+
+    static IList<VisualElement> BarsIn(VisualElement root) =>
+        root.Query<VisualElement>(className: WaveHudView.BarUssClassName).ToList();
+
     [UnityTest]
     public IEnumerator PlayingTheWaveSceneWithNoHost_StillWritesACaptureOfWave6()
     {
         yield return SceneManager.LoadSceneAsync(SceneName, LoadSceneMode.Additive);
 
-        var runner = Object.FindAnyObjectByType<WaveRunner>();
+        var runner = UnityEngine.Object.FindAnyObjectByType<WaveRunner>();
         Assert.IsNotNull(runner, "the wave scene must carry a WaveRunner");
         Assert.IsTrue(runner.StandaloneCapture,
             "nothing hosted this load, so the scene must own its own deployment and the artifacts");
@@ -101,19 +126,58 @@ public class WaveCapturePlayTests
         Assert.IsNotNull(document, "the wave scene must carry a UIDocument for the HUD");
         Assert.IsNotNull(document.panelSettings, "the HUD's document has no panel to draw into");
 
-        // One frame, so the document builds its root and WaveRunner.Update
-        // has attached the HUD to it.
+        // One frame, so WaveRunner.Update has configured the wave and attached
+        // the HUD.
         yield return null;
-        Assert.Greater(document.rootVisualElement.childCount, 0,
+        var root = document.rootVisualElement;
+        Assert.Greater(root.childCount, 0,
             "nothing was attached to the wave scene's UI document - the HUD did not build");
+
+        // THE LITERAL THAT IS LOAD-BEARING AND COMPILES EITHER WAY. A capture
+        // with no Rally in it is an invalid artifact - `EditorReplayTests`
+        // asserts the record carries a tap at a tick index and
+        // `DeviceReplayTests` asserts its window overlaps the engagement - so
+        // the standalone path must leave input on. Flipping it breaks nothing
+        // that runs; it fails on hardware, with a person waiting.
+        Assert.IsTrue(runner.InputEnabled,
+            "the standalone capture path must accept the tap the capture is FOR");
 
         Time.timeScale = TimeScale;
 
-        var deadline = Time.realtimeSinceStartup + TimeoutSeconds;
-        while (!File.Exists(_outcomePath) && Time.realtimeSinceStartup < deadline)
-            yield return null;
+        // `WaveRunner.Snapshot` has no other coverage, and no EditMode test
+        // can reach it: it needs a live SimRunner and a WavePair. Five
+        // creatures deploy at tick 0, so the HUD carries five bars before the
+        // Courser exists...
+        Assert.AreEqual(5, BarsIn(root).Count,
+            "the HUD must draw a bar per deployed creature from the first frame");
 
-        Time.timeScale = 1f;
+        // ...and six once it spawns, which is what says the snapshot tracks
+        // live raider visibility rather than echoing the deployment.
+        yield return Until(() => BarsIn(root).Count > 5, "the Courser never appeared on the HUD");
+
+        // And the readout ADVANCES. `DeviceReplayTests` tells the capturer to
+        // aim a tap by reading the live tick off this line; a line that froze
+        // at its first value is a capture aimed with a stopped clock, and the
+        // scheduled per-frame redraw is only reachable with a real panel.
+        var integrity = root.Q<Label>("integrity");
+        var before = integrity.text;
+        Assert.IsNotEmpty(before);
+        yield return Until(() => integrity.text != before, "the HUD's tick readout never advanced");
+
+        // WHAT IS *NOT* ASSERTED HERE, deliberately: that the text equals
+        // `WaveHudScreen.Integrity(...)` of the runner's current tick. The
+        // redraw is scheduled on the panel and the runner steps in `Update`,
+        // so a comparison against a tick read from this coroutine is one frame
+        // out roughly half the time - a genuinely flaky assertion. It was
+        // written, it failed exactly that way, and it is not being weakened
+        // with a tolerance: the verbatim property belongs to
+        // `WaveScreensTests.WaveHud_ShowsTheIntegrityAndTickLineVerbatim_AndItMoves`,
+        // where the snapshot is handed over rather than raced. What is left
+        // here is what only a live panel can show - that the scheduler pulls
+        // a NEW snapshot every frame at all.
+
+        yield return Until(() => runner.Runner.Done, "the wave never terminated");
+        yield return null;   // the Update that writes the artifacts
 
         Assert.IsTrue(File.Exists(_replayPath),
             "playing Wave.unity with no host must still write replay.bin - the tracked-capture " +
@@ -165,17 +229,27 @@ public class WaveCapturePlayTests
     [UnityTest]
     public IEnumerator AHostedWave_ReportsItsOutcomeAndWritesNoCapture()
     {
-        Time.timeScale = TimeScale;
-
         var host = new WaveHost(() => Bundle);
         var run = host.RunAsync(
             WaveRunner.CaptureWaveId, WaveRunner.Deployment(), WaveRunner.Seed, inputEnabled: false);
 
-        var deadline = Time.realtimeSinceStartup + TimeoutSeconds;
-        while (!run.IsCompleted && Time.realtimeSinceStartup < deadline) yield return null;
+        // Caught mid-wave, at real time, BEFORE the clock is accelerated -
+        // the runner and its scene are gone by the time the task completes.
+        WaveRunner hosted = null;
+        yield return Until(() => (hosted = UnityEngine.Object.FindAnyObjectByType<WaveRunner>()) != null &&
+                                 hosted.Runner != null,
+                           "WaveHost never configured a runner");
 
+        Assert.IsFalse(hosted.StandaloneCapture,
+            "a hosted wave must not own the capture artifacts");
+        Assert.IsFalse(hosted.InputEnabled,
+            "inputEnabled:false must reach the runner - design section 5 beat 2 is a wave the " +
+            "player watches");
+
+        Time.timeScale = TimeScale;
+        yield return Until(() => run.IsCompleted, "WaveHost.RunAsync never completed");
         Time.timeScale = 1f;
-        Assert.IsTrue(run.IsCompleted, "WaveHost.RunAsync never completed");
+
         Assert.IsNull(run.Exception, run.Exception == null ? "" : run.Exception.ToString());
 
         var report = run.Result;

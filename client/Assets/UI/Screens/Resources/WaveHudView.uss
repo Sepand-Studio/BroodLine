@@ -1,6 +1,10 @@
-/* No fixed pixel positions on the frame itself - client_architecture 11.
-   The bars inside it ARE absolutely positioned, because they track world
-   bodies; that position comes from the camera, never from a constant. */
+/* client_architecture 11: "Layout is safe-area driven with no fixed pixel
+   positions." Nothing here is positioned at a screen coordinate. The margins
+   below are GUTTERS inside a root that WaveRunner pads with SafeAreaBinder -
+   the same binder BootController applies to the shell - so they measure from
+   the safe area's edge, not the display's. The bars ARE absolutely
+   positioned, because they track world bodies; that position comes from the
+   camera and is clamped into the frame, never taken from a constant. */
 .wave-hud-view {
     flex-grow: 1;
     flex-direction: column;

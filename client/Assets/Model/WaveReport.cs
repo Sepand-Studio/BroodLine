@@ -61,9 +61,16 @@ namespace Broodline.Model
         /// and forwards it; it is not the client's to interpret.
         public byte[] ReplayBytes;
 
-        /// Empty on a win. Never null - a screen that has to null-check
-        /// before it can say "no breaches" is one branch away from claiming
-        /// a breach it does not have.
+        /// Empty on a win.
+        ///
+        /// `WaveReportBuilder` ALWAYS assigns a list, and `WaveReportTests`
+        /// pins that - so no report the shell produces is ever null here. The
+        /// field cannot enforce it, though: this is plain data with public
+        /// fields, constructible by anyone (the UI test suite does exactly
+        /// that), so the views still null-check and
+        /// `WaveScreensTests.WaveDefeat_ANullBreachList_...` proves they
+        /// survive it. An invariant a type cannot enforce is a convention,
+        /// and it is written as one here rather than promised as a guarantee.
         public IReadOnlyList<BreachSummary> Breaches;
     }
 

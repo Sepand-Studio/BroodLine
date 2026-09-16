@@ -1,7 +1,7 @@
 {
   "name": "Broodline.Game.PlayTests",
   "rootNamespace": "Broodline.Game.PlayTests",
-  "references": ["Broodline.Game", "Broodline.Model", "Broodline.Sim", "UnityEngine.TestRunner", "UnityEditor.TestRunner"],
+  "references": ["Broodline.Game", "Broodline.Model", "Broodline.Sim", "Broodline.UI", "UnityEngine.TestRunner", "UnityEditor.TestRunner"],
   "includePlatforms": [],
   "excludePlatforms": [],
   "overrideReferences": true,

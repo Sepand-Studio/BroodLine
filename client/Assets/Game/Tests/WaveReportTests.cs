@@ -231,12 +231,24 @@ namespace Broodline.Game.Tests
             Assert.AreEqual(runner.Outcome.Ticks, report.Ticks);
             Assert.AreEqual(runner.Outcome.IntegrityRemaining, report.IntegrityRemaining);
 
-            // Pinned against the other wave too, so "carries Ticks" cannot be
-            // satisfied by a field that happens to hold wave 6's number.
+            // BOTH FIELDS ARE PINNED AGAINST A SECOND FIXTURE, and integrity
+            // needs it even more than ticks does. Wave 6 authors integrity 2
+            // and `Stats.RaiderIntegrityCost(Courser)` is 2, so its one breach
+            // leaves IntegrityRemaining == 0 - which is `default(int)`. A
+            // builder that hardcoded zero, or never assigned the field at all,
+            // satisfies the line above and every other test in this file.
             var won = Wave1Won();
+
             Assert.AreNotEqual(runner.Outcome.Ticks, won.Outcome.Ticks,
                 "sanity: the two fixtures must not agree, or the check below proves nothing");
             Assert.AreEqual(won.Outcome.Ticks, WaveReportBuilder.From(won, Bundle()).Ticks);
+
+            Assert.AreEqual(0, runner.Outcome.IntegrityRemaining,
+                "sanity: wave 6's loss lands on default(int), which is why the check below exists");
+            Assert.AreNotEqual(0, won.Outcome.IntegrityRemaining,
+                "sanity: the won fixture must carry a NON-default integrity");
+            Assert.AreEqual(won.Outcome.IntegrityRemaining,
+                WaveReportBuilder.From(won, Bundle()).IntegrityRemaining);
         }
 
         [Test]

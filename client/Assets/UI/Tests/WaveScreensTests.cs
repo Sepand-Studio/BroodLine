@@ -234,6 +234,21 @@ namespace Broodline.UI.Tests
             Assert.AreEqual(string.Empty, view.Q<Label>("headline").text);
         }
 
+        [Test]
+        public void WaveDefeat_ANullBreachListIsSurvived_NotAssumedAway()
+        {
+            // `WaveReport.Breaches` is plain data with a public field, so
+            // "never null" is a convention `WaveReportBuilder` keeps rather
+            // than an invariant the type enforces - and this assembly can
+            // construct a counterexample in one line, which is precisely why
+            // the view null-checks. This is that counterexample.
+            var view = BoundDefeat(new WaveReport { Result = "Loss", Breaches = null });
+
+            Assert.AreEqual(string.Empty, view.Q<Label>("headline").text);
+            Assert.AreEqual(string.Empty, view.Q<Label>("diagnosis").text);
+            Assert.IsTrue(view.Q<Button>("retry").enabledSelf);
+        }
+
         // ---------------------------------------------------------------
         // Post-Wave
         // ---------------------------------------------------------------
@@ -441,11 +456,18 @@ namespace Broodline.UI.Tests
         }
 
         [Test]
-        public void WaveHud_ARalliedCreatureCountsDownInTicksFromTheEngine()
+        public void WaveHud_ARalliedCreatureShowsWhicheverRemainderTheSnapshotCarries()
         {
+            // NAMED FOR WHAT IT CHECKS. An earlier name said "from the engine",
+            // which this cannot see: the snapshot below is hand-built, so what
+            // is proven is that the VIEW renders the number it is given and
+            // does not compute one. That the number originates at
+            // `SimRunner.CreatureRallyRemaining` and is never subtracted
+            // client-side lives in `WaveRunner.Snapshot`, and is covered where
+            // a real runner exists - `WaveCapturePlayTests`.
+            //
             // `WaveRunner`: "a tap with no visible consequence is
-            // indistinguishable from a tap that was dropped." The number is
-            // read from the engine, never subtracted here, so two different
+            // indistinguishable from a tap that was dropped." So two different
             // remainders must produce two different tags.
             Assert.AreEqual(BodyState.Rallied, BodyBars.CreatureState(87));
             Assert.AreEqual(BodyState.Normal, BodyBars.CreatureState(0));
@@ -500,6 +522,51 @@ namespace Broodline.UI.Tests
 
             Assert.AreEqual(2, BarsOf(view).Count);
             Assert.AreEqual(WaveHudScreen.Integrity(Hud(9, 99)), view.Q<Label>("integrity").text);
+        }
+
+        [Test]
+        public void WaveHud_ABarIsClampedIntoTheFrameAndBelowTheIntegrityReadout()
+        {
+            // `WaveHud.ClampIntoSafeArea`'s job, which the rebuild dropped and
+            // this restores. The header reservation is the half that matters:
+            // a clamped bar landing ON the integrity line would cover the one
+            // element the safe-area work exists to keep readable - and
+            // `DeviceReplayTests` tells the capturer to read the live tick off
+            // that line to time a tap.
+            var frame = new UnityEngine.Rect(0f, 0f, 390f, 844f);
+            var bar = new UnityEngine.Vector2(52f, 20f);
+            const float header = 30f;
+
+            // Inside: untouched. Without this the three clamps below are
+            // satisfied by a function that pins every bar to one corner.
+            Assert.AreEqual(new UnityEngine.Vector2(100f, 400f),
+                WaveHudView.ClampIntoFrame(new UnityEngine.Vector2(100f, 400f), frame, header, bar));
+
+            // Off each edge, one at a time.
+            Assert.AreEqual(0f, WaveHudView.ClampIntoFrame(new UnityEngine.Vector2(-40f, 400f), frame, header, bar).x);
+            Assert.AreEqual(338f, WaveHudView.ClampIntoFrame(new UnityEngine.Vector2(900f, 400f), frame, header, bar).x);
+            Assert.AreEqual(824f, WaveHudView.ClampIntoFrame(new UnityEngine.Vector2(100f, 2000f), frame, header, bar).y);
+
+            // ABOVE THE HEADER, which is the reservation itself: clamped to
+            // the readout's bottom, NOT to zero.
+            Assert.AreEqual(header,
+                WaveHudView.ClampIntoFrame(new UnityEngine.Vector2(100f, -50f), frame, header, bar).y);
+            Assert.AreEqual(header,
+                WaveHudView.ClampIntoFrame(new UnityEngine.Vector2(100f, 5f), frame, header, bar).y);
+        }
+
+        [Test]
+        public void WaveHud_WithNoResolvedLayout_LeavesAPositionAloneRatherThanClampingToNothing()
+        {
+            // The first frame, and the state every test in this file sees. A
+            // clamp against a zero or NaN frame would stack every bar in one
+            // corner, which is worse than a bar briefly off-screen.
+            var desired = new UnityEngine.Vector2(100f, 400f);
+            var bar = new UnityEngine.Vector2(52f, 20f);
+
+            Assert.AreEqual(desired, WaveHudView.ClampIntoFrame(desired, new UnityEngine.Rect(), 0f, bar));
+            Assert.AreEqual(desired, WaveHudView.ClampIntoFrame(
+                desired, new UnityEngine.Rect(0f, 0f, float.NaN, float.NaN), 0f, bar));
         }
 
         [Test]

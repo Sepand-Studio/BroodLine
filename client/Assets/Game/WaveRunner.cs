@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
+using Broodline.Game.Shell;
 using Broodline.Model;
 using Broodline.Sim.Combat;
 using Broodline.UI.Screens;
@@ -61,6 +62,29 @@ namespace Broodline.Game
         /// nothing to race.
         public static bool Hosted;
 
+        /// Cleared every time the player loop starts.
+        ///
+        /// THIS PROJECT DISABLES DOMAIN RELOAD. `ProjectSettings/EditorSettings
+        /// .asset` carries `m_EnterPlayModeOptionsEnabled: 1` and
+        /// `m_EnterPlayModeOptions: 3` - `DisableDomainReload |
+        /// DisableSceneReload` - so statics are NOT reset when Play Mode
+        /// starts. `WaveHost.RunAsync` clears `Hosted` in a `finally`, and a
+        /// `finally` does not run when a person stops Play Mode mid-wave: the
+        /// domain simply keeps `Hosted == true`.
+        ///
+        /// What that costs is the exact failure this whole flag exists to
+        /// prevent. The next time someone opens `Wave.unity` and presses Play
+        /// to take the tracked capture, `StandaloneCapture` is false, `Update`
+        /// returns every frame, and they watch an empty battlefield that
+        /// writes nothing and reports nothing. No test can catch it either,
+        /// because every test resets the flag itself.
+        ///
+        /// `SubsystemRegistration` is the earliest runtime hook and runs
+        /// before any scene loads, which is before any `Update` could read it.
+        /// `Determinism/CorpusPlayerHarness.cs` uses the same attribute.
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetHosted() => Hosted = false;
+
         /// Whether this run owns its own deployment and the capture
         /// artifacts.
         ///
@@ -79,6 +103,7 @@ namespace Broodline.Game
         WavePair _pair;
         WaveView _view;
         WaveHudView _hud;
+        SafeAreaBinder _safeArea;
         bool _written;
         bool _inputEnabled = true;
 
@@ -104,6 +129,17 @@ namespace Broodline.Game
         /// a `WaveReport` from its `Outcome` when it finishes. Null until
         /// `Configure`.
         public SimRunner Runner => _runner;
+
+        /// Whether taps reach the simulation as Rally.
+        ///
+        /// Observable because the standalone capture path passes `true` and
+        /// THAT LITERAL IS LOAD-BEARING: a capture with no Rally in it is an
+        /// invalid artifact - `EditorReplayTests` asserts the record carries a
+        /// tap at a tick index, and `DeviceReplayTests` asserts the Rally
+        /// window overlaps the engagement. Flipping it to `false` breaks
+        /// nothing that compiles and nothing that runs; it fails on hardware,
+        /// with a person waiting.
+        public bool InputEnabled => _inputEnabled;
 
         /// Completes when the wave terminates. Replaced by every `Configure`,
         /// so a host awaits the run it just started rather than one that
@@ -177,8 +213,31 @@ namespace Broodline.Game
                 return;
             }
 
+            // THE SAME TREATMENT `BootController` GIVES THE SHELL'S ROOT, and
+            // it has to be done again here rather than inherited. The wave
+            // scene's document is a SIBLING root in the shared panel, so none
+            // of the shell's padding reaches it - and on the standalone
+            // capture path the Boot scene is not loaded at all, so there is no
+            // binder in the process to inherit from.
+            //
+            // The file this HUD replaced recorded the cost: the integrity
+            // readout at y=110 with the Dynamic Island occupying 0..177,
+            // invisible in the Editor because a notchless display has a zero
+            // inset and the bug is an identity. It matters more now than it
+            // did then - `DeviceReplayTests`' re-capture message tells the
+            // capturer to read the live tick off this HUD to time a tap near
+            // 190, so a readout under the notch is a wasted device trip.
+            //
+            // Re-applied on every layout change, not once: an iPad in Split
+            // View resizes the window with no rotation involved. See
+            // SafeAreaBinder's own header.
+            var root = document.rootVisualElement;
+            _safeArea = SafeAreaBinder.ForRuntimePanel(root);
+            _safeArea.ApplyIfChanged();
+            root.RegisterCallback<GeometryChangedEvent>(_ => _safeArea.ApplyIfChanged());
+
             _hud = new WaveHudView { Camera = Camera.main };
-            document.rootVisualElement.Add(_hud);
+            root.Add(_hud);
             _hud.Bind(Snapshot);
         }
 

@@ -34,6 +34,12 @@ namespace Broodline.UI.Screens
     ///
     /// 3. A breach outranks a chill. That frame is the verdict.
     ///
+    /// 4. A bar is clamped into the frame and clear of the integrity readout.
+    ///    `WaveHud.ClampIntoSafeArea` reserved a header band for exactly this
+    ///    reason: a bar that DOES get clamped must land below the integrity
+    ///    line rather than on top of the one element the safe-area work was
+    ///    done to make readable. See `ClampIntoFrame`.
+    ///
     /// AND ONE THING IS NEW AND LOAD-BEARING: every element here is
     /// `PickingMode.Ignore`. Rally is the player's only input during a wave
     /// (combat_engine section 8) and it is a tap anywhere on the screen. A
@@ -195,12 +201,22 @@ namespace Broodline.UI.Screens
             Place(bar, body.World);
         }
 
-        /// World to panel, asked of the camera.
+        /// World to panel, asked of the camera, and then into the bar
+        /// container's own space.
         ///
         /// The lift is applied in WORLD space along `camera.transform.up`
         /// before the projection, which is the only version of this that
         /// cannot be wrong the next time the camera moves - see point 1 of
         /// the class comment.
+        ///
+        /// `WorldToLocal` IS NOT DECORATION. `CameraTransformWorldToPanel`
+        /// answers in PANEL space, while `style.left`/`top` are relative to
+        /// the bar's containing block - and the HUD's root is safe-area
+        /// padded, so those two origins differ by the notch inset on exactly
+        /// the devices the padding exists for. Skipping this conversion works
+        /// perfectly in the Editor, where a notchless display makes the inset
+        /// zero and the bug an identity, which is the same way the readout
+        /// ended up under the Dynamic Island the first time.
         ///
         /// Silently skipped with no panel or no camera, which is the state a
         /// test sees. The bars still exist and still carry their fill and
@@ -212,10 +228,56 @@ namespace Broodline.UI.Screens
             if (panel == null || camera == null) return;
 
             var lifted = world + camera.transform.up * BarLiftWorld;
-            var at = RuntimePanelUtils.CameraTransformWorldToPanel(panel, lifted, camera);
+            var inPanel = RuntimePanelUtils.CameraTransformWorldToPanel(panel, lifted, camera);
+            var at = _bars.WorldToLocal(inPanel);
 
-            bar.style.left = at.x - BarWidth * 0.5f;
-            bar.style.top = at.y;
+            // The integrity readout's own band, MEASURED rather than declared.
+            // `WaveHud` reserved a constant 34px for it and its own comment
+            // called the resulting agreement between two files "an unasserted
+            // numeric relationship between two constants in two assemblies".
+            // The label knows how tall it is; ask it.
+            var header = _integrity.layout;
+            var headerBottom = float.IsNaN(header.yMax) ? 0f : header.yMax;
+
+            var placed = ClampIntoFrame(
+                new Vector2(at.x - BarWidth * 0.5f, at.y),
+                _bars.contentRect,
+                headerBottom,
+                new Vector2(BarWidth, float.IsNaN(bar.layout.height) ? 0f : bar.layout.height));
+
+            bar.style.left = placed.x;
+            bar.style.top = placed.y;
+        }
+
+        /// Keeps a bar - and the tag hanging under it - inside the frame and
+        /// clear of the integrity readout.
+        ///
+        /// A LAST RESORT, NOT A LAYOUT STRATEGY, which is what `WaveHud` said
+        /// about its own version: with the lift taken from the camera this
+        /// should never fire, because `WaveSceneBuilder` leaves 3.7% of the
+        /// vertical extent above the Ark at every aspect. It exists for the
+        /// cases the framing cannot promise, and it reserves the header band
+        /// so that a bar which DOES get clamped lands below the integrity
+        /// line rather than on top of the one element the safe area work was
+        /// done to make readable.
+        ///
+        /// Static and public because it is the only arithmetic in this file a
+        /// test can reach: `Place` returns early without a panel and a camera,
+        /// and a bare `new WaveHudView()` has neither. Untested clamping is
+        /// how the previous version's three wrong lift derivations survived.
+        public static Vector2 ClampIntoFrame(Vector2 desired, Rect frame, float headerBottom, Vector2 barSize)
+        {
+            // No resolved layout yet. Clamping against a frame of zero or NaN
+            // would stack every bar in one corner, which is worse than a bar
+            // briefly off-screen on the first frame.
+            if (float.IsNaN(frame.width) || float.IsNaN(frame.height) ||
+                frame.width <= 0f || frame.height <= 0f) return desired;
+
+            var right = Mathf.Max(0f, frame.width - barSize.x);
+            var top = Mathf.Max(0f, headerBottom);
+            var bottom = Mathf.Max(top, frame.height - barSize.y);
+
+            return new Vector2(Mathf.Clamp(desired.x, 0f, right), Mathf.Clamp(desired.y, top, bottom));
         }
     }
 }

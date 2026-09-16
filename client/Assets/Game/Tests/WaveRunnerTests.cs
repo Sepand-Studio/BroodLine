@@ -1,4 +1,6 @@
 using System.IO;
+using System.Linq;
+using System.Reflection;
 using Broodline.Sim.Combat;
 using NUnit.Framework;
 using UnityEngine;
@@ -73,6 +75,38 @@ namespace Broodline.Game.Tests
 
             WaveRunner.Hosted = true;
             Assert.IsFalse(runner.StandaloneCapture);
+        }
+
+        [Test]
+        public void TheHostedLatchIsClearedWhenThePlayerLoopStarts()
+        {
+            // THE ONE HAZARD NO OTHER TEST HERE CAN SEE, because every other
+            // test resets `Hosted` itself. `ProjectSettings/EditorSettings
+            // .asset` sets `m_EnterPlayModeOptionsEnabled: 1` and
+            // `m_EnterPlayModeOptions: 3` (DisableDomainReload |
+            // DisableSceneReload), so statics survive entering Play Mode.
+            // `WaveHost.RunAsync` clears the flag in a `finally`, and stopping
+            // Play Mode mid-wave never runs it - leaving the next person who
+            // opens Wave.unity to press Play and watch an empty battlefield
+            // that writes nothing.
+            //
+            // Asserted through reflection because the hook is an ATTRIBUTE:
+            // removing it, or moving it to a later load type, is the exact
+            // regression, and neither changes any call site.
+            var hook = typeof(WaveRunner)
+                .GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
+                .SingleOrDefault(m => m.GetCustomAttribute<RuntimeInitializeOnLoadMethodAttribute>() != null);
+
+            Assert.IsNotNull(hook,
+                "WaveRunner needs a [RuntimeInitializeOnLoadMethod] that clears Hosted - this " +
+                "project disables domain reload, so nothing else resets it between Play Mode runs.");
+            Assert.AreEqual(RuntimeInitializeLoadType.SubsystemRegistration,
+                hook.GetCustomAttribute<RuntimeInitializeOnLoadMethodAttribute>().loadType,
+                "the reset must run before any scene loads, so no Update can read a stale flag first");
+
+            WaveRunner.Hosted = true;
+            hook.Invoke(null, null);
+            Assert.IsFalse(WaveRunner.Hosted, "the hook exists but does not clear the flag");
         }
 
         [Test]
