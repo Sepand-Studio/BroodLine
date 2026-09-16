@@ -549,7 +549,7 @@ the registered runner, against the phase that moved `SimVersion`.
 
 ## 13. Decisions owed
 
-*Five carried in, four taken here. The measured record after execution will live
+*Five carried in. Four taken at design time (§2). Two closed during execution. The measured record after execution will live
 in `implementation/`; this table is the index into it.*
 
 | Decision | Why it matters | State |
@@ -558,9 +558,9 @@ in `implementation/`; this table is the index into it.*
 | **The self-hosted macOS runner** | The IL2CPP gate has never run, across three phases that each changed the engine | **Taken: registered this phase.** §9 |
 | **Wave 1's sixth pocket** | Authored content and the engine disagree from wave 1 onward | **Taken: the engine changes**, the lane model takes a layout, `SimVersion` → `0.4.0`, and it lands before the capture. §6.2 |
 | **The GUI technology** | Reversible until the first screen ships, effectively frozen after | **Taken: UI Toolkit.** §4 |
-| **`ref readonly SimState`** | Specifies a shape that guarantees nothing | **Owed since Phase 3. SIX times deferred** if this phase does not take it. Recorded so the count stays honest |
-| **`solo_execution` §3.1's degradation row** | Contradicted by shipped code since Phase 5 | **Still owed.** §10.3 |
-| **Node rates and the downtier floor, back into their documents** | The code has outrun both | **Owed.** §10.3 |
+| **`ref readonly SimState`** | Specifies a shape that guarantees nothing | **Deferred Phase 7: six times deferred, by count.** Not edited. Recorded so the deferral is an act. |
+| **`solo_execution` §3.1's degradation row** | Contradicted by shipped code since Phase 5 | **Taken: narrowed to wave submission error handling.** §10.3 |
+| **Node rates and the downtier floor, back into their documents** | The code has outrun both | **Taken: added to region_roster, bible §5.3, and sample_economy.** §10.3 |
 | **DOM/REC for the remaining traits** | `0.1.2` authors four; `combat_numbers` §4.2–4.3 has twelve traits and six species unauthored | **Owed, and provisional for the four that exist.** Not this phase's, and it blocks any wave needing a fifth trait |
 | **`Diagnosis.PreWaveCheck` cannot clear wave 7** | It counts all six Skirmishers as simultaneous while Splash III caps at 5 | **Owed, and this phase is the first that could have shipped a caller.** Resolved by not shipping one: the threat board is dropped with it — §5.2. **Trigger: the two move together or neither moves**, because the board is the surface that would make the defect visible to a player |
 

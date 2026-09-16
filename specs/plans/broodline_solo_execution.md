@@ -134,6 +134,8 @@ The third is a **gameplay requirement, not an ops preference.** `broodline_colle
 | Live state / chat | Degrades to polling |
 | `api` | Nothing about this is graceful. It is the one service with a real SLO and the one that must not be down |
 
+**Wave submission error handling:** When a wave submission receives a rejection, the Splice Charge issuance handling depends on the error. `sim_unavailable` (503) leaves the issuance live and grants no reward; `engine_too_old` (426) leaves the issuance live; every other rejection consumes the issuance.
+
 **What is watched.** Cloud Run request latency and error rate per route, Cloud SQL connection count against the cap, the ledger-versus-wallet invariant job (§5.3), simulation hash-mismatch rate, and the nightly determinism diff. **Alert on the invariant job and the mismatch rate**; graph everything else. A duplication exploit and a determinism drift are the two failures that get worse the longer they run.
 
 **Deploy safety.** With one server there is no canary population, so the substitutes are: deploy behind a health check, keep the previous Cloud Run revision one command away, and never deploy a schema migration and the code that depends on it in the same step. Once a second server exists, canary-by-server is available for free and is the strongest release tool the architecture offers.
