@@ -291,27 +291,48 @@ other two. The two tests are each other's vacuity control.
 |---|---|
 | **Enable GitHub Actions at `Sepand-Studio`** | **Owed since Phase 4, and it got worse.** This phase widened enums, added a second authored wave and a second bundle — the class of change the determinism gate exists to catch across runtimes — and all six gates were run by hand on one machine. `contract.test.ts` running the contract gate with the suite is the only automated part |
 | **`client_architecture` §2's `ref readonly SimState`** | **Owed since Phase 3. FIVE times deferred.** Recorded so the count stays honest |
-| **Raise `minimumClientVersion`** | **Owed, and now actively wrong** — see §6 |
+| **~~Raise `minimumClientVersion`~~** | **Discharged in `a8e5785`**, after this table had already recorded it as owed — see §6 |
 | **Narrow `solo_execution` §3.1's degradation row** | Still owed. Untouched this phase |
 | **Guard §4.3's retention split** | Owed against a retention sweep that does not exist, and it acquired a second claimant this phase — see §7 |
 
 ---
 
-## 6. The one that turned from "unused" into "wrong"
+## 6. The one that turned from "unused" into "wrong", and was then paid
 
 Design §11 predicted this phase would give `minimumClientVersion` its first real
 trigger, because `wave/start`'s body grows. **It did, and the mechanism was not
-used.**
+reached for** — until the final fix wave.
 
-`parseStart` (`services/api/src/routes/wave.ts`) now **requires** `deployment`:
+`parseStart` (`services/api/src/routes/wave.ts`) **requires** `deployment`:
 `parseDeployment(b.deployment)` returning null fails the whole parse. A
 pre-Phase-6 client posting `{ waveId }` alone gets `400 invalid_request`.
-`config/bundles/0.1.2/manifest.json` still carries `"minimumClientVersion":
-"0.1.0"`.
 
-So that client is **told it is current while every wave it starts is refused**.
-The mechanism has shipped since Phase 4, has never been used, and now has a
-concrete reason to be. It is one line in a manifest.
+**The rest of this section as first written is kept struck through, because this
+file went on asserting the debt after it had been paid** — the same class of
+defect §3 corrects in itself, and the reason §5's row and §12's item 4 both had
+to move with this one:
+
+> ~~`config/bundles/0.1.2/manifest.json` still carries `"minimumClientVersion":
+> "0.1.0"`. So that client is **told it is current while every wave it starts is
+> refused**. The mechanism has shipped since Phase 4, has never been used, and
+> now has a concrete reason to be. It is one line in a manifest.~~
+
+**Discharged in `a8e5785`.** The row is a COUPLING, so both halves moved:
+`config/bundles/0.1.2/manifest.json` to `"minimumClientVersion": "0.2.0"`, and
+`client/ProjectSettings/ProjectSettings.asset` to `bundleVersion: 0.2.0`.
+`isBelow` now serves the shipped client (`0.2.0` is not below `0.2.0`) and
+answers the Phase 5 one with `426 client_too_old`, which is the outcome the
+field exists for. `0.1.0`'s and `0.1.1`'s manifests are deliberately untouched:
+they are historical, and `0.1.0` is byte-identical to what is live in GCS, so
+rewriting the floor a past bundle shipped under would falsify a record rather
+than fix a bug.
+
+**What this does NOT discharge**, and what §12 item 4 now carries instead:
+nothing asserts that the two halves keep moving together, which is exactly how
+they came to disagree. `verify-unity-settings.sh` is the recommended home — it
+already pins `ProjectSettings.asset` keys by grep, and a bundle floor that
+outruns the client it ships to is invisible until a player is told they are
+current while every wave they start is refused.
 
 ---
 
@@ -557,7 +578,10 @@ test green, start there.
 2. **A deployed stack, and the loop driven on it.** §3. Inherited from Phase 5's
    Task 11, unchanged.
 3. **GitHub Actions**, and with it the determinism gate that has still never run.
-4. **One line in a manifest** — `minimumClientVersion`. §6.
+4. ~~**One line in a manifest** — `minimumClientVersion`.~~ **Discharged in
+   `a8e5785`.** What Phase 7 inherits is the **coupling guard** that discharge
+   did not build: nothing asserts that `bundleVersion` and a bundle's
+   `minimumClientVersion` move together. §6.
 5. **A retention/abandonment sweep**, now with two claimants. §7.
 6. **Waves 8–10 and the raiders they require**; Brood, Drift, Bulwark and Delver,
    which are new systems rather than modifiers over the existing loop.
