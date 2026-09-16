@@ -1,11 +1,12 @@
 {
   "name": "Broodline.Net",
   "rootNamespace": "Broodline.Net",
-  "references": ["Broodline.Model", "Generated.Api"],
+  "references": ["Broodline.Model", "Generated.Api", "Unity.Plastic.Newtonsoft.Json"],
   "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,
-  "overrideReferences": false,
+  "overrideReferences": true,
+  "precompiledReferences": ["Newtonsoft.Json.dll"],
   "autoReferenced": true,
   "noEngineReferences": false
 }

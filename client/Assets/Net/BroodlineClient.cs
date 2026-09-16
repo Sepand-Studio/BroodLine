@@ -12,10 +12,9 @@ namespace Broodline.Net
     /// call /v1/sync, replace. A player never watches a spinner to see their
     /// own roster.
     ///
-    /// NO OUTBOX HERE YET. client_architecture section 8 scopes it to durable
-    /// queued MUTATIONS, and this phase's only mutation is account creation,
-    /// which cannot be queued - a player with no account has nothing to queue
-    /// against. It arrives with the first queueable mutation, in Phase 6.
+    /// The outbox lives in Outbox.cs / OutboxClient.cs (Phase 7). It was
+    /// booked to arrive "with the first queueable mutation, in Phase 6" and
+    /// did not.
     ///
     /// NOTE on the generated client's real shape (differs from a first draft
     /// written against the expected NSwag output - see task-10-report.md):
