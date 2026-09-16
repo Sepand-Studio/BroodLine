@@ -48,36 +48,48 @@
 # Skip anywhere in the solution, so no count will report this for you.
 #
 # ---------------------------------------------------------------------------
-# Measured 2026-09-15 on phase_6, api rows re-measured after the loop drive was
-# committed as test/loop.test.ts (fix round 2). The other gates are unchanged by
-# that commit and were last run at 832bfb6.
+# Re-measured 2026-09-15 at the branch tip (71e1ea1), ALL SIX GATES, before
+# opening the PR to develop. The previous stamp read "fix round 2" and had gone
+# stale by ten api tests: the review-fix wave (97f8167) and the base-stock carry
+# (71e1ea1) both landed test changes, and this file's own contract puts
+# regenerating it in the same commit as the test change. It was not, twice.
+#
+# Three api.file rows moved and ALL THREE MOVED UP - accrual +3, config-validate
+# +4, loop-schema +3, which is exactly the 399 -> 409 delta. NO COUNT FELL, which
+# is the only question the per-file rows exist to answer.
+#
+# dotnet moved 221 -> 223 (engine 204 -> 206) and unity 86 -> 87 for the same
+# reason. cross-runtime was re-run rather than carried over, because 97f8167
+# restructured ApplyTaunt's candidate comparison in engine/Runtime/Combat - a
+# comparator change is the exact class of edit that gate exists to catch, and
+# the previous run predated it by an hour. It passes: 500 scenarios agree.
 
-gate.dotnet.total	221
-gate.dotnet.passed	220
+gate.dotnet.total	223
+gate.dotnet.passed	222
 gate.dotnet.failed	1	TheTrackedCapturesAreCurrent — DELIBERATE, see above
 gate.dotnet.skipped	0
-gate.dotnet.engine.total	204
-gate.dotnet.engine.passed	203
+gate.dotnet.engine.total	206
+gate.dotnet.engine.passed	205
 gate.dotnet.engine.failed	1
 gate.dotnet.sim-service.total	17
 gate.dotnet.sim-service.passed	17
 gate.cross-runtime.scenarios	500	PASS: 500 scenarios agree
 gate.api.files	36
-gate.api.total	399
+gate.api.total	409
 gate.api.failed	0
 gate.typecheck.errors	0
 gate.contract.diff.files	0	git diff --quiet exit 0
-gate.unity.editmode.total	86
-gate.unity.editmode.passed	86
+gate.unity.editmode.total	87
+gate.unity.editmode.passed	87
 gate.unity.editmode.failed	0
 gate.unity.editmode.skipped	0
 
 api.file.account.test.ts	8
-api.file.accrual.test.ts	11
+api.file.accrual.test.ts	14
 api.file.adversarial.test.ts	18
 api.file.base-stock.test.ts	9
 api.file.child-reaper.test.ts	8
-api.file.config-validate.test.ts	5
+api.file.config-validate.test.ts	9
 api.file.config.test.ts	15
 api.file.contract.test.ts	4
 api.file.dotnet-build-lock.test.ts	6
@@ -89,7 +101,7 @@ api.file.isolation.test.ts	12
 api.file.issuance-schema.test.ts	9
 api.file.ledger.test.ts	8
 api.file.lineage.test.ts	9
-api.file.loop-schema.test.ts	30
+api.file.loop-schema.test.ts	33
 api.file.loop.test.ts	3
 api.file.masked-teardown.test.ts	2
 api.file.node-claim.test.ts	17
