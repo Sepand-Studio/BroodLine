@@ -1,0 +1,37 @@
+.trait-pip {
+    flex-direction: row;
+    align-items: center;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background-color: rgba(0, 0, 0, 0.35);
+}
+
+.trait-pip__icon {
+    width: 14px;
+    height: 14px;
+    margin-right: 4px;
+    border-radius: 2px;
+    background-color: rgba(255, 255, 255, 0.25);
+}
+
+.trait-pip__label {
+    font-size: 11px;
+    -unity-font-style: bold;
+    color: rgb(240, 240, 240);
+}
+
+/* A trait with a nonzero coverage tier that answers a raider - bible 1.2's
+ * bold traits. Purely a hook for a future badge; the tooltip carries the
+ * actual "counters X" text regardless of this class. */
+.trait-pip--counters .trait-pip__icon {
+    background-color: rgb(210, 180, 90);
+}
+
+/* data_model 2: a null coverage tier is an Aberrant, never a zero. */
+.trait-pip.aberrant {
+    background-color: rgba(120, 60, 160, 0.45);
+}
+
+.trait-pip.aberrant .trait-pip__icon {
+    background-color: rgb(190, 140, 230);
+}

@@ -1,0 +1,4 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="TimerChip.uss" />
+    <ui:Label name="time" class="timer-chip__time" />
+</ui:UXML>

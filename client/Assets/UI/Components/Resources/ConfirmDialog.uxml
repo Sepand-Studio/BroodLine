@@ -1,0 +1,12 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="ConfirmDialog.uss" />
+    <ui:VisualElement name="scrim" class="confirm-dialog__scrim" />
+    <ui:VisualElement name="content" class="confirm-dialog__content">
+        <ui:Label name="title" class="confirm-dialog__title" />
+        <ui:Label name="body" class="confirm-dialog__body" />
+        <ui:VisualElement name="actions" class="confirm-dialog__actions">
+            <ui:Button name="cancel" class="confirm-dialog__button" />
+            <ui:Button name="confirm" class="confirm-dialog__button" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

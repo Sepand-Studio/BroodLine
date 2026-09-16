@@ -1,0 +1,13 @@
+.currency-header {
+    flex-shrink: 0;
+}
+
+.currency-header__items {
+    flex-direction: row;
+}
+
+.currency-header__item {
+    margin-right: 12px;
+    font-size: 12px;
+    color: rgb(235, 235, 235);
+}

@@ -1,0 +1,5 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="TraitPip.uss" />
+    <ui:VisualElement name="icon" class="trait-pip__icon" />
+    <ui:Label name="label" class="trait-pip__label" />
+</ui:UXML>

@@ -1,0 +1,57 @@
+.confirm-dialog {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    align-items: center;
+    justify-content: center;
+}
+
+.confirm-dialog__scrim {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.55);
+}
+
+.confirm-dialog__content {
+    width: 280px;
+    padding: 16px;
+    border-radius: 10px;
+    background-color: rgb(30, 30, 34);
+}
+
+.confirm-dialog__title {
+    font-size: 16px;
+    -unity-font-style: bold;
+    color: rgb(245, 245, 245);
+    white-space: normal;
+}
+
+.confirm-dialog__body {
+    margin-top: 8px;
+    font-size: 13px;
+    color: rgb(210, 210, 215);
+    white-space: normal;
+}
+
+.confirm-dialog__actions {
+    flex-direction: row;
+    justify-content: flex-end;
+    margin-top: 16px;
+}
+
+.confirm-dialog__button {
+    margin-left: 8px;
+}
+
+/* No destructive default (splice_confirm_spec section 4): only an
+ * explicitly-primary confirm button is styled this way, and ConfirmDialog
+ * .Named never applies it regardless of what the model says. */
+.confirm-dialog__button.primary {
+    background-color: rgb(180, 70, 70);
+    color: rgb(250, 250, 250);
+}

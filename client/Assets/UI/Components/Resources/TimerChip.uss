@@ -1,0 +1,18 @@
+.timer-chip {
+    flex-direction: row;
+    align-items: center;
+    padding: 2px 6px;
+    border-radius: 10px;
+    background-color: rgba(0, 0, 0, 0.35);
+}
+
+.timer-chip__time {
+    font-size: 11px;
+    -unity-font-style: bold;
+    color: rgb(235, 235, 235);
+    -unity-text-align: middle-center;
+}
+
+.timer-chip.expired .timer-chip__time {
+    color: rgb(220, 100, 100);
+}
