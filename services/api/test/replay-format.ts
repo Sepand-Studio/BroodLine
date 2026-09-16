@@ -17,6 +17,10 @@
  * wave-helpers.ts re-exports everything here, so existing importers are
  * unaffected and there is still exactly one definition of the format.
  */
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
 export interface ReplayOpts { engineVersion?: string; trait?: string; tier?: number }
 
 /**
@@ -56,7 +60,48 @@ export interface RosterSpec {
 
 const MAGIC = 0x50524c42 // "BLRP" little-endian, engine/Runtime/Combat/Replay.cs
 const FORMAT_VERSION = 1
-const DEFAULT_ENGINE_VERSION = '0.3.0' // engine/Runtime/SimVersion.cs SimVersion.Value
+
+// fileURLToPath, not .pathname - this repo's own directory contains a space,
+// same as base-stock.test.ts and every other file here that resolves REPO.
+const REPO = fileURLToPath(new URL('../../../', import.meta.url))
+
+/**
+ * DERIVED from engine/Runtime/SimVersion.cs, not retyped beside it.
+ *
+ * This WAS a hand-maintained '0.3.0' literal, and Task 1's bump to engine
+ * 0.4.0 (waves 1 and 2 owning their lane) left it behind: every replay this
+ * module built kept claiming engine 0.3.0, `sim` correctly refused every one
+ * of them with engine_too_old, and 41 tests across wave-submit, replays, loop
+ * and adversarial failed for a reason that had nothing to do with what they
+ * were testing.
+ *
+ * tests/engine/Combat/DeviceReplayTests.cs's ReplayArtifact.CapturedUnder
+ * made the identical fix for the identical reason, in its own words: "a
+ * constant that duplicates a fact already in the file is a claim with a
+ * maintenance cost and no enforcement." There the fact lives in a captured
+ * artifact's bytes; here it lives in SimVersion.cs's source text, which is
+ * the only copy of it reachable from a TypeScript process without shelling
+ * out to dotnet - so it is read and parsed rather than re-typed.
+ *
+ * Throws rather than falling back to a literal on a parse miss: a silent
+ * default here is exactly the failure mode this replaces, just one commit
+ * further from where anyone would think to look for it.
+ */
+function readEngineVersionFromEngineSource(): string {
+  const path = join(REPO, 'engine/Runtime/SimVersion.cs')
+  const src = readFileSync(path, 'utf8')
+  const version = /public const string Value = "([^"]+)"/.exec(src)?.[1]
+  if (version === undefined) {
+    throw new Error(
+      `replay-format.ts: expected to find 'public const string Value = "X.Y.Z"' in ${path}, ` +
+      'but no such line matched. SimVersion.cs\'s shape changed and this parser needs to move ' +
+      'with it - see the comment on readEngineVersionFromEngineSource.',
+    )
+  }
+  return version
+}
+
+const DEFAULT_ENGINE_VERSION = readEngineVersionFromEngineSource()
 
 // engine/Runtime/Combat/Ids.cs
 // Exported (with CREATURE_HP below) so base-stock.test.ts can pin the
