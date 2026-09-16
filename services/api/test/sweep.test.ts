@@ -6,14 +6,16 @@ import { fileURLToPath } from 'node:url'
 import { and, eq, isNull, sql } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createApp, type Deps } from '../src/app.ts'
-import { clearBundleCache } from '../src/config/bundle.ts'
+import { clearBundleCache, loadBundle } from '../src/config/bundle.ts'
 import { publishBundle } from '../src/config/publish.ts'
 import { LocalBundleStore } from '../src/config/store.ts'
 import { withServer } from '../src/db/client.ts'
 import { creatures, servers, waveIssuances } from '../src/db/schema.ts'
 import { LocalReplayStore } from '../src/replays/store.ts'
+import { creatureHp, lockRoster } from '../src/roster/creatures.ts'
 import { SimClient } from '../src/sim/client.ts'
-import { ISSUANCE_TTL_MS } from '../src/wave/issuance.ts'
+import { commitSplice } from '../src/splice/commit.ts'
+import { ISSUANCE_TTL_MS, issueWave } from '../src/wave/issuance.ts'
 import { sweepRetention } from '../src/wave/sweep.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 import { CREATURE_HP, type RosterSpec, SPECIES } from './replay-format.ts'
@@ -263,5 +265,241 @@ describe('sweepRetention (design §4.3)', () => {
     })
 
     expect(await sweepRetention(t.ownerDb, SERVER_ID, now)).toEqual({ expiredDeleted: 0, consumedDeleted: 0 })
+  })
+})
+
+describe("wave/start's two-statement creature lock (fix round 1)", () => {
+  /**
+   * REPRODUCES A REAL POSTGRES DEADLOCK, then proves the fix closes it -
+   * built by construction, not by reasoning about it (the same standing
+   * instruction fix round 1's own analysis was held to, and the second time
+   * on this branch that construction found what reasoning missed).
+   *
+   * THE SHAPE. `issueWave` now locks creatures in TWO statements:
+   * `settleExpiredForPlayer` releases S1 (whatever this player's
+   * live-past-expiry issuance committed - `hi` below), sorted; later,
+   * `resolveDeployment` -> `loadOwnedCreatures` locks S2 (the NEW
+   * deployment's own creatures - `lo` below), also sorted. Each statement
+   * is internally ascending; the transaction's combined order across both
+   * is not, whenever an S1 id sorts above an S2 id (exactly the case
+   * constructed here: `lo < hi`). `splice/commit.ts`'s `commitSplice`
+   * names `lo` and `hi` as its two parents and locks them - via
+   * `lockParents` - in the ONE order every writer of `creatures` on this
+   * branch agrees on: ascending, i.e. `lo` then `hi`. That is the OPPOSITE
+   * of `issueWave`'s S1-then-S2 order for this exact pair, and a pure
+   * row-lock inversion - no advisory lock is involved on either side if
+   * `wave/start` never takes one, which is what made this deadlock
+   * possible in a way `commitSplice`'s existing `lockRoster` (taken before
+   * ITS OWN row locks, for an unrelated, earlier deadlock) could not
+   * prevent by itself.
+   *
+   * THE FIX under test: `POST /v1/wave/start` (routes/wave.ts) now takes
+   * `lockRoster` as the first statement in its transaction, before
+   * `issueWave` runs. The general rule, worth restating here because this
+   * branch has now paid for it twice: a transaction that locks a player's
+   * creature rows in MORE THAN ONE STATEMENT must hold `lockRoster` first;
+   * one that locks them in exactly one sorted statement needs no advisory
+   * lock at all, because there is nothing for that one statement to invert
+   * against.
+   *
+   * DETERMINISTIC, not timing-based, for the interesting half: `afterRelease`
+   * (`IssuanceHooks`, forwarded through `settleExpiredForPlayer`) pauses TX1
+   * in the EXACT window fix round 2's own `afterRelease` doc describes for
+   * the submit path - `hi`'s row lock held, released, nothing past this
+   * point run yet - which is the only place this race can be constructed
+   * without hoping a `setTimeout` lands right. The second half (proving TX2
+   * is genuinely BLOCKED, not merely slow) is the same 400ms real-time
+   * check `splice-commit.test.ts`'s own "does not deadlock against a
+   * wave-submit..." test uses, for the same reason: there is no hook inside
+   * Postgres's lock manager to await instead.
+   *
+   * VERIFIED BOTH WAYS - task-11-report.md has the transcripts. With the
+   * `lockRoster` line in routes/wave.ts's `/v1/wave/start` handler
+   * (shipped): this test is GREEN, both transactions settle, `hi` is
+   * genuinely released (queried directly below, not inferred), and TX2 is
+   * refused `creature_committed` for an unrelated and CORRECT reason - `lo`
+   * is now committed to the fresh issuance TX1's wave/start just minted, so
+   * splicing it away is rightly refused. With that ONE `lockRoster` line
+   * removed: this test FAILS - `Promise.all` rejects with a genuine
+   * Postgres `deadlock detected` (`40P01`) thrown out of whichever side
+   * lost the race, exactly as fix round 1 asked to have demonstrated rather
+   * than assumed.
+   */
+  it('does not deadlock against a splice naming the creature it just released', async () => {
+    const { playerId } = await setupPlayer(deps)
+    const bundle = await loadBundle(deps.bundleStore)
+
+    async function give(spec: { species: string; trait1: string; trait2: string }): Promise<string> {
+      const [row] = await t.ownerDb.insert(creatures).values({
+        serverId: SERVER_ID, playerId, species: spec.species, generation: 1,
+        trait1: spec.trait1, tier1: 1, trait2: spec.trait2, tier2: 1,
+        instinct: 'Vanguard', hpCurrent: creatureHp(spec.species), isFounder: false,
+      }).returning()
+      return row!.creatureId
+    }
+
+    // splice-commit.test.ts's own compatible pair (Vetch/Pale, Taunt/Chill
+    // over Carapace) - a splice that can actually reach `kind: 'ok'`, not
+    // merely a refusal that happens not to throw.
+    const vetchId = await give({ species: 'Vetch', trait1: 'Taunt', trait2: 'Carapace' })
+    const paleId = await give({ species: 'Pale', trait1: 'Chill', trait2: 'Carapace' })
+    const [lo, hi] = vetchId < paleId ? [vetchId, paleId] : [paleId, vetchId]
+
+    // `hi` is the stranded creature - committed to a stale, expired,
+    // unsettled issuance, exactly what settleExpiredForPlayer exists to
+    // clean up, and named the way check 4's own abandoned-wave path always
+    // has been: settled_at IS NULL, expires_at in the past.
+    const staleIssuanceId = randomUUID()
+    await t.ownerDb.insert(waveIssuances).values({
+      serverId: SERVER_ID, issuanceId: staleIssuanceId, playerId, waveId: 6, seed: '1',
+      issuedAt: new Date(Date.now() - 3 * ISSUANCE_TTL_MS), expiresAt: new Date(Date.now() - 3_600_000),
+      deployment: [],
+    })
+    await t.ownerDb.update(creatures).set({ committedTo: staleIssuanceId })
+      .where(and(eq(creatures.serverId, SERVER_ID), eq(creatures.creatureId, hi)))
+
+    let releaseTx1: () => void = () => {}
+    const paused = new Promise<void>((res) => { releaseTx1 = res })
+    let tx1ReachedTheWindow: () => void = () => {}
+    const tx1IsInTheWindow = new Promise<void>((res) => { tx1ReachedTheWindow = res })
+
+    // TX1 reproduces `routes/wave.ts`'s FIXED `/v1/wave/start` sequence
+    // directly - `splice-commit.test.ts`'s own "does not deadlock against a
+    // wave-submit..." test does the same thing for the same reason: hooks
+    // are only reachable by driving the lower-level functions, and the
+    // route itself carries no hook seam (nothing under src/routes/ ever
+    // passes one). `lockRoster` first (the fix), THEN `issueWave`, whose
+    // `settleExpiredForPlayer` releases `hi` and pauses, then (once
+    // released below) `resolveDeployment` locks `lo` for THIS new
+    // deployment. Wave 6 is authored by this file's bundle and this is a
+    // fresh player (cleared 0), so it is the "next" wave - no clearWave
+    // needed.
+    let tx1Settled = false
+    const tx1 = withServer(t.db, SERVER_ID, async (tx) => {
+      await lockRoster(tx, SERVER_ID, playerId)
+      return issueWave(
+        tx, SERVER_ID, playerId, 6, [{ creatureId: lo, pocket: 0 }], bundle, {
+          afterRelease: async () => { tx1ReachedTheWindow(); await paused },
+        })
+    }).then((r) => { tx1Settled = true; return r })
+
+    await tx1IsInTheWindow
+
+    // TX2: splice/commit's real shape - `lockRoster`, then `lockParents` in
+    // ascending id order (`lo` then `hi`) - the SAME two rows TX1 touches,
+    // in the OPPOSITE relative order TX1 acquires them in.
+    let tx2Settled = false
+    const tx2 = withServer(t.db, SERVER_ID, (tx) => commitSplice(
+      tx, SERVER_ID, playerId, bundle,
+      { parentA: vetchId, parentB: paleId, locked: { slot: 'trait_1', from: 'a' }, bodyFrom: 'Vetch' },
+      new Date(), randomUUID()))
+      .then((r) => { tx2Settled = true; return r })
+
+    await new Promise((r) => setTimeout(r, 400))
+    // TX2 has made no progress - correctly BLOCKED. WITH the fix, that is
+    // `lockRoster` (TX1 holds it). WITHOUT it, TX2 sails past `lockRoster`
+    // uncontested, locks `lo`, and blocks wanting `hi` instead - "not
+    // settled" holds either way, which is exactly why this check alone
+    // cannot distinguish the two; the deadlock (or its absence) only shows
+    // up once TX1 is released, below.
+    expect(tx2Settled).toBe(false)
+
+    releaseTx1()
+    const [r1, r2] = await Promise.all([tx1, tx2])
+
+    // NEITHER transaction was aborted by the deadlock detector - which is
+    // what the `Promise.all` above would have surfaced as a rejection
+    // (a genuine Postgres `deadlock detected` thrown out of `lockParents`,
+    // confirmed by hand with the fix removed - see task-11-report.md).
+    expect(tx1Settled).toBe(true)
+    expect(tx2Settled).toBe(true)
+    expect('refused' in r1).toBe(false) // TX1's wave/start succeeded
+
+    // `hi` was genuinely released by TX1, not merely "the transactions
+    // didn't crash" - queried directly rather than inferred from TX2's
+    // outcome, which turns out to be `creature_committed` for an entirely
+    // different and CORRECT reason below.
+    const [hiRow] = await t.ownerDb.select().from(creatures)
+      .where(and(eq(creatures.serverId, SERVER_ID), eq(creatures.creatureId, hi)))
+    expect(hiRow!.committedTo).toBeNull()
+
+    // TX2 is refused, and correctly so: `lo` - one of the splice's own two
+    // parents - is now committed to the FRESH issuance TX1's wave/start
+    // just minted (`lo` is what TX1 deployed). That is `commitSplice`
+    // working as designed, not a residual of the race: a creature cannot be
+    // spliced away while it is out fighting, and `lo` genuinely is, now.
+    // `kind: 'ok'` would in fact be the WRONG outcome here - it would mean
+    // `commitSplice` let a currently-deployed creature be spliced.
+    expect(r2.kind).toBe('creature_committed')
+  })
+
+  /**
+   * THE OTHER HALF OF THE EVIDENCE. The test above proves the MECHANISM -
+   * that taking `lockRoster` before `issueWave` prevents the deadlock -
+   * but it drives TX1 by manually reproducing `routes/wave.ts`'s sequence
+   * (`lockRoster` then `issueWave`, `commitSplice.test.ts`'s own established
+   * idiom for reaching a hook), so it stays GREEN even if the `lockRoster`
+   * line were deleted from the ACTUAL route: confirmed by hand, deleting it
+   * from `routes/wave.ts` and re-running the test above leaves it green,
+   * because it never calls the route at all.
+   *
+   * This test closes that gap by driving the REAL route over HTTP
+   * (`startWave`, wave-helpers' own driver) and checking the one thing that
+   * distinguishes "takes the lock" from "does not": a concurrent holder of
+   * the SAME advisory lock blocks it. No deadlock needed for this half -
+   * just the lock itself, held deterministically (a manual promise gate,
+   * not a timing guess) by a transaction that does nothing else.
+   */
+  it('POST /v1/wave/start blocks on lockRoster while another transaction for this player holds it', async () => {
+    const { playerId } = await setupPlayer(deps)
+    const lo = await (async () => {
+      const [row] = await t.ownerDb.insert(creatures).values({
+        serverId: SERVER_ID, playerId, species: 'Vetch', generation: 1,
+        trait1: 'Taunt', tier1: 1, trait2: 'Carapace', tier2: 1,
+        instinct: 'Vanguard', hpCurrent: creatureHp('Vetch'), isFounder: false,
+      }).returning()
+      return row!.creatureId
+    })()
+
+    let releaseHolder: () => void = () => {}
+    const holderPaused = new Promise<void>((res) => { releaseHolder = res })
+    let holderHasTheLock: () => void = () => {}
+    const holderGotTheLock = new Promise<void>((res) => { holderHasTheLock = res })
+
+    // Holds `lockRoster` and nothing else - not even a read of `creatures` -
+    // so there is nothing here for the route's OWN row locks to contend
+    // with. If the route blocks, it can only be on this advisory lock.
+    const holder = withServer(t.db, SERVER_ID, async (tx) => {
+      await lockRoster(tx, SERVER_ID, playerId)
+      holderHasTheLock()
+      await holderPaused
+    })
+
+    await holderGotTheLock
+
+    let requestSettled = false
+    const req = startWave(6, [{ creatureId: lo, pocket: 0 }])
+      .then((res) => { requestSettled = true; return res })
+
+    // try/finally: `holder` pauses on a promise nothing else resolves, so a
+    // failed assertion between here and `releaseHolder()` must still
+    // release it - otherwise the held advisory lock and open transaction
+    // outlive this test and hang the file's teardown (measured: a genuine
+    // 120s hook timeout on `t.stop()`, the first time this test's own
+    // assertion below was made to fail on purpose for the RED run).
+    try {
+      await new Promise((r) => setTimeout(r, 400))
+      // WITH the fix: still blocked on `lockRoster`, held by `holder`.
+      // WITHOUT it (verified by hand, task-11-report.md): this is already
+      // `true` here - nothing in the route asks for the lock, so there is
+      // nothing to block on.
+      expect(requestSettled).toBe(false)
+    } finally {
+      releaseHolder()
+      await holder
+    }
+
+    const res = await req
+    expect(res.status).toBe(200)
   })
 })

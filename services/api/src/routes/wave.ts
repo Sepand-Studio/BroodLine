@@ -364,6 +364,37 @@ export function registerWaveRoutes(app: Hono, deps: Deps): void {
         .where(eq(players.accountId, session.accountId))
       if (player === undefined) return null
 
+      // THE PLAYER-LEVEL LOCK, BEFORE `issueWave` - fix round 1's finding,
+      // reproduced as a real Postgres `40P01` rather than reasoned about
+      // (see sweep.test.ts's "wave/start's two-statement creature lock"
+      // tests and task-11-report.md).
+      //
+      // Task 11 gave `issueWave` a SECOND creature-row-locking statement:
+      // `settleExpiredForPlayer` (sorted) now runs before check 1, and
+      // `resolveDeployment` -> `loadOwnedCreatures` (sorted) still runs
+      // near the end. Each statement is internally sorted, but the
+      // TRANSACTION's combined lock order across the two is not - the
+      // first set is fixed by whatever was already committed to a stale
+      // issuance, the second by the request, and nothing relates the two.
+      // A `splice/commit.ts` transaction naming one creature from each set
+      // locks them in the OPPOSITE relative order (its own single sorted
+      // statement), and the two can deadlock purely on row locks - no
+      // advisory lock on either side, which is what makes this a genuinely
+      // different case from the splice/commit-vs-wave/submit deadlock a
+      // task ago.
+      //
+      // THE RULE THIS GENERALISES, now paid for twice on this branch: a
+      // transaction that locks a player's creature rows in MORE THAN ONE
+      // STATEMENT must take `lockRoster` first, exactly as `wave/submit`
+      // (routes/wave.ts, below), `splice/commit.ts`'s `commitSplice`,
+      // `map/claim.ts`'s `claimNode` and `wave/base-stock.ts`'s
+      // `grantWaveBaseStock` already do. A transaction that locks them in
+      // exactly ONE sorted statement (routes/creature.ts's single-row
+      // lock, `consumeAndRefuse`'s single `releaseCreatures` call above)
+      // needs no advisory lock at all - there is only one statement to
+      // order against itself, and it already is.
+      await lockRoster(tx, session.serverId, player.playerId)
+
       return issueWave(
         tx, session.serverId, player.playerId, body.waveId, body.deployment, bundle)
     })

@@ -1,7 +1,7 @@
 import { and, eq, isNull, sql } from 'drizzle-orm'
 import type { Db, Tx } from '../db/client.ts'
 import { waveIssuances } from '../db/schema.ts'
-import { settle } from './issuance.ts'
+import { type IssuanceHooks, settle } from './issuance.ts'
 
 /**
  * Task 11, design §10.2 and design §4.3's retention split.
@@ -42,13 +42,25 @@ import { settle } from './issuance.ts'
  * the same one `issueWave`'s own former check 4 applied: a row this
  * function finds was never submitted, so charging it as a played replay
  * would spend a cap slot the player never used.
+ *
+ * `hooks` IS `issueWave`'s OWN `IssuanceHooks`, forwarded verbatim to
+ * `settle()` - not a new seam. `afterRelease` is what fix round 1's
+ * reproduction (`sweep.test.ts`'s "wave/start's two-statement lock does not
+ * deadlock against a splice naming the creature it just released") pauses
+ * on: the ONLY window in which THIS creature's row lock is held, released
+ * (committed_to already cleared, uncommitted), and nothing past this point
+ * in `issueWave` has run yet - the exact window fix round 2's `afterRelease`
+ * doc already describes for the settle-inside-submit case. A no-op for
+ * every real caller, same as everywhere else this hook shape is used.
  */
-export async function settleExpiredForPlayer(tx: Tx, serverId: number, playerId: string): Promise<number> {
+export async function settleExpiredForPlayer(
+  tx: Tx, serverId: number, playerId: string, hooks: IssuanceHooks = {},
+): Promise<number> {
   const rows = await tx.select().from(waveIssuances).where(and(
     eq(waveIssuances.serverId, serverId), eq(waveIssuances.playerId, playerId),
     isNull(waveIssuances.settledAt), sql`${waveIssuances.expiresAt} <= now()`))
   let n = 0
-  for (const row of rows) if (await settle(tx, row, 'expired')) n++
+  for (const row of rows) if (await settle(tx, row, 'expired', hooks)) n++
   return n
 }
 

@@ -167,7 +167,12 @@ export async function issueWave(
   // every later wave/start refused before reaching the code that would
   // have freed them. See wave/sweep.ts for the fuller account and the
   // lock-ordering analysis this move raised.
-  await settleExpiredForPlayer(tx, serverId, playerId)
+  //
+  // `hooks` FORWARDED, not consumed here - `afterRelease` is `settle()`'s
+  // own hook (fix round 2), reachable through this call now that it is
+  // this function's first settle. routes/wave.ts's fix-round-1 deadlock
+  // reproduction pauses on it.
+  await settleExpiredForPlayer(tx, serverId, playerId, hooks)
 
   const [progress] = await tx.select().from(campaignProgress)
     .where(and(eq(campaignProgress.serverId, serverId), eq(campaignProgress.playerId, playerId)))
