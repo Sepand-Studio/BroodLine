@@ -115,6 +115,14 @@ export const campaignProgress = pgTable('campaign_progress', {
   highestWaveCleared: integer('highest_wave_cleared').notNull().default(0),
   milestonesClaimed: integer('milestones_claimed').notNull().default(0),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  // 0008_ftue_markers.sql: three write-once instants, each recording that a
+  // one-time FTUE grant has fired. NULLABLE, no default, NO READER YET - the
+  // three grant paths land in Tasks 6-8. src/ftue/markers.ts is the only
+  // writer and it is the write-once shape settle() uses, not this column
+  // definition.
+  founderGrantedAt: timestamp('founder_granted_at', { withTimezone: true }),
+  tutorialStockGrantedAt: timestamp('tutorial_stock_granted_at', { withTimezone: true }),
+  wave6PaleGrantedAt: timestamp('wave6_pale_granted_at', { withTimezone: true }),
 }, (t) => ({
   pk: primaryKey({ columns: [t.serverId, t.playerId] }),
 }))
