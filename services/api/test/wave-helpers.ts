@@ -55,9 +55,18 @@ import {
 //   overstates it, and this file's neighbours are full of notes about what
 //   overstatement costs.
 //
-// NOTHING PINS THE TWO CONSTANTS. They agree because two comments say they
-// must, in a package that pins test/preflight.ts's SIM_PORTS with an actual
-// test for precisely this failure mode. Closing that is owed.
+// THE TWO CONSTANTS ARE PINNED, by test/dotnet-build-lock.test.ts's "the build
+// lock is defined twice and the two definitions agree". It exports them below
+// as __LOCK_CONSTANTS_FOR_TEST and PARSES the shell side rather than retyping
+// it, so a third copy of the numbers cannot agree with itself and with nothing
+// else; desyncing either value, or renaming the shell variable, reddens it.
+//
+// Until Task 22's fix round they were NOT pinned, and two comments were the
+// whole mechanism - in a package that pins test/preflight.ts's SIM_PORTS with
+// a test for precisely this failure mode. This comment said so, and then went
+// on saying so in the same commit that closed it: fix round 2 caught a claim
+// of "not yet done" contradicted by work done in its own diff, which is the
+// defect class the round it was written in existed to catch.
 
 const LOCK_STALE_MS = 5 * 60 * 1000 // the critical section is ~1-2s; minutes is a generous margin
 // A SEPARATE, much longer ceiling from LOCK_STALE_MS above - deliberately

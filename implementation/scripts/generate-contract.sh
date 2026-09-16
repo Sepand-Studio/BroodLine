@@ -186,8 +186,17 @@ BUILD_LOCK_ABSOLUTE_CEILING_SECONDS=1800  # 30 minutes
 # gives up BEFORE reaching. It is safe because a real build queue cannot
 # plausibly reach it.
 #
-# MUST MOVE WITH wave-helpers.ts's LOCK_ACQUIRE_TIMEOUT_MS. Nothing pins the
-# pair; two comments are the whole mechanism, and closing that is owed.
+# MUST MOVE WITH wave-helpers.ts's LOCK_ACQUIRE_TIMEOUT_MS - and since Task
+# 22's fix round that is ENFORCED rather than requested:
+# services/api/test/dotnet-build-lock.test.ts parses the three BUILD_LOCK_*
+# values out of THIS FILE and asserts they equal the TypeScript side's. So
+# editing one of them alone reddens the api suite, and RENAMING one reddens it
+# through that parser's own throw rather than passing on a default.
+#
+# Keep the `NAME=<digits>` shape, at the start of a line. That is what the
+# parser matches; a value moved into a case statement or an arithmetic
+# expression would fail it loudly, which is the intended behaviour and not a
+# reason to weaken the parser.
 BUILD_LOCK_TIMEOUT_TENTHS=1800           # 180s, in 0.1s polling ticks
 
 # Reads the owner file, or prints nothing if it is missing or unreadable.

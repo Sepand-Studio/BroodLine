@@ -67,7 +67,76 @@ Counts are the baseline file's, not these sentences'.
 | **`preview` publishes `mutation: 1` and `commit` mutates**, on the first splice, from **one** row count | `splice-preview.test.ts`'s *"forecasts a guaranteed mutation before this player's first splice, and the base rate after"*; the commit side in `splice-commit.test.ts`; and both together in `ftue.test.ts`, which reads `forecast.mutation === 1` from the route and then `mutated === true` from `GET /v1/lineage`. The **one row count** is `isFirstSplice`'s `count(*)` on `splices`, which both routes read - Task 7's Step 5 weakening is the evidence that they read the SAME one: it left preview 14/14 green and reddened commit on two tests, which is the asymmetry a single shared distribution predicts |
 | **A lost wave 6 grants a Pale once**, and base stock never mints one before it | `wave6-pale.test.ts` (loss grants one, a second loss grants nothing, a win grants it too, and the marker is what gates base stock afterwards) and `founder.test.ts`'s *"base stock never mints a Pale before the wave-6 grant has fired"*, which draws 200 seeds either side of the marker |
 | **`weakenings.md` row 7 a test**, and the 24h weakening seen to redden it | `services/api/test/sweep.test.ts`, and row 7 is **booked CLOSED** in `services/api/test/weakenings.md` with both runs tabulated. **With a correction the record should carry:** the brief predicted the 24h weakening would redden the 23:50/00:10 pair and **it does not** - that pair is twenty minutes wide and nowhere near either threshold, so it stays green under 24h and 48h alike. What reddens is a third, permanently shipped test - *"a consumed row strictly between 24h and 48h old survives the 48h window"* - built for the purpose. The clause is satisfied; the brief's prediction about **which** test satisfies it was wrong, and that is the row 7 pattern repeating on itself |
-| **The coupling guard reddening** when either half of the client floor moves alone | `implementation/scripts/verify-unity-settings.sh`'s client-floor check, run in CI by `tests.yml`'s `client-settings` job. **Both halves were weakened separately and the real FAIL output recorded** in `task-10-report.md` §2 - client `0.3.0` → `0.2.0` against floor `0.3.0`, and floor `0.3.0` → `9.9.9` against client `0.3.0`. Five fail-closed paths were traced besides. This is the one of the seven whose gate is a shell script rather than a test, so its evidence lives in a report rather than in a suite |
+| **The coupling guard reddening** when either half of the client floor moves alone | `implementation/scripts/verify-unity-settings.sh`'s client-floor check, run in CI by `tests.yml`'s `client-settings` job. Both halves were weakened separately and the real FAIL output captured. **This is the one of the seven whose gate is a shell script rather than a test, so its evidence is a transcript rather than a suite - and the transcript is therefore reproduced in §1.2 below**, not merely cited |
+
+### 1.2 The coupling guard's evidence, copied here so the record stands alone
+
+**Why this is transcribed rather than cited.** Every other clause in §1.1
+points at a test in a suite, which any later reader can re-run. This one points
+at a weakening run by hand, and the only place it was written down was
+`task-10-report.md` — which lives under `.superpowers/sdd/`, **a directory this
+file's own preamble says will not survive a `git clean`.** A record whose
+single non-suite citation evaporates with the scratch directory is a record
+that will one day assert this clause with nothing behind it. The report is
+still worth reading for the full context and the `sort -V` analysis; what
+follows is the part the claim actually rests on.
+
+The guard is `verify-unity-settings.sh`'s client-floor check: the highest
+bundle's `minimumClientVersion` against `ProjectSettings.asset`'s
+`bundleVersion`. Baseline, with the two equal at `0.3.0`, is `ok` and exit 0.
+
+**Half 1 — the client drops below the floor.**
+
+```
+$ sed -i '' 's/bundleVersion: 0.3.0/bundleVersion: 0.2.0/' client/ProjectSettings/ProjectSettings.asset
+$ bash implementation/scripts/verify-unity-settings.sh
+  FAIL  client bundleVersion '0.2.0' is below bundle 0.1.3's minimumClientVersion '0.3.0' (or one is unreadable)
+EXIT CODE: 1
+```
+
+**Half 2 — the floor rises above the client.**
+
+```
+$ sed -i '' 's/"0.3.0"/"9.9.9"/' config/bundles/0.1.3/manifest.json
+$ bash implementation/scripts/verify-unity-settings.sh
+  FAIL  client bundleVersion '0.3.0' is below bundle 0.1.3's minimumClientVersion '9.9.9' (or one is unreadable)
+EXIT CODE: 1
+```
+
+That is the clause as written — **either half moving alone reddens it** — and
+the two probes are not the same probe twice: one moves the client, one moves
+the bundle, and they fail with different values in the message.
+
+**And it FAILS CLOSED**, which matters more than either half above, because a
+guard that answers `ok` when it cannot read its inputs is worse than no guard.
+Two of the five paths, probed directly:
+
+```
+# A — the manifest key renamed, so the version cannot be parsed
+$ sed -i '' 's/minimumClientVersion/minClientVersion/' config/bundles/0.1.3/manifest.json
+  FAIL  client bundleVersion '0.3.0' is below bundle 0.1.3's minimumClientVersion '' (or one is unreadable)
+EXIT CODE: 1
+
+# B — the bundle directory listing comes back empty
+$ mv config/bundles config/bundles_hidden
+  FAIL  client bundleVersion '0.3.0' is below bundle 's minimumClientVersion '' (or one is unreadable)
+EXIT CODE: 1
+```
+
+In both, the unreadable value arrives **empty** and is visible as `''` in the
+message, and the script routes it to `bad` rather than to a skip. The other
+three traced paths — a missing manifest, a malformed version string, and a
+missing client version — reach the same branch. Every edit above was reverted
+and `git status --porcelain` confirmed clean after each.
+
+**What this evidence does NOT cover, stated so nobody upgrades it later.** It
+is a transcript of four probes run once by a person, not a gate that re-runs.
+Deleting the client-floor check from the script tomorrow reddens nothing
+anywhere; only `tests.yml`'s `client-settings` job running the script at all is
+automatic. Closing that needs a test harness for a shell script, which is
+**owed and out of scope for this phase** — and which is a different problem
+from the one this section fixes, which was simply that the evidence lived
+somewhere non-durable.
 
 **A fifth thing is owed and is not a Definition-of-Done clause**, so it is
 recorded here rather than in the table: **Task 17 Step 6, the eyes-on play
