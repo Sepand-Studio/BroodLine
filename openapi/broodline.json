@@ -879,6 +879,20 @@
           "creatureId",
           "name"
         ]
+      },
+      "FtueStockResponse": {
+        "type": "object",
+        "properties": {
+          "creatures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CreatureDto"
+            }
+          }
+        },
+        "required": [
+          "creatures"
+        ]
       }
     },
     "parameters": {}
@@ -1676,6 +1690,89 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CreatureDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/ftue/splice-stock": {
+      "post": {
+        "operationId": "ftueSpliceStock",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Generated when the action is taken, not when it is sent."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The tutorial's Vetch and Ember, granted once",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FtueStockResponse"
                 }
               }
             }

@@ -207,6 +207,22 @@ function outcomeKey(trait: string, tier: number | null): string {
 }
 
 /**
+ * `spliceDistribution`'s only optional input - Task 7, design §5 beat 7.
+ *
+ * A PARAMETER TO THE ONE DISTRIBUTION, never a branch inside `commit`. Both
+ * `POST /v1/splice/preview` and `POST /v1/splice/commit` compute
+ * `guaranteedMutation` the identical way - `isFirstSplice` on the same row
+ * count, inside the caller's own transaction - and pass it into this same
+ * function, so what preview publishes is mechanically what commit samples.
+ * A special case living in commit alone would let the two disagree about a
+ * splice neither of them can see the other's answer for, which is exactly
+ * the property this module's header comment exists to forbid.
+ */
+export interface DistributionOpts {
+  guaranteedMutation?: boolean
+}
+
+/**
  * The distribution a splice of these two parents rolls against - design §5.1.
  *
  * THE LOCKED TRAIT IS REMOVED FROM THE POOL BY ID, NOT BY POSITION, and that
@@ -237,6 +253,7 @@ function outcomeKey(trait: string, tier: number | null): string {
  */
 export function spliceDistribution(
   a: SpliceParent, b: SpliceParent, locked: TraitRef, traits: TraitTable,
+  opts: DistributionOpts = {},
 ): Distribution {
   const pool = combatPool(a, b)
   const lockedEntry = pool.find((t) => isLockedInstance(t, locked))
@@ -271,7 +288,14 @@ export function spliceDistribution(
   const instinct = merged([a.instinct, b.instinct], (i) => i)
     .map(({ item, p }) => ({ instinct: item, p }))
 
-  return { combat2, instinct, mutation: MUTATION_RATE, aberrant: ABERRANT_SUB_ROLL }
+  // Beat 7: "Mutation fires. Scripted, guaranteed." One splice per player
+  // sees it, and it is this parameter - not a branch below `commit`'s own
+  // sampling - that makes the certainty preview publishes the certainty
+  // commit rolls. The Aberrant sub-roll is untouched: it stays 5% OF
+  // mutations (`sample_economy` §9), never a guaranteed Aberrant.
+  const mutation = opts.guaranteedMutation === true ? 1 : MUTATION_RATE
+
+  return { combat2, instinct, mutation, aberrant: ABERRANT_SUB_ROLL }
 }
 
 /**

@@ -14,7 +14,7 @@ import { accounts, creatures, ledger, players, servers, splices, wallets } from 
 import { LocalReplayStore } from '../src/replays/store.ts'
 import { creatureHp, rosterCount } from '../src/roster/creatures.ts'
 import { SimClient } from '../src/sim/client.ts'
-import { commitSplice } from '../src/splice/commit.ts'
+import { commitSplice, isFirstSplice } from '../src/splice/commit.ts'
 import { sampleSplice, spliceDistribution, type TraitRef } from '../src/splice/distribution.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 import { balance, setupPlayer } from './wave-helpers.ts'
@@ -269,6 +269,28 @@ describe('POST /v1/splice/commit', () => {
     expect(typeof rows[0]?.aberrant).toBe('boolean')
   })
 
+  it('mutates with certainty on this player\'s first splice - Task 7\'s guaranteed beat', async () => {
+    // 100% guaranteed rather than merely likely: `mutation: 1` makes
+    // `uMutation < d.mutation` true for EVERY seed (uMutation is drawn in
+    // [0, 1)), so this is not a flake despite reading a column that is
+    // ordinarily a 9% roll. `isFirstSplice` reads zero rows in `splices` for
+    // this fresh player, exactly as splice-preview.test.ts's forecast test
+    // reads for the same fact on the other route.
+    expect(await withServer(deps.db, SERVER_ID, (tx) => isFirstSplice(tx, SERVER_ID, playerId)))
+      .toBe(true)
+
+    const { a, b } = await pair()
+    const res = await commit({ parentA: a, parentB: b, locked: LOCK_A1, bodyFrom: 'Vetch' })
+    expect(res.status).toBe(200)
+
+    const [row] = await spliceRows()
+    expect(row?.mutated).toBe(true)
+
+    // And the SECOND splice for this player is no longer the first one.
+    expect(await withServer(deps.db, SERVER_ID, (tx) => isFirstSplice(tx, SERVER_ID, playerId)))
+      .toBe(false)
+  })
+
   it('leaves the consumed parents WHOLE, so the lineage can still render them', async () => {
     // design §3.2 retains ancestors five generations deep, and
     // `splice_confirm_spec` §5 makes the consumed parents appearing in the
@@ -324,11 +346,16 @@ describe('POST /v1/splice/commit', () => {
     const [row] = await spliceRows()
     expect(row?.seed).toBe(body.seed)
 
+    // { guaranteedMutation: true }: this is this fresh player's first splice
+    // (beforeEach mints a brand-new one per test), so Task 7's parameter is
+    // set the same way commit's own internal recomputation sets it - not a
+    // fact this test may drop, or the re-derivation below answers a
+    // different distribution than the one that actually rolled.
     const bundle = await loadBundle(deps.bundleStore)
     const forecast = spliceDistribution(
       { trait1: 'Taunt', tier1: 2, trait2: 'Carapace', tier2: 1, instinct: 'Vanguard' },
       { trait1: 'Chill', tier1: 3, trait2: 'Carapace', tier2: 2, instinct: 'Vanguard' },
-      LOCK_A1, bundle)
+      LOCK_A1, bundle, { guaranteedMutation: true })
     const rederived = sampleSplice(forecast, BigInt(row!.seed))
 
     expect(rederived.combat2.trait).toBe(body.child.trait2)

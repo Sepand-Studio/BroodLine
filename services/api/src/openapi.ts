@@ -3,7 +3,7 @@ import { writeFile } from 'node:fs/promises'
 import { OpenAPIRegistry, OpenApiGeneratorV31 } from '@asteasolutions/zod-to-openapi'
 import {
   CreateAccountRequest, CreateAccountResponse, CreatureDto, CreatureNameRequest,
-  DeleteAccountResponse, ErrorResponse,
+  DeleteAccountResponse, ErrorResponse, FtueStockResponse,
   NodeClaimRequest, NodeClaimResponse, RefreshRequest, RefreshResponse,
   RegionStateResponse, RosterResponse, SpliceCommitRequest, SpliceCommitResponse,
   SplicePreviewRequest, SplicePreviewResponse, SyncResponse,
@@ -219,6 +219,27 @@ registry.registerPath({
   request: { body: { content: { 'application/json': { schema: CreatureNameRequest } } } },
   responses: {
     200: { description: 'The renamed creature - naming is repeatable, bible §3.3', content: { 'application/json': { schema: CreatureDto } } },
+    ...errors([400, 401, 404, 409, 422]),
+  },
+})
+
+// Phase 7, Task 7. design §5 beats 6-7 - the guided splice's provided pair,
+// registered here in the task that adds the route, the discipline every
+// route above states. Body-less: no `request` key, the same shape
+// `DELETE /v1/account` and `GET /v1/roster` above take for a call with
+// nothing for the caller to supply.
+registry.registerPath({
+  method: 'post',
+  path: '/v1/ftue/splice-stock',
+  operationId: 'ftueSpliceStock',
+  security: [{ [bearerAuth.name]: [] }],
+  parameters: [{
+    name: 'Idempotency-Key', in: 'header', required: true,
+    schema: { type: 'string' },
+    description: 'Generated when the action is taken, not when it is sent.',
+  }],
+  responses: {
+    200: { description: 'The tutorial\'s Vetch and Ember, granted once', content: { 'application/json': { schema: FtueStockResponse } } },
     ...errors([400, 401, 404, 409, 422]),
   },
 })

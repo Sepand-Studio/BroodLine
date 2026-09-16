@@ -1,5 +1,5 @@
 import { randomUUID, getRandomValues } from 'node:crypto'
-import { and, eq, sql } from 'drizzle-orm'
+import { and, count, eq, sql } from 'drizzle-orm'
 import type { Tx } from '../db/client.ts'
 import { creatures, splices, wallets } from '../db/schema.ts'
 import { loadArk } from '../map/claim.ts'
@@ -204,6 +204,27 @@ export interface SpliceHooks {
 }
 
 /**
+ * Zero rows in `splices` for this player - Task 7, design §5 beat 7.
+ *
+ * READ INSIDE THE CALLER'S TRANSACTION, always. `commitSplice` calls this
+ * before it inserts this splice's own row, so a player's first-ever splice
+ * reads a true zero; `routes/splice.ts`'s preview calls it inside its own
+ * read-only transaction on the same table. Both feed the result into
+ * `spliceDistribution`'s `guaranteedMutation` option - never into a branch of
+ * their own - which is the whole of how the forecast and the roll agree
+ * about a splice neither route can see the other computing.
+ *
+ * EXPORTED for exactly one other caller: `routes/splice.ts`'s preview. A
+ * third copy of "count this player's splices" would be the very drift
+ * distribution.ts's header warns against, one file over.
+ */
+export async function isFirstSplice(tx: Tx, serverId: number, playerId: string): Promise<boolean> {
+  const [row] = await tx.select({ n: count() }).from(splices)
+    .where(and(eq(splices.serverId, serverId), eq(splices.playerId, playerId)))
+  return Number(row?.n ?? 0) === 0
+}
+
+/**
  * The splice, in one transaction.
  *
  * THE ORDER OF THE REFUSALS IS DELIBERATE and runs cheapest-and-most-
@@ -285,8 +306,11 @@ export async function commitSplice(
     // THE SAME VALUE preview returns for this pair and this lock -
     // `spliceDistribution` is pure and takes no clock, so recomputing it
     // here inside the transaction yields the identical object rather than a
-    // second opinion about it.
-    const forecast = spliceDistribution(parentA, parentB, req.locked, bundle)
+    // second opinion about it. `guaranteedMutation` is read from the SAME
+    // row count preview's own transaction reads (`isFirstSplice`, above) -
+    // Task 7's parameter, not a branch this file adds on its own.
+    const forecast = spliceDistribution(parentA, parentB, req.locked, bundle,
+      { guaranteedMutation: await isFirstSplice(tx, serverId, playerId) })
     // The locked INSTANCE, by position, out of the same pool the forecast
     // was built from - not a second reading of the request. `combatPool` is
     // the one definition of what the four combat slots are, and

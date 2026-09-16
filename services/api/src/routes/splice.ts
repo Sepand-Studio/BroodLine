@@ -10,7 +10,7 @@ import { hashRequest } from '../http/hash.ts'
 import { normalizeUuid } from '../http/ids.ts'
 import { IdempotencyMismatchError, withIdempotency } from '../money/idempotency.ts'
 import { liveCreature, toCreatureDto, type CreatureDto } from '../roster/creatures.ts'
-import { commitSplice } from '../splice/commit.ts'
+import { commitSplice, isFirstSplice } from '../splice/commit.ts'
 import {
   coverageLost, spliceDistribution, type CombatSlot, type SpliceParent, type TraitRef,
 } from '../splice/distribution.ts'
@@ -179,19 +179,26 @@ export function registerSpliceRoutes(app: Hono, deps: Deps): void {
     // No Idempotency-Key and no transaction of its own beyond this read:
     // preview writes nothing. Two previews in a row return the same forecast,
     // and neither costs the player anything - the charge is spent at commit.
-    const parents = await withServer(deps.db, session.serverId, async (tx) => {
+    const resolved = await withServer(deps.db, session.serverId, async (tx) => {
       const playerId = await loadPlayerId(tx, session.accountId)
       if (playerId === undefined) return null
-      return loadParents(tx, session.serverId, playerId, [body.parentA, body.parentB])
+      const parents = await loadParents(tx, session.serverId, playerId, [body.parentA, body.parentB])
+      if (parents === undefined) return undefined
+      // THE SAME ROW COUNT `commitSplice` reads for this player - Task 7's
+      // `guaranteedMutation` option, read inside this transaction so it
+      // reflects the count AT THIS READ rather than one a concurrent commit
+      // could move before `spliceDistribution` runs below.
+      const guaranteedMutation = await isFirstSplice(tx, session.serverId, playerId)
+      return { parents, guaranteedMutation }
     })
 
-    if (parents === null) return fail('not_found', 'No player on this server for that account.')
-    if (parents === undefined) return fail('not_found', NO_PARENT)
+    if (resolved === null) return fail('not_found', 'No player on this server for that account.')
+    if (resolved === undefined) return fail('not_found', NO_PARENT)
 
-    const [a, b] = parents
+    const [a, b] = resolved.parents
     let forecast
     try {
-      forecast = spliceDistribution(a, b, body.locked, bundle)
+      forecast = spliceDistribution(a, b, body.locked, bundle, { guaranteedMutation: resolved.guaranteedMutation })
     } catch (err) {
       // A trait the active bundle authors no dominance flag for. 500 and not
       // 400: the request is well-formed and the player did nothing wrong -

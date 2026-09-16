@@ -419,3 +419,12 @@ export const CreatureNameRequest = z.object({
   // (1-16 printable characters after trimming), not just "must be a string".
   name: z.string(),
 }).openapi('CreatureNameRequest')
+
+// Phase 7, Task 7. design §5 beats 6-7 - the guided splice's provided pair.
+// NO REQUEST SCHEMA: the route is body-less, exactly as routes/creature.ts's
+// discipline note describes for a mutation with nothing for the caller to
+// supply. Registered into openapi.ts's registry in the SAME task that adds
+// the route, the discipline every route above states.
+export const FtueStockResponse = z.object({
+  creatures: z.array(CreatureDto),
+}).openapi('FtueStockResponse')
