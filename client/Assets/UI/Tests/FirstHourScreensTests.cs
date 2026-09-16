@@ -306,6 +306,26 @@ namespace Broodline.UI.Tests
         }
 
         [Test]
+        public void Lineage_OffersAWayOnwardOnlyWhenThereIsSomewhereToGo()
+        {
+            // Beat 8 ends session one, but `Ftue.Derive` answers `Lineage` on
+            // every launch until wave 6 is cleared - so a tree with no way
+            // forward parks a returning player on it and never lets them
+            // reach the designed first loss.
+            var directed = new LineageView();
+            directed.Bind(new LineageResponse { Nodes = new[] { Node("Hollow", F, founder: true) } },
+                F, next: () => { });
+            Assert.AreNotEqual(DisplayStyle.None, directed.Q<Button>("next").style.display.value);
+            Assert.AreEqual(LineageScreen.NextLabel, directed.Q<Button>("next").text);
+
+            // ...and a plain tab destination with nothing waiting on it gets
+            // a hidden button rather than a dead one.
+            var standalone = new LineageView();
+            standalone.Bind(new LineageResponse { Nodes = new[] { Node("Hollow", F, founder: true) } }, F);
+            Assert.AreEqual(DisplayStyle.None, standalone.Q<Button>("next").style.display.value);
+        }
+
+        [Test]
         public void Lineage_HighlightsOnlyTheCreatureTheSessionIsAbout()
         {
             var view = BoundLineage(F,

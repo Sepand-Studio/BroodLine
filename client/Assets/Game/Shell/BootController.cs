@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net.Http;
 using Broodline.Model;
+using Broodline.Net;
 using Broodline.UI.Shell;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -12,13 +14,19 @@ namespace Broodline.Game.Shell
     /// one persistent root scene holding the composition root, the network
     /// layer, the tab bar and the persistent top bar.
     ///
-    /// What this does NOT yet do: task-13-brief.md's Step 6 sketch says this
-    /// class "starts the OutboxPump (Task 18)" and "hands control to Ftue
-    /// (Task 17) after ColdStart." Neither exists in this codebase - there is
-    /// no `OutboxPump` class and no FTUE controller anywhere under
-    /// `client/Assets` (Task 13 is the first client task of this phase).
-    /// Wiring against a type that does not exist would not compile, so both
-    /// are left as explicit TODOs rather than invented placeholders.
+    /// task-13-brief.md's Step 6 sketch says this class "starts the
+    /// OutboxPump (Task 18)" and "hands control to Ftue (Task 17) after
+    /// ColdStart". Task 13 left both as TODOs because neither type existed
+    /// yet. **Both exist now and both are wired here** - `OutboxPump`
+    /// arrived with Task 18 and was never constructed by anything until
+    /// this commit, so until now the outbox only ever flushed as a side
+    /// effect of a caller's own `SubmitWaveAsync`/`SpliceCommitAsync` and a
+    /// queued entry sat there until the next action of the same kind.
+    ///
+    /// COMPOSITION ORDER MATTERS AND IS NOT ALPHABETICAL. The pump is
+    /// configured BEFORE the director runs, so a submission the director
+    /// queues while offline is already covered by the foreground and
+    /// reachability triggers rather than waiting for the next wave.
     [RequireComponent(typeof(UIDocument))]
     public sealed class BootController : MonoBehaviour
     {
@@ -30,8 +38,13 @@ namespace Broodline.Game.Shell
 
         Session _session;
         ScreenHost _screenHost;
+        ScreenFlow _screenFlow;
         TabBar _tabBar;
         SafeAreaBinder _safeArea;
+        OutboxClient _outbox;
+        OutboxPump _pump;
+        WaveHost _waves;
+        FtueDirector _ftue;
 
         async void Start()
         {
@@ -55,6 +68,7 @@ namespace Broodline.Game.Shell
             var screenHostElement = root.Q<VisualElement>("screen-host");
             var sheetLayer = root.Q<VisualElement>("sheet-layer");
             _screenHost = new ScreenHost(screenHostElement, sheetLayer, _tabBar);
+            _screenFlow = new ScreenFlow(_screenHost);
 
             var http = new HttpClient();
             _session = new Session(http, new SnapshotStore(), new AuthStore(), OnSnapshot);
@@ -73,8 +87,54 @@ namespace Broodline.Game.Shell
                 Debug.LogError("[BootController] cold start failed: " + e);
             }
 
-            // TODO(Task 18): start the OutboxPump here once it exists.
-            // TODO(Task 17): hand control to Ftue here once it exists.
+            // The outbox, and the pump that drains it. `OutboxStore`'s path
+            // is under `Application.persistentDataPath` because the queue
+            // must survive a kill - that is the whole point of persisting
+            // the key at action time (`OutboxClient`'s class comment).
+            var store = new OutboxStore(Path.Combine(Application.persistentDataPath, "outbox.bin"));
+            _outbox = new OutboxClient(_session.Api, store.Load(), store);
+            _pump = gameObject.AddComponent<OutboxPump>();
+            _pump.Configure(_outbox);
+
+            // `traits` is read per run, never captured - `WaveHost`'s own
+            // rule, because the snapshot it comes from is replaced wholesale
+            // by every sync.
+            _waves = new WaveHost(() => _session.Snapshot?.Traits);
+
+            _ftue = new FtueDirector(
+                _session.Api,
+                _outbox,
+                _waves.RunAsync,
+                _screenFlow,
+                () => _session.Snapshot,
+                () => _session.ColdStartAsync(),
+                OnNotice);
+
+            try
+            {
+                await _ftue.RunAsync();
+            }
+            catch (Exception e)
+            {
+                // Same reason the cold start is wrapped: this is an `async
+                // void Start`, so anything that escapes here is an
+                // unobserved exception with no stack anyone will see.
+                Debug.LogError("[BootController] the first hour stopped: " + e);
+            }
+        }
+
+        /// Where a blocked beat's sentence goes.
+        ///
+        /// THERE IS STILL NO NOTICE SURFACE. Task 13 recorded the same gap
+        /// for the cold-start failure above, and `OutboxPump.Notices` holds
+        /// the outbox's expiry notices in a list nothing renders. Logging is
+        /// not a substitute for a toast; it is what keeps the sentence from
+        /// being silently discarded until one exists, and it is named as a
+        /// gap here rather than hidden behind a comment-free `Debug.Log`.
+        void OnNotice(string notice)
+        {
+            if (string.IsNullOrEmpty(notice)) return;
+            Debug.LogWarning("[Ftue] " + notice);
         }
 
         void OnSnapshot(PlayerSnapshot snapshot)

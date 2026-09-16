@@ -38,6 +38,9 @@ namespace Broodline.UI.Screens
         readonly Label _title;
         readonly Label _notice;
         readonly VisualElement _generations;
+        readonly Button _next;
+
+        Action _onNext;
 
         public LineageView()
         {
@@ -49,17 +52,32 @@ namespace Broodline.UI.Screens
             _title = this.Q<Label>("title");
             _notice = this.Q<Label>("notice");
             _generations = this.Q<VisualElement>("generations");
+            _next = this.Q<Button>("next");
+
+            _next.clicked += () => _onNext?.Invoke();
         }
 
         /// `highlight` is the creature the session is ABOUT - the named
         /// Founder at beat 8. It is a plain `Guid` rather than a nullable
         /// one: `Guid.Empty` matches no node the server can send, so "nothing
         /// highlighted" needs no second parameter to express.
-        public void Bind(LineageResponse lineage, Guid highlight)
+        /// `next` IS OPTIONAL, AND ITS ABSENCE IS A REAL STATE. Beat 8 ends
+        /// session one, but it must not be a dead end: `Ftue.Derive` answers
+        /// `Lineage` on every launch between wave 2 and wave 6, so a tree
+        /// with no way forward would park a returning player on the screen
+        /// that closed their first session and never let them reach wave 6 -
+        /// the designed first loss that design section 5 puts in this same
+        /// phase. The director passes a continuation onward to Campaign
+        /// Select. A later caller showing this as a plain tab destination
+        /// passes none, and the button is hidden rather than dead.
+        public void Bind(LineageResponse lineage, Guid highlight, Action next = null)
         {
             if (lineage == null) throw new ArgumentNullException(nameof(lineage));
 
             _title.text = LineageScreen.Title;
+            _next.text = LineageScreen.NextLabel;
+            _next.style.display = next == null ? DisplayStyle.None : DisplayStyle.Flex;
+            _onNext = next;
 
             var nodes = lineage.Nodes;
             var generations = LineageScreen.Generations(nodes);

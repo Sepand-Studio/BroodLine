@@ -70,7 +70,16 @@ namespace Broodline.UI.Screens
             // must not be reachable by tapping its label either, and
             // `enabledSelf` on the row is what a caller - and a test - reads
             // back to know whether this wave can be started.
-            row.SetEnabled(CampaignSelectScreen.IsPlayable(id, waves, highestWaveCleared));
+            var playable = CampaignSelectScreen.IsPlayable(id, waves, highestWaveCleared);
+            row.SetEnabled(playable);
+
+            // NO HANDLER AT ALL on a locked row, rather than a handler behind
+            // a disabled element. `SetEnabled(false)` already stops UI Toolkit
+            // routing pointer events there, so this is belt and braces - but
+            // the belt is what a reader can check, and `onPick` reaching the
+            // director for a wave `wave/start` can only refuse is the kind of
+            // thing that presents as an unexplained `wave_locked`.
+            if (!playable) return row;
 
             var picked = id;
             row.RegisterCallback<ClickEvent>(_ => onPick?.Invoke(picked));

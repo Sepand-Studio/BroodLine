@@ -47,3 +47,7 @@
 .node.highlight {
     background-color: rgba(150, 200, 240, 0.15);
 }
+
+.lineage-view__next {
+    margin-top: 12px;
+}

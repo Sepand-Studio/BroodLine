@@ -152,6 +152,12 @@ namespace Broodline.UI
             return seen;
         }
 
+        /// Where beat 8 lets go. bible 9.2 ends the session here, but
+        /// `Ftue.Derive` answers `Lineage` on every launch until wave 6 is
+        /// cleared, so the tree needs a way onward or a returning player is
+        /// parked on it forever - see `LineageView.Bind`.
+        public const string NextLabel = "Continue";
+
         /// splice_confirm_spec section 5 and design section 5: the consumed
         /// parents are STILL HERE, and the screen says so in words as well as
         /// in a class name. "Individuals are consumed; the record survives."
