@@ -289,7 +289,7 @@ other two. The two tests are each other's vacuity control.
 
 | Item | State |
 |---|---|
-| **Enable GitHub Actions at `Sepand-Studio`** | **Owed since Phase 4, and it got worse.** This phase widened enums, added a second authored wave and a second bundle — the class of change the determinism gate exists to catch across runtimes — and all six gates were run by hand on one machine. `contract.test.ts` running the contract gate with the suite is the only automated part |
+| **~~Enable GitHub Actions at `Sepand-Studio`~~** **Register a self-hosted macOS runner** | **This row was FALSE when written, and Phase 5's own PR body had already corrected it.** Actions have been enabled since **2026-09-12**; `Tests` (`ubuntu-latest`) runs on every push and PR and has succeeded repeatedly, running the engine suite, the contract gate both directions and `verify-unity-settings.sh`. What has never run is **`determinism.yml`**, which declares `runs-on: [self-hosted, macOS]` against a runner nobody has registered — every trigger queues until cancelled (24h, 8h34m, 5h34m, and one still queued at 10h42m). **A queued run is not a failing run, so nothing ever goes red.** So the IL2CPP half of the cross-runtime diff is the real gap, and this phase widened enums, added a second authored wave and restructured a comparator — the exact class of change it exists to catch. Verified by `gh run list`, 2026-09-15 |
 | **`client_architecture` §2's `ref readonly SimState`** | **Owed since Phase 3. FIVE times deferred.** Recorded so the count stays honest |
 | **~~Raise `minimumClientVersion`~~** | **Discharged in `a8e5785`**, after this table had already recorded it as owed — see §6 |
 | **Narrow `solo_execution` §3.1's degradation row** | Still owed. Untouched this phase |
