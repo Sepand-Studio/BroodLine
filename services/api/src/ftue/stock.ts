@@ -47,10 +47,17 @@ export type StockResult =
  *    ftue/markers.ts's own doc gives: two racing grants must not both see
  *    "not yet granted" and both insert.
  *
- * `lockRoster` runs between the second gate and the third - the same
- * discipline `wave/base-stock.ts` and `map/claim.ts` apply to every other
- * grant path, serialising this player's grants against each other so two
- * concurrent calls cannot both pass `setMarker` before either has written.
+ * `lockRoster` RUNS BEFORE THE SECOND GATE, not merely before the third -
+ * fix round 1's finding, and the actual defect it closes. `isFirstSplice` is
+ * a bare, unlocked `count(*)` on `splices`, and reading it outside the lock
+ * that guards it is what let a real `POST /v1/splice/commit` land
+ * concurrently with this grant: under READ COMMITTED, this transaction could
+ * count zero splice rows at the exact moment a commit was writing its first
+ * one, and both would proceed - the tutorial pair granted to a player who
+ * had already spliced. `commitSplice` now takes this SAME advisory lock
+ * FIRST, before anything else it does, so the two paths fully serialise:
+ * whichever wins is committed (or refused) before the other reads anything,
+ * and the loser observes the winner's true state rather than a stale one.
  *
  * NO CAP CHECK, deliberately: this pair exists to be spliced away
  * immediately (`splice_confirm_spec` §6), and refusing it on a full Hatchery
@@ -61,11 +68,12 @@ export async function grantTutorialStock(tx: Tx, serverId: number, playerId: str
     .where(and(eq(campaignProgress.serverId, serverId), eq(campaignProgress.playerId, playerId)))
   if ((progress?.highestWaveCleared ?? 0) < 2) return { kind: 'unavailable', why: 'Clear wave 2 first.' }
 
+  await lockRoster(tx, serverId, playerId)
+
   if (!(await isFirstSplice(tx, serverId, playerId))) {
     return { kind: 'unavailable', why: 'The tutorial splice has already happened.' }
   }
 
-  await lockRoster(tx, serverId, playerId)
   if (!(await setMarker(tx, serverId, playerId, 'tutorial_stock_granted_at'))) {
     return { kind: 'unavailable', why: 'Already granted.' }
   }

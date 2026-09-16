@@ -5,15 +5,17 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { createApp, type Deps } from '../src/app.ts'
-import { clearBundleCache } from '../src/config/bundle.ts'
+import { clearBundleCache, loadBundle } from '../src/config/bundle.ts'
 import { publishBundle } from '../src/config/publish.ts'
 import { LocalBundleStore } from '../src/config/store.ts'
 import { withServer } from '../src/db/client.ts'
 import { creatures, servers } from '../src/db/schema.ts'
 import { readMarkers } from '../src/ftue/markers.ts'
+import { grantTutorialStock } from '../src/ftue/stock.ts'
 import { LocalReplayStore } from '../src/replays/store.ts'
 import { creatureHp } from '../src/roster/creatures.ts'
 import { SimClient } from '../src/sim/client.ts'
+import { commitSplice } from '../src/splice/commit.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 import { clearWave, setupPlayer } from './wave-helpers.ts'
 
@@ -186,5 +188,82 @@ describe('POST /v1/ftue/splice-stock', () => {
       headers: { authorization: 'Bearer nonsense', 'idempotency-key': randomUUID() },
     })
     expect(res.status).toBe(401)
+  })
+
+  it('refuses the pair against a splice commit landing concurrently - fix round 1', async () => {
+    // THE RACE fix round 1 found: `isFirstSplice` was a bare, unlocked
+    // `count(*)` on `splices`, and `commitSplice` shared no lock with it -
+    // so a real commit landing in the window between this grant's read and
+    // its write could interleave with it, both proceeding on the same stale
+    // "zero splices" answer. Reachable in production, not theoretical:
+    // starter creatures are granted at sign-up, so every player holds
+    // splice-eligible creatures from their first session.
+    //
+    // CONSTRUCTED, not hoped for - `commit.ts`'s own idiom
+    // (splice-commit.test.ts's "refuses two concurrent splices..." and
+    // "does not deadlock..." tests) via `SpliceHooks.afterParentsLocked`,
+    // which pauses `commitSplice` in its read-to-write window. Since the
+    // fix, `commitSplice` takes `lockRoster` BEFORE `lockParents`, so by the
+    // time this hook fires the advisory lock is already held - the grant
+    // below calling `grantTutorialStock` (which now takes the SAME lock
+    // before its `isFirstSplice` read) must block on it rather than read
+    // straight past.
+    await clearWave(2)
+    const a = await give()
+    const b = await give()
+    const bundle = await loadBundle(deps.bundleStore)
+    const locked = { from: 'a' as const, slot: 'trait_1' as const }
+
+    let release!: () => void
+    const paused = new Promise<void>((r) => { release = r })
+    let commitIsInTheWindow!: () => void
+    const commitReachedTheWindow = new Promise<void>((r) => { commitIsInTheWindow = r })
+
+    const commitTx = withServer(deps.db, SERVER_ID, (tx) => commitSplice(
+      tx, SERVER_ID, playerId, bundle,
+      { parentA: a, parentB: b, locked, bodyFrom: 'Vetch' },
+      new Date(), randomUUID(), {
+        afterParentsLocked: async () => { commitIsInTheWindow(); await paused },
+      }))
+
+    // The commit holds its parent locks - and, with the fix, `lockRoster` -
+    // and has written nothing yet.
+    await commitReachedTheWindow
+
+    let grantSettled = false
+    const grantTx = withServer(deps.db, SERVER_ID, (tx) => grantTutorialStock(tx, SERVER_ID, playerId))
+      .then((r) => { grantSettled = true; return r })
+
+    // try/finally around the timed check: `commitTx` is paused on `paused`
+    // regardless of what this assertion does, and a failed assertion here
+    // (as happens pre-fix - see below) must still `release()` it, or the
+    // hung transaction outlives the test and takes the file's `afterAll`
+    // down with a hook timeout instead of a clean, attributable failure.
+    // Measured, not guarded against on paper: this is exactly what happened
+    // running this test against the pre-fix code without the `finally`.
+    try {
+      await new Promise((r) => setTimeout(r, 400))
+      // THE FIX'S EFFECT, DIRECTLY OBSERVED, and the assertion that fails
+      // without it: pre-fix, `grantTutorialStock` reads `isFirstSplice`
+      // (zero rows - the commit above has written nothing yet), takes its
+      // OWN uncontended `lockRoster` and completes well inside 400ms,
+      // granting the pair to a player whose splice is landing at that very
+      // moment. Measured, not assumed: reverting the two `lockRoster` calls
+      // this round added reproduces exactly that - `grantSettled` is `true`
+      // here and the outcome below is `'ok'`.
+      expect(grantSettled).toBe(false)
+    } finally {
+      release()
+    }
+
+    const commitResult = await commitTx
+    const grantResult = await grantTx
+
+    expect(commitResult.kind).toBe('ok')
+    // Unblocked, the grant now observes the TRUE state - this player's
+    // first splice already happened - and refuses rather than granting a
+    // second guaranteed-mutation pair over one moment nobody could see both
+    // halves of.
+    expect(grantResult.kind).toBe('unavailable')
   })
 })
