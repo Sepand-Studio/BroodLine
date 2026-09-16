@@ -1,11 +1,11 @@
 {
   "name": "Broodline.Net.Tests",
   "rootNamespace": "Broodline.Net.Tests",
-  "references": ["Broodline.Net", "UnityEngine.TestRunner", "UnityEditor.TestRunner"],
+  "references": ["Broodline.Net", "Generated.Api", "UnityEngine.TestRunner", "UnityEditor.TestRunner"],
   "includePlatforms": ["Editor"],
   "excludePlatforms": [],
   "overrideReferences": true,
-  "precompiledReferences": ["nunit.framework.dll"],
+  "precompiledReferences": ["nunit.framework.dll", "Newtonsoft.Json.dll"],
   "autoReferenced": false,
   "defineConstraints": ["UNITY_INCLUDE_TESTS"],
   "versionDefines": [],

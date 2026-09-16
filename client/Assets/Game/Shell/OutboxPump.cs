@@ -63,14 +63,27 @@ namespace Broodline.Game.Shell
             if (cameBackOnline) FlushNow();
         }
 
+        // async void is otherwise unavoidable here (Unity's event methods -
+        // OnApplicationFocus, Update - are not async-aware), and anything
+        // that escapes it surfaces as an unhandled exception on the main
+        // thread. Fix round 1: everything in the body, including a second
+        // failure from OutboxClient's own Ack/Save bookkeeping, is caught
+        // and logged instead of allowed to propagate.
         private async void FlushNow()
         {
             if (_client == null) return;
 
-            var result = await _client.FlushAsync();
-            if (result?.Notices == null) return;
+            try
+            {
+                var result = await _client.FlushAsync();
+                if (result?.Notices == null) return;
 
-            foreach (var notice in result.Notices) _notices.Add(notice);
+                foreach (var notice in result.Notices) _notices.Add(notice);
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogException(ex);
+            }
         }
     }
 }

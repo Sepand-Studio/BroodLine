@@ -55,8 +55,27 @@ namespace Broodline.Net
                 }
             }
 
-            if (File.Exists(_path)) File.Delete(_path);
-            File.Move(tempPath, _path);
+            // Replace atomically - there must be no window where `_path`
+            // does not exist. The earlier `Delete` then `Move` left exactly
+            // that window open: a kill between the two would have lost the
+            // whole previously-persisted queue, not just the entry being
+            // saved, which is what the class comment above promises.
+            //
+            // File.Move's 3-arg (overwrite:) overload is .NET Standard 2.1+
+            // and this project's api compatibility level rejects it (CS1739
+            // - confirmed by trying it). File.Replace is available instead
+            // and is exactly this operation for the common case; it only
+            // requires the destination to already exist, so the very first
+            // save (no `_path` yet) falls back to a plain Move, which is
+            // already atomic when there is nothing to replace.
+            if (File.Exists(_path))
+            {
+                File.Replace(tempPath, _path, destinationBackupFileName: null);
+            }
+            else
+            {
+                File.Move(tempPath, _path);
+            }
         }
 
         /// Rebuilds an `Outbox` from disk. An empty (or missing) file - a

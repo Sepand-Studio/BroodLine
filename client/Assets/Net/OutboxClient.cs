@@ -139,13 +139,33 @@ namespace Broodline.Net
         private readonly BroodlineApiClient _api;
         private readonly Outbox _box;
         private readonly OutboxStore _store;
+        private readonly Func<bool> _isOffline;
 
+        /// Production constructor - wires the real connectivity signal
+        /// (`Application.internetReachability`). Delegates to the overload
+        /// below rather than duplicating the offline logic.
         public OutboxClient(BroodlineApiClient api, Outbox box, OutboxStore store)
+            : this(api, box, store, DefaultIsOffline)
+        {
+        }
+
+        /// Same as above, with the connectivity check substituted - the seam
+        /// `OutboxClientTests.cs` uses to drive the offline-affordance
+        /// asymmetry deterministically instead of depending on
+        /// `Application.internetReachability`, which is not controllable
+        /// from an EditMode test. Fix round 1: this constructor is real,
+        /// callable production API (any caller may supply its own
+        /// connectivity predicate), not a setter that exists only for tests
+        /// to reach into.
+        public OutboxClient(BroodlineApiClient api, Outbox box, OutboxStore store, Func<bool> isOffline)
         {
             _api = api ?? throw new ArgumentNullException(nameof(api));
             _box = box ?? throw new ArgumentNullException(nameof(box));
             _store = store ?? throw new ArgumentNullException(nameof(store));
+            _isOffline = isOffline ?? throw new ArgumentNullException(nameof(isOffline));
         }
+
+        private static bool DefaultIsOffline() => Application.internetReachability == NetworkReachability.NotReachable;
 
         /// Submits a completed wave's replay for the issuance it belongs to.
         /// Queues while offline - the wave already simulated locally.
@@ -233,7 +253,7 @@ namespace Broodline.Net
 
         private async Task<OutboxResult<T>> EnqueueAndAttemptAsync<T>(string op, byte[] body, bool queueWhileOffline)
         {
-            var offline = Application.internetReachability == NetworkReachability.NotReachable;
+            var offline = _isOffline();
             if (offline && !queueWhileOffline)
             {
                 return OutboxResult<T>.Unavailable();
