@@ -49,7 +49,28 @@ const LOCK_STALE_MS = 5 * 60 * 1000 // the critical section is ~1-2s; minutes is
 // section - it is abandoned, and sits for as long as nobody clears it. Set
 // far above any plausible legitimate build so it can never steal from one.
 const LOCK_ABSOLUTE_CEILING_MS = 30 * 60 * 1000
-const LOCK_ACQUIRE_TIMEOUT_MS = 60_000
+// 180s, RAISED FROM 60s IN TASK 22, and the reason is arithmetic rather than
+// taste. This package now has EIGHT files that build
+// services/sim/Broodline.Sim.Service.csproj for their own sim host - the
+// seven registered in test/preflight.ts's SIM_PORTS plus generate-contract.sh
+// - and they are serialised through this one lock. A build measures 2.5-12s
+// here, so eight contenders can legitimately queue past a minute, and they
+// did: the first full-suite run after ftue.test.ts landed had loop.test.ts
+// fail at exactly 60037ms with "timed out waiting for the dotnet build lock",
+// reporting its three tests as SKIPPED - which reads in a summary as a
+// deliberate skip rather than as a suite that never ran. The very next run of
+// the same tree was fully green, which is what makes this a scheduling race
+// rather than a wall.
+//
+// This number is a bound on FAILING LOUDLY, not a measurement of anything. It
+// stays well under LOCK_STALE_MS (300s) so a genuinely abandoned lock is still
+// reclaimed rather than waited out, and it must be changed together with
+// generate-contract.sh's BUILD_LOCK_TIMEOUT_TENTHS - see this file's header on
+// the two hand-synced implementations.
+//
+// A NINTH sim-hosting file should not raise this again. The answer at that
+// point is one shared build the files reuse, not a longer queue.
+const LOCK_ACQUIRE_TIMEOUT_MS = 180_000
 const LOCK_POLL_MS = 100
 
 /**

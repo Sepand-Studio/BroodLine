@@ -175,6 +175,34 @@ public class WaveCapturePlayTests
         // where the snapshot is handed over rather than raced. What is left
         // here is what only a live panel can show - that the scheduler pulls
         // a NEW snapshot every frame at all.
+        //
+        // THE INTEGRITY HALF IS A DIFFERENT QUESTION, AND IT *IS* ASSERTABLE.
+        // Deleting the flaky assertion above took the tick half AND the
+        // integrity half with it, and that left nothing anywhere pinning that
+        // `WaveRunner.Snapshot()` fills `Integrity` and `Tick` FROM THE LIVE
+        // RUNNER: transpose those two assignments and every EditMode test
+        // stays green (their snapshots are hand-built) and every PlayMode
+        // assertion above stays green too (they only ask that the line is
+        // non-empty and that it moves).
+        //
+        // The tick is what made the old assertion race; integrity does not
+        // race, because it does not move. Wave 6 is one Courser against
+        // integrity 2, and nothing touches integrity until that Courser
+        // breaches at ~tick 540 - so for ~500 of 540 ticks the value is a
+        // constant 2, a stale frame reads the same 2, and the comparison
+        // needs no tolerance. Asserted on the PREFIX for the same reason: the
+        // tick that follows it on the line is the part that is one frame out.
+        var live = runner.Runner.Integrity;
+        // CONTRASTIVE, and the reason the prefix check above means anything:
+        // a transposed Snapshot() prints the TICK where integrity belongs, so
+        // the assertion can only discriminate while the two differ. They do -
+        // the Courser has spawned, so the tick is past 90 - and stating it
+        // here is what stops a future edit moving this block earlier, to a
+        // tick of 2, and quietly making it vacuous.
+        Assert.AreNotEqual(live, runner.Runner.Tick,
+            "integrity and tick must differ here or the prefix assertion below cannot tell them apart");
+        StringAssert.StartsWith("Integrity " + live, integrity.text,
+            "the HUD's integrity readout must come from the live runner - WaveRunner.Snapshot()");
 
         yield return Until(() => runner.Runner.Done, "the wave never terminated");
         yield return null;   // the Update that writes the artifacts

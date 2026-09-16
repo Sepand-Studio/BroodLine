@@ -113,7 +113,14 @@ export const SPECIES = { Vetch: 0, Ember: 1, Skitter: 2, Hollow: 3, Loam: 4, Pal
 // engine/Runtime/Combat/Ids.cs's Trait enum, in full - Task 6 (Phase 7) needs
 // Taunt/Splash/Carapace for the cold-open pair and the wave-2 trio, where
 // earlier tasks only ever needed Chill.
-const TRAIT = { None: 0, Chill: 1, Taunt: 2, Splash: 3, Carapace: 4 } as const
+//
+// Exported for the same reason SPECIES and CREATURE_HP are: Task 22's
+// `ftue.test.ts` has to build a replay of creatures the SERVER minted - the
+// wave-6 Pale carries `Chill`/1 AND `Carapace`/1 (src/ftue/pale.ts's
+// WAVE6_PALE), which no authored deployment in this file describes - and the
+// alternative is a second copy of the enum's ordinals in a test file, which
+// would agree with itself and with nothing else.
+export const TRAIT = { None: 0, Chill: 1, Taunt: 2, Splash: 3, Carapace: 4 } as const
 const INSTINCT = { Vanguard: 1 } as const
 const TERRAIN_DEFILE = 0 // engine/Runtime/Combat/Ids.cs Terrain.Defile
 

@@ -549,13 +549,20 @@ the registered runner, against the phase that moved `SimVersion`.
 
 ## 13. Decisions owed
 
-*Five carried in. Four taken at design time (§2). Two closed during execution. The measured record after execution will live
-in `implementation/`; this table is the index into it.*
+*Five carried in. Four taken at design time (§2). Two closed during execution.
+**Amended by Task 22:** two of those design-time four were decisions about work
+a human would then do, and **that work was not done** — the device capture and
+the runner registration are now recorded below as *decisions taken, obligations
+still owed*, which is the only honest way to leave them. By status the table
+below is therefore **Taken 4, Deferred 1, Owed 4**, and §13.1 carries nine more
+that execution itself added. The measured record is
+`implementation/2026-09-15-phase7-followups.md`; these tables are the index
+into it.*
 
 | Decision | Why it matters | State |
 |---|---|---|
-| **The device capture** | Blocks Phase 6's close, not just Phase 7's start | **Taken: Task 0, after §6.2's engine change.** Hardware is available |
-| **The self-hosted macOS runner** | The IL2CPP gate has never run, across three phases that each changed the engine | **Taken: registered this phase.** §9 |
+| **The device capture** | Blocks Phase 6's close, not just Phase 7's start | **Decision taken: Task 0, after §6.2's engine change** — and the ordering held, because §6.2's change landed in Task 1. ~~Hardware is available~~ **THE CAPTURE WAS NOT TAKEN.** Task 2 was never run; no iOS hardware reached the work. `TheTrackedCapturesAreCurrent` is red under `0.4.0`, and while it is red the whole committed round-trip proof is dark. **Still Owed** — `implementation/2026-09-15-phase7-followups.md` §1, §3 |
+| **The self-hosted macOS runner** | The IL2CPP gate has never run, across three phases that each changed the engine | **Decision taken: register it this phase.** ~~Registered this phase~~ **IT WAS NOT REGISTERED.** Task 12 was never run; `actions/runners` reports `total_count: 0`, and `determinism.yml`'s newest trigger has been queued for hours while the four before it were cancelled. **Four** phases have now changed the engine without the gate running once. **Still Owed** — followups §1 |
 | **Wave 1's sixth pocket** | Authored content and the engine disagree from wave 1 onward | **Taken: the engine changes**, the lane model takes a layout, `SimVersion` → `0.4.0`, and it lands before the capture. §6.2 |
 | **The GUI technology** | Reversible until the first screen ships, effectively frozen after | **Taken: UI Toolkit.** §4 |
 | **`ref readonly SimState`** | Specifies a shape that guarantees nothing | **Deferred Phase 7: six times deferred, by count.** Not edited. Recorded so the deferral is an act. |
@@ -563,6 +570,26 @@ in `implementation/`; this table is the index into it.*
 | **Node rates and the downtier floor, back into their documents** | The code has outrun both | **Taken: added to region_roster, bible §5.3, and sample_economy.** §10.3 |
 | **DOM/REC for the remaining traits** | `0.1.2` authors four; `combat_numbers` §4.2–4.3 has twelve traits and six species unauthored | **Owed, and provisional for the four that exist.** Not this phase's, and it blocks any wave needing a fifth trait |
 | **`Diagnosis.PreWaveCheck` cannot clear wave 7** | It counts all six Skirmishers as simultaneous while Splash III caps at 5 | **Owed, and this phase is the first that could have shipped a caller.** Resolved by not shipping one: the threat board is dropped with it — §5.2. **Trigger: the two move together or neither moves**, because the board is the surface that would make the defect visible to a player |
+
+### 13.1 What execution added
+
+*Promoted here by Task 22 so the design is amended rather than silently
+outrun. The first five are the plan's own "What this plan found the design
+missed"; the rest are decisions execution had to take that no document
+carried. The measured record is `implementation/2026-09-15-phase7-followups.md`.*
+
+| Decision | Why it matters | State |
+|---|---|---|
+| **Wave 6's Pale grant** | `waves_01_12` wave 6 hands over a Pale from the Wave Defeat screen and nothing in `services/api/src/wave/` granted it. A first-hour roster with no Chill loses wave 6 by design and then has no path to a Pale at all | **Taken: Task 8.** Once per player, on the first settlement of a wave-6 issuance, win or loss alike — the authored text's "fires anyway" on a win. `src/ftue/pale.ts` |
+| **Base stock may not mint a Pale before that grant fires** | `BASE_STOCK_SPECIES` was Vetch, Pale, Ember, so a lucky roll pre-empted the designed loss. `campaign_structure` §1 says to withhold it | **Taken: Task 6.** Withheld from every roll until `wave6_pale_granted_at` is set |
+| **No `servers` row exists outside tests** | Every test inserts one by hand; no migration or script seeds one, and a deployed database with no row refuses **every** `POST /v1/account` | **Owed.** It was Task 19's to seed and Task 19 was not run. This is the first thing a deployed stack will hit |
+| **The supply line has a gap between wave 2 and the guided splice** | A player who has cleared wave 2 holds four creatures, and the guided splice must use *provided* stock — never the Founder they just named. Nothing provided it | **Taken: Task 7.** `POST /v1/ftue/splice-stock`, gated on wave 2 cleared, the first splice unspent, and a write-once marker. Asserted end to end with `seeded === 0` by `services/api/test/ftue.test.ts` |
+| **The refresh token has nowhere safe to live** | `client_architecture` §7 says iOS Keychain; Unity has no Keychain API without a native plugin | **Taken provisionally: Task 13.** Stored under `Application.persistentDataPath` with the no-backup flag. **The Keychain plugin is Owed, and it gates any EXTERNAL build** — internal testers only until it lands |
+| **`BundleWaves` → `WaveDef.ForId` equality, in `tools/config-validate`** | `config/bundles/0.1.3/waves.json` and the engine's `Wave1()`/`Wave2()` are transcribed by hand and **nothing diffs them**. A content edit that disagrees with the engine ships silently until a replay is refused | **Owed.** A tool change, not taken this phase |
+| **A scheduler trigger for the abandonment/retention sweep** | `sweep-cli.ts` exists and is owner-run; nothing invokes it on a schedule | **Owed.** `solo_execution` §10's deployment trigger is not met, and it cannot be met before the stack exists |
+| **`Lane.DefileSix()`'s pocket positions** | Waves 1 and 2 run on six pockets beside tiles `{6, 9, 12, 14, 17, 20}`. `combat_numbers` §2 gives the family 4–6 pockets beside tiles 6–20 and `waves_01_12` wave 1 says six; **no document places them** | **Taken provisionally: Task 1**, spread so no two are adjacent. **Ratification Owed to `region_roster` §3.** It is inside `SimVersion` `0.4.0`, so moving a pocket later is an engine change and supersedes any capture taken under it |
+| **The screen-to-turn sequencing model** | `ScreenHost.Show` and every view's `Bind` return `void`, so "show a screen, wait until the player is done, continue" — the FTUE director's core mechanism in every beat — **was specified nowhere in the repo** | **Taken: Task 17.** `ScreenFlow` in `Broodline.Game.Shell` turns a screen's own completion callback into a `Task`, with the caller naming which callback ends the turn. No reviewed Task 15/16 signature changed. Not owned by `client_architecture` today; it should be |
+
 
 ---
 

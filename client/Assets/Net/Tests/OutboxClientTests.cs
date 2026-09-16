@@ -179,10 +179,20 @@ namespace Broodline.Net.Tests
         // reference that one, so it is its own small copy).
         // -----------------------------------------------------------------
 
-        private static OutboxClient NewClient(HttpMessageHandler handler, Outbox box, Func<bool> isOffline)
+        /// INSTANCE, and the store goes through `_tempPath` - not `static`
+        /// with a freshly-Guid'd path of its own.
+        ///
+        /// It was the latter, and that made the [SetUp]/[TearDown] pair above
+        /// dead code: the file TearDown deleted was never the file any client
+        /// wrote, so every EditMode run leaked one
+        /// `outbox-client-tests-*.bin` into the OS temp directory per test.
+        /// Nothing failed, because every assertion in this file reads the
+        /// in-memory `Outbox` rather than the persisted bytes - which is
+        /// exactly why it survived a review.
+        private OutboxClient NewClient(HttpMessageHandler handler, Outbox box, Func<bool> isOffline)
         {
             var api = new BroodlineApiClient(new HttpClient(handler));
-            var store = new OutboxStore(Path.Combine(Path.GetTempPath(), "outbox-client-tests-" + Guid.NewGuid().ToString("N") + ".bin"));
+            var store = new OutboxStore(_tempPath);
             return new OutboxClient(api, box, store, isOffline);
         }
 

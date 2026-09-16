@@ -191,7 +191,7 @@ describe('preflight: a sim port is occupied', () => {
     // A preflight that checks one of the four ports leaves the other three
     // failing exactly the way it exists to prevent - so the list is pinned
     // against the ports the test files really use.
-    expect(SIM_PORTS.map((p) => p.port)).toEqual([5199, 5299, 5399, 5499, 5599, 5699, 5799])
+    expect(SIM_PORTS.map((p) => p.port)).toEqual([5199, 5299, 5399, 5499, 5599, 5699, 5799, 5899])
   })
 })
 
