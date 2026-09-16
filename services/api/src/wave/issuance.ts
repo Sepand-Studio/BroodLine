@@ -4,6 +4,7 @@ import type { Bundle } from '../config/bundle.ts'
 import type { Tx } from '../db/client.ts'
 import { campaignProgress, creatures, waveIssuances, type CreatureSpec } from '../db/schema.ts'
 import { liveCreature, loadOwnedCreatures } from '../roster/creatures.ts'
+import { settleExpiredForPlayer } from './sweep.ts'
 
 export const ISSUANCE_TTL_MS = 7_200_000 // two hours - design 4.1
 export const REPLAY_CAP_PER_DAY = 3 // broodline_campaign_structure.md
@@ -156,6 +157,18 @@ export async function issueWave(
   deployment: readonly DeployedCreature[], bundle: Bundle,
   hooks: IssuanceHooks = {},
 ): Promise<Issuance | IssuanceRefusal> {
+  // Task 11: settle this player's live-past-expiry issuance BEFORE any of
+  // the five checks below, releasing its creatures. Before this call, the
+  // only settling path was check 4 - reached only by a start that checks
+  // 1-3 did not already refuse - so a wave that became unavailable (a
+  // bundle rollback un-authoring it, most concretely) stranded its
+  // deployment's creatures `committed_to` a row nothing would ever settle:
+  // every later splice of them refused `creature_committed` forever, and
+  // every later wave/start refused before reaching the code that would
+  // have freed them. See wave/sweep.ts for the fuller account and the
+  // lock-ordering analysis this move raised.
+  await settleExpiredForPlayer(tx, serverId, playerId)
+
   const [progress] = await tx.select().from(campaignProgress)
     .where(and(eq(campaignProgress.serverId, serverId), eq(campaignProgress.playerId, playerId)))
   const cleared = progress?.highestWaveCleared ?? 0
@@ -225,22 +238,22 @@ export async function issueWave(
 
   // 4. A live issuance is RETURNED, not replaced - design 2.1.
   //
-  // Two cases, and the second is the one the first version of this design got
-  // wrong. A row with settled_at IS NULL is in the one-live index whether or
-  // not it has expired, so an UNEXPIRED one is returned as-is, and an EXPIRED
-  // one - the abandoned-wave path - must be SETTLED 'expired' before the
-  // insert below, or that insert collides and the player cannot start a wave
-  // at all. Settling it 'consumed' instead would charge them a replay they
-  // never took, which is why the settlement is an enum.
+  // Task 11 simplified this from two cases to one. It used to settle an
+  // EXPIRED live row here itself - the abandoned-wave path - because this
+  // was the only place in `issueWave` that ever did. Now `settleExpiredForPlayer`
+  // does that unconditionally at the top of this function, in the SAME
+  // transaction, so a row still live here is GUARANTEED unexpired: Postgres's
+  // `now()` is fixed for the whole transaction (not per-statement), and
+  // nothing between that call and this one can insert a new live row (the
+  // only insert is `claimIssuance`, below check 5) - so any row whose
+  // `expires_at <= now()` was already settled and is gone from the one-live
+  // index by the time this SELECT runs.
   const [live] = await tx.select().from(waveIssuances)
     .where(and(
       eq(waveIssuances.serverId, serverId),
       eq(waveIssuances.playerId, playerId),
       isNull(waveIssuances.settledAt)))
-  if (live !== undefined) {
-    if (live.expiresAt > new Date()) return live
-    await settle(tx, live, 'expired')
-  }
+  if (live !== undefined) return live
 
   // 5. The seed comes from the CSPRNG, and the row is written before the
   //    response is formed. randomUUID is crypto-backed; the seed is drawn

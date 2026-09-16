@@ -628,6 +628,88 @@ it is still needed).
 
 **Booked as owed against Task 12.**
 
+### UPDATE (Task 11) — the sweep now exists, and row 7 is CLOSED
+
+The ruling above is left unedited for the record; the sweep it describes as
+absent now exists (`services/api/src/wave/sweep.ts`, `services/api/src/sweep-cli.ts`,
+`services/api/test/sweep.test.ts`), so the "there is no code to weaken" premise
+no longer holds. This section records what actually closes it, run the same
+way as every other row in this file: applied to the real source, the suite
+actually run, the failing test's name actually recorded.
+
+**Two tests were added for the RED/GREEN cycle**, both actually run RED
+before the fix and GREEN after:
+
+1. `sweep.test.ts`'s *"a wave_locked refusal no longer strands creatures
+   committed to an expired issuance"* — the OTHER claimant Task 11 closes,
+   not a retention test: `issueWave`'s checks 1-3 used to be able to refuse
+   a start without ever reaching the settle-expired branch that used to
+   live only at check 4, so a bundle rollback un-authoring a player's wave
+   left their deployment `committed_to` a row nothing would ever settle.
+   **RED**, against `issueWave` reverted to its pre-Task-11 shape
+   (`git stash push -- services/api/src/wave/issuance.ts`, `sweep.ts`
+   otherwise unchanged):
+   ```
+   AssertionError: expected false to be true
+     at test/sweep.test.ts:173 — (await myRoster()).every(c => c.committedTo === null)
+   ```
+   (five creatures stayed committed after the 409, exactly the strand this
+   task exists to close). **GREEN** after restoring the fix.
+2. `sweep.test.ts`'s *"retention: expired rows go one hour past expires_at;
+   consumed rows go 48h past issued_at"* — design §4.3's split, against
+   `sweepRetention` directly. **RED** simply because `sweep.ts` did not
+   exist before this task (`Cannot find module '../src/wave/sweep.ts'`).
+   **GREEN**, asserting `{ expiredDeleted: 2, consumedDeleted: 1 }` over
+   four rows (a keepable consumed row, a >48h consumed row, a >1h-past-expiry
+   expired row, and a live-past-expiry row that must be SETTLED before it is
+   deleted or its creatures never release).
+
+Full suite after: `pnpm --filter @broodline/api test` → **Test Files 42
+passed (42) / Tests 445 passed (445)**. No other file moved — for once, a
+brief prediction about test movement (this branch is at six wrong so far)
+was not tested here because none was made; this task is the first to leave
+every pre-existing file exactly as green as it started.
+
+**The weakening run, exactly as this row's own standard demands — and the
+brief's specific prediction about it was wrong.** Changing
+`CONSUMED_RETENTION_MS` in `sweep.ts` from `172_800_000` (48h) to
+`86_400_000` (24h) and re-running the two tests above **verbatim** stays
+**GREEN, 2/2**. The brief's claim was that this reddens "the 23:50/00:10
+assertion" (test 2's `replayCapCountFor` check); it does not, because that
+pair is only **twenty minutes** apart (`2026-09-14T23:50:00Z` to
+`2026-09-15T00:10:00Z`) — nowhere near either a 24h or a 48h threshold, so
+both windows keep the row and `replayCapCountFor` returns 1 either way. This
+is the row 7 pattern repeating on itself: a boundary pair chosen for one
+purpose (here, illustrating "issued right before a day boundary") does not
+automatically discriminate an unrelated numeric threshold, the same lesson
+"The first fix pinned a distance, and that was not enough" already drew
+above.
+
+A pair that DOES discriminate needs a row strictly between the two windows.
+`sweep.test.ts`'s third test — *"a consumed row strictly between 24h and 48h
+old survives the 48h window"*, a single consumed row issued 30 hours before
+`now` — is that gate, and it is a real, permanently shipped test rather than
+a discarded probe, on the same reasoning row 5's COMBINED weakening was kept
+over its single-edit predecessor: a row 7 fix that stops at "the brief's
+literal pair happens to stay green" repeats exactly the defect this row
+exists to record. Both runs below are against the identical fixture and
+`now`, nothing else changed:
+
+| `CONSUMED_RETENTION_MS` | 30h-old consumed row | 23:50/00:10 pair (test 2) |
+|---|---|---|
+| `172_800_000` (48h, shipped) | **kept** — `{ expiredDeleted: 0, consumedDeleted: 0 }` | green |
+| `86_400_000` (24h, weakened) | **deleted** — `{ expiredDeleted: 0, consumedDeleted: 1 }`, test **RED** | green (does not discriminate) |
+
+The 24h value was reverted immediately after each run; `sweep.ts` ships at
+`172_800_000`, confirmed by re-running the full file GREEN 3/3 afterward.
+
+**Booked as CLOSED.** Design §4.3's retention split has a direct,
+discriminating test on both halves (the day-boundary-adjacent pair and the
+strictly-between-windows pair), and the stranding bug the sweep also fixes
+has its own RED/GREEN pair above it. Full detail — including the
+lock-ordering question Task 11 raised while moving the settle call ahead of
+`issueWave`'s check 1 — is in `task-11-report.md`.
+
 ---
 
 ## Coverage note: design §4.4 has nine rows, the brief specifies eight tests
