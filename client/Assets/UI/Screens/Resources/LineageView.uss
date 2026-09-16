@@ -1,0 +1,49 @@
+.lineage-view {
+    flex-direction: column;
+    padding: 12px;
+}
+
+.lineage-view__title {
+    font-size: 22px;
+    margin-bottom: 8px;
+}
+
+.lineage-view__notice {
+    color: rgb(200, 180, 120);
+    white-space: normal;
+}
+
+.lineage-view__generations {
+    flex-direction: column;
+}
+
+.generation-row {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.node {
+    flex-direction: column;
+    margin-right: 8px;
+    margin-bottom: 8px;
+    padding: 6px;
+    border-left-width: 2px;
+    border-left-color: rgba(0, 0, 0, 0);
+}
+
+.node.founder {
+    border-left-color: rgb(150, 200, 240);
+}
+
+.node.consumed {
+    opacity: 0.55;
+}
+
+.node.mutated {
+    border-left-color: rgb(240, 200, 110);
+}
+
+.node.highlight {
+    background-color: rgba(150, 200, 240, 0.15);
+}

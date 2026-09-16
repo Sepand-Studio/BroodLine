@@ -1,0 +1,43 @@
+.splice-reveal-view {
+    flex-direction: column;
+    padding: 12px;
+}
+
+.splice-reveal-view__headline {
+    font-size: 22px;
+    margin-bottom: 12px;
+}
+
+.splice-reveal-view.mutated .splice-reveal-view__headline {
+    color: rgb(240, 200, 110);
+}
+
+.splice-reveal-view__child {
+    flex-direction: row;
+    margin-bottom: 4px;
+}
+
+.splice-reveal-view__child-line {
+    margin-bottom: 12px;
+    white-space: normal;
+}
+
+.splice-reveal-view__parents {
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.splice-reveal-view__parent {
+    margin-right: 8px;
+    margin-bottom: 8px;
+    opacity: 0.55;
+}
+
+.splice-reveal-view__consumption {
+    margin-top: 8px;
+    white-space: normal;
+}
+
+.splice-reveal-view__next {
+    margin-top: 12px;
+}

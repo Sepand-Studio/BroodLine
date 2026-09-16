@@ -1,0 +1,6 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="CodexSheet.uss" />
+    <ui:Label name="title" class="codex-sheet__title" />
+    <ui:VisualElement name="entries" class="codex-sheet__entries" />
+    <ui:Button name="dismiss" class="codex-sheet__dismiss" />
+</ui:UXML>

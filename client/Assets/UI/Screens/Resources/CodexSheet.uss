@@ -1,0 +1,24 @@
+.codex-sheet {
+    flex-direction: column;
+    padding: 12px;
+    background-color: rgb(28, 28, 32);
+}
+
+.codex-sheet__title {
+    font-size: 20px;
+    margin-bottom: 8px;
+}
+
+.codex-sheet__entries {
+    flex-direction: column;
+}
+
+.codex-entry {
+    flex-direction: column;
+    padding-top: 6px;
+    padding-bottom: 6px;
+}
+
+.codex-sheet__dismiss {
+    margin-top: 12px;
+}

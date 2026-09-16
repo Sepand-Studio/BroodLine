@@ -1,0 +1,34 @@
+.founder-naming-view {
+    flex-direction: column;
+    padding: 12px;
+}
+
+.founder-naming-view__prompt {
+    font-size: 20px;
+    margin-bottom: 12px;
+    white-space: normal;
+}
+
+.founder-naming-view__founder {
+    flex-direction: row;
+    margin-bottom: 12px;
+}
+
+.founder-naming-view__name {
+    margin-bottom: 4px;
+}
+
+.founder-naming-view__blocker {
+    color: rgb(230, 120, 120);
+    white-space: normal;
+    margin-bottom: 8px;
+}
+
+.founder-naming-view__confirm {
+    margin-top: 4px;
+}
+
+.founder-naming-view__skip {
+    margin-top: 4px;
+    background-color: rgba(0, 0, 0, 0);
+}
