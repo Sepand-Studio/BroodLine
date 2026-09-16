@@ -273,7 +273,13 @@ namespace Broodline.Game.Tests
                 Waves = new List<Waves>(),
                 Traits = new List<Traits>(),
             },
-            Ftue = new Ftue
+            // FULLY QUALIFIED. `Broodline.Game.Ftue` (Task 17's pure beat
+            // derivation) is a type in the namespace that ENCLOSES this one,
+            // and an enclosing namespace's own types beat anything a `using`
+            // imports - so a bare `new Ftue` here binds to that static class
+            // and fails to compile (CS0712). The generated DTO is the one
+            // this fixture wants.
+            Ftue = new Broodline.Api.Ftue
             {
                 FounderNamed = s.Ftue?.FounderNamed ?? false,
                 TutorialStockGranted = s.Ftue?.TutorialStockGranted ?? false,
