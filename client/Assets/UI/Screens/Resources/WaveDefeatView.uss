@@ -1,0 +1,38 @@
+.wave-defeat-view {
+    flex-direction: column;
+    padding: 12px;
+}
+
+.wave-defeat-view__headline {
+    font-size: 22px;
+    -unity-font-style: bold;
+    white-space: normal;
+    color: rgb(240, 230, 230);
+}
+
+.wave-defeat-view__diagnosis {
+    margin-top: 8px;
+    white-space: normal;
+    color: rgb(200, 195, 200);
+}
+
+.wave-defeat-view__granted {
+    margin-top: 16px;
+    white-space: normal;
+    color: rgb(170, 215, 255);
+}
+
+.wave-defeat-view__grants {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+
+.wave-defeat-view__grant {
+    margin-right: 8px;
+    margin-bottom: 8px;
+}
+
+.wave-defeat-view__retry {
+    margin-top: 16px;
+}

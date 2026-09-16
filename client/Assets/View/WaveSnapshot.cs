@@ -121,10 +121,15 @@ namespace Broodline.View
             }
         }
 
-        /// Interpolated lane position. THE expression - WaveView and WaveHud
-        /// both call this rather than each writing their own lerp, because when
-        /// they did, a bar and the body it labelled answered two different
-        /// questions about where a raider was.
+        /// Interpolated lane position. THE expression - `WaveView` and the
+        /// HUD's per-frame snapshot (`WaveRunner.Snapshot`, which feeds
+        /// `WaveHudView`) both call this rather than each writing their own
+        /// lerp, because when they did, a bar and the body it labelled
+        /// answered two different questions about where a raider was.
+        ///
+        /// The second caller used to be `WaveHud`, the IMGUI debug surface
+        /// Task 16 replaced; the rule survived the rewrite because it was the
+        /// fix, not the file.
         public static float LerpTile(WaveSnapshot previous, WaveSnapshot current, int i, float alpha)
             => previous.RaiderTile(i) + (current.RaiderTile(i) - previous.RaiderTile(i)) * alpha;
     }

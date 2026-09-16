@@ -1,0 +1,8 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="WaveDefeatView.uss" />
+    <ui:Label name="headline" class="wave-defeat-view__headline" />
+    <ui:Label name="diagnosis" class="wave-defeat-view__diagnosis" />
+    <ui:Label name="granted" class="wave-defeat-view__granted" />
+    <ui:VisualElement name="grants" class="wave-defeat-view__grants" />
+    <ui:Button name="retry" class="wave-defeat-view__retry" />
+</ui:UXML>

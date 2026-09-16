@@ -1,0 +1,61 @@
+/* No fixed pixel positions on the frame itself - client_architecture 11.
+   The bars inside it ARE absolutely positioned, because they track world
+   bodies; that position comes from the camera, never from a constant. */
+.wave-hud-view {
+    flex-grow: 1;
+    flex-direction: column;
+}
+
+.wave-hud-view__integrity {
+    margin-left: 12px;
+    margin-top: 8px;
+    font-size: 15px;
+    -unity-font-style: bold;
+    color: rgb(240, 240, 245);
+}
+
+.wave-hud-view__bars {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.wave-hud-view__bar {
+    position: absolute;
+    width: 52px;
+    flex-direction: column;
+}
+
+.wave-hud-view__track {
+    height: 6px;
+    flex-direction: row;
+    background-color: rgba(0, 0, 0, 0.55);
+}
+
+.wave-hud-view__fill {
+    height: 6px;
+    background-color: rgb(217, 89, 77);
+}
+
+.wave-hud-view__bar.creature .wave-hud-view__fill {
+    background-color: rgb(102, 204, 115);
+}
+
+.wave-hud-view__bar.chilled .wave-hud-view__fill {
+    background-color: rgb(115, 191, 255);
+}
+
+.wave-hud-view__bar.rallied .wave-hud-view__fill {
+    background-color: rgb(255, 217, 77);
+}
+
+.wave-hud-view__bar.breaching .wave-hud-view__fill {
+    background-color: rgb(255, 102, 102);
+}
+
+.wave-hud-view__tag {
+    font-size: 11px;
+    color: rgb(235, 235, 240);
+}
