@@ -411,6 +411,71 @@
           "placement"
         ]
       },
+      "CreatureDto": {
+        "type": "object",
+        "properties": {
+          "creatureId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "species": {
+            "type": "string"
+          },
+          "generation": {
+            "type": "integer"
+          },
+          "trait1": {
+            "type": "string"
+          },
+          "tier1": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "trait2": {
+            "type": "string"
+          },
+          "tier2": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "instinct": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isFounder": {
+            "type": "boolean"
+          },
+          "committedTo": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "creatureId",
+          "species",
+          "generation",
+          "trait1",
+          "tier1",
+          "trait2",
+          "tier2",
+          "instinct",
+          "name",
+          "isFounder",
+          "committedTo"
+        ]
+      },
       "WaveSubmitResponse": {
         "type": "object",
         "properties": {
@@ -440,6 +505,12 @@
               "currency",
               "amount"
             ]
+          },
+          "granted": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CreatureDto"
+            }
           }
         },
         "required": [
@@ -553,71 +624,6 @@
           "epoch",
           "nodes",
           "roster"
-        ]
-      },
-      "CreatureDto": {
-        "type": "object",
-        "properties": {
-          "creatureId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "species": {
-            "type": "string"
-          },
-          "generation": {
-            "type": "integer"
-          },
-          "trait1": {
-            "type": "string"
-          },
-          "tier1": {
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "trait2": {
-            "type": "string"
-          },
-          "tier2": {
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "instinct": {
-            "type": "string"
-          },
-          "name": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "isFounder": {
-            "type": "boolean"
-          },
-          "committedTo": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "format": "uuid"
-          }
-        },
-        "required": [
-          "creatureId",
-          "species",
-          "generation",
-          "trait1",
-          "tier1",
-          "trait2",
-          "tier2",
-          "instinct",
-          "name",
-          "isFounder",
-          "committedTo"
         ]
       },
       "RosterResponse": {

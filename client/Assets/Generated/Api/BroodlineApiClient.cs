@@ -2022,6 +2022,53 @@ namespace Broodline.Api
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class CreatureDto
+    {
+        [Newtonsoft.Json.JsonProperty("creatureId", Required = Newtonsoft.Json.Required.Always)]
+        public System.Guid CreatureId { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("species", Required = Newtonsoft.Json.Required.Always)]
+        public string Species { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("generation", Required = Newtonsoft.Json.Required.Always)]
+        public int Generation { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("trait1", Required = Newtonsoft.Json.Required.Always)]
+        public string Trait1 { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("tier1", Required = Newtonsoft.Json.Required.AllowNull)]
+        public int? Tier1 { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("trait2", Required = Newtonsoft.Json.Required.Always)]
+        public string Trait2 { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("tier2", Required = Newtonsoft.Json.Required.AllowNull)]
+        public int? Tier2 { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("instinct", Required = Newtonsoft.Json.Required.Always)]
+        public string Instinct { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("name", Required = Newtonsoft.Json.Required.AllowNull)]
+        public string Name { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("isFounder", Required = Newtonsoft.Json.Required.Always)]
+        public bool IsFounder { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("committedTo", Required = Newtonsoft.Json.Required.AllowNull)]
+        public System.Guid? CommittedTo { get; set; }
+
+        private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
+
+        [Newtonsoft.Json.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class WaveSubmitResponse
     {
         [Newtonsoft.Json.JsonProperty("result", Required = Newtonsoft.Json.Required.Always)]
@@ -2035,6 +2082,9 @@ namespace Broodline.Api
 
         [Newtonsoft.Json.JsonProperty("reward", Required = Newtonsoft.Json.Required.DisallowNull, NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
         public Reward Reward { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("granted", Required = Newtonsoft.Json.Required.DisallowNull, NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
+        public System.Collections.Generic.ICollection<CreatureDto> Granted { get; set; }
 
         private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
 
@@ -2118,53 +2168,6 @@ namespace Broodline.Api
 
         [Newtonsoft.Json.JsonProperty("roster", Required = Newtonsoft.Json.Required.Always)]
         public Roster Roster { get; set; } = new Roster();
-
-        private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
-
-        [Newtonsoft.Json.JsonExtensionData]
-        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
-        {
-            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
-            set { _additionalProperties = value; }
-        }
-
-    }
-
-    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
-    public partial class CreatureDto
-    {
-        [Newtonsoft.Json.JsonProperty("creatureId", Required = Newtonsoft.Json.Required.Always)]
-        public System.Guid CreatureId { get; set; }
-
-        [Newtonsoft.Json.JsonProperty("species", Required = Newtonsoft.Json.Required.Always)]
-        public string Species { get; set; }
-
-        [Newtonsoft.Json.JsonProperty("generation", Required = Newtonsoft.Json.Required.Always)]
-        public int Generation { get; set; }
-
-        [Newtonsoft.Json.JsonProperty("trait1", Required = Newtonsoft.Json.Required.Always)]
-        public string Trait1 { get; set; }
-
-        [Newtonsoft.Json.JsonProperty("tier1", Required = Newtonsoft.Json.Required.AllowNull)]
-        public int? Tier1 { get; set; }
-
-        [Newtonsoft.Json.JsonProperty("trait2", Required = Newtonsoft.Json.Required.Always)]
-        public string Trait2 { get; set; }
-
-        [Newtonsoft.Json.JsonProperty("tier2", Required = Newtonsoft.Json.Required.AllowNull)]
-        public int? Tier2 { get; set; }
-
-        [Newtonsoft.Json.JsonProperty("instinct", Required = Newtonsoft.Json.Required.Always)]
-        public string Instinct { get; set; }
-
-        [Newtonsoft.Json.JsonProperty("name", Required = Newtonsoft.Json.Required.AllowNull)]
-        public string Name { get; set; }
-
-        [Newtonsoft.Json.JsonProperty("isFounder", Required = Newtonsoft.Json.Required.Always)]
-        public bool IsFounder { get; set; }
-
-        [Newtonsoft.Json.JsonProperty("committedTo", Required = Newtonsoft.Json.Required.AllowNull)]
-        public System.Guid? CommittedTo { get; set; }
 
         private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
 

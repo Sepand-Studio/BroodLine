@@ -2,7 +2,9 @@ import type { Tx } from '../db/client.ts'
 import { grantFounder } from '../ftue/founder.ts'
 import { readMarkers } from '../ftue/markers.ts'
 import { loadArk } from '../map/claim.ts'
-import { baseStockPool, grantBaseStock, lockRoster, rosterCap, rosterCount } from '../roster/creatures.ts'
+import {
+  baseStockPool, grantBaseStock, lockRoster, rosterCap, rosterCount, toCreatureDto, type CreatureDto,
+} from '../roster/creatures.ts'
 
 /**
  * Design §2.4 - the supply line that makes the loop closeable rather than
@@ -96,7 +98,7 @@ export const WAVE_BASE_STOCK = 1
  */
 export async function grantWaveBaseStock(
   tx: Tx, serverId: number, playerId: string, issuanceId: string,
-): Promise<number> {
+): Promise<CreatureDto[]> {
   // Before the count, not after: this and `claimNode` are the only two
   // granting paths and they hold no lock in common, so without it both can
   // read the same pre-grant count and both pass the cap check.
@@ -116,7 +118,7 @@ export async function grantWaveBaseStock(
 
   const ark = await loadArk(tx, serverId, playerId)
   const cap = rosterCap(ark.hatcheryTier)
-  if (await rosterCount(tx, serverId, playerId) + WAVE_BASE_STOCK > cap) return 0
+  if (await rosterCount(tx, serverId, playerId) + WAVE_BASE_STOCK > cap) return []
 
   const markers = await readMarkers(tx, serverId, playerId)
   if (markers.founderGrantedAt === null) {
@@ -126,10 +128,11 @@ export async function grantWaveBaseStock(
     // caller is granting the Founder; this one grants nothing further,
     // rather than falling through to a rolled creature the cap check above
     // has already budgeted for as "one creature, this completion".
-    return (await grantFounder(tx, serverId, playerId)) === null ? 0 : 1
+    const founder = await grantFounder(tx, serverId, playerId)
+    return founder === null ? [] : [toCreatureDto(founder)]
   }
 
   const granted = await grantBaseStock(tx, serverId, playerId, WAVE_BASE_STOCK,
     `wave:${serverId}:${playerId}:${issuanceId}`, baseStockPool(markers))
-  return granted.length
+  return granted.map(toCreatureDto)
 }

@@ -784,7 +784,12 @@ describe('POST /v1/wave/submit - wave-completion base stock', () => {
     const res = await submit(issuanceId, buildWinningReplay(6, BigInt(seed)), 'key-stock-1')
     expect(res.status).toBe(200)
 
-    expect(await rosterCount()).toBe(before + 1)
+    // +2, not +1 - Task 8. This fresh player's first-ever completion is wave
+    // 6, so `grantWaveBaseStock` mints the Founder (Task 6) AND, separately,
+    // wave 6's own settlement grants the Pale (Task 8's
+    // `grantWave6Pale`) - two independent grants sharing this one
+    // transaction, not one grant that got bigger.
+    expect(await rosterCount()).toBe(before + 2)
     // THE SAME TRANSACTION AS THE REWARD CREDIT. A grant that could land
     // without the credit, or the credit without the grant, is two writes
     // pretending to be one - and a player paid but not granted has lost a
@@ -792,10 +797,16 @@ describe('POST /v1/wave/submit - wave-completion base stock', () => {
     expect(await balance('shards')).toBe(250 + 40)
   })
 
-  it('grants NOTHING on a losing submission', async () => {
-    // The grant is the REWARD's companion, so it lives on the branch the
-    // reward lives on. This is also the test that reddens if the grant is
-    // hoisted out of the credit's transaction and run unconditionally.
+  it('grants NOTHING FROM BASE STOCK on a losing submission', async () => {
+    // The BASE-STOCK grant is the REWARD's companion, so it lives on the
+    // branch the reward lives on. This is also the test that reddens if
+    // that grant is hoisted out of the credit's transaction and run
+    // unconditionally.
+    //
+    // NOT "grants nothing" any more - Task 8. Wave 6's own Loss branch
+    // grants a Pale (wave6-pale.test.ts owns that behaviour in full); this
+    // test's subject is narrower and unchanged: `grantWaveBaseStock` itself
+    // still never runs on a Loss.
     await setupPlayer(deps)
     const { issuanceId, seed } = await (await startLosing(6)).json() as { issuanceId: string; seed: string }
     const before = await rosterCount()
@@ -804,7 +815,7 @@ describe('POST /v1/wave/submit - wave-completion base stock', () => {
     const res = await submit(issuanceId, buildLosingReplay(6, BigInt(seed)), 'key-stock-2')
     expect(await res.json()).toMatchObject({ result: 'Loss' })
 
-    expect(await rosterCount()).toBe(before)
+    expect(await rosterCount()).toBe(before + 1) // the wave-6 Pale, not base stock
     expect(await balance('shards')).toBe(shards)
   })
 
@@ -839,10 +850,13 @@ describe('POST /v1/wave/submit - wave-completion base stock', () => {
 
     expect((await submit(issuanceId, buildWinningReplay(6, BigInt(seed)), 'key-stock-4')).status).toBe(200)
 
-    expect(await rosterCount()).toBe(before + 1)
+    // +2: this fresh player's first win mints the Founder AND the wave-6
+    // Pale (Task 8) - see 'grants base stock on the verified submit path'
+    // above for the same arithmetic.
+    expect(await rosterCount()).toBe(before + 2)
   })
 
-  it('skips the grant at the Hatchery cap and still pays the reward', async () => {
+  it('skips the BASE-STOCK grant at the Hatchery cap and still pays the reward', async () => {
     // SKIPPED, NOT FAILED - and this is the one place the wave path and the
     // claim path (design §4.3) deliberately differ over the same write.
     // `POST /v1/node/claim` refuses the WHOLE claim rather than truncating a
@@ -866,6 +880,12 @@ describe('POST /v1/wave/submit - wave-completion base stock', () => {
     expect(res.status).toBe(200)
     expect(await res.json()).toMatchObject({ result: 'Win', reward: { currency: 'shards', amount: 40 } })
     expect(await balance('shards')).toBe(250 + 40)
-    expect(await rosterCount()).toBe(20)
+    // 21, not 20 - Task 8. `grantWaveBaseStock`'s OWN grant is skipped at
+    // the cap, exactly as before; the wave-6 Pale is a SEPARATE grant that
+    // deliberately checks no cap at all (ftue/pale.ts's own doc: refusing
+    // it `roster_full` would teach the opposite of what the Wave Defeat
+    // screen just told the player). So the cap holds against base stock and
+    // does not hold against the one creature this beat requires landing.
+    expect(await rosterCount()).toBe(21)
   })
 })

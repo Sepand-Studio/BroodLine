@@ -170,38 +170,6 @@ const BreachDto = z.object({
   placement: z.boolean(),
 }).openapi('BreachDto')
 
-export const WaveSubmitResponse = z.object({
-  result: z.string(),
-  integrityRemaining: z.number().int(),
-  breaches: z.array(BreachDto),
-  // Absent rather than null on a loss, so a client cannot render a zero -
-  // design §4.2's response shape, `{ result, integrityRemaining, breaches[],
-  // reward? }`.
-  reward: z.object({
-    currency: z.string(),
-    amount: z.number().int(),
-  }).optional(),
-}).openapi('WaveSubmitResponse')
-
-export const ErrorResponse = z.object({
-  code: z.string(),
-  message: z.string(),
-  details: z.unknown().optional(),
-}).openapi('ErrorResponse')
-
-// Phase 5, Task 9. POST /v1/account has returned a refreshToken since Phase
-// 4 with no route able to redeem it - this is the route.
-export const RefreshRequest = z.object({
-  refreshToken: z.string(),
-}).openapi('RefreshRequest')
-
-export const RefreshResponse = z.object({
-  accessToken: z.string(),
-  // Rotation is deferred to the first non-TestFlight players (solo_execution
-  // 6.4) - this is the SAME token the caller sent, not a freshly minted one.
-  refreshToken: z.string(),
-}).openapi('RefreshResponse')
-
 // Phase 6, Task 5. The map's two routes - design §4.3.
 //
 // Registered into openapi.ts's registry in the SAME task that adds the
@@ -210,6 +178,14 @@ export const RefreshResponse = z.object({
 // entirely until the next task found it - see openapi.ts's own note on that
 // path. A route the Unity client must call and has no generated method for
 // is the same gap wearing a new name.
+//
+// DECLARED HERE, AHEAD OF `WaveSubmitResponse` - a Phase 7, Task 8 move.
+// `const` bindings are not hoisted the way `function` ones are, so a schema
+// declared below its first reference would throw at module load rather than
+// at review time. `WaveSubmitResponse` is the earlier (Phase 5) schema and
+// the newer consumer; this one moved rather than that one, since every
+// other consumer (RegionStateResponse and friends, below) was already
+// content to read it from here.
 export const CreatureDto = z.object({
   creatureId: z.string().uuid(),
   species: z.string(),
@@ -231,6 +207,45 @@ export const CreatureDto = z.object({
   // that carries a creature because the roster screen renders it.
   committedTo: z.string().uuid().nullable(),
 }).openapi('CreatureDto')
+
+export const WaveSubmitResponse = z.object({
+  result: z.string(),
+  integrityRemaining: z.number().int(),
+  breaches: z.array(BreachDto),
+  // Absent rather than null on a loss, so a client cannot render a zero -
+  // design §4.2's response shape, `{ result, integrityRemaining, breaches[],
+  // reward? }`.
+  reward: z.object({
+    currency: z.string(),
+    amount: z.number().int(),
+  }).optional(),
+  // ADDITIVE - Phase 7, Task 8. Every creature THIS settlement minted (base
+  // stock, the Founder, the wave-6 Pale), so Post-Wave and Wave Defeat can
+  // render what arrived without diffing the roster. Optional and absent
+  // (never `[]`) when nothing was granted, so the Phase 6 client - which has
+  // never heard of this field - keeps parsing every response exactly as it
+  // always has.
+  granted: z.array(CreatureDto).optional(),
+}).openapi('WaveSubmitResponse')
+
+export const ErrorResponse = z.object({
+  code: z.string(),
+  message: z.string(),
+  details: z.unknown().optional(),
+}).openapi('ErrorResponse')
+
+// Phase 5, Task 9. POST /v1/account has returned a refreshToken since Phase
+// 4 with no route able to redeem it - this is the route.
+export const RefreshRequest = z.object({
+  refreshToken: z.string(),
+}).openapi('RefreshRequest')
+
+export const RefreshResponse = z.object({
+  accessToken: z.string(),
+  // Rotation is deferred to the first non-TestFlight players (solo_execution
+  // 6.4) - this is the SAME token the caller sent, not a freshly minted one.
+  refreshToken: z.string(),
+}).openapi('RefreshResponse')
 
 export const RegionStateResponse = z.object({
   regionId: z.string(),
