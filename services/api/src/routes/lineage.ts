@@ -50,12 +50,27 @@ import { fail } from '../http/errors.ts'
  *
  * DERIVED AND WRITES NOTHING, like `GET /v1/roster`. No Idempotency-Key, no
  * transaction beyond the one read, and two calls in a row return the same
- * tree.
+ * tree - which is what the query's `creatureId` tiebreaker (below) is FOR:
+ * `(generation, acquiredAt)` alone ties whenever a grant mints more than one
+ * creature in a single statement, and `creatureId` is the one column that
+ * cannot.
  *
  * SCOPED BY `server_id` AND `player_id` BOTH, with RLS enforcing the former
  * underneath - the same two-part scope every other roster read in this
  * service uses, so a player can never resolve another player's lineage.
  */
+
+/**
+ * The tiebreak-complete sort key for this route's tree, named rather than
+ * inlined so a test can hold it to account. `lineage-route.test.ts`'s
+ * plan-forcing proof (fix round 1) imports this exact tuple instead of a
+ * hand-copied duplicate - a hand-copied one could silently stop matching
+ * what the route actually orders by, which is precisely the drift that
+ * would have hidden this bug from a black-box test in the first place (see
+ * that test's own comment on why the naive black-box version could not).
+ */
+export const LINEAGE_ORDER = [creatures.generation, creatures.acquiredAt, creatures.creatureId] as const
+
 export function registerLineageRoutes(app: Hono, deps: Deps): void {
   app.get('/v1/lineage', async (c) => {
     const session = await requireSession(c)
@@ -73,11 +88,17 @@ export function registerLineageRoutes(app: Hono, deps: Deps): void {
           eq(creatures.serverId, session.serverId),
           eq(creatures.playerId, playerId),
         ))
-        // GENERATION FIRST, then acquisition order within it - a tree reads
-        // top-down, and `GET /v1/roster`'s own ordering note applies again
-        // here: two reads in a row must agree, and unordered Postgres is
-        // free to return either.
-        .orderBy(creatures.generation, creatures.acquiredAt)
+        // GENERATION FIRST, then acquisition order within it, THEN
+        // `creatureId` as a tiebreaker that can never be shared - fix round
+        // 1's finding. `(generation, acquiredAt)` alone is not unique:
+        // `grantTutorialStock` inserts its pair in ONE multi-row statement
+        // inside ONE transaction, and Postgres's `now()` is transaction-
+        // stable rather than per-row, so both rows land with the SAME
+        // `acquired_at` and the SAME `generation`. Without a further key,
+        // their relative order is unspecified by the SQL and free to differ
+        // between two calls - `roster/creatures.ts`'s `loadRoster` orders by
+        // `creatureId` for the identical reason, on the identical hazard.
+        .orderBy(...LINEAGE_ORDER)
 
       return rows.map(({ c, mutated }) => ({
         creatureId: c.creatureId,

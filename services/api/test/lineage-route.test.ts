@@ -3,6 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { createApp, type Deps } from '../src/app.ts'
 import { clearBundleCache } from '../src/config/bundle.ts'
@@ -11,9 +12,10 @@ import { LocalBundleStore } from '../src/config/store.ts'
 import { withServer } from '../src/db/client.ts'
 import { creatures, servers } from '../src/db/schema.ts'
 import { LocalReplayStore } from '../src/replays/store.ts'
-import { creatureHp } from '../src/roster/creatures.ts'
 import { SimClient } from '../src/sim/client.ts'
 import { issueAccessToken } from '../src/identity/jwt.ts'
+import { LINEAGE_ORDER } from '../src/routes/lineage.ts'
+import { grantWaveBaseStock } from '../src/wave/base-stock.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 import { clearWave, setupPlayer } from './wave-helpers.ts'
 
@@ -119,27 +121,28 @@ async function lineage(auth = () => token): Promise<LineageBody> {
 // --- Fixtures.
 
 /**
- * A live Founder, minted directly through the owner connection.
+ * A live Founder, minted through the REAL production grant path -
+ * `grantWaveBaseStock` (wave/base-stock.ts) - called directly rather than
+ * over HTTP. Fix round 1's finding: an earlier version of this fixture
+ * hand-rolled the Founder's field values instead, on the mistaken claim that
+ * earning one needed a new sim-hosting test file and a `preflight.ts`
+ * change. It does not - `grantWaveBaseStock` and `ftue/founder.ts`'s
+ * `grantFounder` underneath it are plain functions taking
+ * `(tx, serverId, playerId[, issuanceId])`, no HTTP and no sim host, and
+ * `splice-commit.test.ts` already calls `grantWaveBaseStock` directly the
+ * identical way.
  *
- * SEEDED, NOT EARNED - and that is a real gap this test documents rather than
- * papers over. The Founder is only ever granted by `grantWaveBaseStock` on a
- * REAL wave-1 completion (Task 6), which needs a real sim host on its own
- * port (founder.test.ts's and loop.test.ts's `startSim()`). Standing up a
- * fifth sim-hosting file for this route's own test would need a new entry in
- * `preflight.ts`'s `SIM_PORTS` and a matching change to that list's pinned
- * assertion in preflight.test.ts - infrastructure this task's brief does not
- * ask for and this route's own logic does not need exercised: what this test
- * is verifying is the PROJECTION (does `isFounder` pass through the join
- * correctly), not the GRANT, which founder.test.ts already covers end to
- * end. `roster.test.ts` makes the identical call for the identical reason.
+ * On a fresh player (`founderGrantedAt` unset) this takes the SAME branch a
+ * real wave-1 win takes inside `routes/wave.ts`'s submit handler: the
+ * write-once marker, then the Hollow insert - so this fixture goes through
+ * the real grant path end to end (and stops being able to drift silently
+ * from `ftue/founder.ts`'s shape) rather than duplicating it by hand.
  */
 async function giveFounder(): Promise<string> {
-  const [row] = await withServer(deps.db, SERVER_ID, (tx) => tx.insert(creatures).values({
-    serverId: SERVER_ID, playerId, species: 'Hollow', generation: 1,
-    trait1: 'None', tier1: null, trait2: 'None', tier2: null, instinct: 'Vanguard',
-    hpCurrent: creatureHp('Hollow'), isFounder: true, name: 'Ash',
-  }).returning())
-  return row!.creatureId
+  const [founder] = await withServer(deps.db, SERVER_ID, (tx) =>
+    grantWaveBaseStock(tx, SERVER_ID, playerId, randomUUID()))
+  if (founder === undefined) throw new Error('grantWaveBaseStock minted nothing for a fresh player')
+  return founder.creatureId
 }
 
 /**
@@ -258,6 +261,122 @@ describe('GET /v1/lineage', () => {
     const first = await lineage()
     const second = await lineage()
     expect(second).toEqual(first)
+  })
+
+  it('orders a genuinely tied pair by creatureId, deterministically across two calls - fix round 1', async () => {
+    // THE CASE THE TEST ABOVE NEVER TOUCHES. Its fixtures are minted in
+    // separate transactions with distinct `acquired_at` values, so
+    // `(generation, acquiredAt)` alone already orders them and the route's
+    // `creatureId` tiebreaker never gets exercised. `POST /v1/ftue/splice-stock`
+    // is a REAL tie by construction: `grantTutorialStock` inserts the Vetch
+    // and the Ember in ONE multi-row statement inside ONE transaction, and
+    // Postgres's `now()` is transaction-stable rather than per-row, so both
+    // rows land with the SAME `acquired_at` AND the same `generation: 1`.
+    const { vetch, ember } = await stock()
+
+    // Prove the tie exists, directly against the database, rather than
+    // trusting the paragraph above. This half is deterministic regardless of
+    // how Postgres happens to break the tie.
+    const rows = await withServer(deps.db, SERVER_ID, (tx) => tx.select().from(creatures)
+      .where(and(eq(creatures.serverId, SERVER_ID), inArray(creatures.creatureId, [vetch, ember]))))
+    const vetchRow = rows.find((r) => r.creatureId === vetch)!
+    const emberRow = rows.find((r) => r.creatureId === ember)!
+    expect(vetchRow.generation).toBe(emberRow.generation)
+    expect(vetchRow.acquiredAt.getTime()).toBe(emberRow.acquiredAt.getTime())
+
+    // THE ASSERTION ITSELF: the pair's relative order must be creatureId
+    // ascending, and it must be the SAME order on a second call. Comparing
+    // against a fully independent, computed-in-JS expectation (rather than
+    // merely comparing the two calls to each other) is what makes this catch
+    // "returns SOME consistent order" as well as "returns the WRONG order
+    // consistently" - both would pass a bare first-equals-second check.
+    //
+    // WHAT THIS TEST DOES NOT PROVE, said plainly rather than left implied:
+    // run against the PRE-fix route (`.orderBy(generation, acquiredAt)`, no
+    // third key) on this environment, it still PASSES - checked directly, six
+    // times running. The reason is not that the tie is harmless: it is that
+    // for a table this small, Postgres plans this query as an Index Scan on
+    // `creatures_pkey` (server_id, creature_id), and that access path already
+    // happens to emit rows in creature_id order regardless of what the
+    // `ORDER BY` asks for among tied keys - an artifact of today's plan, not
+    // a guarantee. The next test forces a second, equally valid plan and
+    // shows the two disagree without the third key - that is the test with
+    // real discriminating power; this one stays for what it is actually
+    // good at, which is proving the FIX behaves correctly against the exact
+    // shape production data takes.
+    const expectedOrder = [vetch, ember].sort()
+    for (const body of [await lineage(), await lineage()]) {
+      const order = body.nodes
+        .filter((n) => n.creatureId === vetch || n.creatureId === ember)
+        .map((n) => n.creatureId)
+      expect(order).toEqual(expectedOrder)
+    }
+  })
+
+  it('two valid query plans disagree on a tie without the creatureId key, and agree with it - fix round 1', async () => {
+    // THE DIRECT PROOF. The test above cannot discriminate the fix on this
+    // environment (see its own comment) because Postgres's DEFAULT plan for
+    // this query happens to already return creature_id order by accident.
+    // Forcing a SECOND, equally valid plan - a sequential scan instead of the
+    // index scan on `creatures_pkey` - is what actually exercises the
+    // ambiguity `(generation, acquiredAt)` leaves open: the identical rows,
+    // the identical two-key ORDER BY, a DIFFERENT physical access path, and a
+    // DIFFERENT answer. Measured directly against this database, not assumed.
+    //
+    // Explicit creatureIds, not random ones - one lexically maximal, one
+    // lexically minimal, inserted maximal-then-minimal in ONE statement (the
+    // shape `grantTutorialStock` produces) - so which physical order the
+    // sequential scan returns is pinned rather than left to which of two
+    // random UUIDs happened to sort first.
+    const BIG = 'ffffffff-ffff-ffff-ffff-ffffffffffff'
+    const SMALL = '00000000-0000-0000-0000-000000000000'
+    const shared = {
+      serverId: SERVER_ID, playerId, generation: 1, trait1: 'Taunt', tier1: 1,
+      trait2: 'Carapace', tier2: 1, instinct: 'Vanguard', isFounder: false,
+    }
+    await withServer(deps.db, SERVER_ID, (tx) => tx.insert(creatures).values([
+      { ...shared, creatureId: BIG, species: 'Vetch', hpCurrent: 260 },
+      { ...shared, creatureId: SMALL, species: 'Ember', hpCurrent: 130 },
+    ]))
+
+    async function orderedIds(tieBroken: boolean, forceSeqScan: boolean): Promise<string[]> {
+      return withServer(deps.db, SERVER_ID, async (tx) => {
+        // Session-scoped (SET LOCAL, inside this call's own transaction) -
+        // never touches any other test or connection in the pool.
+        if (forceSeqScan) {
+          await tx.execute(sql`SET LOCAL enable_indexscan = off`)
+          await tx.execute(sql`SET LOCAL enable_bitmapscan = off`)
+        }
+        const where = and(eq(creatures.serverId, SERVER_ID), eq(creatures.playerId, playerId))
+        // `tieBroken` reuses `LINEAGE_ORDER`, the route's OWN exported sort
+        // key, rather than a hand-copied three-column list - so if a future
+        // edit ever drops `creatureId` back off that constant, this branch
+        // degrades to the untied shape below and this test catches it
+        // directly, instead of testing a duplicate that could drift from
+        // what the route actually does.
+        const rows = tieBroken
+          ? await tx.select({ id: creatures.creatureId }).from(creatures).where(where)
+            .orderBy(...LINEAGE_ORDER)
+          : await tx.select({ id: creatures.creatureId }).from(creatures).where(where)
+            .orderBy(creatures.generation, creatures.acquiredAt)
+        return rows.map((r) => r.id)
+      })
+    }
+
+    // WITHOUT the third key: the index-scan plan and the forced seq-scan
+    // plan must DISAGREE - this is the underlying gap, reproduced directly
+    // rather than hoped for.
+    const untiedIndexScan = await orderedIds(false, false)
+    const untiedSeqScan = await orderedIds(false, true)
+    expect(
+      untiedIndexScan,
+      'two valid plans agreed even without a tiebreaker - this fixture stopped forcing the ambiguity',
+    ).not.toEqual(untiedSeqScan)
+
+    // WITH the third key - the route's actual `.orderBy()` - both plans must
+    // agree, and both must agree on the only order a full key permits.
+    expect(await orderedIds(true, false)).toEqual([SMALL, BIG])
+    expect(await orderedIds(true, true)).toEqual([SMALL, BIG])
   })
 
   it('never returns another player\'s rows', async () => {
