@@ -1,0 +1,882 @@
+import { eq, sql } from 'drizzle-orm'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { withServer } from '../src/db/client.ts'
+import {
+  accounts, arks, creatures, harvestPositions, nodeDepletion, players, servers, splices,
+} from '../src/db/schema.ts'
+import { shardMultiplierHundredths } from '../src/map/accrual.ts'
+import { rosterCap } from '../src/roster/creatures.ts'
+import { maxGeneration } from '../src/splice/commit.ts'
+import { startTestDb, type TestDb } from './harness.ts'
+
+const SERVER_A = 1
+const SERVER_B = 2
+
+/**
+ * The FIVE tables 0005 adds, as the isolation gate would enumerate them.
+ * There is no creature_tombstones: design 3.2 as amended keeps a pruned
+ * creature in `creatures` behind a `pruned` flag.
+ */
+const NEW_TABLES = [
+  'creatures', 'arks', 'node_depletion', 'harvest_positions', 'splices',
+] as const
+
+let t: TestDb
+let playerA: string
+let playerB: string
+
+let n = 0
+/** Distinct, readable creature ids - no two inserts may collide on the PK. */
+const nextId = () => `cccccccc-0000-0000-0000-${String(++n).padStart(12, '0')}`
+
+beforeAll(async () => {
+  t = await startTestDb()
+
+  // Fixtures go in as the OWNER: seeding two servers is precisely what a
+  // policy-bound connection is not allowed to do (isolation.test.ts's idiom).
+  await t.ownerDb.insert(servers).values([
+    { serverId: SERVER_A, region: 'us-central1', state: 'open', tickDayOfWeek: 0, tickMinuteOfDay: 1200 },
+    { serverId: SERVER_B, region: 'us-central1', state: 'open', tickDayOfWeek: 0, tickMinuteOfDay: 1217 },
+  ])
+  const [accA] = await t.ownerDb.insert(accounts)
+    .values({ birthdateBand: 'adult', homeRegion: 'us-central1', serverId: SERVER_A }).returning()
+  const [accB] = await t.ownerDb.insert(accounts)
+    .values({ birthdateBand: 'adult', homeRegion: 'us-central1', serverId: SERVER_B }).returning()
+  const [pA] = await t.ownerDb.insert(players)
+    .values({ serverId: SERVER_A, accountId: accA!.accountId }).returning()
+  const [pB] = await t.ownerDb.insert(players)
+    .values({ serverId: SERVER_B, accountId: accB!.accountId }).returning()
+  playerA = pA!.playerId
+  playerB = pB!.playerId
+}, 240_000)
+
+afterAll(async () => { await t?.stop() })
+
+type CreatureFields = Partial<typeof creatures.$inferInsert>
+
+/**
+ * A creature that satisfies every column the schema requires, so a rejection
+ * is attributable to the one field a test overrode and to nothing else.
+ */
+const insertCreature = (o: CreatureFields = {}, serverId = SERVER_A) =>
+  withServer(t.db, serverId, (tx) => tx.insert(creatures).values({
+    serverId,
+    creatureId: nextId(),
+    playerId: serverId === SERVER_A ? playerA : playerB,
+    species: 'vetch',
+    generation: 1,
+    trait1: 'chill', tier1: 1,
+    trait2: 'lash', tier2: 1,
+    instinct: 'forage',
+    hpCurrent: 100,
+    ...o,
+  }).returning())
+
+/** Any past instant. What matters throughout is that it is not NULL. */
+const DEAD_AT = new Date('2026-09-01T00:00:00Z')
+
+/** Marks a creature as destroyed by a splice - dead, but still WHOLE. */
+const consume = async (creatureId: string) => {
+  const res = await withServer(t.db, SERVER_A, (tx) => tx.execute(sql`
+    UPDATE creatures SET consumed_at = ${DEAD_AT}
+     WHERE server_id = ${SERVER_A} AND creature_id = ${creatureId}`))
+  expect(res.rowCount).toBe(1)
+  return creatureId
+}
+
+/**
+ * design 3.2's prune, as amended: an UPDATE, not a DELETE. The row keeps its
+ * id and its parent pointers and is stripped to
+ * {species, generation, is_founder}.
+ *
+ * Written as raw SQL naming every stripped column rather than through the
+ * typed surface, because what is being pinned is that the SCHEMA tolerates
+ * this exact statement - the NOT NULLs that used to sit on trait_1, trait_2,
+ * instinct and hp_current would each reject it.
+ *
+ * CONSUMES FIRST, because a tombstone is a creature some splice destroyed
+ * and `pruned_creatures_are_consumed` refuses one that claims never to have
+ * died. That constraint has its own test below; here it is satisfied rather
+ * than exercised.
+ */
+const prune = async (creatureId: string) => {
+  await consume(creatureId)
+  const res = await withServer(t.db, SERVER_A, (tx) => tx.execute(sql`
+    UPDATE creatures
+       SET pruned = true,
+           trait_1 = NULL, tier_1 = NULL, trait_2 = NULL, tier_2 = NULL,
+           instinct = NULL, name = NULL, hp_current = NULL,
+           regen_until = NULL, committed_to = NULL
+     WHERE server_id = ${SERVER_A} AND creature_id = ${creatureId}`))
+  expect(res.rowCount).toBe(1)
+  return creatureId
+}
+
+describe('creatures', () => {
+  it('refuses coverage_tier = 0, and permits NULL', async () => {
+    // data_model 2: an Aberrant has coverage_tier NULL, not 0. Zero would
+    // sort and display as "less than tier I", so the two must not be
+    // conflated - and design 5.3's downtier floors at I, so nothing else
+    // ever produces a zero either.
+    await expect(insertCreature({ tier1: 0 })).rejects.toThrow(/coverage_tier/)
+    // The SECOND slot, too. One constraint proven and its twin unproven is
+    // how a rolled trait ends up with a tier the locked slot could never
+    // hold, and nothing in this file would have noticed.
+    await expect(insertCreature({ tier2: 0 })).rejects.toThrow(/coverage_tier/)
+
+    await expect(insertCreature({ tier1: null })).resolves.toBeDefined()
+    await expect(insertCreature({ tier2: null })).resolves.toBeDefined()
+  })
+
+  it('refuses a creature whose parent lives on another server', async () => {
+    // solo_execution 12: server_id leads every key, and the composite FK is
+    // what makes that structural rather than conventional.
+    const [onB] = await insertCreature({}, SERVER_B)
+
+    await expect(insertCreature({ parentA: onB!.creatureId }))
+      .rejects.toThrow(/foreign key/)
+    // parent_b carries the same FK and would otherwise be unproven.
+    await expect(insertCreature({ parentB: onB!.creatureId }))
+      .rejects.toThrow(/foreign key/)
+  })
+
+  it('accepts a parent on the SAME server - the positive control for the FK above', async () => {
+    // Without this, the test above passes identically against a schema whose
+    // parent FKs reject EVERY parent, and "cross-server lineage is
+    // unrepresentable" would be indistinguishable from "lineage is
+    // unrepresentable".
+    const [parent] = await insertCreature()
+    await expect(insertCreature({ parentA: parent!.creatureId, parentB: parent!.creatureId, generation: 2 }))
+      .resolves.toBeDefined()
+  })
+
+  it('refuses generation 0, and refuses a name on a non-Founder', async () => {
+    // Both are in 0005 and neither is load-bearing enough to get its own
+    // test - but a constraint nobody has seen fire is a constraint nobody
+    // has shown to exist.
+    await expect(insertCreature({ generation: 0 })).rejects.toThrow(/generation/)
+    await expect(insertCreature({ name: 'Bramble', isFounder: false })).rejects.toThrow(/founders_named/)
+    await expect(insertCreature({ name: 'Bramble', isFounder: true })).resolves.toBeDefined()
+  })
+})
+
+describe('a pruned creature keeps its row - design 3.2, as amended', () => {
+  // THE PROPERTY THIS WHOLE RULING EXISTS TO PROTECT. The first version of
+  // this schema put tombstones in a second table and kept composite parent
+  // keys back onto creatures; those are mutually exclusive, because every
+  // ancestor is referenced by its own child and the keys are NO ACTION, so
+  // the prune could delete nothing at all.
+
+  it('prunes an ancestor that still has a living descendant', async () => {
+    // The exact operation that was impossible before the ruling. Measured
+    // then: `update or delete on table "creatures" violates foreign key
+    // constraint "creatures_server_id_parent_a_fkey"`.
+    // NOT a Founder - founders_are_never_pruned forbids that, and this
+    // test's first draft tripped on it. A pruned row therefore always
+    // carries is_founder = false, which is exactly data_model 4's tombstone
+    // shape: {id, species, generation, was_founder: false}.
+    const [ancestor] = await insertCreature({ name: null, isFounder: false })
+    const [child] = await insertCreature({ parentA: ancestor!.creatureId, generation: 2 })
+
+    await prune(ancestor!.creatureId)
+
+    // The descendant is untouched and STILL POINTS AT IT. An ON DELETE
+    // SET NULL resolution - which the ruling rejected - would have blanked
+    // this, and the lineage view would have lost the row it exists to reach.
+    const [stillThere] = await withServer(t.db, SERVER_A, (tx) => tx.select().from(creatures)
+      .where(eq(creatures.creatureId, child!.creatureId)))
+    expect(stillThere?.parentA).toBe(ancestor!.creatureId)
+
+    // And the pointer RESOLVES - to a row that is stripped but real, with
+    // exactly the three fields a lineage view renders.
+    const [tombstone] = await withServer(t.db, SERVER_A, (tx) => tx.select().from(creatures)
+      .where(eq(creatures.creatureId, stillThere!.parentA!)))
+    expect(tombstone).toBeDefined()
+    expect(tombstone?.pruned).toBe(true)
+    expect(tombstone?.species).toBe('vetch')
+    expect(tombstone?.generation).toBe(1)
+    // is_founder SURVIVES the strip - false here, and false rather than
+    // null, which is the part that matters: the column is NOT NULL so the
+    // prune cannot blank it even by naming it. It is what distinguishes a
+    // prunable ancestor from a Founder that must never be stripped at all.
+    expect(tombstone?.isFounder).toBe(false)
+    // The payload is gone - this is the forty bytes, not a live creature
+    // wearing a flag.
+    expect(tombstone?.trait1).toBeNull()
+    expect(tombstone?.instinct).toBeNull()
+    expect(tombstone?.hpCurrent).toBeNull()
+    // only_founders_named still holds across the strip: the prune nulls
+    // `name`, so the constraint is satisfied rather than merely unexamined.
+    expect(tombstone?.name).toBeNull()
+  })
+
+  it('refuses to DELETE a creature that is still someone\'s parent', async () => {
+    // The NO ACTION keys, pinned. ON DELETE CASCADE would take the living
+    // descendant with the ancestor; ON DELETE SET NULL would blank the
+    // child's pointer. Both make this DELETE succeed, so both redden here -
+    // which is the point: the prune is an UPDATE and nothing needs this
+    // DELETE to work.
+    const [ancestor] = await insertCreature()
+    await insertCreature({ parentA: ancestor!.creatureId, generation: 2 })
+
+    await expect(t.ownerDb.execute(sql`
+      DELETE FROM creatures WHERE server_id = ${SERVER_A} AND creature_id = ${ancestor!.creatureId}`))
+      .rejects.toThrow(/foreign key/)
+  })
+
+  it('refuses a LIVE creature with no trait, instinct or hp', async () => {
+    // The prune needed those four column-level NOT NULLs dropped. Without
+    // live_creatures_are_whole that would have quietly made a live creature
+    // with no trait insertable - a strictly worse schema than the one the
+    // ruling replaced, arrived at as a side effect of fixing something else.
+    await expect(insertCreature({ trait1: null })).rejects.toThrow(/live_creatures_are_whole/)
+    // trait_2 as well - the constraint names it and the same "one twin
+    // proven, the other not" argument that put tier_2 in the coverage test
+    // applies here unchanged.
+    await expect(insertCreature({ trait2: null })).rejects.toThrow(/live_creatures_are_whole/)
+    await expect(insertCreature({ instinct: null })).rejects.toThrow(/live_creatures_are_whole/)
+    await expect(insertCreature({ hpCurrent: null })).rejects.toThrow(/live_creatures_are_whole/)
+  })
+
+  it('refuses a flag-only prune that keeps the payload', async () => {
+    // live_creatures_are_whole is ONE-DIRECTIONAL: it constrains live rows
+    // and says nothing about what a pruned one may keep. So this statement
+    // used to SUCCEED - rowCount 1 - leaving a live creature hidden behind
+    // the flag with its whole payload intact, while the comment at `pruned`
+    // claimed a stripped row keeps three fields "and nothing else".
+    //
+    // The failure that makes it worth a constraint is not the storage
+    // saving. It is a prune that omits ONE column from its SET list: the row
+    // leaves every `NOT pruned` roster query while still holding a live
+    // committed_to, so a garrison is held by a creature the roster cannot
+    // show and the player cannot recall.
+    const [whole] = await insertCreature({ consumedAt: DEAD_AT })
+    await expect(withServer(t.db, SERVER_A, (tx) => tx.execute(sql`
+      UPDATE creatures SET pruned = true
+       WHERE server_id = ${SERVER_A} AND creature_id = ${whole!.creatureId}`)))
+      .rejects.toThrow(/pruned_creatures_are_stripped/)
+
+    // The near miss, which is the realistic shape of the bug: everything
+    // stripped EXCEPT committed_to.
+    const [garrisoned] = await insertCreature({ committedTo: nextId(), consumedAt: DEAD_AT })
+    await expect(withServer(t.db, SERVER_A, (tx) => tx.execute(sql`
+      UPDATE creatures
+         SET pruned = true, trait_1 = NULL, tier_1 = NULL, trait_2 = NULL,
+             tier_2 = NULL, instinct = NULL, name = NULL, hp_current = NULL,
+             regen_until = NULL
+       WHERE server_id = ${SERVER_A} AND creature_id = ${garrisoned!.creatureId}`)))
+      .rejects.toThrow(/pruned_creatures_are_stripped/)
+  })
+
+  it('refuses a tombstone that never died', async () => {
+    // pruned_creatures_are_consumed. Every prunable row is an ANCESTOR, and
+    // an ancestor is a creature some splice consumed - so a pruned row with
+    // consumed_at NULL is a tombstone for a creature that is, as far as any
+    // liveness predicate can tell, still alive. It is also what lets a
+    // roster query written as `consumed_at IS NULL` alone be correct in the
+    // safe direction: no tombstone can satisfy it.
+    const [alive] = await insertCreature()
+    await expect(withServer(t.db, SERVER_A, (tx) => tx.execute(sql`
+      UPDATE creatures
+         SET pruned = true, trait_1 = NULL, tier_1 = NULL, trait_2 = NULL,
+             tier_2 = NULL, instinct = NULL, name = NULL, hp_current = NULL,
+             regen_until = NULL, committed_to = NULL
+       WHERE server_id = ${SERVER_A} AND creature_id = ${alive!.creatureId}`)))
+      .rejects.toThrow(/pruned_creatures_are_consumed/)
+
+    // The positive control: the SAME statement succeeds once the row has
+    // died, so this constraint refuses the one thing it names rather than
+    // every prune.
+    await consume(alive!.creatureId)
+    await expect(prune(alive!.creatureId)).resolves.toBeDefined()
+  })
+
+  it('keeps a CONSUMED creature whole, and out of the roster indexes', async () => {
+    // THE THIRD STATE, and the one Task 7 had to add: a parent a splice
+    // destroyed is dead but NOT pruned. design 3.2 retains five generations
+    // of ancestors so bible 2.1's lineage view can render them, and
+    // splice_confirm_spec 5 makes "their traits live on in the pedigree" the
+    // lesson of the mechanic - so stripping at consumption would leave
+    // nothing to retain at any depth. And founders_are_never_pruned makes it
+    // unavoidable rather than merely tidier: without this column, consuming
+    // a Founder is a CHECK violation on a paid action.
+    const [spent] = await insertCreature()
+    await consume(spent!.creatureId)
+
+    const [row] = await withServer(t.db, SERVER_A, (tx) => tx.select().from(creatures)
+      .where(eq(creatures.creatureId, spent!.creatureId)))
+    expect(row?.pruned).toBe(false)
+    expect(row?.consumedAt).not.toBeNull()
+    expect(row?.trait1).toBe('chill')
+    expect(row?.instinct).toBe('forage')
+
+    // A FOUNDER can be consumed, which is the case the flag alone cannot
+    // express. splice_confirm_spec 4 considered forbidding it and rejected
+    // it - "it leaves five dead roster slots by month six".
+    const [founder] = await insertCreature({ name: 'Ossuary', isFounder: true })
+    await expect(consume(founder!.creatureId)).resolves.toBeDefined()
+    await expect(prune(founder!.creatureId)).rejects.toThrow(/founders_are_never_pruned/)
+  })
+
+  it('the liveness predicate must say consumed_at IS NULL as well as NOT pruned', async () => {
+    // THE SECOND HALF OF THE TRAP, demonstrated the way the first half is.
+    // A consumed parent satisfies `NOT pruned` - it is whole - so the
+    // predicate Task 5 shipped counts every dead ancestor for the first five
+    // generations of every line, which is a LARGER population than the
+    // tombstones. This is the direction no constraint can close, because a
+    // consumed row legitimately is not pruned.
+    const owner = playerA
+    const [doomed] = await insertCreature()
+    await consume(doomed!.creatureId)
+
+    const naive = await withServer(t.db, SERVER_A, (tx) => tx.select().from(creatures)
+      .where(sql`player_id = ${owner} AND NOT pruned`))
+    const correct = await withServer(t.db, SERVER_A, (tx) => tx.select().from(creatures)
+      .where(sql`player_id = ${owner} AND NOT pruned AND consumed_at IS NULL`))
+
+    expect(naive.some((c) => c.creatureId === doomed!.creatureId)).toBe(true)
+    expect(correct.some((c) => c.creatureId === doomed!.creatureId)).toBe(false)
+    expect(correct.length).toBeLessThan(naive.length)
+  })
+
+  it('permits a BORN-PRUNED skeleton, deliberately', async () => {
+    // Recorded as a DECISION, not overlooked. A row inserted already pruned
+    // and already stripped satisfies both constraints. It is allowed
+    // because: no request path reaches it (handlers create live creatures);
+    // forbidding it needs a BEFORE INSERT trigger on the roster's hottest
+    // write for a hazard nothing can reach; and solo_execution 4 makes a
+    // server merge a re-keying exercise, which must re-insert already-pruned
+    // ancestors directly. If that last reason ever stops being true, this
+    // test is the place the decision is written down.
+    await expect(insertCreature({
+      pruned: true, trait1: null, tier1: null, trait2: null, tier2: null,
+      instinct: null, name: null, hpCurrent: null, consumedAt: DEAD_AT,
+    })).resolves.toBeDefined()
+
+    // WITHOUT consumed_at it is refused, which is the half Task 7 added: a
+    // merge re-inserting a pruned ancestor knows when it died and has to say
+    // so, rather than minting a tombstone that reads as never having lived.
+    await expect(insertCreature({
+      pruned: true, trait1: null, tier1: null, trait2: null, tier2: null,
+      instinct: null, name: null, hpCurrent: null,
+    })).rejects.toThrow(/pruned_creatures_are_consumed/)
+  })
+
+  it('refuses to prune a Founder', async () => {
+    // design 3.2: "Retain all Founders permanently." Pruning one nulls the
+    // name bible 3.3 makes the anchor of every descendant's tree, and
+    // only_founders_named means it could never be written back.
+    const [founder] = await insertCreature({ name: 'Ossuary', isFounder: true })
+    await expect(prune(founder!.creatureId)).rejects.toThrow(/founders_are_never_pruned/)
+
+    // "Retained permanently" means the WHOLE row, not merely a surviving id:
+    // the refusal above would be worth little if the statement had stripped
+    // the name on its way to being rejected.
+    const [intact] = await withServer(t.db, SERVER_A, (tx) => tx.select().from(creatures)
+      .where(eq(creatures.creatureId, founder!.creatureId)))
+    expect(intact?.name).toBe('Ossuary')
+    expect(intact?.trait1).toBe('chill')
+    expect(intact?.pruned).toBe(false)
+  })
+
+  it('keeps both roster indexes partial on NOT pruned AND consumed_at IS NULL', async () => {
+    // A CATALOG assertion, not an EXPLAIN one. This file previously recorded
+    // that the index predicate could only be pinned by asserting on a query
+    // plan - which would pin the planner rather than the schema - and that
+    // was simply wrong: pg_indexes.indexdef is a catalog read, it pins no
+    // plan, and it reddens the moment a predicate is dropped.
+    //
+    // Worth pinning because pruned rows share this table now: without the
+    // predicate, creatures_by_player grows to roughly nine thousand dead
+    // entries per player against a live roster the Hatchery caps at twenty.
+    const r = await t.db.execute(sql`
+      SELECT indexname, indexdef FROM pg_indexes
+       WHERE schemaname = 'public'
+         AND indexname IN ('creatures_by_player', 'creatures_available')
+       ORDER BY indexname`)
+
+    const defs = new Map((r.rows as Array<{ indexname: string; indexdef: string }>)
+      .map((row) => [row.indexname, row.indexdef]))
+    // Both present first: a missing index contributes no row, and "every row
+    // I found mentions NOT pruned" is vacuously true of no rows.
+    expect([...defs.keys()]).toEqual(['creatures_available', 'creatures_by_player'])
+    for (const [name, def] of defs) {
+      expect(def, name).toMatch(/NOT pruned/)
+      // The other dead state. A consumed parent is whole and unpruned, so an
+      // index partial on `NOT pruned` alone carries every ancestor of every
+      // line down to depth five.
+      expect(def, name).toMatch(/consumed_at IS NULL/)
+    }
+    // creatures_available carries ALL THREE halves of its predicate.
+    expect(defs.get('creatures_available')).toMatch(/committed_to IS NULL/)
+  })
+
+  it('the availability predicate must say NOT pruned - committed_to IS NULL is true of a tombstone', async () => {
+    // THE TRAP, demonstrated rather than described, because Tasks 5 and 7
+    // write the Hatchery-cap query and this is the schema fact that decides
+    // whether they get it right. Pruning nulls committed_to, so a stripped
+    // ancestor satisfies `committed_to IS NULL` - the exact predicate
+    // creatures_available carried before the ruling, when pruned rows lived
+    // in a different table and could not possibly have matched it.
+    const [doomed] = await insertCreature()
+    await prune(doomed!.creatureId)
+
+    const naive = await withServer(t.db, SERVER_A, (tx) => tx.select().from(creatures)
+      .where(sql`player_id = ${playerA} AND committed_to IS NULL`))
+    const correct = await withServer(t.db, SERVER_A, (tx) => tx.select().from(creatures)
+      .where(sql`player_id = ${playerA} AND committed_to IS NULL AND NOT pruned`))
+
+    // The naive predicate DOES pick the tombstone up. If this assertion ever
+    // flips, the hazard is gone and this test should go with it - but it
+    // must not flip silently.
+    expect(naive.some((c) => c.creatureId === doomed!.creatureId)).toBe(true)
+    expect(correct.some((c) => c.creatureId === doomed!.creatureId)).toBe(false)
+    expect(correct.length).toBeLessThan(naive.length)
+  })
+})
+
+describe('node_depletion', () => {
+  it('refuses a node on a server that does not exist', async () => {
+    // node_depletion was the ONLY table across 0001-0005 with no foreign key
+    // at all - it is the only one that hangs off no player, so nothing tied
+    // its server_id to a server that exists and `server_id = 999` inserted
+    // happily, while the same bogus id on harvest_positions was refused by
+    // its composite key to players. Every other table reaches servers
+    // transitively; this one says it directly, as accounts does in 0001.
+    //
+    // Driven from the OWNER connection on purpose: a superuser bypasses RLS,
+    // so the foreign key is the only thing that can refuse this. Through the
+    // app role the policy would reject it first and the FK would go
+    // unexercised.
+    await expect(t.ownerDb.insert(nodeDepletion).values({
+      serverId: 999, regionId: 'verdant-shelf', nodeSlot: 1, epoch: 1, harvestedUnits: 0,
+    })).rejects.toThrow(/foreign key/)
+  })
+})
+
+describe('arks', () => {
+  it('defaults the Splicing Chamber to tier 3, and the other two to tier 1', async () => {
+    // design 3.3, and it is NOT an inconsistency to be tidied away:
+    // combat_numbers 7 caps tiers 1-2 at G2 and therefore at Tier I
+    // coverage, which would make design 5.3's recessive downtier
+    // unreachable in the only configuration this phase ships.
+    const [ark] = await withServer(t.db, SERVER_A, (tx) => tx.insert(arks)
+      .values({ serverId: SERVER_A, playerId: playerA, regionId: 'verdant-shelf' }).returning())
+
+    expect(ark!.harvestArrayTier).toBe(1)
+    expect(ark!.hatcheryTier).toBe(1)
+    expect(ark!.splicingChamberTier).toBe(3)
+  })
+
+  /**
+   * Fresh player per insert - arks' PRIMARY KEY is (server_id, player_id)
+   * and the test above already owns playerA's only row, so reusing it here
+   * would fail on the PRIMARY KEY rather than exercise the CHECK this test
+   * is actually about.
+   */
+  const freshPlayer = async () => {
+    const [acc] = await t.ownerDb.insert(accounts)
+      .values({ birthdateBand: 'adult', homeRegion: 'us-central1', serverId: SERVER_A }).returning()
+    const [p] = await t.ownerDb.insert(players)
+      .values({ serverId: SERVER_A, accountId: acc!.accountId }).returning()
+    return p!.playerId
+  }
+
+  it('refuses a Harvest Array tier the shard-rate multiplier table does not calibrate', async () => {
+    // accrual.ts's shardMultiplierHundredths (Task 4) throws for any tier
+    // other than the four economy_model actually calibrates - 1, 4, 8, 12 -
+    // rather than interpolating a currency multiplier. This CHECK is what
+    // keeps the column and that function in agreement BY CONSTRUCTION:
+    // without it, nothing stops harvest_array_tier from holding a value the
+    // pure function refuses, and accrue() would throw deep inside a claim
+    // instead of the write being refused here, before a row exists to reach
+    // it at all.
+    const refusedPlayer = await freshPlayer()
+    await expect(withServer(t.db, SERVER_A, (tx) => tx.insert(arks).values({
+      serverId: SERVER_A, playerId: refusedPlayer, regionId: 'verdant-shelf', harvestArrayTier: 2,
+    }))).rejects.toThrow(/harvest_array_tier/)
+
+    // The positive control: a calibrated non-default tier must still be
+    // insertable, or this CHECK would be refusing more than the four values
+    // it names and the test above would be indistinguishable from a CHECK
+    // that (for example) refused every tier but the column default.
+    const acceptedPlayer = await freshPlayer()
+    await expect(withServer(t.db, SERVER_A, (tx) => tx.insert(arks).values({
+      serverId: SERVER_A, playerId: acceptedPlayer, regionId: 'verdant-shelf', harvestArrayTier: 12,
+    }))).resolves.toBeDefined()
+  })
+
+  it('refuses a Hatchery tier no roster capacity is authored for', async () => {
+    // The same gap as the tier above, one column over.
+    // roster/creatures.ts's rosterCap (Task 5) throws for any tier but 1,
+    // because bible 7.2 gives a floor of 20 and authors no ladder above it.
+    // Without this CHECK the column could hold a tier that function
+    // refuses, and GET /v1/region/state - which reads the cap so a client
+    // can predict the roster_full 409 - would answer 500 on a plain READ
+    // rather than the write being refused here.
+    const refusedPlayer = await freshPlayer()
+    await expect(withServer(t.db, SERVER_A, (tx) => tx.insert(arks).values({
+      serverId: SERVER_A, playerId: refusedPlayer, regionId: 'verdant-shelf', hatcheryTier: 2,
+    }))).rejects.toThrow(/hatchery_tier/)
+
+    // The positive control, and here it is the DEFAULT rather than a second
+    // authored value - there is no second value to reach for, which is the
+    // whole reason this constraint is `= 1`. Without this line the test
+    // above would be satisfied by a CHECK that refused every tier,
+    // including the one every Ark actually ships with.
+    const acceptedPlayer = await freshPlayer()
+    await expect(withServer(t.db, SERVER_A, (tx) => tx.insert(arks).values({
+      serverId: SERVER_A, playerId: acceptedPlayer, regionId: 'verdant-shelf', hatcheryTier: 1,
+    }))).resolves.toBeDefined()
+  })
+
+  it('refuses a Splicing Chamber tier no generation ceiling is authored for', async () => {
+    // The third instance of the same gap, closed by Task 7 because Task 7 is
+    // what put a pure function behind this column. splice/commit.ts's
+    // `maxGeneration` is combat_numbers 7's ladder - tiers 1-12, capping at
+    // G2/G4/G6/G9 - and throws rather than extrapolating. Without this CHECK
+    // an unauthored tier surfaces as a 500 from inside a PAID action, after
+    // two creatures have been chosen, instead of as a write refused here.
+    const refusedPlayer = await freshPlayer()
+    await expect(withServer(t.db, SERVER_A, (tx) => tx.insert(arks).values({
+      serverId: SERVER_A, playerId: refusedPlayer, regionId: 'verdant-shelf',
+      splicingChamberTier: 13,
+    }))).rejects.toThrow(/splicing_chamber_tier/)
+
+    // The positive control, and a non-default value: the ladder is
+    // contiguous, so this CHECK must admit every tier combat_numbers 7
+    // authors rather than only the 3 every Ark ships with.
+    const acceptedChamber = await freshPlayer()
+    await expect(withServer(t.db, SERVER_A, (tx) => tx.insert(arks).values({
+      serverId: SERVER_A, playerId: acceptedChamber, regionId: 'verdant-shelf',
+      splicingChamberTier: 9,
+    }))).resolves.toBeDefined()
+  })
+})
+
+/**
+ * THE THREE COUPLINGS, PINNED - and until this block existed they were
+ * enforced by nothing but cross-referencing comments.
+ *
+ * Each of the three CHECKs above exists to name the SAME SET as a pure
+ * function: `hatchery_tier = 1` and `rosterCap`, `harvest_array_tier IN
+ * (1,4,8,12)` and `shardMultiplierHundredths`, `splicing_chamber_tier
+ * BETWEEN 1 AND 12` and `maxGeneration`. 0005_loop.sql says "WIDEN THIS ...
+ * in step with rosterCap's table" and creatures.ts points back at the
+ * CHECK, and that instruction is the whole mechanism: three comments, each
+ * asking a future editor to remember. The tests above this one pin each
+ * CHECK against ONE hand-written refused value and ONE hand-written
+ * accepted value, which is a different claim - widen `rosterCap` to
+ * `{1: 20, 2: 40}` and every one of them stays green, because 2 is still
+ * refused by the column and nothing compares the two sets.
+ *
+ * So compare the sets. The permitted side is asked of POSTGRES, not parsed
+ * out of the definition text by hand: pg_get_constraintdef is deparsed, so
+ * `IN (...)` comes back as `= ANY (ARRAY[...])` and `BETWEEN` as a pair of
+ * comparisons, and a regex over those three shapes would be a fourth thing
+ * that can drift. Substituting the column for a generate_series value and
+ * letting the server evaluate its own predicate cannot misread a form it
+ * has never seen.
+ *
+ * Verified to discriminate, not assumed: widening `rosterCap` alone gives
+ * `[1] vs [1, 2]` and reddens. It reddens in BOTH directions, which is the
+ * point - a CHECK widened without its function is the same defect facing
+ * the other way, and it is the more dangerous one, because it ends in a
+ * throw from inside a paid action rather than in a refused write.
+ */
+describe('the constraint <-> function couplings', () => {
+  // Wider than any authored ladder on either side, so a widening lands
+  // INSIDE the probe rather than past its end where nothing would see it.
+  const PROBE_LO = 0
+  const PROBE_HI = 20
+
+  /** The values a CHECK on `arks` admits, over the probe range. */
+  const permittedByConstraint = async (constraint: string, column: string): Promise<number[]> => {
+    const r = await t.db.execute(sql`
+      SELECT pg_get_constraintdef(oid) AS def
+        FROM pg_constraint
+       WHERE conrelid = 'arks'::regclass AND conname = ${constraint}`)
+    const rows = r.rows as Array<{ def: string }>
+    // FAIL CLOSED. A dropped or renamed constraint returns no row, and no
+    // row must not be readable as "admits nothing" (which would then have to
+    // be matched by a function that accepts nothing, and is not the claim).
+    expect(rows, `pg_constraint has no ${constraint} on arks`).toHaveLength(1)
+
+    const def = rows[0]!.def
+    const predicate = def.replace(/^CHECK\s*/, '')
+    expect(predicate, `${constraint} is not a CHECK: ${def}`).not.toBe(def)
+
+    // Deparsed output may wrap the column in a cast - `(col)::integer` - so
+    // substitute on a word boundary and let whatever surrounds it stand.
+    const substituted = predicate.replace(new RegExp(`\\b${column}\\b`, 'g'), 'v')
+    // FAIL CLOSED again, and this one matters most: a predicate that does
+    // not mention the column substitutes to a CONSTANT, which would admit
+    // the entire probe range and read as a spectacularly wide CHECK.
+    expect(substituted, `${constraint} does not mention ${column}: ${def}`).not.toBe(predicate)
+
+    // ::int on both bounds, not decoration: pg binds an unadorned parameter as
+    // `unknown`, and generate_series is overloaded (int/bigint/numeric/
+    // timestamp), so without them the server answers `function
+    // generate_series(unknown, unknown) is not unique` rather than running.
+    const admitted = await t.db.execute(sql`
+      SELECT v FROM generate_series(${PROBE_LO}::int, ${PROBE_HI}::int) AS v
+       WHERE ${sql.raw(substituted)}
+       ORDER BY v`)
+    return (admitted.rows as Array<{ v: number }>).map((row) => Number(row.v))
+  }
+
+  /** The values a lookup function returns for rather than throwing on. */
+  const acceptedByFunction = (fn: (tier: number) => number): number[] => {
+    const accepted: number[] = []
+    for (let v = PROBE_LO; v <= PROBE_HI; v++) {
+      try {
+        fn(v)
+        accepted.push(v)
+      } catch {
+        // The refusal each of these CHECKs exists to mirror.
+      }
+    }
+    return accepted
+  }
+
+  const couplings = [
+    { constraint: 'hatchery_tier_authored', column: 'hatchery_tier', name: 'rosterCap', fn: rosterCap },
+    {
+      constraint: 'harvest_array_tier_calibrated', column: 'harvest_array_tier',
+      name: 'shardMultiplierHundredths', fn: shardMultiplierHundredths,
+    },
+    {
+      constraint: 'splicing_chamber_tier_authored', column: 'splicing_chamber_tier',
+      name: 'maxGeneration', fn: maxGeneration,
+    },
+  ] as const
+
+  for (const c of couplings) {
+    it(`${c.constraint} admits exactly the tiers ${c.name} accepts`, async () => {
+      const permitted = await permittedByConstraint(c.constraint, c.column)
+      const accepted = acceptedByFunction(c.fn)
+
+      // Neither side may be empty. Two empty sets compare equal, so a probe
+      // that reached nothing at all would pass this while proving nothing -
+      // the exact failure shape this whole block exists to rule out.
+      expect(permitted.length, `${c.constraint} admits nothing in ${PROBE_LO}..${PROBE_HI}`)
+        .toBeGreaterThan(0)
+      expect(accepted.length, `${c.name} accepts nothing in ${PROBE_LO}..${PROBE_HI}`)
+        .toBeGreaterThan(0)
+
+      expect(accepted, `${c.name} vs ${c.constraint}`).toEqual(permitted)
+    })
+  }
+})
+
+describe('splices', () => {
+  /** Two parents and a child on one server - what a real splice writes. */
+  const trio = async (serverId = SERVER_A) => {
+    const [p1] = await insertCreature({}, serverId)
+    const [p2] = await insertCreature({}, serverId)
+    const [kid] = await insertCreature({}, serverId)
+    return { parentA: p1!.creatureId, parentB: p2!.creatureId, childId: kid!.creatureId }
+  }
+
+  const insertSplice = (o: Partial<typeof splices.$inferInsert>, serverId = SERVER_A) =>
+    withServer(t.db, serverId, (tx) => tx.insert(splices).values({
+      serverId,
+      spliceId: nextId(),
+      playerId: serverId === SERVER_A ? playerA : playerB,
+      seed: '1', mutated: false, aberrant: false,
+      ...o,
+    } as typeof splices.$inferInsert).returning())
+
+  it('refuses a splice naming a creature that does not exist', async () => {
+    // THE DECISION 0005 RECORDED AS OWED, taken by Task 7. The original
+    // justification - "the parents are gone by the time this row is
+    // committed" - was made false by the amended design 3.2: a consumed
+    // parent keeps its row, a pruned one keeps its row, and the child is
+    // written first. So all three ids name rows that exist and the keys are
+    // satisfiable.
+    const real = await trio()
+    for (const field of ['parentA', 'parentB', 'childId'] as const) {
+      await expect(insertSplice({ ...real, [field]: nextId() }), field)
+        .rejects.toThrow(/foreign key/)
+    }
+  })
+
+  it('refuses a splice whose parents live on another server', async () => {
+    // COMPOSITE, so a cross-server splice is unrepresentable rather than
+    // merely wrong - the same argument creatures' own parent keys make, and
+    // the reason solo_execution 4's re-keying merge can trust this table.
+    const mine = await trio(SERVER_A)
+    const [onB] = await insertCreature({}, SERVER_B)
+
+    await expect(insertSplice({ ...mine, parentA: onB!.creatureId }))
+      .rejects.toThrow(/foreign key/)
+  })
+
+  it('accepts a splice over three real creatures - the positive control', async () => {
+    // Without this the two tests above are satisfied by keys that reject
+    // EVERY splice, and "a cross-server splice is unrepresentable" would be
+    // indistinguishable from "a splice is unrepresentable".
+    await expect(insertSplice(await trio())).resolves.toBeDefined()
+  })
+
+  it('refuses a splice of a creature with itself', async () => {
+    // routes/splice.ts refuses parentA === parentB at the parse layer on
+    // both splice routes; splice_parents_differ is the same rule where a
+    // handler cannot forget it.
+    const real = await trio()
+    await expect(insertSplice({ ...real, parentB: real.parentA }))
+      .rejects.toThrow(/splice_parents_differ/)
+  })
+
+  it('refuses a negative seed', async () => {
+    // bigint is signed and the roll's seed is not - the same CHECK 0003 puts
+    // on wave_issuances, and for the same reason: a sign-flip re-derives a
+    // DIFFERENT roll from a row that looks intact.
+    await expect(insertSplice({ ...await trio(), seed: '-1' }))
+      .rejects.toThrow(/seed_non_negative/)
+  })
+})
+
+describe('row-level security on the five new tables', () => {
+  it('has FORCE ROW LEVEL SECURITY on every new table', async () => {
+    // Picked up by the existing pg_class isolation gate WITHOUT being named
+    // in it - the gate enumerates tables rather than listing them, so a new
+    // table that forgot RLS fails this without anyone updating a list. Kept
+    // here as well so this file localises the failure to 0005.
+    const r = await t.db.execute(sql`
+      SELECT c.relname, c.relrowsecurity, c.relforcerowsecurity
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = 'public'
+         AND c.relname IN ('creatures', 'arks', 'node_depletion',
+                           'harvest_positions', 'splices')
+       ORDER BY c.relname`)
+
+    // Asserted BEFORE the flags: the brief's shape ("select the ones missing
+    // RLS, expect zero rows") is satisfied by a table that does not exist,
+    // so it would have gone green against an empty database.
+    expect(r.rows.map((row) => (row as { relname: string }).relname))
+      .toEqual([...NEW_TABLES].sort())
+
+    for (const row of r.rows as Array<{ relname: string; relrowsecurity: boolean; relforcerowsecurity: boolean }>) {
+      expect(row.relrowsecurity, `${row.relname}.relrowsecurity`).toBe(true)
+      expect(row.relforcerowsecurity, `${row.relname}.relforcerowsecurity`).toBe(true)
+    }
+  })
+
+  it('shows a scoped read only its own server, on every one of the five', async () => {
+    // ENABLE/FORCE above is metadata: it says a policy exists, not that it
+    // DISCRIMINATES. isolation.test.ts learned this twice already (its own
+    // comments on idempotency_keys, campaign_progress and wave_issuances) -
+    // a policy comparing the wrong column, or no policy at all under
+    // ENABLE/FORCE, passes a default-deny check identically to a correct
+    // one. Seeded on both servers as the owner, then read scoped.
+    await t.ownerDb.insert(creatures).values([SERVER_A, SERVER_B].map((s) => ({
+      serverId: s, creatureId: nextId(), playerId: s === SERVER_A ? playerA : playerB,
+      species: 'vetch', generation: 1, trait1: 'chill', tier1: 1, trait2: 'lash', tier2: 1,
+      instinct: 'forage', hpCurrent: 100,
+    })))
+    await t.ownerDb.insert(arks).values(
+      { serverId: SERVER_B, playerId: playerB, regionId: 'verdant-shelf' })
+    await t.ownerDb.insert(nodeDepletion).values([SERVER_A, SERVER_B].map((s) => ({
+      serverId: s, regionId: 'verdant-shelf', nodeSlot: 1, epoch: 1, harvestedUnits: s * 10,
+    })))
+    await t.ownerDb.insert(harvestPositions).values([SERVER_A, SERVER_B].map((s) => ({
+      serverId: s, playerId: s === SERVER_A ? playerA : playerB, regionId: 'verdant-shelf',
+      nodeSlot: 1, epoch: 1, lastSettledAt: new Date(),
+    })))
+    // REAL creature ids, not invented ones: Task 7 added the composite
+    // foreign keys 0005 recorded as owed, so a splice naming three ids that
+    // are not creatures is now refused - and this test would fail for a
+    // reason that has nothing to do with RLS.
+    for (const s of [SERVER_A, SERVER_B]) {
+      const [p1] = await insertCreature({}, s)
+      const [p2] = await insertCreature({}, s)
+      const [kid] = await insertCreature({}, s)
+      await t.ownerDb.insert(splices).values({
+        serverId: s, spliceId: `dddddddd-0000-0000-0000-00000000000${s}`,
+        playerId: s === SERVER_A ? playerA : playerB,
+        parentA: p1!.creatureId, parentB: p2!.creatureId, childId: kid!.creatureId,
+        seed: String(s), mutated: false, aberrant: false,
+      })
+    }
+
+    const seen = await withServer(t.db, SERVER_A, async (tx) => ({
+      creatures: await tx.select().from(creatures),
+      arks: await tx.select().from(arks),
+      nodeDepletion: await tx.select().from(nodeDepletion),
+      harvestPositions: await tx.select().from(harvestPositions),
+      splices: await tx.select().from(splices),
+    }))
+
+    const scoped: Array<[string, Array<{ serverId: number }>]> = [
+      ['creatures', seen.creatures],
+      ['arks', seen.arks],
+      ['node_depletion', seen.nodeDepletion],
+      ['harvest_positions', seen.harvestPositions],
+      ['splices', seen.splices],
+    ]
+    for (const [table, rows] of scoped) {
+      // A table with no visible rows would satisfy "every row is server A"
+      // vacuously - which is exactly what a policy comparing the wrong
+      // column produces.
+      expect(rows.length, `${table} must have rows to discriminate between`).toBeGreaterThan(0)
+      expect([...new Set(rows.map((r) => r.serverId))], table).toEqual([SERVER_A])
+    }
+    // Named explicitly: server B's rows must not appear anywhere.
+    expect(seen.nodeDepletion.some((d) => d.harvestedUnits === 20)).toBe(false)
+    expect(seen.splices.some((s) => s.seed === '2')).toBe(false)
+  })
+
+  it('refuses to INSERT a row belonging to another server', async () => {
+    // WITH CHECK, not USING. The brief's policy snippet carried USING alone;
+    // 0002's does both, and writing into a neighbour is the more damaging
+    // direction of the two.
+    await expect(insertCreature({ serverId: SERVER_B, playerId: playerB }, SERVER_A))
+      .rejects.toThrow(/row-level security/i)
+  })
+
+  it('refuses an UPDATE that migrates a row onto another server - WITH CHECK, not just USING', async () => {
+    // The other direction, and it was untested on all five new tables. It is
+    // NOT the INSERT case above: the row already exists and is legitimately
+    // visible and writable in this session; the attack is changing WHICH
+    // server it belongs to. USING alone would not stop it - it only filters
+    // what the UPDATE can see going in. isolation.test.ts pins this for the
+    // five tables that predate 0005.
+    //
+    // player_id moves with server_id wherever a composite FK to players
+    // exists, so the FK is satisfied by the new row and RLS is the only
+    // thing left that can refuse it - otherwise this would pass on a foreign
+    // key violation and prove nothing about the policy.
+    const [victim] = await insertCreature()
+    // Each row carries the rejection it must produce, because they are not
+    // all the same and collapsing them to "it threw something" would hide
+    // the difference. splices is refused ONE STEP EARLIER than the policy:
+    // it carries no UPDATE grant at all (a splice is a record of something
+    // that happened), so the grant refuses before RLS is consulted. That is
+    // a strictly stronger guarantee than the policy would give, and it is
+    // the same argument 0002 makes for accounts' column-level grant - so it
+    // is asserted as what it is rather than bent into an RLS failure.
+    const migrations: Array<[string, ReturnType<typeof sql>, RegExp]> = [
+      ['creatures', sql`UPDATE creatures SET server_id = ${SERVER_B}, player_id = ${playerB}
+                         WHERE creature_id = ${victim!.creatureId}`, /row-level security/i],
+      ['arks', sql`UPDATE arks SET server_id = ${SERVER_B}, player_id = ${playerB}
+                    WHERE player_id = ${playerA}`, /row-level security/i],
+      ['node_depletion', sql`UPDATE node_depletion SET server_id = ${SERVER_B}
+                              WHERE region_id = 'verdant-shelf'`, /row-level security/i],
+      ['harvest_positions', sql`UPDATE harvest_positions SET server_id = ${SERVER_B}, player_id = ${playerB}
+                                 WHERE player_id = ${playerA}`, /row-level security/i],
+      ['splices', sql`UPDATE splices SET server_id = ${SERVER_B}, player_id = ${playerB}
+                       WHERE player_id = ${playerA}`, /permission denied/i],
+    ]
+    for (const [table, stmt, why] of migrations) {
+      await expect(withServer(t.db, SERVER_A, (tx) => tx.execute(stmt)), table)
+        .rejects.toThrow(why)
+    }
+  })
+
+  it('returns ZERO rows when nothing scoped the query, rather than everything', async () => {
+    const rows = await t.db.select().from(creatures)
+    expect(rows).toEqual([])
+  })
+})

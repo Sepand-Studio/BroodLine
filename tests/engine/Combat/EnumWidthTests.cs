@@ -12,9 +12,11 @@ namespace Broodline.Sim.Tests.Combat
     /// this file existed when it did not.
     ///
     /// The cost of drift is a bad diagnosis, not just a missed check. Trait has
-    /// two members today and combat_engine names seven more; add Splash without
-    /// moving TraitCount and every replay carrying it is rejected as CORRUPT,
-    /// sending the reader after a forgery that is not there.
+    /// five members today and combat_numbers names seven more; add Pierce
+    /// without moving TraitCount and every replay carrying it is rejected as
+    /// CORRUPT, sending the reader after a forgery that is not there. Splash
+    /// was the example here until Splash was one of the three this engine
+    /// gained, and TraitCount moved with it.
     public class EnumWidthTests
     {
         [Fact]

@@ -25,6 +25,11 @@ namespace Broodline.Sim.Combat
                 s.RaiderProgress[r] = Fix64.Zero;
                 s.RaiderAlive[r] = true;
                 s.RaiderChilled[r] = false;
+                // 0 rather than s.Tick: a raider may swing on the first tick it
+                // has a defender in reach, which is how creatures work too -
+                // CreatureNextAttackAt starts at 0 and fires immediately.
+                s.RaiderTargetCreature[r] = -1;
+                s.RaiderNextAttackAt[r] = 0;
                 s.RaiderCount++;
             }
         }
@@ -105,10 +110,51 @@ namespace Broodline.Sim.Combat
                         s.CreatureAcquireAt[c] = s.Tick + Stats.RetargetLockoutTicks;
                 }
             }
+
+            RaiderTargeting(s);
+        }
+
+        /// The raider half of phase 4.
+        ///
+        /// Taunt runs FIRST and the order is the rule: combat_numbers 4.2 says
+        /// it FORCES the target, so a preference computed first and overridden
+        /// afterwards would be the same answer by a longer route only until the
+        /// day the default acquires a lockout. ApplyTaunt clears every slot to
+        /// -1 and fills in the ones it holds; this fills in the rest.
+        ///
+        /// No retarget lockout here. combat_numbers section 5 gives the 0.4s
+        /// delay to creatures - "Retarget delay is 0.4s for every creature" -
+        /// and a lockout on this side would fight Taunt, which has to be free
+        /// to move a Lash the instant its carrier dies or walks out of reach.
+        /// Recomputed every tick, like Chill, for the same reason.
+        private static void RaiderTargeting(SimState s)
+        {
+            Counters.ApplyTaunt(s);
+
+            for (int r = 0; r < s.RaiderCount; r++)
+            {
+                if (s.RaiderTargetCreature[r] >= 0) continue;   // held by Taunt
+                s.RaiderTargetCreature[r] = Combat.Targeting.SelectDefender(s, r);
+            }
         }
 
         /// Phase 5 - Attack. Resolve attacks whose interval has elapsed.
-        public static void Attack(SimState s)
+        ///
+        /// Creatures first, then raiders. Within one phase the order is a
+        /// choice, and this is the one section 4 already implies: a raider that
+        /// dies this tick "has already moved and already been hit", and phase 6
+        /// is what ends it - so a Lash taken to zero by the creature pass still
+        /// swings in the raider pass, exactly as a creature taken to zero by
+        /// the raider pass is only cleared in phase 6. Reversing it would let a
+        /// defender kill an attacker before it ever answers, which is the
+        /// same-tick cascade section 4 exists to forbid.
+        ///
+        /// `splashHits` is the caller's scratch, sized to at least
+        /// Stats.MaxSplashTargets, and it lives in SimRunner rather than in
+        /// SimState for the reason Phases.State's scratch does: it is not world
+        /// state, nothing outside one swing may read it, and the tick loop must
+        /// not allocate.
+        public static void Attack(SimState s, int[] splashHits)
         {
             for (int c = 0; c < s.CreatureCount; c++)
             {
@@ -118,8 +164,69 @@ namespace Broodline.Sim.Combat
                 int target = s.CreatureTarget[c];
                 if (target < 0 || !s.RaiderAlive[target]) continue;
 
-                s.RaiderHp[target] -= Attacks.Damage(s, c);
+                // Computed ONCE, before anything is subtracted. Attacks.Damage
+                // reads only creature state, so hoisting it changes nothing
+                // today - but every raider in the splash takes the same number
+                // by 4.2, and computing it per target would be the shape that
+                // quietly grows a falloff nobody authored.
+                int damage = Attacks.Damage(s, c);
+
+                // Returns 1 with the target in hits[0] for a creature that does
+                // not carry Splash, which is the single-target path this line
+                // used to be.
+                int hits = Counters.ApplySplash(s, c, target, splashHits);
+                for (int h = 0; h < hits; h++)
+                    s.RaiderHp[splashHits[h]] -= damage;
+
                 s.CreatureNextAttackAt[c] = s.Tick + Attacks.IntervalTicks(s, c);
+            }
+
+            RaiderAttack(s);
+        }
+
+        /// The raider half of phase 5.
+        ///
+        /// Lash is the only raider in combat_numbers section 6 that attacks;
+        /// every other type has interval 0 and is skipped here, which is why
+        /// this is a no-op for wave 6 and for all 500 corpus scenarios. A zero
+        /// interval means "does not attack" rather than "attacks every tick",
+        /// and the guard is the first thing in the loop so it can never be read
+        /// the other way.
+        private static void RaiderAttack(SimState s)
+        {
+            for (int r = 0; r < s.RaiderCount; r++)
+            {
+                if (!s.RaiderAlive[r]) continue;
+
+                int interval = Attacks.RaiderIntervalTicks(s, r);
+                if (interval <= 0) continue;
+                if (s.Tick < s.RaiderNextAttackAt[r]) continue;
+
+                // NO ALIVENESS CHECK, and its absence is the symmetry the
+                // comment on Attack above claims.
+                //
+                // `CreatureAlive` is `CreatureHp[c] > 0` - a LIVE read - while
+                // the creature pass guards on `RaiderAlive`, a flag written
+                // only in Spawn, Death and Breach and therefore frozen through
+                // all of phase 5. Guarding here on live HP broke that symmetry
+                // for creatures only: a second Lash forced onto the same
+                // carrier by Taunt (tier II holds two, by design) found it at
+                // zero from the first Lash's hit earlier in this very loop and
+                // skipped - dropping its damage AND leaving
+                // RaiderNextAttackAt[r] unadvanced, so it re-evaluated as due
+                // on the next tick, retargeted, and landed early against a
+                // fresh victim in defiance of its authored 2s interval.
+                //
+                // Targets are re-selected every tick in phase 4 (ApplyTaunt
+                // clears every slot first), so a target reaching here was alive
+                // at targeting time. The only way it is at zero now is an
+                // earlier raider in this same pass - which is exactly the case
+                // phase 6 exists to clear.
+                int target = s.RaiderTargetCreature[r];
+                if (target < 0) continue;
+
+                s.CreatureHp[target] -= Attacks.DamageTaken(s, target, Attacks.RaiderDamage(s, r));
+                s.RaiderNextAttackAt[r] = s.Tick + interval;
             }
         }
 

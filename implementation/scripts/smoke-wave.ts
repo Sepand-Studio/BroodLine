@@ -132,11 +132,52 @@ let token: string
 }
 
 // ---------------------------------------------------------------------------
+begin('claim a node (arms the harvest clock, and may grant base stock)')
+let creatureId: string | undefined
+{
+  // Claiming also ARMS THE CLOCK. `harvest_positions.last_settled_at` is
+  // written only by this route, and an absent row reads as `now`, so until
+  // a player claims once nothing accrues at all - see map/claim.ts's
+  // loadLastSettled. Slot 1 is the Rich Deposit, the faster of the two.
+  const r = await call('/v1/node/claim', {
+    token, idem: randomUUID(), body: { slot: 1 },
+  })
+  if (r.status !== 200) fail(`node/claim returned ${r.status}`, r.text.slice(0, 600))
+  const granted = r.body?.creatures
+  if (Array.isArray(granted) && granted.length > 0) creatureId = granted[0]?.creatureId
+  ok(`claimed slot 1, ${r.body?.shards ?? 0} shards, ${granted?.length ?? 0} creature(s)`)
+}
+
+// ---------------------------------------------------------------------------
 begin(`start wave ${WAVE}`)
 let issuanceId: string
 let seed: string
 {
-  const r = await call('/v1/wave/start', { token, body: { waveId: WAVE } })
+  // `deployment` is REQUIRED as of Task 8 (design §6.1) and must carry at
+  // least one OWNED creature id as of Task 10's DEPLOYMENT_FLOOR. It used to
+  // send `[]`, which the floor rejects unconditionally - so this script
+  // failed on every run against a perfectly healthy deploy, and a real sim
+  // outage was indistinguishable from that.
+  //
+  // A fresh account cannot supply one on its own: the starter grant is
+  // currency only, and node base stock needs hours of accrual before the
+  // first creature drops. So the claim above is the honest attempt, and
+  // SMOKE_CREATURE_ID is the way to run the full round trip - the part of
+  // this script that actually proves sim is alive - against an account that
+  // already holds one.
+  creatureId ??= process.env.SMOKE_CREATURE_ID
+  if (creatureId === undefined) {
+    fail(
+      'no creature to deploy, so the wave legs cannot run. This is NOT a sim '
+      + 'or api failure: a fresh account holds no creatures, and base stock '
+      + 'accrues over hours. Re-run with SMOKE_CREATURE_ID set to a creature '
+      + 'owned by an account this script can sign in as, or point the script '
+      + 'at an established account.')
+  }
+
+  const r = await call('/v1/wave/start', {
+    token, body: { waveId: WAVE, deployment: [{ creatureId, pocket: 0 }] },
+  })
   if (r.status !== 200) {
     // wave_locked here usually means rewardForWave returned null, i.e. the
     // live bundle has no reward on this wave - the 0.1.0 rollback hazard.

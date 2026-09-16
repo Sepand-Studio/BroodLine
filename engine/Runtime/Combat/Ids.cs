@@ -1,19 +1,25 @@
 namespace Broodline.Sim.Combat
 {
-    /// The slice covers one raider and one counter. The enums are declared at
-    /// full width anyway so adding the other seven is additive rather than a
-    /// renumbering - values are persisted in replays and wave data.
+    /// The slice covers three raiders and three counters. The enums are
+    /// declared at full width anyway so adding the other five is additive
+    /// rather than a renumbering - values are persisted in replays and wave
+    /// data, so an existing member's NUMBER is part of the file format.
     public enum Species { Vetch = 0, Ember = 1, Skitter = 2, Hollow = 3, Loam = 4, Pale = 5 }
 
-    public enum RaiderType { Courser = 0 }
+    /// broodline_combat_numbers.md section 6. Courser keeps 0: every replay
+    /// recorded under engine 0.2.0 stores that number, and renumbering it
+    /// would reinterpret each of them as a different raider.
+    public enum RaiderType { Courser = 0, Lash = 1, Skirmisher = 2 }
 
     /// The number of RaiderType values. MUST be updated whenever a raider
     /// type is added - WaveDef's composition invariants bound their scans on
     /// this count, and a stale value would silently stop enforcing them
-    /// instead of throwing.
+    /// instead of throwing. At 1 the two invariants had nothing to compare
+    /// and neither could fire; at 3 they are live, and wave 7 is the first
+    /// authored content they actually judge.
     public static class RaiderTypeCounts
     {
-        public const int RaiderTypeCount = 1;
+        public const int RaiderTypeCount = 3;
     }
 
     /// The widths of the enums above, BESIDE the enums they count.
@@ -30,18 +36,25 @@ namespace Broodline.Sim.Combat
     /// then has two inconsistent examples and follows whichever they see first.
     ///
     /// The cost of drift is a bad diagnosis, not just a missed check. Trait has
-    /// two members and combat_engine names seven more; add Splash without
+    /// five members and combat_numbers names seven more; add Pierce without
     /// moving TraitCount and every replay carrying it is rejected as CORRUPT
     /// rather than as unsupported, which sends the reader after a forgery that
-    /// is not there.
+    /// is not there. That is not hypothetical any more - this is the edit that
+    /// took TraitCount from 2 to 5.
     public static class Ids
     {
         public const int SpeciesCount = 6;
         public const int InstinctCount = 6;
-        public const int TraitCount = 2;      // None, Chill
+        public const int TraitCount = 5;      // None, Chill, Taunt, Splash, Carapace
     }
 
-    public enum Trait { None = 0, Chill = 1 }
+    /// combat_numbers sections 4.2 and 4.3. None and Chill keep 0 and 1 for
+    /// the reason RaiderType.Courser keeps 0: a deployment's traits are
+    /// persisted in every replay, so these numbers are file format.
+    ///
+    /// Carapace answers no raider - CounterFor never returns it - which is
+    /// what makes it legal in a wave alongside any other trait.
+    public enum Trait { None = 0, Chill = 1, Taunt = 2, Splash = 3, Carapace = 4 }
 
     public enum Instinct
     {

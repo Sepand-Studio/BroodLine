@@ -71,5 +71,48 @@ namespace Broodline.Sim.Combat
 
         private static int DistSq(SimState s, int creature, int raider) =>
             s.Lane.DistSq(s.CreaturePocket[creature], s.RaiderTile(raider));
+
+        /// The defender a raider attacks, or -1. The other direction of the
+        /// same phase-4 question, and the only raider it has an answer for is
+        /// the Lash: combat_numbers section 6 gives it "the furthest defender
+        /// in range 5", and every other raider has range 0 and selects nothing.
+        ///
+        /// FURTHEST, not nearest, and that inversion IS the mechanic - the
+        /// Lash "reaches past the front line into support pockets", so a wall
+        /// in the near pocket does not shield the thin bodies behind it. That
+        /// is what Taunt exists to override.
+        ///
+        /// One linear pass in creature order, keeping the best so far. Because
+        /// the scan runs in ascending creature order and a challenger only wins
+        /// on a STRICT improvement, an equal distance leaves the EARLIER
+        /// creature in place - creature index is deployment order, the stable
+        /// index on this side of the board, and it is the same tie-break spawn
+        /// index gives on the raider side. Lane 2.2 makes squared distances
+        /// exact integers and says outright that this makes ties common rather
+        /// than rare, so a comparator that stopped at "furthest" would not be a
+        /// total order, and two runtimes could rank the tied pair differently.
+        public static int SelectDefender(SimState s, int raider)
+        {
+            if (!s.RaiderAlive[raider]) return -1;
+
+            int range = Stats.RaiderRange(s.RaiderType[raider]);
+            if (range <= 0) return -1;      // this raider has no attack
+
+            int tile = s.RaiderTile(raider);
+            int best = -1;
+            int bestDistSq = 0;
+
+            for (int c = 0; c < s.CreatureCount; c++)
+            {
+                if (!s.CreatureAlive(c)) continue;
+
+                int pocket = s.CreaturePocket[c];
+                if (!s.Lane.InRange(pocket, tile, range)) continue;
+
+                int d = s.Lane.DistSq(pocket, tile);
+                if (best < 0 || d > bestDistSq) { best = c; bestDistSq = d; }
+            }
+            return best;
+        }
     }
 }

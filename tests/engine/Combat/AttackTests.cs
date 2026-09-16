@@ -18,12 +18,18 @@ namespace Broodline.Sim.Tests.Combat
             return s;
         }
 
+        /// Phase 5's splash buffer. The engine's copy lives in SimRunner and is
+        /// sized from the ladder; a test that reached phase 5 directly has to
+        /// supply its own, and sizing it the same way means a retune of tier
+        /// III cannot leave these one entry short.
+        private static int[] SplashScratch() => new int[Stats.MaxSplashTargets];
+
         [Fact]
         public void Attack_DealsSpeciesDamageAndSetsTheNextInterval()
         {
             var s = OneRaider(Instinct.Vanguard, Species.Hollow, 0);
             Phases.Targeting(s);
-            Phases.Attack(s);
+            Phases.Attack(s, SplashScratch());
 
             Assert.Equal(220 - 55, s.RaiderHp[0]);                 // Hollow: 55
             Assert.Equal(90 + 75, s.CreatureNextAttackAt[0]);      // 2.5s = 75 ticks
@@ -34,11 +40,11 @@ namespace Broodline.Sim.Tests.Combat
         {
             var s = OneRaider(Instinct.Vanguard, Species.Hollow, 0);
             Phases.Targeting(s);
-            Phases.Attack(s);
+            Phases.Attack(s, SplashScratch());
             int hp = s.RaiderHp[0];
 
             s.Tick = 91;
-            Phases.Attack(s);
+            Phases.Attack(s, SplashScratch());
             Assert.Equal(hp, s.RaiderHp[0]);
         }
 

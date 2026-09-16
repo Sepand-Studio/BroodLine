@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { currency as currencyEnum } from '../db/schema.ts'
+import { REQUIRED_NODE_IDS } from '../map/rotation.ts'
 
 const run = promisify(execFile)
 
@@ -21,7 +22,7 @@ const VERSION_PATTERN = /^\d+\.\d+\.\d+$/
  * published, and that is the entire safety model - a bad bundle is shipped to
  * every player at once and cannot be recalled by an app update.
  *
- * Six checks now. Wave *shape* rules are the engine's and are invoked, never
+ * Eight checks now. Wave *shape* rules are the engine's and are invoked, never
  * copied - see tools/config-validate. Reward completeness is different: Design
  * 2.2 pays a wave's reward by looking it up from the bundle - rewardForWave in
  * wave/rewards.ts, called from routes/wave.ts's submit handler - so a wave
@@ -36,15 +37,40 @@ const VERSION_PATTERN = /^\d+\.\d+\.\d+$/
  * credit() call and routes/sync.ts's isBelow() call with nothing between
  * this validator and production - so both are checked here alongside waves,
  * the pack ladder, wave rewards and locales.
+ *
+ * Phase 6 adds three more, all authored-content completeness checks in the
+ * same sense as reward completeness above - none is a game rule, so none
+ * belongs in the C# CLI:
+ *
+ *   - trait dominance (validateTraitDominance): design 5.3 says the rolled
+ *     slot in a splice carries at full coverage if the trait is dominant and
+ *     one tier lower if recessive - spliceDistribution (a later task) reads
+ *     that flag directly off the bundle. A trait authored with no `dominant`
+ *     makes that roll undefined on a paid action.
+ *   - wave reward distinctness (validateWaveRewardDistinctness): guards
+ *     test/weakenings.md row 5, not a general content rule. Phase 5 could
+ *     not construct the reward-inflation weakening because only one wave was
+ *     authored; this stops a future bundle from quietly re-creating that
+ *     one-wave condition by giving two authored waves equal rewards.
+ *   - node rates AND node identity (validateNodeRates): map/accrual.ts's
+ *     accrue() (Task 4) converts a node's ratePerHour to a BigInt, so a
+ *     non-integer rate throws a cryptic RangeError deep inside a claim
+ *     instead of failing here. The identity half is sharper still - a
+ *     nodes.json missing either id map/rotation.ts's `nodesFor` requires
+ *     500s GET /v1/region/state and the claim route for every player on the
+ *     server. See that function for both findings.
  */
 export async function validateBundle(dir: string): Promise<string[]> {
   const violations: string[] = []
   violations.push(...(await validateWaves(dir)))
   violations.push(...(await validatePackLadder(dir)))
   violations.push(...(await validateWaveRewards(dir)))
+  violations.push(...(await validateWaveRewardDistinctness(dir)))
   violations.push(...(await validateLocales(dir)))
   violations.push(...(await validateStarterGrants(dir)))
   violations.push(...(await validateManifest(dir)))
+  violations.push(...(await validateTraitDominance(dir)))
+  violations.push(...(await validateNodeRates(dir)))
   return violations
 }
 
@@ -119,6 +145,40 @@ async function validateWaveRewards(dir: string): Promise<string[]> {
     }
   }
   return violations
+}
+
+/**
+ * test/weakenings.md row 5's guard, not a general rule about content. Row 5
+ * records a reward-inflation weakening ("read the reward from the wrong
+ * wave") that Phase 5 could not construct because only wave 6 was authored -
+ * there was no second reward for a misattributed lookup to pay out. Once a
+ * second authored wave exists, that proof is only meaningful if the two
+ * rewards actually differ: a bundle that quietly gave two waves the same
+ * reward would make the weakening's assertion pass for a reason that has
+ * nothing to do with the guard it is meant to exercise.
+ *
+ * Waves with no reward are skipped here - validateWaveRewards above already
+ * rejects those on their own terms, and folding them into this Set would
+ * report a confusing second violation for the same missing field.
+ */
+async function validateWaveRewardDistinctness(dir: string): Promise<string[]> {
+  const raw = await readFile(join(dir, 'waves.json'), 'utf8').catch(() => null)
+  if (raw === null) return ['waves.json is missing.']
+
+  const waves = JSON.parse(raw) as AuthoredWave[]
+  // BOTH SIDES FILTERED. The Set was built over the waves that carry a
+  // reward while the count below was taken over all of them, so a two-wave
+  // bundle missing one reward reported this violation - about reward
+  // distinctness - on top of validateWaveRewards' correct "Wave N has no
+  // reward", pointing the author at the wrong fix. That is precisely the
+  // confusing second violation the docstring above says skipping them
+  // avoids; skipping them only avoids it if the length is filtered too.
+  const rewarded = waves.filter((w) => w.reward !== undefined)
+  const rewards = new Set(rewarded.map((w) => `${w.reward!.currency}:${w.reward!.amount}`))
+  if (rewarded.length > 1 && rewards.size < 2) {
+    return ['authored waves must carry at least two distinct reward values']
+  }
+  return []
 }
 
 interface Pack { id: string; priceUsdCents: number; value: number }
@@ -251,4 +311,103 @@ async function validateManifest(dir: string): Promise<string[]> {
     ]
   }
   return []
+}
+
+interface AuthoredTrait { id: string; dominant?: unknown }
+
+/**
+ * design 5.3: the rolled slot in a splice carries at full coverage if the
+ * trait is dominant and one tier lower if recessive - spliceDistribution (a
+ * later task) reads `bundle.traitById(t.trait).dominant` directly off this
+ * file. A trait authored with no `dominant` flag makes that roll undefined,
+ * and an undefined roll on a paid action (splicing spends splice_charges) is
+ * the failure this check exists to make unshippable.
+ *
+ * As of Phase 6 the bundle's `dominant` values are themselves provisional -
+ * bible 2.2 adopts dominance as a mechanic but assigns it to no trait in the
+ * authored set, and the flags in config/bundles/0.1.2/traits.json are owed
+ * to combat_numbers 4 for ratification. This check only enforces that the
+ * flag is PRESENT and boolean, not any particular value.
+ */
+async function validateTraitDominance(dir: string): Promise<string[]> {
+  const raw = await readFile(join(dir, 'traits.json'), 'utf8').catch(() => null)
+  if (raw === null) return ['traits.json is missing.']
+
+  const traits = (JSON.parse(raw) as { traits: AuthoredTrait[] }).traits
+  const violations: string[] = []
+
+  for (const trait of traits) {
+    if (typeof trait.dominant !== 'boolean') {
+      violations.push(`trait ${trait.id}: dominance flag is required`)
+    }
+  }
+  return violations
+}
+
+interface AuthoredNode { id: string; ratePerHour: unknown; totalYield: unknown }
+
+/**
+ * map/accrual.ts's accrue() (Task 4) does `BigInt(a.ratePerHour)` - a
+ * fractional rate throws `RangeError: The number 20.5 cannot be converted
+ * to a BigInt because it is not an integer`, deep inside a claim, instead of
+ * failing here as a config problem, at publish time, where it is cheap and
+ * legible (solo_execution 5.2's whole argument for this file). `totalYield`
+ * feeds `remaining` the same way and is checked for the same reason.
+ *
+ * THE SECOND CHECK IS THE ONE THAT MATTERS MOST, and it was the Task 4
+ * carry-forward nobody closed: map/rotation.ts's `nodesFor` looks the two
+ * REQUIRED_NODE_IDS up with a non-null assertion, and map/claim.ts's
+ * `nodeSet` guards only `nodes.length === 0`. So a nodes.json carrying one
+ * typo'd id - `rich_desposit` - passed every check here and then threw
+ * `TypeError: Cannot read properties of undefined (reading 'ratePerHour')`
+ * out of `nodesFor`: a 500 on GET /v1/region/state and on the claim route,
+ * for EVERY player on the server, until someone rolled the bundle back.
+ * Two tasks each assumed the other had this. Publish time is where it dies,
+ * because a published bundle reaches every player at once and cannot be
+ * recalled by an app update.
+ *
+ * The id set is IMPORTED from rotation.ts rather than restated here, for the
+ * reason VALID_CURRENCIES is read off the Postgres enum: a set written down
+ * twice is a set that drifts, and this check exists precisely because two
+ * places disagreed about it.
+ *
+ * nodes.json is OPTIONAL here, deliberately: a bundle that authors no map is
+ * not a broken bundle - config/bundle.ts's loadBundle reads nodes.json
+ * through a catch and leaves `nodes` empty when it is absent, and claim.ts's
+ * `nodeSet` answers "no region" rather than an empty one. No fixture in this
+ * suite carries a nodes.json, and every one of them must keep passing. A
+ * bundle that is supposed to ship one but omits it is not this check's
+ * problem to catch; a bundle that ships one and gets it WRONG is.
+ */
+async function validateNodeRates(dir: string): Promise<string[]> {
+  const raw = await readFile(join(dir, 'nodes.json'), 'utf8').catch(() => null)
+  if (raw === null) return []
+
+  const nodes = JSON.parse(raw) as AuthoredNode[]
+  const violations: string[] = []
+
+  const authored = new Set(nodes.map((n) => n.id))
+  for (const required of REQUIRED_NODE_IDS) {
+    if (!authored.has(required)) {
+      violations.push(
+        `nodes.json authors no node with id '${required}'. map/rotation.ts's ` +
+        `nodesFor requires it; without it GET /v1/region/state and the claim ` +
+        `route answer 500 for every player on the server.`)
+    }
+  }
+
+  for (const node of nodes) {
+    if (typeof node.ratePerHour !== 'number' || !Number.isInteger(node.ratePerHour) || node.ratePerHour <= 0) {
+      violations.push(
+        `nodes.json node '${node.id}' has a ratePerHour of ${String(node.ratePerHour)}, ` +
+        `which must be a positive integer.`)
+    }
+    if (node.totalYield !== null
+        && (typeof node.totalYield !== 'number' || !Number.isInteger(node.totalYield) || node.totalYield <= 0)) {
+      violations.push(
+        `nodes.json node '${node.id}' has a totalYield of ${String(node.totalYield)}, ` +
+        `which must be null or a positive integer.`)
+    }
+  }
+  return violations
 }

@@ -51,8 +51,66 @@
                 ],
                 "type": "object"
             },
+            "CreatureSpecDto": {
+                "properties": {
+                    "instinct": {
+                        "type": "string"
+                    },
+                    "pocket": {
+                        "format": "int32",
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "type": [
+                            "integer",
+                            "string"
+                        ]
+                    },
+                    "species": {
+                        "type": "string"
+                    },
+                    "tier1": {
+                        "format": "int32",
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "type": [
+                            "null",
+                            "integer",
+                            "string"
+                        ]
+                    },
+                    "tier2": {
+                        "format": "int32",
+                        "pattern": "^-?(?:0|[1-9]\\d*)$",
+                        "type": [
+                            "null",
+                            "integer",
+                            "string"
+                        ]
+                    },
+                    "trait1": {
+                        "type": "string"
+                    },
+                    "trait2": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "species",
+                    "trait1",
+                    "tier1",
+                    "trait2",
+                    "tier2",
+                    "instinct",
+                    "pocket"
+                ],
+                "type": "object"
+            },
             "SimulateEcho": {
                 "properties": {
+                    "deployment": {
+                        "items": {
+                            "$ref": "#/components/schemas/CreatureSpecDto"
+                        },
+                        "type": "array"
+                    },
                     "laneCount": {
                         "format": "int32",
                         "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -98,7 +156,8 @@
                     "terrain",
                     "laneCount",
                     "rallyTick",
-                    "rallyCreature"
+                    "rallyCreature",
+                    "deployment"
                 ],
                 "type": "object"
             },

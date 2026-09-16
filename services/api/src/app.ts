@@ -5,7 +5,10 @@ import { HttpError } from './http/auth.ts'
 import { fail } from './http/errors.ts'
 import type { ReplayStore } from './replays/store.ts'
 import { registerAccountRoutes } from './routes/account.ts'
+import { registerRegionRoutes } from './routes/region.ts'
+import { registerRosterRoutes } from './routes/roster.ts'
 import { registerSessionRoutes } from './routes/session.ts'
+import { registerSpliceRoutes } from './routes/splice.ts'
 import { registerSyncRoutes } from './routes/sync.ts'
 import { registerWaveRoutes } from './routes/wave.ts'
 import type { SimClient } from './sim/client.ts'
@@ -31,6 +34,9 @@ export function createApp(deps: Deps): Hono {
   registerSessionRoutes(app, deps)
   registerSyncRoutes(app, deps)
   registerWaveRoutes(app, deps)
+  registerRegionRoutes(app, deps)
+  registerRosterRoutes(app, deps)
+  registerSpliceRoutes(app, deps)
 
   app.notFound(() => fail('not_found', 'No such route.'))
   app.onError((err) => {

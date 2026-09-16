@@ -22,6 +22,83 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
+# --- The toolchain check. FIRST, before the lock, the traps or the scratch
+# directory, because what it catches makes every later failure a lie about
+# its own cause.
+#
+# THE TRAP IT CLOSES, measured on this machine and not predicted. The pnpm
+# that resolves first on a default PATH here is 3.7.5 (shipped under an nvm
+# node 10). pnpm 3 has no "run a package script by bare name" form: given
+# `pnpm openapi` it prints its USAGE TEXT and EXITS 0. `set -e` therefore
+# sees success, this script carries on believing openapi/broodline.json was
+# generated, and the run dies ~200 lines later inside `dotnet nswag` with a
+# FileNotFoundException naming a temp file in a scratch directory - an error
+# that names neither pnpm, nor the version, nor the generator that did not
+# run. It has cost several agents time in this phase alone; it is recorded
+# in the Phase 6 ledger as a carry-forward for exactly that reason.
+#
+# Note what is NOT sufficient here: a `node --version` check. The node
+# resolving first on this machine is v26, which satisfies package.json's
+# `engines.node` (>=22) perfectly while the pnpm beside it is still 3.7.5 -
+# they come from different bin directories. The version that has to be
+# checked is the one that runs the script, so it is pnpm's.
+#
+# Required version is READ FROM package.json's `packageManager` field rather
+# than written here, so this guard cannot drift from the repo's own pin. The
+# comparison is on the MAJOR only: the failure mode is a major-version-old
+# pnpm that does not understand the command at all, and pinning the patch
+# would turn a working 9.15 into a spurious hard failure.
+PNPM_REQUIRED_MAJOR="$(
+  python3 - <<'PY'
+import json, re
+with open("package.json") as f:
+    pm = json.load(f).get("packageManager", "")
+m = re.match(r"^pnpm@(\d+)\.", pm)
+print(m.group(1) if m else "")
+PY
+)"
+
+if [ -z "$PNPM_REQUIRED_MAJOR" ]; then
+  echo "generate-contract.sh: package.json has no usable \"packageManager\": \"pnpm@<major>.<...>\" field." >&2
+  echo "  This script reads the required pnpm major from there. Restore the field, or this" >&2
+  echo "  check cannot tell a correct toolchain from the stale one it exists to catch." >&2
+  exit 1
+fi
+
+if ! command -v pnpm >/dev/null 2>&1; then
+  echo "generate-contract.sh: \`pnpm\` is not on PATH." >&2
+  echo "" >&2
+  echo "  This script generates openapi/broodline.json by running \`pnpm openapi\`." >&2
+  echo "  Put a pnpm ${PNPM_REQUIRED_MAJOR}.x on PATH and re-run, e.g.:" >&2
+  echo "    export PATH=\"\$HOME/.nvm/versions/node/v22.22.2/bin:\$PATH\"" >&2
+  exit 1
+fi
+
+# `pnpm --version` on 3.7.5 prints a bare "3.7.5"; on 9.x likewise. Taking
+# the first line and the leading integer covers both without parsing either
+# version scheme. A pnpm so broken it prints nothing yields an empty major,
+# which falls into the mismatch arm below rather than silently passing.
+PNPM_FOUND_VERSION="$(pnpm --version 2>/dev/null | head -1 | tr -d '[:space:]' || true)"
+PNPM_FOUND_MAJOR="${PNPM_FOUND_VERSION%%.*}"
+
+if [ "$PNPM_FOUND_MAJOR" != "$PNPM_REQUIRED_MAJOR" ]; then
+  echo "generate-contract.sh: the pnpm on PATH cannot run this repo's package scripts." >&2
+  echo "" >&2
+  echo "  found:     pnpm ${PNPM_FOUND_VERSION:-<printed nothing>}   ($(command -v pnpm))" >&2
+  echo "  required:  pnpm ${PNPM_REQUIRED_MAJOR}.x   (package.json \"packageManager\")" >&2
+  echo "" >&2
+  echo "  WHY THIS IS A HARD STOP RATHER THAN A WARNING. pnpm 3 answers" >&2
+  echo "  \`pnpm openapi\` by printing its usage text and EXITING 0. Nothing downstream" >&2
+  echo "  can tell that apart from a successful generation, so this script would run on" >&2
+  echo "  and fail inside \`dotnet nswag\` with a FileNotFoundException naming a temp" >&2
+  echo "  file - an error pointing nowhere near the actual cause." >&2
+  echo "" >&2
+  echo "  Fix, in this shell, before re-running:" >&2
+  echo "    export PATH=\"\$HOME/.nvm/versions/node/v22.22.2/bin:\$PATH\"" >&2
+  echo "  Confirm with:  pnpm --version" >&2
+  exit 1
+fi
+
 # --- The dotnet-build lock. This script's Direction 2 build (below) and
 # services/api/test/wave-submit.test.ts / replays.test.ts /
 # adversarial.test.ts each build
@@ -426,6 +503,49 @@ NSWAG_TMP="$WORK/nswag.generated.json"
 
 # src/openapi.ts honours this to redirect its write; see that file.
 OPENAPI_OUTPUT_PATH="$OPENAPI_TMP" pnpm openapi
+
+# THE BACKSTOP. The toolchain check at the top of this script names the ONE
+# cause we know about; this names the SYMPTOM, whatever produced it.
+#
+# The two are deliberately not merged. A version check can only catch the
+# failures someone has already met, and "exited 0 having written nothing" is
+# not unique to pnpm 3: renaming the `openapi` script in
+# services/api/package.json, a generator that catches its own write error,
+# and this script and src/openapi.ts disagreeing about OPENAPI_OUTPUT_PATH
+# all land in exactly the same place. So the version check is the diagnosis
+# and this is the assertion - the thing that makes "the document exists"
+# something the script has OBSERVED rather than inferred from an exit code.
+#
+# Checked as parseable JSON, not merely non-empty: a truncated or
+# half-written document is the other way this file can exist and still be
+# useless, and NSwag's complaint about it is no more legible than its
+# complaint about the missing file.
+if [ ! -s "$OPENAPI_TMP" ] || ! python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$OPENAPI_TMP" 2>/dev/null; then
+  echo "generate-contract.sh: \`pnpm openapi\` exited 0 but produced no usable OpenAPI document." >&2
+  echo "" >&2
+  echo "  expected: $OPENAPI_TMP" >&2
+  if [ -e "$OPENAPI_TMP" ]; then
+    echo "  actual:   the file exists but is empty or is not valid JSON ($(wc -c < "$OPENAPI_TMP" | tr -d ' ') bytes)" >&2
+  else
+    echo "  actual:   no such file - nothing was written there at all" >&2
+  fi
+  echo "" >&2
+  echo "  STOPPING HERE ON PURPOSE. Everything after this point consumes that document," >&2
+  echo "  so carrying on would report this as a \`dotnet nswag\` FileNotFoundException" >&2
+  echo "  against a temp path, which names neither this generator nor the reason." >&2
+  echo "" >&2
+  echo "  Reproduce it directly, and read what it prints:" >&2
+  echo "    OPENAPI_OUTPUT_PATH=/tmp/probe.json pnpm openapi" >&2
+  echo "" >&2
+  echo "  Most likely causes, in the order they have actually happened here:" >&2
+  echo "    1. A pnpm too old to run a package script by bare name (prints usage, exits 0)." >&2
+  echo "       The check at the top of this script should have caught that - if it did not," >&2
+  echo "       that check is wrong and is the thing to fix." >&2
+  echo "    2. The \`openapi\` script is missing or renamed in services/api/package.json." >&2
+  echo "    3. src/openapi.ts no longer honours OPENAPI_OUTPUT_PATH, so it wrote to the" >&2
+  echo "       committed path instead of the scratch one this script asked for." >&2
+  exit 1
+fi
 
 dotnet tool restore
 

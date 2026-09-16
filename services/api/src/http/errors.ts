@@ -18,6 +18,13 @@ export type ErrorCode =
   | 'submission_rejected'
   | 'engine_too_old'
   | 'sim_unavailable'
+  // Phase 6
+  | 'deployment_mismatch'
+  | 'roster_full'
+  | 'creature_not_owned'
+  | 'creature_committed'
+  | 'generation_ceiling'
+  | 'insufficient_charges'
 
 export interface ErrorBody {
   code: ErrorCode
@@ -46,6 +53,49 @@ const STATUS: Record<ErrorCode, number> = {
   // say which - design 2.3.
   engine_too_old: 426,
   sim_unavailable: 503,
+  // 409, and the SAME status submission_rejected carries, because design §6.2
+  // makes it the same kind of thing: a breach taken on the path Phase 5 built
+  // for a seed or wave-id mismatch. The CODE is distinct because the next
+  // action differs - a seed mismatch means this replay is not of this wave,
+  // where a deployment mismatch means the roster the deployment screen is
+  // showing no longer agrees with what was issued, and solo_execution §6.2's
+  // whole rule is that a client switches on the code.
+  deployment_mismatch: 409,
+  // 409, not 400: the request was understood and is refused because of
+  // state the caller can change (splice or retire a creature and claim
+  // again), which is the same shape wave_locked and issuance_invalid take.
+  // design 4.3 refuses the WHOLE claim rather than truncating the grant, so
+  // this is the only answer a full roster can get - a partial grant that
+  // silently drops creatures is a loss a player reports as theft.
+  roster_full: 409,
+  // THREE DISTINCT CODES FOR ONE STATUS, and the distinctions are the whole
+  // point of solo_execution 6.2's rule that a client switches on `code`.
+  // All three are 409 because all three refuse a well-formed request on
+  // state the caller can change - and each needs a different sentence and a
+  // different next action on the Splice Chamber screen:
+  //
+  //   creature_not_owned  - the roster the screen is showing is stale;
+  //                         refresh it. design 6.1, and it is a REFUSAL
+  //                         rather than a 404 for the reason every other
+  //                         409 here is one: the request was understood,
+  //                         and what it named may well exist - just not as
+  //                         a live creature of this player's. Collapsing
+  //                         "not yours", "already spliced away" and
+  //                         "fabricated" into one answer is deliberate, so
+  //                         wave/start tells a caller nothing about rows
+  //                         that are not theirs.
+  //   creature_committed  - recall it, or wait for the wave to settle
+  //   generation_ceiling  - upgrade the Splicing Chamber (design 5.2 wants
+  //                         the upgrade surfaced, not a bare error), and the
+  //                         details carry the ceiling so the screen can say
+  //                         which tier
+  //   insufficient_charges - wait for regen, or buy
+  //
+  // Collapsing them into `conflict` would make the screen guess.
+  creature_not_owned: 409,
+  creature_committed: 409,
+  generation_ceiling: 409,
+  insufficient_charges: 409,
 }
 
 export function fail(code: ErrorCode, message: string, details?: unknown): Response {

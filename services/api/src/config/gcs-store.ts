@@ -58,10 +58,45 @@ export class GcsBundleStore implements BundleStore {
     return buf.toString('utf8').trim()
   }
 
+  /**
+   * EXISTENCE WAS NOT ENOUGH, and rollback is where that bit.
+   *
+   * This method re-activates an already-published bundle, which is what
+   * makes rollback a config change rather than a deploy - so it never ran
+   * the publish-time validators, and a bundle that was legal under the
+   * validators active at ITS publish time can be pointed at long after they
+   * tighten. Bundles 0.1.0 and 0.1.1 ship `traits.json` as `{"traits": []}`,
+   * predating `validateTraitDominance`: pointing back at either leaves
+   * region/state and claim working while EVERY splice - preview and commit
+   * alike - answers 500, because `isDominant` finds no flag for any trait.
+   * A partial outage that looks unrelated to the rollback that caused it is
+   * the worst shape this failure could take.
+   *
+   * The full validator cannot run here - `validateBundle` reads a local
+   * directory and a published bundle lives in the bucket - so this is the
+   * narrow check for the one thing measured to break: an unusable trait
+   * table. Refusing the rollback is deliberate. That recovery path is
+   * already broken for splice; failing loudly at the moment an operator
+   * chooses it beats discovering it through player 500s.
+   *
+   * OWED: a store-reading validator, so this is the whole publish check
+   * rather than the subset rollback is known to need.
+   */
   async setPointer(version: string): Promise<void> {
     if (!(await this.hasBundle(version))) {
       throw new Error(`Cannot point at ${version}: no such published bundle.`)
     }
+
+    const traitsRaw = await this.readFile(version, 'traits.json').catch(() => null)
+    const traits = traitsRaw === null
+      ? null
+      : (JSON.parse(traitsRaw) as { traits?: unknown[] }).traits
+    if (!Array.isArray(traits) || traits.length === 0) {
+      throw new Error(
+        `Cannot point at ${version}: it authors no traits, so every splice `
+        + 'would fail against it. Publish a bundle carrying traits.json instead.')
+    }
+
     await this.bucket.file('bundles/current').save(version, { contentType: 'text/plain', resumable: false })
   }
 }

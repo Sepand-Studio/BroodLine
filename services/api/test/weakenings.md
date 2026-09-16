@@ -21,15 +21,34 @@ number.
 
 So each row below was **actually applied to the real source**, the suite
 actually run, and the failing test's name actually recorded. Nothing here is
-predicted. Where a weakening left the suite green that is written down as a
-finding, not smoothed over — **five rows did**. Three produced a new test
-(rows 3, 4b and 7). Two did not, and both say why in their own section: row 4
-is a guard no sequence of HTTP requests can reach, and row 10 is a genuine
-hole in this gate that a controller ruling deliberately leaves open, because
-closing it here would put a non-adversarial property in the adversarial suite.
+predicted. **Row 5 was the one standing exception to that sentence for the
+whole of Phase 5** — it was struck rather than run, because there was no
+second authored wave to run it against — and Task 11 is what closes that
+gap, in two stages: a single-edit run that stayed masked, and (fix round 1,
+re-reading Phase 5's own register rather than stopping at the first result)
+the COMBINED weakening Phase 5 actually named, which does not stay masked.
+See "Row 5" below for both runs.
 
-Every run is `pnpm --filter @broodline/api test adversarial` against the file
-as it ships (**15 tests**), on branch `phase_5`, with file parallelism on.
+Where a weakening left the suite green that is written down as a finding,
+not smoothed over — **six rows did**, one of them (row 5) only in its
+single-edit form. Row 5's COMBINED form — the one Phase 5's own register
+names — is discriminating instead, and belongs with rows 1, 3, 6, 7, 8 and 9,
+which reddened a named test. Three of the six that stayed green produced a
+new test (rows 3, 4b and 7); three did not, and each says why in its own
+section: row 4 is a guard no
+sequence of HTTP requests can reach, row 5's SINGLE EDIT is a guard of the
+same shape (today — see "Row 5" for why that is not the same claim as "the
+row is safe"), and row 10 is a genuine hole in this gate that a controller
+ruling deliberately leaves open, because closing it here would put a
+non-adversarial property in the adversarial suite.
+
+Every run of the original ten rows (1 through 10, including 4b) is
+`pnpm --filter @broodline/api test adversarial` against the file as it
+shipped THEN (**15 tests**), on branch `phase_5`, with file parallelism on.
+Row 5's two Task 11 entries run against a later `phase_6` file instead
+(**18 tests** as of fix round 1) and say so precisely in their own section
+below, not here — this sentence describes the original ten and nothing
+after them, so it is not updated to chase a count it was never claiming.
 After each run the weakening was reverted (`git checkout`) and the suite
 re-run to green.
 
@@ -44,7 +63,8 @@ re-run to green.
 | 3 | `settle()` moved outside the credit's transaction and the credit un-gated on it | `routes/wave.ts` submit handler | **RED — discriminating (1/15)**, *after a new test was written* | `cannot replay a winning submission twice under a genuinely concurrent second attempt` |
 | 4 | The settlement write-once trigger not created | `drizzle/0004_trigger_scope_and_bounds.sql` — **not `0003`**, see below | **GREEN — 15/15. FINDING.** | none in this file — see below |
 | 4b | The abandoned row settled `'consumed'` rather than `'expired'` | `wave/issuance.ts` `issueWave` check 4 | **RED — discriminating (1/15)**, *after a new test was written* | `cannot spend a replay it never took by abandoning a wave` |
-| 5 | ~~Read the reward from `verdict.echo.waveId`~~ | — | **STRUCK. NOT CLOSED.** | see "Row 5" below |
+| 5 | Read the reward from `verdict.echo.waveId` ALONE, `matchesIssuance` left intact | `routes/wave.ts` submit step 6, `rewardForWave`'s argument | **GREEN — 17/17 (`adversarial`), 49/49 (`wave-submit adversarial replays`). NOT the row's closing result — masked because `matchesIssuance` still stands; see 5b, and "Row 5" below for why nothing, including the synthetic-bundle unit test, discriminates this in isolation.** | none |
+| 5b | THE COMBINED WEAKENING, AND THE ROW'S CLOSING RESULT: 5, AND `matchesIssuance`'s `waveId` comparison deleted (seed comparison kept) | `routes/wave.ts` `matchesIssuance` + submit step 6 | **RED — discriminating in `adversarial` (1/18); ALSO reddens a second, unrelated test (1/7 in `sim-client`)** | `cannot claim wave 7's reward against a wave 6 issuance`; separately, `sim-client.test.ts`'s `matchesIssuance > refuses a genuine mismatch regardless of which branch the type took` |
 | 6 | Issuance check 2 (the replay cap) deleted | `wave/issuance.ts` `issueWave` | **RED (3/15)** | `cannot farm a cleared wave past the daily cap`, `counts a consumed issuance against the UTC day boundary, to the second`, `counts against midnight UTC even when the session TimeZone is not UTC` |
 | 7 | `'consumed'` issuances aged out at 3 hours rather than the UTC day boundary | `wave/issuance.ts` check 2's count window | **RED (2/15)**, *after a new test was written, then rewritten* — **but the row is NOT closed: see the OWED ruling below** | `counts a consumed issuance against the UTC day boundary, to the second`, `counts against midnight UTC even when the session TimeZone is not UTC` |
 | 8 | `sim`'s rejection returned as a `5xx` instead of a `200` verdict | `services/sim/Program.cs` | **RED — discriminating (1/15)** | `cannot submit forged bytes` |
@@ -158,7 +178,28 @@ that could only reach the trigger by reaching around the API into raw SQL
 would be `issuance-schema.test.ts` with extra steps. Recorded as "the gate row
 is mis-specified", not as "the guard is unproven".
 
-## Row 5 — struck, and **not closed**
+## Row 5 — struck through Phase 5, **run in two stages at Task 11**
+
+> **CLOSED AT TASK 11 FIX ROUND 1, Phase 6 — and the first stage's "closed"
+> was premature.** Struck for the whole of Phase 5 because `WaveDef.ForId`
+> authored exactly one wave, so there was no second reward to inflate toward.
+> The three-point argument immediately below is preserved exactly as Phase 5
+> wrote it — re-derivation, not memory, is what this file runs on.
+>
+> **Point 2 of that argument is the one that matters, and the first pass
+> through this row under-weighted it.** Phase 5's own decision register
+> calls out **the combined weakening** by name as the one that "needs two
+> authored waves with different rewards" — not the single-line reward-source
+> edit in isolation. Task 11's first pass ran only the single edit, found it
+> masked, and called the row closed. **That was the wrong half of the
+> argument to treat as the whole row.** Fix round 1 ran the combined
+> weakening Phase 5 actually named — `matchesIssuance`'s `waveId` comparison
+> deleted AS WELL AS the reward source — and it is **not** masked:
+> **RED. `expected 200 to be 409`, balance inflated by exactly 230.** See
+> "Task 11, fix round 1" below for the attack, the run, and the new
+> permanent test; "Task 11, single edit" for the first pass's result, kept
+> because it is also true and says something the combined run does not.
+> task-11-report.md carries both runs verbatim.
 
 "Read the reward from `verdict.echo.waveId`" cannot break anything, and the
 brief's three-layer argument was re-derived against the code rather than taken
@@ -193,10 +234,187 @@ a function of the wave id it is handed, plus that an unauthored id returns
 
 **That proves the wiring, not the property.** It shows the handler's choice of
 source is a choice with consequences; it does **not** prove an end-to-end
-inflation is impossible. **Row 5 is not closed.** The real proof is **owed
-against the engine content fill**, when a second authored wave with a
+inflation is impossible. ~~Row 5 is not closed. The real proof is owed
+against the engine content fill, when a second authored wave with a
 different reward exists — at which point the weakening becomes constructible
-and must be run. Do not let this row be quietly dropped at Phase 6.
+and must be run. Do not let this row be quietly dropped at Phase 6.~~ **Task
+11 is that content fill; see below for what running it found.**
+
+### Task 11, single edit — measured, not argued: masked, but not the whole row
+
+Phase 6 authored wave 7 (`engine/Runtime/Combat/WaveDef.cs Wave7()`: 1 Lash,
+6 Skirmishers, integrity 3; `config/bundles/0.1.2/waves.json`: 230 shards
+against wave 6's 40). That makes points 2 and 3 above checkable rather than
+hypothetical for the first time, so the weakening was applied to real source
+— `routes/wave.ts`'s `rewardForWave(bundle, issuance.waveId)` changed to
+`rewardForWave(bundle, toInt(verdict.echo.waveId))`, confirmed present with
+`git diff` before trusting any result — and run, rather than argued about a
+second time.
+
+**`adversarial.test.ts`'s new test, `pays the ISSUED wave reward, never the
+submitted one`, drives an HONEST wave-7 win end to end**: a real roster
+minted to a deliberately-built wave-7-winning composition (Taunt/Vetch and
+Splash/Ember at tier III per `config/bundles/0.1.2/traits.json`'s own
+pairings, plus two Hollow for range/margin — verified against the real
+engine directly, at `/internal/simulate`, before being written into the
+test; see the test file's own comment for the four-seed, zero-breach
+measurement), issued through `wave/start`, submitted, and the balance
+asserted — not the status code alone, per this file's own house rule.
+
+**Measured result: GREEN.**
+
+```
+pnpm --filter @broodline/api test adversarial
+ ✓ test/adversarial.test.ts (17 tests) 6199ms
+ Test Files  1 passed (1)
+      Tests  17 passed (17)
+
+pnpm --filter @broodline/api test wave-submit adversarial replays
+ ✓ test/adversarial.test.ts (17 tests)
+ ✓ test/wave-submit.test.ts (25 tests)
+ ✓ test/replays.test.ts (7 tests)
+ Test Files  3 passed (3)
+      Tests  49 passed (49)
+```
+
+Reverted with `git checkout -- services/api/src/routes/wave.ts`, confirmed
+clean with `git diff --quiet`, and the full suite re-run to **383/383**
+green on the restored source.
+
+**Why it stays green, confirmed rather than assumed.** Point 1 above is not
+merely still true, it is now checked against a case where it MATTERS: submit
+step 5 (`routes/wave.ts:598` today), `matchesIssuance`, refuses the whole
+request whenever `toInt(echo.waveId) !== issuance.waveId`, and step 6's
+`rewardForWave` call (`:663`) is only ever reached afterward. For an honest
+wave-7 submission `echo.waveId` and `issuance.waveId` are both 7 regardless
+of which the weakened line reads, so this specific test cannot discriminate
+the mutation — nothing can, over HTTP, because no request reaches line 663
+with the two fields disagreeing. **That is a stronger property than "no test
+happened to catch it"**: the substitution is unreachable by construction,
+not merely unexercised, and an honest end-to-end test is what makes that
+checkable rather than assumed. **CORRECTED AT FIX ROUND 2 — nothing
+discriminates the single edit, and that includes `adversarial.test.ts`'s
+pre-existing `describe("the reward's source of truth (design §2.2)")`
+block.** An earlier draft of this paragraph called that block "the row's
+only discriminating gate," which is false, and false in a way a test run
+could never catch: the block calls `rewardForWave(twoWaves, 6)` and
+`rewardForWave(twoWaves, 7)` with its OWN LITERAL ids, never through
+`routes/wave.ts`'s call site at all, so it cannot observe — by
+construction, not merely in practice — which of `issuance.waveId` or
+`verdict.echo.waveId` that call site passes. It is unfalsifiable against
+this weakening: green whichever argument the handler reads, because it
+never reads the handler's argument. It proves `rewardForWave` uses whatever
+id it is given; it says nothing about which id the call site chooses to
+give it, which is the entire content of row 5. (Fix round 1, next, finds a
+genuine discriminating gate — but only for the COMBINED weakening; it does
+not catch the single edit alone, because `matchesIssuance`'s waveId half is
+still standing in that scenario and refuses the request before the reward
+line runs, exactly as this section found.)
+
+**This result stands, and it is real — it is just not the row.** The
+single-edit weakening leaves this file green and says why, which is worth
+recording precisely the way rows 4 and 10 are: `matchesIssuance`'s waveId
+half is redundant, TODAY, with the reward line's own argument, so cutting
+only the reward line changes nothing observable. What it does not show is
+what happens if that redundancy is ever the ONLY protection left — which is
+exactly the question fix round 1 asked next.
+
+### Task 11, fix round 1 — the combined weakening, and this is the one Phase 5 meant
+
+**The attack Phase 5's point 2 describes, built for real.** A player who has
+cleared NOTHING issues wave 6 (reward 40) with a roster that happens to equal
+a deliberately-built wave-7-winning composition (Taunt/Vetch and Splash/Ember
+at tier III, two Hollow — the same one `pays the ISSUED wave reward...`
+verified against the real engine at four seeds). They then submit a
+GENUINELY WINNING WAVE-7 REPLAY at that issuance's own real seed, with the
+SAME five creatures. Every field matches between the issuance and the echo
+except one: 6 was issued, 7 was simulated.
+
+**Both halves of the combined weakening, applied to real source together,
+confirmed present with `git diff` before anything was trusted:**
+
+```diff
+ export function matchesIssuance(echo: SimulateEcho, issuance: Pick<Issuance, 'seed' | 'waveId'>): boolean {
+-  return echo.seed === issuance.seed && toInt(echo.waveId) === issuance.waveId
++  return echo.seed === issuance.seed
+ }
+```
+```diff
+-          const reward = rewardForWave(bundle, issuance.waveId)
++          const reward = rewardForWave(bundle, toInt(verdict.echo.waveId))
+```
+
+**Measured result: RED — the attack succeeds.**
+
+```
+PROBE result {"status":200,"body":{"result":"Win","integrityRemaining":3,
+"breaches":[],"reward":{"currency":"shards","amount":230}},
+"before":250,"after":480}
+```
+
+`before + 230 = after`, exactly. A player who never played wave 7 at all —
+who was ISSUED wave 6 — was paid wave 7's reward, in full, end to end,
+through the real handler. **This is the hole weakenings.md row 5 was always
+about**, and it is now observed rather than argued.
+
+**A second, unrelated test also reddens — and it is worth naming precisely
+why that is not the same finding.** `sim-client.test.ts`'s `matchesIssuance
+> refuses a genuine mismatch regardless of which branch the type took`
+directly unit-tests `matchesIssuance(<waveId: 7>, <issuance waveId: 6>)`
+and expects `false`; deleting the waveId comparison makes it `true`, so that
+test fails independent of anything about money. **That test proves
+`matchesIssuance` still obeys ITS OWN contract. It does not prove the
+reward is safe** — it is testing a different function's correctness, not
+the property row 5 is about, and a regression shaped differently enough to
+satisfy that specific assertion (or a future refactor that quietly drops
+the test as "redundant with the seed check") would sail through it while
+still paying the wrong reward. The end-to-end test below is what closes
+that gap; `matchesIssuance`'s own unit coverage is a good, real, but
+INDEPENDENT protection, not a substitute.
+
+**The permanent test:** `cannot claim wave 7's reward against a wave 6
+issuance` (`adversarial.test.ts`). On real source it asserts the refusal
+that actually happens — `409`, `submission_rejected` (from
+`matchesIssuance`'s waveId half specifically; the seed matches, so that is
+the only guard left that can fire) — and the balance unchanged. Run against
+the combined weakening:
+
+```
+pnpm --filter @broodline/api test sim-client wave-submit adversarial replays
+ × adversarial: what a modified client cannot do > cannot claim wave 7's
+   reward against a wave 6 issuance (weakenings.md row 5, THE COMBINED WEAKENING)
+   → expected 200 to be 409
+ × matchesIssuance > refuses a genuine mismatch regardless of which branch
+   the type took
+   → expected true to be false
+ Test Files  2 failed | 2 passed (4)
+      Tests  2 failed | 55 passed (57)
+```
+
+**Reverted (`git checkout -- services/api/src/routes/wave.ts`), confirmed
+clean (`git diff --quiet`), and re-run to green:**
+
+```
+pnpm --filter @broodline/api test sim-client wave-submit adversarial replays
+ Test Files  4 passed (4)
+      Tests  57 passed (57)
+
+pnpm --filter @broodline/api test          # full suite
+ Test Files  34 passed (34)
+      Tests  384 passed (384)
+```
+
+**Closed, and this time by a discriminating gate, not by an unreachability
+argument.** Row 5 moves to the same bucket as rows 1, 3, 6, 7, 8 and 9: a
+named test goes red under the weakening this row describes. The single-edit
+result above stays on the record too, because it answers a real and
+different question — "does the reward line's own argument matter, given
+`matchesIssuance` today" — and the answer to that one is still no, today,
+by itself. The combined result answers the question that was actually
+asked: **is the reward a function of the issuance and never of the
+submission, PROVABLY, rather than merely as an accident of where two
+independent guards currently happen to sit.** Full detail, both verbatim
+runs, and the reachability argument are in task-11-report.md.
 
 ---
 
@@ -424,6 +642,120 @@ resolves with the existing row rather than aborting the transaction`** — at
 to cite rotted as that file grew. It drives `claimIssuance` directly against a
 real conflict. Recorded so a reader does not have to notice the missing row for
 themselves.
+
+---
+
+## Phase 6 — the deployment comparison and the supply floor
+
+Design §6.2 and §2.4, Phase 6 Task 10. Same discipline as the table above and
+the same method: each row was **applied to the real source** at this task’s
+own shipped state, the suite actually run, the failing test names actually recorded,
+then reverted with `git checkout -- services/api/src` and `git diff --quiet`
+confirmed before the next row. Nothing here is predicted.
+
+Runs are `pnpm --filter @broodline/api test wave-submit adversarial replays`
+(**48 tests**) unless the row says otherwise — the comparison is exercised from
+all three files, and a row scoped to `adversarial` alone would miss two thirds
+of its own evidence.
+
+| # | Weakened | Where | Result | Test(s) that went red |
+|---|---|---|---|---|
+| P6-1 | The whole `deploymentMatches` call deleted from the submit handler | `routes/wave.ts` submit step 5 | **RED (7/48)** | every deployment test and nothing else: the three mismatch cases, the null-column case, `cannot submit a replay claiming a deployment it was not issued`, `grants NOTHING on a submission the deployment comparison refuses`, `writes nothing for a submission the deployment comparison refuses` |
+| P6-2 | Compared as a **multiset** — the same seven fields, both sides sorted, order ignored | `routes/wave.ts` `deploymentMatches` | **RED — discriminating (1/48)** | `rejects a submission that deploys the SAME creatures in a different order` |
+| P6-3 | The length check dropped, leaving `stored.every(...)` alone | `routes/wave.ts` `deploymentMatches` | **RED — discriminating (1/48)** | `rejects a submission that deploys MORE creatures than it was issued` |
+| P6-4 | A null stored deployment SKIPS the check (`return true`) | `routes/wave.ts` `deploymentMatches` | **RED — discriminating (1/48)** | `rejects a submission against an issuance minted before the column had a writer` |
+| P6-5 | `toTier(null)` returns `0` instead of `null` | `sim/client.ts` | **RED (26/380, full suite)** | every honest submission in all three files — see below |
+| P6-6 | The grant multiplied by the Harvest Array tier | `wave/base-stock.ts` | **RED — discriminating (1/48)** | `does not scale wave base stock with the Harvest Array` |
+| P6-7 | `grantWaveBaseStock` hoisted out of the Win branch to the verification point, so it runs on every verified submission | `routes/wave.ts` submit handler | **RED — discriminating (1/48)** | `grants NOTHING on a losing submission` |
+| P6-8 | The Hatchery cap made a REFUSAL instead of a skip | `wave/base-stock.ts` | **RED — discriminating (1/48)** | `skips the grant at the Hatchery cap and still pays the reward` |
+| P6-9 | `deploymentMatches` returns `false` unconditionally — the **vacuity control** | `routes/wave.ts` | **RED (26/48)** | every honest-path test in all three files; no deployment-mismatch test moved |
+
+### P6-3 and P6-4 are the two that were named in advance
+
+Both were carried forward from Task 9's report as hazards, and both are the
+shape where a wrong answer passes silently rather than failing:
+
+- **P6-3 is the vacuity hazard.** Written as a loop over the stored
+  deployment, the comparison runs **zero iterations** against an empty one and
+  agrees with every echo there is. `claimIssuance`'s `deployment:
+  CreatureSpec[] = []` default made that state reachable from production code;
+  the default is gone as of this task, and the length check is what makes its
+  return harmless rather than fatal. Note what P6-3 did *not* redden: the two
+  field-level mismatch tests stay green under it, because their deployments are
+  the same length. A suite without the MORE-creatures case would have shipped
+  this.
+- **P6-4 is the nullable-column ruling.** `wave_issuances.deployment` is
+  nullable because `drizzle/0006` is the expand step, so for up to
+  `ISSUANCE_TTL_MS` after this handler deploys a player can hold a live
+  issuance the previous build minted with no deployment. "Skip the check when
+  null" reopens the hole for two hours, for everyone — and it reddens exactly
+  one test, which is to say that without that one test the entire repository
+  would have been green while the boundary was open. The ruling is to REFUSE:
+  an honest player mid-deploy loses one attempt, which is a real cost and is
+  the smaller one.
+
+### P6-5 is the case for `toTier`, and it is not a style point
+
+`toInt` does not accept `null`, and the generated `tier1`/`tier2` are
+`null | number | string` — so this **failed at compile** rather than silently,
+which is the good direction. The three one-keystroke "fixes" (`v ?? 0`,
+`Number(v)`, `toInt(v as number)`) are all the same wrong answer: they turn
+"no coverage" into "tier zero". `drizzle/0005_loop.sql`'s
+`coverage_tier_N_not_zero` makes `0` unstorable on the api side, so an echoed
+`0` equals nothing api holds and **every honest submission carrying an empty
+combat slot is refused**. That is what the 26 red tests are: not a subtle
+regression, a route that has stopped working — which is why the row is
+recorded as non-discriminating rather than as a good gate.
+
+### P6-9 is the control the rest of the table needs
+
+Eight of the nine rows above are refusals going missing. A comparison that
+refused EVERYTHING would pass all eight of those tests perfectly, so the table
+would be evidence of nothing without a row that moves in the other direction.
+P6-9 reddens 26 tests and moves none of the mismatch cases — the two halves are
+independent, and the suite pins both.
+
+### Fix round — the two guards review added
+
+`DEPLOYMENT_FLOOR` and `commitCreatures`' full WHERE, applied to the fix-round commit's own shipped state.
+Runs are `pnpm --filter @broodline/api test wave-start wave-submit adversarial
+replays` (**80 tests**) — `wave-start` joins because both guards live on the
+issuance side.
+
+| # | Weakened | Where | Result | Test(s) that went red |
+|---|---|---|---|---|
+| P6-10 | The floor removed — an empty deployment issuable again | `routes/wave.ts` `parseDeployment` | **RED — discriminating (1/80)** | `refuses an EMPTY deployment, as malformed rather than as a wave fought with nothing` |
+| P6-11 | The floor raised to `DEPLOYMENT_CAP` — a required size of five rather than a minimum of one | `routes/wave.ts` `parseDeployment` | **RED (11/80)** | the floor test's own positive control, plus nine roster tests and `rejects a submission that deploys MORE creatures than it was issued` |
+| P6-12 | The row-count assertion deleted **and** the update narrowed to the first id | `wave/issuance.ts` `commitCreatures` | **RED (5/80)** | the direct test plus all four `committed_to` route tests |
+| P6-13 | The row-count assertion deleted, predicates intact | `wave/issuance.ts` `commitCreatures` | **RED — discriminating (1/80)** | `commitCreatures refuses a row that is not this player's, live and uncommitted` |
+| P6-14 | The `player_id` predicate dropped | `wave/issuance.ts` `commitCreatures` | **RED — discriminating (1/80)** | same |
+| P6-15 | The `committed_to IS NULL` predicate dropped | `wave/issuance.ts` `commitCreatures` | **RED — discriminating (1/80)** | same |
+
+**P6-11 is the floor's positive control**, and it is the row that stops the
+floor from being "refuse anything shorter than a full deployment". A check that
+demanded five would pass P6-10's test perfectly; it reddens eleven, including
+the `expect((await start(6, deploymentOf(mine.slice(0, 1)))).status).toBe(200)`
+inside the floor test itself. One creature is a legal, if doomed, deployment —
+how a wave *goes* is the engine's business.
+
+**P6-13, P6-14 and P6-15 were GREEN at first, and that is recorded rather than
+quietly fixed.** Run against the fix commit BEFORE its direct test existed,
+each of the three left the suite **79/79 green**. That is not an
+accident of coverage, it is structural: `resolveDeployment` refuses an unowned,
+dead or committed creature long before `commitCreatures` runs, so **no HTTP
+request can present that statement with a row it should decline.** Which is
+precisely the argument that made the loose `WHERE` "correct today" — and it
+cannot also be the reason not to test it.
+
+So `commitCreatures` is exported and driven **directly, without the FOR UPDATE
+in front of it** (`wave-start.test.ts`'s `commitCreatures refuses a row that is
+not this player's, live and uncommitted`), which is the only place the
+predicates can be shown to do anything. The same precedent `claimIssuance` set
+one test up: when a guard is unreachable through the route, drive the function.
+With that test in place all three rows became discriminating at 1/80. The
+sequence — green, recorded, test written, red — is the point; a reader should
+be able to see that these three predicates had no coverage at all until
+something went looking.
 
 ---
 

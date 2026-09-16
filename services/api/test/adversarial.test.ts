@@ -10,7 +10,7 @@ import { type Bundle, clearBundleCache, loadBundle } from '../src/config/bundle.
 import { publishBundle } from '../src/config/publish.ts'
 import { LocalBundleStore } from '../src/config/store.ts'
 import { withServer } from '../src/db/client.ts'
-import { servers, waveIssuances } from '../src/db/schema.ts'
+import { creatures, servers, waveIssuances } from '../src/db/schema.ts'
 import { LocalReplayStore } from '../src/replays/store.ts'
 import { SimClient } from '../src/sim/client.ts'
 import {
@@ -19,9 +19,14 @@ import {
 import { rewardForWave } from '../src/wave/rewards.ts'
 import { reapOnExit } from './child-reaper.ts'
 import { startTestDb, type TestDb } from './harness.ts'
+// CREATURE_HP and SPECIES come straight from replay-format.ts rather than
+// through wave-helpers.ts's barrel, which does not re-export them -
+// base-stock.test.ts takes the same direct import for the same reason.
+import { CREATURE_HP, SPECIES } from './replay-format.ts'
 import {
-  balance, buildLosingReplay, buildWinningReplay, clearThrough, liveIssuance,
-  setupPlayer, startWave, submit, withDotnetBuildLock,
+  balance, buildLosingReplay, buildReplayOf, buildWinningReplay, clearThrough,
+  giveRoster, liveIssuance, type ReplayCreature, type RosterSpec, setupPlayer,
+  startLosing, startWave, startWinning, submit, withDotnetBuildLock,
 } from './wave-helpers.ts'
 
 /**
@@ -29,12 +34,16 @@ import {
  *
  * What makes this file the gate is not that it passes - it is that its
  * guards have been WATCHED TO FAIL when deliberately weakened. See
- * `weakenings.md` alongside this file for all TEN weakenings applied
- * (rows 1, 2, 3, 4, 4b, 6, 7, 8, 9, 10 - row 5 is struck and says why in
- * its own section) and what each one actually did. SEVEN reddened a named
- * test here (1, 3, 4b, 6, 7, 8, 9); row 2 reddens the file wholesale
- * rather than discriminatingly; and TWO - rows 4 and 10 - reddened nothing
- * in this file at all, both recorded as findings rather than smoothed over.
+ * `weakenings.md` alongside this file for all ELEVEN Phase 5 weakenings
+ * applied (rows 1, 2, 3, 4, 4b, 5, 6, 7, 8, 9, 10) and what each one
+ * actually did. SEVEN reddened a named test here at the time they were run
+ * (1, 3, 4b, 6, 7, 8, 9); row 2 reddens the file wholesale rather than
+ * discriminatingly; and THREE - rows 4, 5 and 10 - reddened nothing in this
+ * file, all three recorded as findings rather than smoothed over. Row 5 was
+ * struck for the whole of Phase 5 (no second authored wave existed to
+ * inflate toward) and was only run at Task 11, once Phase 6's content fill
+ * gave it one - see `pays the ISSUED wave reward, never the submitted one`
+ * below and weakenings.md's own Task 11 section for what running it found.
  *
  * ROW 10 IS A RECORDED HOLE IN THIS GATE, AND IT IS LEFT OPEN DELIBERATELY.
  * Making submit's step-2 liveness read refuse DIRECTLY, instead of only
@@ -58,6 +67,38 @@ import {
  * A REAL `sim` child process, never a stub - the api/sim boundary is the
  * exact thing this phase exists to make authoritative, and a stub standing
  * in for it would be a second implementation of the boundary under test.
+ *
+ * PHASE 6 ADDED TWO TESTS AND FLIPPED ONE, so this file ships SIXTEEN. Every
+ * "15/15" above is a MEASUREMENT taken at the time, against the fifteen that
+ * existed then, and it is left as measured rather than restated at the new
+ * count - rewriting a number nobody re-ran would be the same defect this file
+ * exists to hunt. The ten rows above are likewise Phase 5's; Phase 6's nine
+ * are in `weakenings.md`'s own Phase 6 section, and the two tests they cover
+ * here are `CANNOT deploy creatures the player does not own` (the flipped
+ * marker) and `cannot submit a replay claiming a deployment it was not
+ * issued`.
+ *
+ * TASK 11 ADDED TWO MORE, so this file ships EIGHTEEN as of Phase 6's own
+ * Task 11, across two fix rounds. `pays the ISSUED wave reward, never the
+ * submitted one` is row 5's SINGLE-EDIT weakening (reward source only),
+ * finally run against real source rather than argued about - and the
+ * measured result is that it, and the rest of the file, STAY GREEN under
+ * that weakening alone. That is not this file failing to catch something:
+ * submit step 5 (`matchesIssuance`) proves `echo.waveId === issuance.waveId`
+ * before the reward lookup is ever reached, on every path, so nothing this
+ * file can send over HTTP disagrees with itself at that line.
+ *
+ * `cannot claim wave 7's reward against a wave 6 issuance` is row 5's
+ * COMBINED weakening (Phase 5's own decision register names this one, not
+ * the single edit, as the version that "needs two authored waves with
+ * different rewards" - fix round 1 re-read that register rather than
+ * accepting the single-edit result as the whole row). Delete matchesIssuance's
+ * waveId comparison AS WELL AS reading the reward from the echo, and THIS
+ * test goes RED: `expected 200 to be 409`, balance inflated by exactly the
+ * difference between what was issued and what was claimed. That is the hole
+ * row 5 was always about. weakenings.md's Task 11 section and task-11-
+ * report.md carry both measured runs, single-edit and combined, side by
+ * side.
  */
 
 // fileURLToPath, not .pathname - this repo lives under a directory
@@ -65,7 +106,16 @@ import {
 // and wave-submit.test.ts carry the same note; all three resolve the same
 // repo root).
 const REPO = fileURLToPath(new URL('../../../', import.meta.url))
-const SEED = join(REPO, 'config/bundles/0.1.1')
+// 0.1.2, NOT 0.1.1 - Task 11. This is the only change the bundle bump makes:
+// wave 6 is byte-identical between the two (same integrity, same reward, same
+// spawn), and 0.1.2 additionally authors wave 7 (230 shards against wave 6's
+// 40), which is the second authored wave weakenings.md row 5 was waiting on.
+// starter.json, packs.json and locales are identical between the two
+// (diffed directly); only manifest.json's version string, waves.json and
+// traits.json differ, and 0.1.2 is already the seed several other test
+// files (node-claim, splice-commit, splice-preview, rotation) load without
+// incident.
+const SEED = join(REPO, 'config/bundles/0.1.2')
 const SERVER_ID = 1
 // Distinct from generate-contract.sh's 5199, wave-submit.test.ts's 5299 and
 // replays.test.ts's 5399 - file parallelism is ON (and must stay on), so
@@ -73,8 +123,93 @@ const SERVER_ID = 1
 const SIM_PORT = 5499
 const SIM_URL = `http://127.0.0.1:${SIM_PORT}`
 
-/** config/bundles/0.1.1/waves.json - wave 6 is the only authored wave. */
+/** config/bundles/0.1.2/waves.json. */
 const WAVE_6_REWARD = 40
+/** ditto - the second authored wave, Task 11's engine content fill. */
+const WAVE_7_REWARD = 230
+
+/**
+ * A DELIBERATELY BUILT wave-7 winning deployment - it is NOT
+ * `winningDeployment()` with the wave id swapped. That fixture answers wave
+ * 6's one Courser with a single Chill carrier; wave 7 (`engine/Runtime/
+ * Combat/WaveDef.cs Wave7()`) is 1 Lash and 6 Skirmishers at integrity 3,
+ * countered by Taunt and Splash respectively (`Stats.CounterFor`), which
+ * `winningDeployment()` carries neither of - submitting it against wave 7
+ * would be an honest Loss, not a win claimed dishonestly. Context item 4 is
+ * explicit that replay bytes are not to be changed casually, so this is
+ * built and verified rather than guessed:
+ *
+ * - Taunt/Vetch and Splash/Ember are `config/bundles/0.1.2/traits.json`'s
+ *   own pairings, at tier III (`Deployments.MaxCoverageTier`) for headroom -
+ *   TauntCapacity(3) is 4 against one Lash, SplashTargets(3) is 5 within a
+ *   2-tile radius against Skirmishers that bunch roughly 1.35 tiles apart
+ *   (six spawns 1.5s/45 ticks apart at 0.9 tile/s).
+ * - Two Hollows carry no trait at all: `Lane.Defile`'s pockets sit beside
+ *   tiles 6/10/13/17/20 and Hollow's range 7 covers roughly tile-6 either
+ *   side of its pocket, so from pocket 3 or 4 alone it reaches almost the
+ *   entire lane and one-shots a 40-hp Skirmisher (55 damage) - margin on top
+ *   of the counters, not a substitute for them.
+ *
+ * VERIFIED DIRECTLY AGAINST THE ENGINE, not merely reasoned about: this
+ * exact composition was POSTed as replay bytes straight to a scratch `sim`
+ * host's `/internal/simulate` (the same `SimulateEndpoint.Handle ->
+ * Combat.Sim.Replay` path `/v1/wave/submit` uses) at four different seeds.
+ * Every run came back `Win`, `integrityRemaining: 3`, zero breaches, 734
+ * ticks - identical across seeds, which the engine's own header comments say
+ * to expect for this slice ("the RNG is used only where a tie-break must
+ * not be predictable, which in this slice is nowhere"). A control run of
+ * five plain Vetch carrying no trait at all - answering neither counter -
+ * scored `Win` too but with one breach and integrity down to 1, showing the
+ * harness does discriminate between compositions rather than always
+ * reporting a win.
+ */
+function wave7WinningDeployment(): ReplayCreature[] {
+  // engine/Runtime/Combat/Ids.cs Trait - Taunt and Splash are not in
+  // replay-format.ts's own TRAIT table (that file only carried None/Chill,
+  // which was every trait wave 6 needed); kept local here rather than
+  // exported there, since only this composition needs them.
+  const TAUNT = 2
+  const SPLASH = 3
+  const VANGUARD = 1 // Ids.cs Instinct.Vanguard
+  return [
+    { species: SPECIES.Vetch, trait1: TAUNT, tier1: 3, trait2: 0, tier2: 0,
+      instinct: VANGUARD, pocket: 0, hp: CREATURE_HP[SPECIES.Vetch]! },
+    { species: SPECIES.Ember, trait1: SPLASH, tier1: 3, trait2: 0, tier2: 0,
+      instinct: VANGUARD, pocket: 1, hp: CREATURE_HP[SPECIES.Ember]! },
+    { species: SPECIES.Ember, trait1: SPLASH, tier1: 3, trait2: 0, tier2: 0,
+      instinct: VANGUARD, pocket: 2, hp: CREATURE_HP[SPECIES.Ember]! },
+    { species: SPECIES.Hollow, trait1: 0, tier1: 0, trait2: 0, tier2: 0,
+      instinct: VANGUARD, pocket: 3, hp: CREATURE_HP[SPECIES.Hollow]! },
+    { species: SPECIES.Hollow, trait1: 0, tier1: 0, trait2: 0, tier2: 0,
+      instinct: VANGUARD, pocket: 4, hp: CREATURE_HP[SPECIES.Hollow]! },
+  ]
+}
+
+/**
+ * The same composition in the shape `creatures` stores it, so a real player
+ * row can be minted for each entry - `asRosterSpecs` (replay-format.ts)
+ * cannot do this translation for Taunt/Splash, since that file's own
+ * TRAIT table does not carry them (see `wave7WinningDeployment` above), so
+ * this is written out by hand instead. Kept beside it rather than derived
+ * automatically FOR that reason: the two must describe the same five
+ * creatures, and there is no shared table here to guarantee it, only this
+ * comment - a mismatch would surface as `deployment_mismatch` on submit,
+ * loudly, not as a silent pass.
+ */
+function wave7WinningRosterSpecs(): RosterSpec[] {
+  return [
+    { species: 'Vetch', trait1: 'Taunt', tier1: 3, trait2: 'None', tier2: null,
+      instinct: 'Vanguard', pocket: 0, hp: CREATURE_HP[SPECIES.Vetch]! },
+    { species: 'Ember', trait1: 'Splash', tier1: 3, trait2: 'None', tier2: null,
+      instinct: 'Vanguard', pocket: 1, hp: CREATURE_HP[SPECIES.Ember]! },
+    { species: 'Ember', trait1: 'Splash', tier1: 3, trait2: 'None', tier2: null,
+      instinct: 'Vanguard', pocket: 2, hp: CREATURE_HP[SPECIES.Ember]! },
+    { species: 'Hollow', trait1: 'None', tier1: null, trait2: 'None', tier2: null,
+      instinct: 'Vanguard', pocket: 3, hp: CREATURE_HP[SPECIES.Hollow]! },
+    { species: 'Hollow', trait1: 'None', tier1: null, trait2: 'None', tier2: null,
+      instinct: 'Vanguard', pocket: 4, hp: CREATURE_HP[SPECIES.Hollow]! },
+  ]
+}
 
 /**
  * Starts the REAL sim service as a child process, once for this file.
@@ -137,8 +272,8 @@ beforeAll(async () => {
 
   bundleRoot = await mkdtemp(join(tmpdir(), 'broodline-adversarial-'))
   const store = new LocalBundleStore(bundleRoot)
-  await publishBundle(store, SEED, '0.1.1')
-  await store.setPointer('0.1.1')
+  await publishBundle(store, SEED, '0.1.2')
+  await store.setPointer('0.1.2')
   clearBundleCache()
 
   deps = { db: t.db, bundleStore: store, simClient: new SimClient(SIM_URL, SimClient.noAuth('local sim host on 127.0.0.1: no Cloud Run in front of it, so no invoker check to satisfy')), replayStore: new LocalReplayStore(bundleRoot) }
@@ -174,12 +309,47 @@ describe('adversarial: what a modified client cannot do', () => {
     await setupPlayer(deps)
   })
 
+  /**
+   * A live creature belonging to `owner`, written through the OWNER
+   * connection - wave-start.test.ts's and splice-commit.test.ts's idiom, and
+   * for their reason: `grantBaseStock` is the only `insert(creatures)` on a
+   * grant path and it mints Gen-1 Tier-I base stock with no way to ask for a
+   * species, a trait or an owner.
+   *
+   * A REAL SECOND PLAYER's creature, not a row invented under a fabricated
+   * uuid. `creatures.player_id` carries no foreign key, so a fabricated one
+   * would insert happily - and would prove only that `wave/start` refuses an
+   * id nothing owns, which is a weaker statement than refusing one SOMEBODY
+   * ELSE owns.
+   */
+  async function give(owner: string): Promise<string> {
+    const [row] = await t.ownerDb.insert(creatures).values({
+      serverId: SERVER_ID,
+      playerId: owner,
+      species: 'Vetch',
+      generation: 1,
+      trait1: 'Taunt', tier1: 1,
+      trait2: 'Carapace', tier2: 1,
+      instinct: 'Vanguard',
+      hpCurrent: 260, // engine Stats.CreatureHp(Vetch)
+      isFounder: false,
+    }).returning()
+    return row!.creatureId
+  }
+
+  async function committedTo(creatureId: string): Promise<string | null> {
+    const [row] = await t.ownerDb.select().from(creatures)
+      .where(sql`${creatures.serverId} = ${SERVER_ID} AND ${creatures.creatureId} = ${creatureId}`)
+    if (row === undefined) throw new Error(`no creature ${creatureId}`)
+    return row.committedTo
+  }
+
   it('cannot claim a win that did not happen', async () => {
     // The client claims Win; sim says Loss. api pays what sim returns and
     // never what the client claims - which is why the submission body
     // carries only the replay and an issuance id, with no outcome field
     // for a client to lie in.
-    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+    const { issuanceId, seed } = await (await startLosing(6)).json() as { issuanceId: string; seed: string }
     const before = await balance('shards')
     const res = await submit(issuanceId, buildLosingReplay(6, BigInt(seed)), 'adv-1')
 
@@ -188,7 +358,7 @@ describe('adversarial: what a modified client cannot do', () => {
   })
 
   it('cannot submit forged bytes', async () => {
-    const { issuanceId } = await (await startWave(6)).json() as { issuanceId: string }
+    const { issuanceId } = await (await startWinning(6)).json() as { issuanceId: string }
     const before = await balance('shards')
 
     const res = await submit(issuanceId, 'bm90IGEgcmVwbGF5', 'adv-2')
@@ -202,7 +372,7 @@ describe('adversarial: what a modified client cannot do', () => {
   })
 
   it('cannot replay a winning submission twice', async () => {
-    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+    const { issuanceId, seed } = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
     const replay = buildWinningReplay(6, BigInt(seed))
     expect((await submit(issuanceId, replay, 'adv-3a')).status).toBe(200)
     const before = await balance('shards')
@@ -232,7 +402,7 @@ describe('adversarial: what a modified client cannot do', () => {
     // running the same settling UPDATE inside a transaction it does not
     // commit, so the handler's own settle() blocks on a REAL Postgres row
     // lock, at the exact instant the guard is supposed to be looking.
-    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+    const { issuanceId, seed } = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
     const replay = buildWinningReplay(6, BigInt(seed))
     const before = await balance('shards')
 
@@ -331,7 +501,7 @@ describe('adversarial: what a modified client cannot do', () => {
     // 500, a seed the helper failed to encode. This phase has already shipped
     // six assertions that were green while proving nothing; this is exactly
     // that shape. The status and code pin WHICH guard fired.
-    const { issuanceId } = await (await startWave(6)).json() as { issuanceId: string }
+    const { issuanceId } = await (await startWinning(6)).json() as { issuanceId: string }
     const before = await balance('shards')
     const res = await submit(issuanceId, buildWinningReplay(6, 0x1111n), 'adv-4')
     expect(res.status).toBe(409)
@@ -340,7 +510,7 @@ describe('adversarial: what a modified client cannot do', () => {
   })
 
   it('cannot skip to wave 60', async () => {
-    const res = await startWave(60)
+    const res = await startWinning(60)
     expect(res.status).toBe(409)
     expect(await res.json()).toMatchObject({ code: 'wave_locked' })
     // No issuance was minted for the skipped wave - the refusal is a
@@ -370,8 +540,8 @@ describe('adversarial: what a modified client cannot do', () => {
     // aborting the transaction` - :207 today, but the NAME is the stable
     // anchor; the old :203 citation rotted when that file grew. It drives
     // claimIssuance directly against a real conflict.
-    const firstRes = await startWave(6)
-    const secondRes = await startWave(6)
+    const firstRes = await startWinning(6)
+    const secondRes = await startWinning(6)
     // ASSERT BOTH SUCCEEDED FIRST. Found by running weakening 2 against an
     // earlier draft of this very test: when both calls 500, both bodies are
     // error envelopes, both `issuanceId`s read `undefined`, and
@@ -402,10 +572,10 @@ describe('adversarial: what a modified client cannot do', () => {
     // wave 6 and throws for every other id, which sim maps to
     // rules_violated) there is no second reward to inflate TO, so this
     // asserts the paid amount is wave 6's bundle reward and nothing else.
-    // The end-to-end inflation proof is owed against the engine content
-    // fill - see weakenings.md row 5.
+    // Task 11's content fill (wave 7) is what makes a genuine second reward
+    // exist - see the next test, and weakenings.md row 5.
     await clearThrough(6)
-    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+    const { issuanceId, seed } = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
     const before = await balance('shards')
 
     const res = await submit(issuanceId, buildWinningReplay(6, BigInt(seed)), 'adv-6')
@@ -414,15 +584,179 @@ describe('adversarial: what a modified client cannot do', () => {
     expect(await balance('shards')).toBe(before + WAVE_6_REWARD)
   })
 
+  it('pays the ISSUED wave reward, never the submitted one (weakenings.md row 5)', async () => {
+    // ROW 5, RUN RATHER THAN BOOKED FORWARD A THIRD TIME. Phase 5 could not
+    // construct ANY version of this: WaveDef.ForId threw for every id but 6,
+    // so sim refused a wave-7 replay outright and there was no second reward
+    // to inflate toward. Task 11's content fill - wave 7, 230 shards against
+    // wave 6's 40 (WAVE_7_REWARD above) - makes it constructible, and this is
+    // that test, run against a REAL second wave rather than argued about.
+    //
+    // WHAT RUNNING THE WEAKENING AGAINST THIS TEST ACTUALLY SHOWS - stated
+    // here because the brief's own draft of this test called the weakening
+    // "Expected: FAIL", and that is NOT what re-deriving it against the
+    // shipped handler, then actually running it, finds. `matchesIssuance`
+    // (submit step 5) refuses the whole request BEFORE `rewardForWave` is
+    // ever reached (submit step 6) whenever `echo.waveId !== issuance.
+    // waveId`. So by the time the reward lookup runs, the two are PROVEN
+    // equal for every request that gets this far - honest or forged, and
+    // this file has tried every dishonest shape a submission can take. There
+    // is no HTTP request `rewardForWave(bundle, verdict.echo.waveId)` could
+    // ever see disagree with `rewardForWave(bundle, issuance.waveId)`, so
+    // this test - and every other test in this file - stays GREEN under the
+    // row-5 weakening. Measured, not assumed: task-11-report.md records the
+    // run, with the weakening applied to real source and reverted after.
+    //
+    // THAT IS THE FINDING, not a gap in this test. It is a stronger claim
+    // than "untested" - the reward-source substitution is unreachable by
+    // construction, not merely unexercised - and it is exactly what
+    // weakenings.md row 5's three-point argument already concluded before a
+    // second wave existed to check it against. What this test adds that the
+    // argument alone could not: it is now possible to actually run an honest
+    // wave-7 submission end to end and watch it pay wave 7's real,
+    // independently-authored reward rather than wave 6's.
+    //
+    // CORRECTED AT FIX ROUND 2 - NOTHING DISCRIMINATES THIS WEAKENING IN
+    // ISOLATION, not even the synthetic-bundle stand-in below. An earlier
+    // draft of this comment called that block the row's only discriminating
+    // gate; that is false, and unfalsifiably so - the block calls
+    // `rewardForWave(twoWaves, 6)` and `rewardForWave(twoWaves, 7)` with its
+    // OWN LITERAL ids, never through this file's route handler at all, so it
+    // cannot observe - by construction - which of `issuance.waveId` or
+    // `verdict.echo.waveId` the call site at routes/wave.ts:663 passes. It
+    // proves `rewardForWave` uses whatever id it is handed; it says nothing
+    // about which id the call site chooses to hand it, which is the entire
+    // content of this row. See weakenings.md's "Row 5" for the full
+    // correction and fix round 1 for the weakening that DOES discriminate -
+    // the COMBINED one, which needs matchesIssuance's waveId comparison gone
+    // too, at `cannot claim wave 7's reward against a wave 6 issuance` below.
+    //
+    // A DELIBERATELY BUILT WIN, not `buildWinningReplay` with the wave id
+    // swapped - see `wave7WinningDeployment`'s own comment for why that
+    // fixture cannot answer wave 7 and what was verified instead.
+    await clearThrough(6)
+    const roster = await giveRoster(wave7WinningRosterSpecs())
+    const { issuanceId, seed } = await (await startWave(7, roster)).json() as { issuanceId: string; seed: string }
+    const before = await balance('shards')
+
+    const res = await submit(
+      issuanceId, buildReplayOf(7, BigInt(seed), wave7WinningDeployment()), crypto.randomUUID())
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({ result: 'Win', reward: { currency: 'shards', amount: WAVE_7_REWARD } })
+    expect(await balance('shards')).toBe(before + WAVE_7_REWARD)
+  })
+
+  it('cannot claim wave 7\'s reward against a wave 6 issuance (weakenings.md row 5, THE COMBINED WEAKENING)', async () => {
+    // FIX ROUND 1. The single-edit weakening above (read the reward from
+    // the echo) is masked, and `pays the ISSUED wave reward...` proves that
+    // by measurement. But Phase 5's own decision register - quoted back at
+    // this task rather than re-derived from a citation - names a SECOND,
+    // COMBINED weakening as the one that was never run: "the combined
+    // weakening needs two authored waves with different rewards, which the
+    // engine cannot supply." Task 11 supplies them. This is that run.
+    //
+    // THE ATTACK. A player who has cleared NOTHING (no clearThrough - wave 6
+    // is startable from zero progress, like every other test in this file)
+    // issues wave 6 - reward 40 - with a roster that happens to equal
+    // `wave7WinningDeployment`'s composition. Nothing about issuing a wave
+    // cares whether the roster would WIN it; `wave/start` only checks
+    // ownership, liveness and the deployment floor/cap. They then submit a
+    // GENUINELY WINNING WAVE-7 REPLAY, at the wave-6 issuance's own real
+    // seed and the SAME five creatures - so the only field that disagrees
+    // between the issuance and the echo is the wave id itself: 6 issued, 7
+    // simulated.
+    //
+    // MEASURED AGAINST THE COMBINED WEAKENING (matchesIssuance's waveId
+    // half deleted, AND the reward read from the echo): **the attack
+    // succeeds.** `status: 200`, `result: 'Win'`, `reward: 230`, balance
+    // `before + 230` - task-11-report.md carries the verbatim run. That is
+    // the hole weakenings.md row 5 was always about, finally constructible
+    // and finally observed rather than argued.
+    //
+    // A SEPARATE, PRE-EXISTING TEST ALSO CATCHES THE ISOLATED GUARD CHANGE -
+    // sim-client.test.ts's `matchesIssuance > refuses a genuine mismatch
+    // regardless of which branch the type took` reddens the moment the
+    // waveId comparison is deleted, independent of anything here. That is a
+    // real, valuable protection, and it is NOT this property: it proves
+    // `matchesIssuance` still obeys its own contract, never that a
+    // WEAKENED `matchesIssuance` cannot still get a wrong reward paid. This
+    // test is what closes THAT gap - the reward path's only protection
+    // against this exact exploit, once matchesIssuance's waveId half is
+    // gone, is THIS assertion.
+    //
+    // FIX ROUND 2 - SELF-CONTAINED WIN CONFIRMATION, not borrowed from a
+    // sibling test. Review finding: this test's whole power to redden under
+    // the combined weakening depends on `wave7WinningDeployment()` actually
+    // WINNING wave 7. Nothing below asserted that - it was borrowed from
+    // `pays the ISSUED wave reward...` above, a coupling that existed only
+    // in a comment, nowhere in the code. If that composition ever stopped
+    // winning (an engine tuning change, a stat table edit), the attack
+    // below would become a Loss that pays nothing, and this test would stop
+    // meaning what its name says while still doing SOMETHING under the
+    // weakening - not a silent pass, but not a trustworthy signal either.
+    //
+    // So the win is confirmed directly, first, against a SEPARATE control
+    // player - a second `setupPlayer()`, exactly like `counts against
+    // midnight UTC...` above uses for its own second identity. A control
+    // rather than reusing the attacker: winning wave 7 legitimately
+    // requires wave 6 cleared first, and the attacker below specifically
+    // must NOT have cleared anything, or the exploit stops being the thing
+    // row 5 is about.
+    await setupPlayer(deps)
+    await clearThrough(6)
+    const controlRoster = await giveRoster(wave7WinningRosterSpecs())
+    const control = await (await startWave(7, controlRoster)).json() as { issuanceId: string; seed: string }
+    const controlRes = await submit(
+      control.issuanceId, buildReplayOf(7, BigInt(control.seed), wave7WinningDeployment()), crypto.randomUUID())
+    expect(controlRes.status).toBe(200)
+    expect(await controlRes.json()).toMatchObject(
+      { result: 'Win', reward: { currency: 'shards', amount: WAVE_7_REWARD } })
+
+    // THE ATTACK. A fresh player (setupPlayer again) who has cleared
+    // NOTHING - no clearThrough - issues wave 6 with the SAME
+    // engine-verified composition the control above just confirmed wins
+    // wave 7, then submits a wave-7 replay claiming it, at the wave-6
+    // issuance's own real seed.
+    await setupPlayer(deps)
+    const roster = await giveRoster(wave7WinningRosterSpecs())
+    const { issuanceId, seed } = await (await startWave(6, roster)).json() as { issuanceId: string; seed: string }
+    const before = await balance('shards')
+
+    const res = await submit(
+      issuanceId, buildReplayOf(7, BigInt(seed), wave7WinningDeployment()), crypto.randomUUID())
+
+    // ASSERT AS FAR AS THE RESPONSE CAN ACTUALLY PIN IT, NOT FURTHER - fix
+    // round 2 correction. `submission_rejected` is returned by BOTH halves
+    // of matchesIssuance's `&&` (its own definition, routes/wave.ts:187:
+    // `echo.seed === issuance.seed && toInt(echo.waveId) === issuance.
+    // waveId`; the call site mapping a false result to this code is
+    // :598-600) - a seed mismatch produces this identical code, and nothing
+    // in the response says which half fired. An earlier draft of this
+    // comment claimed the code pins it; it does not. What pins this refusal
+    // to the WAVEID half specifically is construction, not observation: the
+    // replay above carries the issuance's own real seed, so the seed half
+    // is known to hold here, and `cannot submit against a self-chosen seed`
+    // already shows the seed half ALONE produces this same code when it is
+    // the one that fails - so by elimination, this refusal is the waveId
+    // half. That is an argument about the source and the test suite around
+    // this one, not something these four assertions can observe on their
+    // own.
+    expect(res.status).toBe(409)
+    expect(await res.json()).toMatchObject({ code: 'submission_rejected' })
+    expect(await balance('shards')).toBe(before)
+    expect(await liveIssuance()).toBeUndefined()
+  })
+
   it('cannot farm a cleared wave past the daily cap', async () => {
     await clearThrough(6)
     for (let i = 0; i < REPLAY_CAP_PER_DAY; i++) {
-      const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+      const { issuanceId, seed } = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
       expect((await submit(issuanceId, buildWinningReplay(6, BigInt(seed)), `adv-7-${i}`)).status).toBe(200)
     }
     const before = await balance('shards')
 
-    const res = await startWave(6)
+    const res = await startWinning(6)
     expect(res.status).toBe(429)
     expect(await res.json()).toMatchObject({ code: 'replay_cap_reached' })
     expect(await balance('shards')).toBe(before)
@@ -479,7 +813,7 @@ describe('adversarial: what a modified client cannot do', () => {
     // the probe that gets moved across the boundary.
     const ids: string[] = []
     for (let i = 0; i < REPLAY_CAP_PER_DAY; i++) {
-      const started = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+      const started = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
       expect((await submit(started.issuanceId, buildWinningReplay(6, BigInt(started.seed)), `adv-7c-${i}`)).status).toBe(200)
       ids.push(started.issuanceId)
     }
@@ -524,7 +858,7 @@ describe('adversarial: what a modified client cannot do', () => {
     // (weakening 7's three hours, at any hour of the day) drops it and
     // this reads 200.
     await moveProbe(new Date(dayStartMs))
-    const bound = await startWave(6)
+    const bound = await startWinning(6)
     expect(bound.status).toBe(429)
     expect(await bound.json()).toMatchObject({ code: 'replay_cap_reached' })
 
@@ -534,7 +868,7 @@ describe('adversarial: what a modified client cannot do', () => {
     // reads 429 - which is what kills the rolling-24h mutation the first
     // version of this test could not see.
     await moveProbe(new Date(dayStartMs - 1_000))
-    const free = await startWave(6)
+    const free = await startWinning(6)
     expect(free.status).toBe(200)
     // The file asserts the CODE beside the status everywhere else; this is
     // the success side, so the equivalent is that a real issuance came back
@@ -567,7 +901,7 @@ describe('adversarial: what a modified client cannot do', () => {
     await clearThrough(6)
 
     for (let i = 0; i < REPLAY_CAP_PER_DAY; i++) {
-      const started = await (await startWave(6)).json() as { issuanceId: string; seed: string }
+      const started = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
       expect((await submit(started.issuanceId, buildWinningReplay(6, BigInt(started.seed)), `adv-tz-${i}`)).status).toBe(200)
     }
 
@@ -577,7 +911,10 @@ describe('adversarial: what a modified client cannot do', () => {
         // set_config(..., true) is SET LOCAL: parameterised, so the zone
         // name is bound rather than interpolated into SQL text.
         await tx.execute(sql`SELECT set_config('TimeZone', ${tz}, true)`)
-        return issueWave(tx, SERVER_ID, playerId, 6, bundle)
+        // An empty deployment: this gate is about the replay CAP, which is
+        // counted off consumed rows and is reached before design 6.1's roster
+        // checks ever run. Task 8 grew the parameter; nothing here asserts on it.
+        return issueWave(tx, SERVER_ID, playerId, 6, [], bundle)
       })
 
     // Put all three consumed rows EXACTLY on midnight UTC. Under the fixed
@@ -627,7 +964,7 @@ describe('adversarial: what a modified client cannot do', () => {
     // two hours is not a thing a test can wait for, and the TTL itself is
     // not what is under test here.
     await clearThrough(6)
-    const first = await (await startWave(6)).json() as { issuanceId: string }
+    const first = await (await startWinning(6)).json() as { issuanceId: string }
 
     // Abandon it: expired, still unsettled, exactly what backgrounding the
     // app mid-wave leaves behind.
@@ -640,7 +977,7 @@ describe('adversarial: what a modified client cannot do', () => {
     // succeed. Under 4b it settled 'consumed', the third start hits the cap
     // and this loop fails on a 429 for a wave the player never played.
     for (let i = 0; i < REPLAY_CAP_PER_DAY; i++) {
-      const res = await startWave(6)
+      const res = await startWinning(6)
       expect(res.status).toBe(200)
       const { issuanceId, seed } = await res.json() as { issuanceId: string; seed: string }
       expect((await submit(issuanceId, buildWinningReplay(6, BigInt(seed)), `adv-7b-${i}`)).status).toBe(200)
@@ -653,59 +990,137 @@ describe('adversarial: what a modified client cannot do', () => {
     expect(abandoned?.settlement).toBe('expired')
   })
 
-  it('CAN still deploy creatures the player does not own — Phase 6', async () => {
-    // design 2.2 and 4.4's last row. NOT a defence: a marker, asserted so
-    // that the day a creature table exists this test fails and names the
-    // thing that changed. A hole recorded as a passing assertion about the
-    // current behaviour is a hole nobody re-reads.
+  it('CANNOT deploy creatures the player does not own', async () => {
+    // THE MARKER, FLIPPED. This test was written in Phase 5 as
+    // `CAN still deploy creatures the player does not own - Phase 6`: design
+    // 2.2 left the hole open knowingly and marked it with an assertion about
+    // the CURRENT behaviour rather than a comment about it, so that the day a
+    // creature table existed the suite would fail and name the thing that
+    // changed. It is REWRITTEN IN PLACE rather than deleted and replaced -
+    // the flip is what "Phase 6 landed the roster check" looks like in the
+    // suite (design 6.3), and a fresh test beside a deleted one says nothing.
     //
-    // { trait: 'Chill', tier: 3 } is a LEGAL winning deployment
-    // (Deployments.MaxCoverageTier is 3 and Stats.ChillCapacity(3) is 4),
-    // so a 200 here means the unowned deployment was ACCEPTED - not that
-    // the replay was waved through as rules_violated. The reward assertion
-    // is what pins that distinction: a rejected replay pays nothing.
-    const { issuanceId, seed } = await (await startWave(6)).json() as { issuanceId: string; seed: string }
-    const res = await submit(issuanceId, buildWinningReplay(6, BigInt(seed), { trait: 'Chill', tier: 3 }), 'adv-8')
+    // WHAT CLOSED THE HOLE IS NOT THIS CHECK. design 6.1 resolves every spec
+    // from the row the request names, so an unowned deployment is not refused
+    // after being simulated - it is INEXPRESSIBLE, and refused here on the
+    // CHEAP path, before any simulation is paid for. The refusal is what a
+    // client sees; the mechanism is that there is no path from a
+    // client-supplied value to a stored spec.
+    //
+    // ASSERTS ON STATE, not only on the code: a route that refused
+    // everything would pass a status-code assertion perfectly. Nothing was
+    // issued, nothing was paid, and the other player's creature was not
+    // committed to anything.
+    const other = await setupPlayer(deps)
+    const theirs = await give(other.playerId)
+    await setupPlayer(deps)
+    const before = await balance('shards')
 
-    expect(res.status).toBe(200)
-    expect(await res.json()).toMatchObject({ result: 'Win', reward: { amount: WAVE_6_REWARD } })
-    // When this flips to 409, Phase 6 has landed the roster check. Update
-    // design 4.4's table in the same change.
+    const res = await startWave(6, [{ creatureId: theirs, pocket: 0 }])
+
+    expect(res.status).toBe(409)
+    expect(await res.json()).toMatchObject({ code: 'creature_not_owned' })
+    expect(await liveIssuance()).toBeUndefined()
+    expect(await balance('shards')).toBe(before)
+    expect(await committedTo(theirs)).toBeNull()
+  })
+
+  it('cannot submit a replay claiming a deployment it was not issued', async () => {
+    // THE OTHER HALF OF THE MARKER, and the half the rewrite above moves
+    // away from. Phase 5's version mounted its attack at SUBMIT - a replay
+    // carrying creatures nothing checked - and closing the boundary at
+    // issuance would be worth nothing if a submitted replay were still free
+    // to claim a deployment other than the one the issuance froze. design
+    // 6.2: a deployment in the echo that does not match the issuance is a
+    // breach, taken on the path Phase 5 built for a seed or wave-id mismatch.
+    //
+    // { tier: 3 } IS THE ORIGINAL MARKER'S OWN ATTACK, PRESERVED. It is a
+    // LEGAL winning deployment (Deployments.MaxCoverageTier is 3 and
+    // Stats.ChillCapacity(3) is 4), so sim VERIFIES it and returns a Win -
+    // which is what makes this a test of the comparison rather than of sim
+    // rejecting junk, exactly as the reward assertion was in Phase 5's
+    // version. The player's own Pale is tier 1 (winningRoster), so the
+    // submitted deployment is one they do not own.
+    const { issuanceId, seed } = await (await startWinning(6)).json() as { issuanceId: string; seed: string }
+    const before = await balance('shards')
+
+    const res = await submit(issuanceId, buildWinningReplay(6, BigInt(seed), { tier: 3 }), 'adv-8')
+
+    expect(res.status).toBe(409)
+    expect(await res.json()).toMatchObject({ code: 'deployment_mismatch' })
+    // A VERIFIED WIN THAT PAID NOTHING. The balance pins that the refusal
+    // beat the credit rather than the credit being absent for some unrelated
+    // reason, and the settled issuance pins that this was a spent attempt -
+    // the same settlement a seed mismatch takes.
+    expect(await balance('shards')).toBe(before)
+    expect(await liveIssuance()).toBeUndefined()
   })
 })
 
 /**
- * WEAKENING ROW 5's STAND-IN, AND IT IS A STAND-IN, NOT A CLOSURE.
+ * WEAKENING ROW 5's WIRING PROOF - KEPT DELIBERATELY, NOW THAT AN END-TO-END
+ * ATTEMPT ALSO EXISTS. Read this alongside `pays the ISSUED wave reward,
+ * never the submitted one` above, which is the end-to-end attempt Task 11
+ * added once a second authored wave made it constructible.
  *
  * design §4.4's "inflate the reward" row names `verdict.echo.waveId` as the
- * source a modified client would want the reward read from. That weakening
- * CANNOT be exercised end to end in this phase, and this block is what
- * stands in its place. The reasoning was re-derived against the code rather
- * than taken on trust:
+ * source a modified client would want the reward read from. Phase 5 could
+ * not exercise that weakening end to end at all - there was no second
+ * authored wave, so `sim` refused a wave-7 replay outright - and this block
+ * was written as the nearest thing available: a direct, pure-function proof
+ * that `rewardForWave` reads whatever wave id it is handed. THE ARGUMENT FOR
+ * WHY IT WAS THE NEAREST THING, re-derived against the code rather than
+ * taken on trust, and RECONFIRMED at Task 11 now that a real second wave
+ * exists to check it against:
  *
- * 1. `matchesIssuance` rejects an echo/issuance wave-id mismatch at its
- *    call site in submit step 5 (routes/wave.ts:372), BEFORE `rewardForWave`
- *    is reached in step 6 (:417). The FUNCTION NAMES are the stable anchors:
- *    the old :223/:257 citations rotted when Task 5 reordered the handler,
- *    and :372/:417 were re-read out of the shipped file at this round. By
- *    the time the lookup runs, `echo.waveId === issuance.waveId` is
- *    guaranteed, so reading either is behaviourally identical - the
- *    weakening is a no-op.
+ * 1. `matchesIssuance` rejects an echo/issuance wave-id mismatch at its call
+ *    site in submit step 5 (routes/wave.ts:598 today - the FUNCTION NAME is
+ *    the stable anchor, and the line number is re-read every round; :372
+ *    and :223/:257 before that both rotted as the handler was reordered),
+ *    BEFORE `rewardForWave` is reached in step 6 (:663 today, was :417).
+ *    By the time the lookup runs, `echo.waveId === issuance.waveId` is
+ *    PROVEN, not merely likely, for every request that reaches that line -
+ *    so reading either source is behaviourally identical and the weakening
+ *    is a no-op on every reachable path.
  * 2. Deleting step 5 as well would let wave B's reward be paid for a wave A
  *    issuance - but only if two waves with DIFFERENT rewards exist.
- * 3. The engine authors exactly one. `WaveDef.ForId` returns wave 6 and
- *    throws `WaveCompositionException` for every other id, which
- *    `SimulateEndpoint.Handle` maps to `rejected: rules_violated`, so a
- *    wave-7 replay never reaches the handler at all. A test-only BUNDLE
- *    fixture does not help: the gate is the engine, and no task in this
- *    phase modifies `engine/`.
+ * 3. Task 11 is what makes point 2 checkable: `WaveDef.ForId` now returns a
+ *    real `Wave7()` (1 Lash, 6 Skirmishers, integrity 3) and
+ *    `config/bundles/0.1.2/waves.json` prices it at 230 shards against wave
+ *    6's 40, so a wave-7 replay is no longer refused as `rules_violated`
+ *    before the handler ever sees it.
  *
- * So what follows proves the WIRING - that the reward is a function of the
- * wave id it is handed, so handing it the issuance's rather than the echo's
- * is a decision that has consequences - and NOT that an end-to-end inflation
- * is impossible. That proof is OWED against the engine content fill, when a
- * second authored wave exists. It is recorded as owed in weakenings.md and
- * in this task's report; do not read this block as closing the row.
+ * MEASURED, NOT ARGUED, THIS TIME. `pays the ISSUED wave reward, never the
+ * submitted one` above drives an honest wave-7 win through the real handler
+ * with the SINGLE-EDIT row-5 weakening applied to real source, and stays
+ * GREEN - task-11-report.md carries the run. That confirms point 1 rather
+ * than retiring it: nothing reachable through `/v1/wave/submit` can ever
+ * present `rewardForWave` with an `echo.waveId` that disagrees with
+ * `issuance.waveId`, which is a STRONGER claim than "untested".
+ *
+ * THIS BLOCK IS NOT A DISCRIMINATING GATE FOR THAT WEAKENING, OR FOR ANY
+ * OTHER ROW-5 MUTATION - CORRECTED AT FIX ROUND 2. An earlier draft of this
+ * comment called it the row's only discriminating gate; that is false, and
+ * unfalsifiably so. Look at the block below: `rewardForWave(twoWaves, 6)`
+ * and `rewardForWave(twoWaves, 7)` are called with LITERAL ids the test
+ * itself chose, never through routes/wave.ts's call site at :663. Weaken
+ * that call site any way at all - read `issuance.waveId`, read
+ * `verdict.echo.waveId`, read a hardcoded constant - and this block cannot
+ * tell, because it never asks the call site anything. It proves
+ * `rewardForWave` is a pure function of whatever id it is given, which is a
+ * real and worth-keeping fact about `rewardForWave` - it proves nothing
+ * about which id `routes/wave.ts` chooses to give it, and no row-5 mutation
+ * changes what this block observes.
+ *
+ * NOTHING discriminates the single-edit weakening - not this block, not
+ * anything else in the suite, confirmed by actually running it (above).
+ * The weakening that DOES redden a test is the COMBINED one fix round 1
+ * found by re-reading Phase 5's own decision register rather than stopping
+ * at this result: delete `matchesIssuance`'s waveId comparison as well, and
+ * `cannot claim wave 7's reward against a wave 6 issuance` - earlier in
+ * this file, in the main `describe` block above - goes red. See
+ * weakenings.md's "Row 5" for both results side by side and why they
+ * answer different questions.
  */
 describe("the reward's source of truth (design §2.2)", () => {
   // Two waves with DIFFERENT rewards - the shape the engine cannot yet
@@ -718,6 +1133,12 @@ describe("the reward's source of truth (design §2.2)", () => {
       { id: 6, integrity: 10, laneCount: 1, reward: { currency: 'shards', amount: 40 }, spawns: [] },
       { id: 7, integrity: 10, laneCount: 1, reward: { currency: 'shards', amount: 9_999 }, spawns: [] },
     ],
+    // Task 5 gave Bundle a `nodes` field and Task 6 a `traits` one. Both are
+    // empty here because rewardForWave reads waves and nothing else - a
+    // fixture that carried either would imply this test had an opinion about
+    // the map or about the splice, which it does not.
+    nodes: [],
+    traits: [],
   }
 
   it('pays what the wave id it is given pays, and nothing else', () => {

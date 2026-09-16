@@ -68,8 +68,31 @@ namespace Broodline.Sim.Combat
             return false;
         }
 
-        private static int CapacityFor(SimState s, Trait trait) =>
-            trait == Trait.Chill ? Capacity.TotalChillCapacity(s) : 0;
+        /// Coverage is a capacity question, and only a counter that HAS a
+        /// capacity rule can answer it.
+        ///
+        /// Written as a chain rather than a ternary because it grew two more
+        /// arms the moment CounterFor stopped being total over one raider.
+        ///
+        /// SPLASH'S ARM IS NOT DECORATION. It was missing for one round, and
+        /// the cost was not an abstraction: with Splash answering Skirmisher
+        /// and its capacity reading 0, Evaluate returned on the SECOND
+        /// boolean, so every Skirmisher breach diagnosed as "coverage" -
+        /// telling a player their tier was too low when the deployment they
+        /// were being judged on carried the answer. Wave 7 is six
+        /// Skirmishers, so that was the wrong sentence on the loss screen for
+        /// six of its seven spawns.
+        ///
+        /// Carapace, Regrow, Screen and Litter never reach here at all -
+        /// CounterFor cannot return them - so the trailing zero covers only
+        /// the four counters this engine has not built yet.
+        private static int CapacityFor(SimState s, Trait trait)
+        {
+            if (trait == Trait.Chill) return Capacity.TotalChillCapacity(s);
+            if (trait == Trait.Taunt) return Capacity.TotalTauntCapacity(s);
+            if (trait == Trait.Splash) return Capacity.TotalSplashCapacity(s);
+            return 0;
+        }
 
         private static bool CanBeReached(SimState s, Trait trait, int tile)
         {

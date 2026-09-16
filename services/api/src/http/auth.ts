@@ -1,6 +1,27 @@
+import { eq } from 'drizzle-orm'
 import type { Context } from 'hono'
 import { fail } from './errors.ts'
+import type { Tx } from '../db/client.ts'
+import { players } from '../db/schema.ts'
 import { verifyAccessToken, type SessionClaims } from '../identity/jwt.ts'
+
+/**
+ * The player row behind a session's account, or undefined if this account
+ * has none on this server.
+ *
+ * Lives here, beside `requireSession`, because every authenticated route
+ * needs it immediately after one: the pair is the whole of "who is asking".
+ * It was previously copy-pasted byte-for-byte into four route files, which
+ * made it the most duplicated logic in the service - and any change to it
+ * (scoping by server_id as well, or memoising within a request) would have
+ * had to be found in all four with no compiler error for a miss. The same
+ * files already import `normalizeUuid` and `liveCreature` from single
+ * definitions for exactly this reason.
+ */
+export async function loadPlayerId(tx: Tx, accountId: string): Promise<string | undefined> {
+  const [player] = await tx.select().from(players).where(eq(players.accountId, accountId))
+  return player?.playerId
+}
 
 /**
  * Thrown rather than returned, so a handler cannot accidentally continue

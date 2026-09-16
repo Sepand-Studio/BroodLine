@@ -38,10 +38,31 @@ out=$(dotnet test Broodline.sln --nologo \
 # A bash string test rather than `echo "$out" | grep -q`. grep -q exits the
 # moment it matches, which closes the pipe and hands echo a SIGPIPE; under
 # `set -o pipefail` that makes the PIPELINE non-zero on a MATCH, so the guard
-# reads as "no problem" in exactly the case it was written to catch.
-if [[ "$out" == *"No test matches"* ]]; then
+# reads as "no problem" in exactly the case it was written to catch. The
+# per-line loop below is for the same reason - no pipeline, so no SIGPIPE to
+# invert.
+#
+# SCOPED TO THE ASSEMBLY THAT OWNS THE TEST, and that is not a refinement -
+# unscoped, this guard failed every healthy run. `dotnet test Broodline.sln`
+# walks EVERY test project, and Phase 5 added a second one; vstest prints
+# "No test matches the given testcase filter ... in Broodline.Sim.Service.Tests.dll"
+# for it, correctly, because that project has no CorpusBaselineTests and never
+# will. So the guard fired on a run in which the emitter had passed - AFTER the
+# emitter had already rewritten the tracked baseline, and BEFORE the policy
+# guard below ever executed. The safety property this script exists for -
+# refusing a re-baseline that was not accompanied by a SimVersion bump - was
+# unreachable, and the failure it printed instead named the wrong cause.
+EMITTER_ASSEMBLY=Broodline.Sim.Tests.dll
+unmatched=""
+while IFS= read -r line; do
+  case "$line" in
+    *"No test matches"*"$EMITTER_ASSEMBLY"*) unmatched="$line" ;;
+  esac
+done <<< "$out"
+
+if [ -n "$unmatched" ]; then
   echo "$out"
-  echo "FAIL: the emitter test did not run - the filter matched nothing."
+  echo "FAIL: the emitter test did not run - the filter matched nothing in $EMITTER_ASSEMBLY."
   exit 1
 fi
 

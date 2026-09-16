@@ -53,6 +53,29 @@ namespace Broodline.Sim.Combat
                 new SpawnEntry { Tick = 3 * Stats.TicksPerSecond, Type = RaiderType.Courser }
             });
 
+        /// Wave 7, from broodline_waves_01_12.md: "1 Lash . 6 Skirmishers .
+        /// Integrity 3 . Lash t=4, Skirmishers from t=6, 1.5s apart".
+        /// The recovery wave after wave 6's designed loss.
+        ///
+        /// SIX Skirmishers, not the raider roster's eight. roster section 6
+        /// gives the raider's arrival PATTERN - eights, 1.5s apart - and the
+        /// wave table gives this wave's COMPOSITION. Where they differ the
+        /// wave table wins, because it is the thing an author tuned against a
+        /// budget: waves_01_12 puts this wave at 120 of 127 points.
+        public static WaveDef Wave7()
+        {
+            var spawns = new SpawnEntry[7];
+            spawns[0] = new SpawnEntry { Tick = 4 * Stats.TicksPerSecond, Type = RaiderType.Lash };
+            for (int i = 0; i < 6; i++)
+                spawns[i + 1] = new SpawnEntry
+                {
+                    Tick = 6 * Stats.TicksPerSecond + i * 45,   // 1.5s = 45 ticks
+                    Type = RaiderType.Skirmisher
+                };
+
+            return new WaveDef(id: 7, integrity: 3, laneCount: 1, spawns: spawns);
+        }
+
         /// The two composition invariants of combat_engine section 5.4,
         /// checked at load so a content author cannot ship a violation.
         /// Replays store a wave ID rather than the wave, so there has to be a
@@ -62,6 +85,7 @@ namespace Broodline.Sim.Combat
         public static WaveDef ForId(int id)
         {
             if (id == 6) return Wave6();
+            if (id == 7) return Wave7();
             throw new WaveCompositionException("no authored wave with id " + id);
         }
 

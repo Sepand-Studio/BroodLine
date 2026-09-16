@@ -1,7 +1,10 @@
+import { execFileSync } from 'node:child_process'
+import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { chmod, mkdtemp, writeFile } from 'node:fs/promises'
 import { createServer, type Server } from 'node:net'
 import { tmpdir } from 'node:os'
 import { delimiter, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { checkDotnet, checkPort, checkToolRestore, SIM_PORTS } from './preflight.ts'
 
@@ -26,10 +29,10 @@ afterEach(async () => {
   opened = []
 })
 
-/** A directory holding a stub `dotnet`, to put at the front of PATH. */
-async function fakeBinDir(script: string, mode = 0o755): Promise<string> {
+/** A directory holding one stub binary, to put at the front of PATH. */
+async function fakeBinDir(script: string, mode = 0o755, name = 'dotnet'): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), 'broodline-preflight-'))
-  const bin = join(dir, 'dotnet')
+  const bin = join(dir, name)
   await writeFile(bin, script, 'utf8')
   await chmod(bin, mode)
   return dir
@@ -188,6 +191,151 @@ describe('preflight: a sim port is occupied', () => {
     // A preflight that checks one of the four ports leaves the other three
     // failing exactly the way it exists to prevent - so the list is pinned
     // against the ports the test files really use.
-    expect(SIM_PORTS.map((p) => p.port)).toEqual([5199, 5299, 5399, 5499])
+    expect(SIM_PORTS.map((p) => p.port)).toEqual([5199, 5299, 5399, 5499, 5599])
   })
 })
+
+/**
+ * The same defect, one directory over: implementation/scripts/generate-contract.sh.
+ *
+ * WHY THIS LIVES HERE. The preflight above exists because "the failure being
+ * illegible" is worth a check of its own; these two guards are that same
+ * argument applied to the contract generator, so they are tested by the same
+ * method - fire each branch by SIMULATING ITS OWN CONDITION, with a stub
+ * binary on PATH.
+ *
+ * WHAT THEY CATCH, measured rather than supposed. The pnpm that resolves
+ * first on a default PATH on this machine is 3.7.5, and pnpm 3 answers
+ * `pnpm openapi` by printing usage and EXITING 0. `set -e` sees success, so
+ * the script ran on and died ~200 lines later inside `dotnet nswag` with a
+ * FileNotFoundException naming a scratch temp file. That error names neither
+ * pnpm nor the generator, and it cost several agents time during Phase 6 -
+ * it is carried in that phase's ledger for exactly that reason.
+ */
+describe('generate-contract.sh: the toolchain guard', () => {
+  const SCRIPT = fileURLToPath(new URL('../../../implementation/scripts/generate-contract.sh', import.meta.url))
+
+  /**
+   * Runs the script with `binDir` at the front of PATH and returns what it
+   * printed. The real PATH is APPENDED, not replaced: the guards themselves
+   * shell out to python3, and a test that starved them of it would be
+   * measuring the wrong failure.
+   *
+   * The timeout is not ceremony. If a guard ever stops firing, the script
+   * does not fail - it proceeds into `dotnet tool restore`, an NSwag run and
+   * a sim host on port 5199, for minutes, inside a unit test. Failing fast
+   * is what keeps a broken guard legible as a broken guard.
+   */
+  function run(binDir: string): { status: number | null; output: string } {
+    try {
+      execFileSync(SCRIPT, [], {
+        env: { ...process.env, PATH: `${binDir}${delimiter}${process.env.PATH ?? ''}` },
+        stdio: 'pipe',
+        timeout: 60_000,
+      })
+      return { status: 0, output: '' }
+    } catch (err) {
+      const e = err as { status?: number | null; stdout?: Buffer; stderr?: Buffer }
+      return {
+        status: e.status ?? null,
+        output: `${e.stdout?.toString() ?? ''}${e.stderr?.toString() ?? ''}`,
+      }
+    }
+  }
+
+  /**
+   * Branch: the pnpm-major comparison. The stub reproduces 3.7.5's actual
+   * observed behaviour - usage text on stdout, exit 0 - rather than a
+   * stand-in that fails honestly, because a stub that exited non-zero would
+   * be caught by `set -e` alone and would prove nothing about this guard.
+   */
+  it('refuses a pnpm too old to run a package script, before generating anything', () => {
+    const dir = fakeBinDirSync([
+      '#!/bin/sh',
+      'if [ "$1" = "--version" ]; then echo 3.7.5; exit 0; fi',
+      'echo "Usage: pnpm [command] [flags]"',
+      'exit 0',
+    ].join('\n'))
+
+    const { status, output } = run(dir)
+
+    expect(status).toBe(1)
+    expect(output).toContain("cannot run this repo's package scripts")
+    // The diagnosis: what was found, what is needed, and WHY exit 0 is the
+    // trap. Without the last of these the reader upgrades pnpm without ever
+    // learning why the NSwag error was pointing at the wrong thing.
+    expect(output).toContain('pnpm 3.7.5')
+    expect(output).toContain('EXITING 0')
+    expect(output).toContain('FileNotFoundException')
+    // And the fix, not just the diagnosis - the same requirement the dotnet
+    // branches above are held to.
+    expect(output).toContain('export PATH=')
+    // It must stop BEFORE the generator: nothing downstream may have run.
+    expect(output).not.toContain('--- generated ---')
+  })
+
+  /**
+   * Branch: the output assertion after `pnpm openapi`.
+   *
+   * The stub reports the REQUIRED major, so the version check above is
+   * satisfied and cannot be what fires. That makes these two tests each
+   * other's vacuity control: a version check that refused unconditionally
+   * would fail this test, and an output assertion that fired unconditionally
+   * would fire in the test above, where it is asserted absent.
+   */
+  it('refuses a generation that exits 0 having written no document', () => {
+    const dir = fakeBinDirSync([
+      '#!/bin/sh',
+      'if [ "$1" = "--version" ]; then echo 9.12.0; exit 0; fi',
+      'exit 0',
+    ].join('\n'))
+
+    const { status, output } = run(dir)
+
+    expect(status).toBe(1)
+    expect(output).toContain('exited 0 but produced no usable OpenAPI document')
+    expect(output).toContain('no such file')
+    // The version check is satisfied here, so its message must be ABSENT -
+    // this is what pins that the two guards are independent rather than one
+    // guard firing twice.
+    expect(output).not.toContain('cannot run this repo')
+    expect(output).not.toContain('--- generated ---')
+  })
+
+  /**
+   * Branch: the same assertion's JSON parse. A file that exists and is
+   * non-empty but truncated is the other way the document can be useless,
+   * and NSwag's complaint about it is no more legible than its complaint
+   * about a missing one - so `-s` alone would leave half the condition
+   * unguarded.
+   */
+  it('refuses a document that was written but is not valid JSON', () => {
+    const dir = fakeBinDirSync([
+      '#!/bin/sh',
+      'if [ "$1" = "--version" ]; then echo 9.12.0; exit 0; fi',
+      'printf \'{"openapi":"3.1.0","paths":{\' > "$OPENAPI_OUTPUT_PATH"',
+      'exit 0',
+    ].join('\n'))
+
+    const { status, output } = run(dir)
+
+    expect(status).toBe(1)
+    expect(output).toContain('exited 0 but produced no usable OpenAPI document')
+    expect(output).toContain('is not valid JSON')
+    expect(output).not.toContain('no such file')
+  })
+})
+
+/**
+ * Synchronous sibling of fakeBinDir, for the spawn-based tests above: those
+ * call execFileSync, so there is nothing to await against and an async
+ * helper would only add a `then` around a directory that has to exist before
+ * the spawn anyway.
+ */
+function fakeBinDirSync(script: string, name = 'pnpm'): string {
+  const dir = mkdtempSync(join(tmpdir(), 'broodline-contract-guard-'))
+  const bin = join(dir, name)
+  writeFileSync(bin, script, 'utf8')
+  chmodSync(bin, 0o755)
+  return dir
+}

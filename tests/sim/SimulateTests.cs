@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Net.Http.Json;
 using System.Text;
 using System.Threading.Tasks;
@@ -43,6 +44,53 @@ namespace Broodline.Sim.Service.Tests
             return record;
         }
 
+        /// Five creatures, every field distinct from its neighbours', across
+        /// Defile's five pockets - the shape design 6.2's comparison actually
+        /// runs against, rather than ValidRecord's single Vetch.
+        ///
+        /// Creature 4 carries TIER 0 on both slots deliberately. Zero is the
+        /// engine's "the trait is not really carried" (Stats.SplashTargets and
+        /// Attacks.DamageTaken both name it), and it is the one tier api can
+        /// never store: drizzle/0005_loop.sql's coverage_tier_N_not_zero
+        /// refuses it so that null - an Aberrant, which has no coverage - can
+        /// never be conflated with it. It is therefore the value that has to
+        /// cross this boundary as null.
+        private static Replay FiveCreatureRecord()
+        {
+            var record = new Replay
+            {
+                WaveId = 6,
+                Seed = 0x5EEDu,
+                Terrain = Terrain.Defile,
+                LaneCount = 1,
+                Deployment = new[]
+                {
+                    new CreatureSpec { Species = Species.Pale, Trait1 = Trait.Chill, Tier1 = 1,
+                                       Trait2 = Trait.Carapace, Tier2 = 2,
+                                       Instinct = Instinct.Vanguard, Pocket = 0 },
+                    new CreatureSpec { Species = Species.Vetch, Trait1 = Trait.Taunt, Tier1 = 3,
+                                       Trait2 = Trait.Carapace, Tier2 = 1,
+                                       Instinct = Instinct.Bloodscent, Pocket = 1 },
+                    new CreatureSpec { Species = Species.Ember, Trait1 = Trait.Splash, Tier1 = 2,
+                                       Trait2 = Trait.Carapace, Tier2 = 3,
+                                       Instinct = Instinct.Overwatch, Pocket = 2 },
+                    new CreatureSpec { Species = Species.Hollow, Trait1 = Trait.Carapace, Tier1 = 1,
+                                       Trait2 = Trait.None, Tier2 = 0,
+                                       Instinct = Instinct.LastStand, Pocket = 3 },
+                    new CreatureSpec { Species = Species.Loam, Trait1 = Trait.Chill, Tier1 = 0,
+                                       Trait2 = Trait.Taunt, Tier2 = 0,
+                                       Instinct = Instinct.Skittish, Pocket = 4 },
+                },
+            };
+            var lane = record.BuildLane();
+            record.PocketCount = lane.PocketCount;
+            record.LaneTiles = lane.Tiles;
+            record.DeploymentHp = new int[record.Deployment.Length];
+            for (int c = 0; c < record.Deployment.Length; c++)
+                record.DeploymentHp[c] = Stats.CreatureHp(record.Deployment[c].Species);
+            return record;
+        }
+
         /// Raw text, not PostAsJsonAsync: these cases are about bodies that
         /// a serializer would never produce.
         private Task<HttpResponseMessage> PostRaw(string path, string json) =>
@@ -72,6 +120,197 @@ namespace Broodline.Sim.Service.Tests
             Assert.Equal(expected.Result.ToString(), body.Outcome.Result);
             Assert.Equal(expected.IntegrityRemaining, body.Outcome.IntegrityRemaining);
             Assert.Equal(6, body.Echo!.WaveId);
+        }
+
+        [Fact]
+        public async Task TheEchoCarriesTheDeploymentItSimulated()
+        {
+            // design 6.2. api stored the deployment it RESOLVED FROM OWNED ROWS
+            // at issuance (Task 8); this is the deployment the submitted replay
+            // actually claimed, re-read by the one parser that exists. Task 10
+            // compares them, and a modified client that deployed a creature its
+            // player does not own is the thing that comparison catches - the
+            // hole Phase 5 shipped knowingly.
+            //
+            // ORDER IS PART OF THE ANSWER. SimState indexes its parallel arrays
+            // by deployment order and resolveDeployment iterates in REQUEST
+            // order for that reason, so an echo that agreed as a SET and
+            // disagreed as a SEQUENCE would describe a different wave. Asserted
+            // positionally, never by searching.
+            var record = FiveCreatureRecord();
+
+            var res = await Post(record.Serialize());
+            res.EnsureSuccessStatusCode();
+            var body = await res.Content.ReadFromJsonAsync<SimulateResponse>();
+
+            Assert.Equal("verified", body!.Verdict);
+            var echo = body.Echo!.Deployment;
+            Assert.Equal(5, echo.Length);
+
+            Assert.Equal("Pale", echo[0].Species);
+            Assert.Equal("Chill", echo[0].Trait1);
+            Assert.Equal(1, echo[0].Tier1);
+            Assert.Equal("Carapace", echo[0].Trait2);
+            Assert.Equal(2, echo[0].Tier2);
+            Assert.Equal("Vanguard", echo[0].Instinct);
+            Assert.Equal(0, echo[0].Pocket);
+
+            Assert.Equal("Vetch", echo[1].Species);
+            Assert.Equal("Taunt", echo[1].Trait1);
+            Assert.Equal(3, echo[1].Tier1);
+            Assert.Equal("Bloodscent", echo[1].Instinct);
+            Assert.Equal(1, echo[1].Pocket);
+
+            Assert.Equal("Ember", echo[2].Species);
+            Assert.Equal("Splash", echo[2].Trait1);
+            Assert.Equal(2, echo[2].Tier1);
+            Assert.Equal("Overwatch", echo[2].Instinct);
+            Assert.Equal(2, echo[2].Pocket);
+
+            Assert.Equal("Hollow", echo[3].Species);
+            Assert.Equal("Carapace", echo[3].Trait1);
+            Assert.Equal("LastStand", echo[3].Instinct);
+            Assert.Equal(3, echo[3].Pocket);
+
+            Assert.Equal("Loam", echo[4].Species);
+            Assert.Equal("Skittish", echo[4].Instinct);
+            Assert.Equal(4, echo[4].Pocket);
+        }
+
+        [Fact]
+        public async Task TraitsAndSpeciesCrossAsNamesRatherThanAsOrdinals()
+        {
+            // THE DIRECTION OF THE TRANSLATION IS THE DESIGN, and it only runs
+            // here. api holds trait NAMES, off the creature row's trait_N text
+            // columns; the engine holds a Trait enum. Somebody has to translate,
+            // and sim translating ORDINAL -> NAME is the only arrangement in
+            // which api still never learns what a trait is.
+            //
+            // The other direction would put a NAME -> ORDINAL table inside api,
+            // and that table has an unknown-name case. Answering it with None -
+            // the obvious default, and 0 - would make a forged "Bogus" compare
+            // equal to a simulated Trait.None slot, so the forgery would read as
+            // legitimate. This direction has no such case: Deployments.Problem
+            // has already refused every ordinal outside 0..TraitCount-1 before
+            // this echo is built, so ToString() always names a declared member
+            // and can never fall back to printing a number.
+            //
+            // Pinned as LITERAL STRINGS, not as Trait.Chill.ToString(), because
+            // the latter agrees with itself no matter what the enum is renamed
+            // to - and these names are the api-side row values 'Chill',
+            // 'Taunt', 'Splash', 'Carapace' that config/bundles' traits.json
+            // authors. A rename on either side has to break something.
+            var record = FiveCreatureRecord();
+
+            var body = await (await Post(record.Serialize()))
+                .Content.ReadFromJsonAsync<SimulateResponse>();
+
+            var echo = body!.Echo!.Deployment;
+            Assert.Equal(new[] { "Chill", "Taunt", "Splash", "Carapace", "Chill" },
+                         echo.Select(d => d.Trait1).ToArray());
+            Assert.Equal(new[] { "Pale", "Vetch", "Ember", "Hollow", "Loam" },
+                         echo.Select(d => d.Species).ToArray());
+            Assert.Equal("None", echo[3].Trait2);
+
+            // And the raw bytes, because ReadFromJsonAsync would happily bind a
+            // JSON NUMBER into a string-typed member's place if the serializer
+            // ever started emitting the enum as its ordinal.
+            var text = await (await Post(record.Serialize())).Content.ReadAsStringAsync();
+            Assert.Contains("\"trait1\":\"Chill\"", text);
+            Assert.Contains("\"species\":\"Pale\"", text);
+        }
+
+        [Fact]
+        public async Task AbsentCoverageEchoesAsNullRatherThanZero()
+        {
+            // data_model 2: an Aberrant has no coverage tier, so a TraitInstance
+            // holding one carries null rather than 0 - "null and zero must not
+            // be conflated; zero would sort and display as less than tier I".
+            // drizzle/0005_loop.sql enforces exactly that with
+            // coverage_tier_N_not_zero, so a stored spec's tier is null or 1..3
+            // and NEVER 0.
+            //
+            // The engine spells the same state 0, because CreatureSpec.Tier1 is
+            // a non-nullable int and Stats.SplashTargets reads 0 as "not really
+            // carried". THIS is the one place the two spellings meet, and a
+            // non-nullable int here would answer 0 where api holds null - so
+            // design 6.2's comparison would reject an HONEST Aberrant on every
+            // submission.
+            var record = FiveCreatureRecord();
+
+            var body = await (await Post(record.Serialize()))
+                .Content.ReadFromJsonAsync<SimulateResponse>();
+
+            var echo = body!.Echo!.Deployment;
+            Assert.Null(echo[3].Tier2);   // Trait.None, tier 0
+            Assert.Null(echo[4].Tier1);   // Chill at tier 0 - carried in name only
+            Assert.Null(echo[4].Tier2);
+
+            // The tiers that ARE coverage still cross as themselves. Without
+            // this the assertions above pass for a mapping that nulls
+            // everything.
+            Assert.Equal(1, echo[0].Tier1);
+            Assert.Equal(2, echo[0].Tier2);
+            Assert.Equal(3, echo[1].Tier1);
+
+            // JSON null, not an omitted member. api reads this through
+            // generated/sim.ts, where `number | null` and `number | undefined`
+            // are different types and only one of them compares equal to the
+            // null it stored.
+            var text = await (await Post(record.Serialize())).Content.ReadAsStringAsync();
+            Assert.Contains("\"tier2\":null", text);
+        }
+
+        [Fact]
+        public async Task TwoCreaturesMayShareAPocketAndTheEchoSaysSoForBoth()
+        {
+            // POCKET SEMANTICS BELONG TO sim, and this echo is the first thing
+            // that makes them observable across the boundary. api bounds a
+            // pocket at the two content-independent ends only (routes/wave.ts's
+            // MAX_POCKET) and refuses duplicate creature IDS while allowing
+            // duplicate POCKETS - which is correct exactly as long as the engine
+            // agrees, and until now nothing said it did.
+            //
+            // Deployments.Problem bounds a pocket against lane.PocketCount and
+            // says nothing about sharing, so two creatures in one pocket is a
+            // legal wave. Pinned here so that a later engine that starts
+            // refusing it cannot do so silently: api would keep issuing those
+            // deployments and every submission carrying one would be rejected
+            // after the fact, having already committed the creatures.
+            var record = FiveCreatureRecord();
+            record.Deployment[1].Pocket = 0;
+            record.Deployment[2].Pocket = 0;
+
+            var body = await (await Post(record.Serialize()))
+                .Content.ReadFromJsonAsync<SimulateResponse>();
+
+            Assert.Equal("verified", body!.Verdict);
+            Assert.Equal(new[] { 0, 0, 0, 3, 4 },
+                         body.Echo!.Deployment.Select(d => d.Pocket).ToArray());
+        }
+
+        [Fact]
+        public async Task AnEmptyDeploymentEchoesAnEmptyArrayRatherThanNull()
+        {
+            // schemas.ts: zero creatures is a deployment the engine simulates
+            // (and loses), and an issuance may legitimately hold one. design
+            // 6.2's comparison has to be able to tell that apart from "sim did
+            // not report a deployment at all" - if both arrive as null, an
+            // echo that silently lost its deployment would compare equal to an
+            // honest empty one and the check would pass vacuously.
+            var record = ValidRecord();
+            record.Deployment = new CreatureSpec[0];
+            record.DeploymentHp = new int[0];
+            record.RallyCreature = -1;
+
+            var res = await Post(record.Serialize());
+            var body = await res.Content.ReadFromJsonAsync<SimulateResponse>();
+
+            Assert.Equal("verified", body!.Verdict);
+            Assert.NotNull(body.Echo!.Deployment);
+            Assert.Empty(body.Echo.Deployment);
+            Assert.Contains("\"deployment\":[]",
+                            await (await Post(record.Serialize())).Content.ReadAsStringAsync());
         }
 
         [Fact]

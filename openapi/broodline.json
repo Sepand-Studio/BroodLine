@@ -180,6 +180,47 @@
           "deleted"
         ]
       },
+      "CreatureSpecDto": {
+        "type": "object",
+        "properties": {
+          "species": {
+            "type": "string"
+          },
+          "trait1": {
+            "type": "string"
+          },
+          "tier1": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "trait2": {
+            "type": "string"
+          },
+          "tier2": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "instinct": {
+            "type": "string"
+          },
+          "pocket": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "species",
+          "trait1",
+          "tier1",
+          "trait2",
+          "tier2",
+          "instinct",
+          "pocket"
+        ]
+      },
       "WaveStartResponse": {
         "type": "object",
         "properties": {
@@ -195,13 +236,39 @@
           },
           "expiresAt": {
             "type": "string"
+          },
+          "deployment": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/CreatureSpecDto"
+            }
           }
         },
         "required": [
           "issuanceId",
           "seed",
           "waveId",
-          "expiresAt"
+          "expiresAt",
+          "deployment"
+        ]
+      },
+      "DeployedCreature": {
+        "type": "object",
+        "properties": {
+          "creatureId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pocket": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "creatureId",
+          "pocket"
         ]
       },
       "WaveStartRequest": {
@@ -209,10 +276,17 @@
         "properties": {
           "waveId": {
             "type": "integer"
+          },
+          "deployment": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeployedCreature"
+            }
           }
         },
         "required": [
-          "waveId"
+          "waveId",
+          "deployment"
         ]
       },
       "BreachDto": {
@@ -327,6 +401,380 @@
         },
         "required": [
           "refreshToken"
+        ]
+      },
+      "RegionStateResponse": {
+        "type": "object",
+        "properties": {
+          "regionId": {
+            "type": "string"
+          },
+          "epoch": {
+            "type": "integer"
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "slot": {
+                  "type": "integer"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "accrued": {
+                  "type": "integer"
+                },
+                "remaining": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "grants": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "slot",
+                "type",
+                "accrued",
+                "remaining",
+                "grants"
+              ]
+            }
+          },
+          "roster": {
+            "type": "object",
+            "properties": {
+              "count": {
+                "type": "integer"
+              },
+              "cap": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "count",
+              "cap"
+            ]
+          }
+        },
+        "required": [
+          "regionId",
+          "epoch",
+          "nodes",
+          "roster"
+        ]
+      },
+      "CreatureDto": {
+        "type": "object",
+        "properties": {
+          "creatureId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "species": {
+            "type": "string"
+          },
+          "generation": {
+            "type": "integer"
+          },
+          "trait1": {
+            "type": "string"
+          },
+          "tier1": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "trait2": {
+            "type": "string"
+          },
+          "tier2": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "instinct": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isFounder": {
+            "type": "boolean"
+          },
+          "committedTo": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "creatureId",
+          "species",
+          "generation",
+          "trait1",
+          "tier1",
+          "trait2",
+          "tier2",
+          "instinct",
+          "name",
+          "isFounder",
+          "committedTo"
+        ]
+      },
+      "RosterResponse": {
+        "type": "object",
+        "properties": {
+          "creatures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CreatureDto"
+            }
+          },
+          "cap": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "creatures",
+          "cap"
+        ]
+      },
+      "NodeClaimResponse": {
+        "type": "object",
+        "properties": {
+          "slot": {
+            "type": "integer"
+          },
+          "shards": {
+            "type": "integer"
+          },
+          "creatures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CreatureDto"
+            }
+          },
+          "balance": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "slot",
+          "shards",
+          "creatures",
+          "balance"
+        ]
+      },
+      "NodeClaimRequest": {
+        "type": "object",
+        "properties": {
+          "slot": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "slot"
+        ]
+      },
+      "CombatOutcomeDto": {
+        "type": "object",
+        "properties": {
+          "trait": {
+            "type": "string"
+          },
+          "tier": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "p": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "trait",
+          "tier",
+          "p"
+        ]
+      },
+      "SpliceForecast": {
+        "type": "object",
+        "properties": {
+          "combat2": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CombatOutcomeDto"
+            }
+          },
+          "instinct": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "instinct": {
+                  "type": "string"
+                },
+                "p": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "instinct",
+                "p"
+              ]
+            }
+          },
+          "mutation": {
+            "type": "number"
+          },
+          "aberrant": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "combat2",
+          "instinct",
+          "mutation",
+          "aberrant"
+        ]
+      },
+      "SplicePreviewResponse": {
+        "type": "object",
+        "properties": {
+          "forecast": {
+            "$ref": "#/components/schemas/SpliceForecast"
+          },
+          "coverageLost": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "trait": {
+                  "type": "string"
+                },
+                "tier": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "trait",
+                "tier"
+              ]
+            }
+          }
+        },
+        "required": [
+          "forecast",
+          "coverageLost"
+        ]
+      },
+      "SpliceLock": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "enum": [
+              "a",
+              "b"
+            ]
+          },
+          "slot": {
+            "type": "string",
+            "enum": [
+              "trait_1",
+              "trait_2"
+            ]
+          }
+        },
+        "required": [
+          "from",
+          "slot"
+        ]
+      },
+      "SplicePreviewRequest": {
+        "type": "object",
+        "properties": {
+          "parentA": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "parentB": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "locked": {
+            "$ref": "#/components/schemas/SpliceLock"
+          }
+        },
+        "required": [
+          "parentA",
+          "parentB",
+          "locked"
+        ]
+      },
+      "SpliceCommitResponse": {
+        "type": "object",
+        "properties": {
+          "child": {
+            "$ref": "#/components/schemas/CreatureDto"
+          },
+          "spliceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "seed": {
+            "type": "string"
+          },
+          "balance": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "child",
+          "spliceId",
+          "seed",
+          "balance"
+        ]
+      },
+      "SpliceCommitRequest": {
+        "type": "object",
+        "properties": {
+          "parentA": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "parentB": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "locked": {
+            "$ref": "#/components/schemas/SpliceLock"
+          },
+          "bodyFrom": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "parentA",
+          "parentB",
+          "locked",
+          "bodyFrom"
         ]
       }
     },
@@ -699,6 +1147,385 @@
             }
           },
           "401": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/region/state": {
+      "get": {
+        "operationId": "regionState",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The region, its nodes, and what each has accrued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegionStateResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/roster": {
+      "get": {
+        "operationId": "roster",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The player's live creatures, and the Hatchery cap",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RosterResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/node/claim": {
+      "post": {
+        "operationId": "claimNode",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Generated when the action is taken, not when it is sent."
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NodeClaimRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Shards credited, base stock granted, the node settled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeClaimResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/splice/preview": {
+      "post": {
+        "operationId": "splicePreview",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SplicePreviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The odds this splice rolls against, and the coverage it destroys",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SplicePreviewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/splice/commit": {
+      "post": {
+        "operationId": "spliceCommit",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Generated when the action is taken, not when it is sent."
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpliceCommitRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The child, and the roll that produced it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpliceCommitResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
             "description": "Error",
             "content": {
               "application/json": {

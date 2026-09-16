@@ -7,9 +7,13 @@ import { and, eq, isNull } from 'drizzle-orm'
 import type { Deps } from '../src/app.ts'
 import { createApp } from '../src/app.ts'
 import { withServer } from '../src/db/client.ts'
-import { campaignProgress, ledger, waveIssuances, wallets } from '../src/db/schema.ts'
+import { campaignProgress, creatures, ledger, waveIssuances, wallets } from '../src/db/schema.ts'
 import type { Currency } from '../src/money/ledger.ts'
+import { liveCreature } from '../src/roster/creatures.ts'
 import { settle } from '../src/wave/issuance.ts'
+import {
+  asRosterSpecs, losingDeployment, type RosterSpec, winningDeployment,
+} from './replay-format.ts'
 
 /**
  * Tasks 5, 6, 8 and 10 all drive the same two routes (POST /v1/wave/start,
@@ -382,8 +386,11 @@ export const __createDotnetBuildLockForTest = createDotnetBuildLock
 // replay no longer drags the Hono app, the Drizzle schema and SimClient in
 // with it - see that file for why. Re-exported here so every existing
 // importer of wave-helpers keeps working, with one definition of the format.
-export { buildLosingReplay, buildWinningReplay } from './replay-format.ts'
-export type { ReplayOpts } from './replay-format.ts'
+export {
+  asRosterSpecs, buildLosingReplay, buildReplayOf, buildWinningReplay,
+  losingDeployment, winningDeployment,
+} from './replay-format.ts'
+export type { ReplayCreature, ReplayOpts, RosterSpec } from './replay-format.ts'
 
 // --- Route drivers. `app`, `token`, `playerId`, `serverId` and `deps` are
 // module-level, set by setupPlayer() - every driver and state reader below
@@ -395,6 +402,8 @@ let app: ReturnType<typeof createApp>
 let token: string
 let playerId: string
 let serverId: number
+let winners: Deployed[] | undefined
+let losers: Deployed[] | undefined
 
 export async function setupPlayer(d: Deps): Promise<{ playerId: string; token: string }> {
   deps = d
@@ -409,15 +418,132 @@ export async function setupPlayer(d: Deps): Promise<{ playerId: string; token: s
   playerId = body.playerId
   serverId = body.serverId
   token = body.accessToken
+  // The new player's roster is empty and the two cached ones belong to the
+  // PREVIOUS player - deploying those would be `creature_not_owned`, which is
+  // a confusing way to discover that a cache was not cleared.
+  winners = undefined
+  losers = undefined
   return { playerId, token }
 }
 
-export async function startWave(waveId: number): Promise<Response> {
+/** design §6.1's body: an id and a pocket, and nothing else a client controls. */
+export interface Deployed { creatureId: string; pocket: number }
+
+/**
+ * Sends the body VERBATIM, so a test can put fields in it that `parseStart`
+ * has no business honouring.
+ *
+ * That is the whole point of having it: design §6.1's mechanism is that
+ * there is no path from a client-supplied value to a stored spec, and the
+ * only way to show that is to supply one. `startWave` below cannot - its
+ * signature admits an id and a pocket, which is exactly the shape under
+ * test.
+ */
+export async function startWaveRaw(body: unknown): Promise<Response> {
   return app.request('/v1/wave/start', {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-    body: JSON.stringify({ waveId }),
+    body: JSON.stringify(body),
   })
+}
+
+/**
+ * DEFAULTS TO AN EMPTY DEPLOYMENT, which is a real deployment and not a
+ * stand-in for "the field is optional": `deployment` is REQUIRED by
+ * routes/wave.ts's parseStart (design §6.1 grows the body), and an empty
+ * array is the one value every pre-Task-8 caller in this package can be
+ * given without asserting anything new. Those callers - wave-submit,
+ * replays and adversarial - are about the SUBMIT path and say nothing about
+ * what was deployed; Task 9 is where the echo starts being compared against
+ * the issuance, and that is the task that has to give them real rosters.
+ */
+export async function startWave(waveId: number, deployment: Deployed[] = []): Promise<Response> {
+  return startWaveRaw({ waveId, deployment })
+}
+
+/**
+ * THE ROSTER A REPLAY CLAIMS, MINTED.
+ *
+ * Task 10 made `wave/submit` compare the deployment `sim` echoed against the
+ * one the issuance froze, so a wave started with the empty deployment above
+ * and submitted with a five-creature replay is now a `deployment_mismatch` -
+ * correctly. The three submit-path files were all written before that
+ * comparison existed and all start with the default; the note above
+ * `startWave` said this task is the one that "has to give them real rosters",
+ * and these are them.
+ *
+ * MINTED THROUGH THE APP ROLE inside `withServer`, one row at a time. Two
+ * reasons for the one-at-a-time: a multi-row `INSERT ... RETURNING` has no
+ * ORDER guarantee in the standard, and the four Vetch of a frontline are
+ * field-for-field identical, so a returned row cannot be matched back to the
+ * spec it came from by anything except position. Pockets come off the spec
+ * rather than the loop index, because two creatures may legitimately share
+ * one (task-9-report §5).
+ *
+ * `trait 'None'` IS NOT A PLACEHOLDER FOR A MISSING TRAIT. It is what the
+ * engine's `Trait.None` echoes as, and the frontline these helpers mirror
+ * (tests/engine/Combat/GoldenTests.cs) really does carry empty combat slots.
+ * A fixture roster carrying `Taunt`/`Carapace` instead would be more like a
+ * granted creature and LESS like the thing under test: the replay bytes would
+ * have to change with it, and changing them changes what the engine
+ * simulates - wave 6 is authored at integrity 2, so a Carapace wall could
+ * turn `buildLosingReplay` into a win and quietly delete the loss cases.
+ */
+export async function giveRoster(specs: readonly RosterSpec[]): Promise<Deployed[]> {
+  const deployed: Deployed[] = []
+  for (const s of specs) {
+    const [row] = await withServer(deps.db, serverId, (tx) => tx.insert(creatures).values({
+      serverId,
+      playerId,
+      species: s.species,
+      generation: 1,
+      trait1: s.trait1, tier1: s.tier1,
+      trait2: s.trait2, tier2: s.tier2,
+      instinct: s.instinct,
+      hpCurrent: s.hp,
+      isFounder: false,
+    }).returning())
+    deployed.push({ creatureId: row!.creatureId, pocket: s.pocket })
+  }
+  return deployed
+}
+
+/**
+ * The five creatures `buildWinningReplay` claims, minted ONCE per player and
+ * reused.
+ *
+ * Once rather than per call, for two reasons that both bite: the Hatchery cap
+ * is 20 (bible §7.2) and a file that mints five per wave would reach it
+ * inside one test, and `settle` clears `committed_to` on both terminal states
+ * so the same five really are redeployable - which is the behaviour a replay
+ * loop should be exercising anyway.
+ */
+export async function winningRoster(): Promise<Deployed[]> {
+  winners ??= await giveRoster(asRosterSpecs(winningDeployment()))
+  return winners
+}
+
+/** The five `buildLosingReplay` claims - a frontline with no Chill behind it. */
+export async function losingRoster(): Promise<Deployed[]> {
+  losers ??= await giveRoster(asRosterSpecs(losingDeployment()))
+  return losers
+}
+
+/** `startWave` with the deployment `buildWinningReplay` will claim. */
+export async function startWinning(waveId: number): Promise<Response> {
+  return startWave(waveId, await winningRoster())
+}
+
+/** `startWave` with the deployment `buildLosingReplay` will claim. */
+export async function startLosing(waveId: number): Promise<Response> {
+  return startWave(waveId, await losingRoster())
+}
+
+/** Live creatures this player holds - design §2.4's supply line, counted. */
+export async function rosterCount(): Promise<number> {
+  const rows = await withServer(deps.db, serverId, (tx) => tx.select().from(creatures)
+    .where(and(eq(creatures.playerId, playerId), liveCreature())))
+  return rows.length
 }
 
 export function submitInit(issuanceId: string, replay: string, key: string): RequestInit {

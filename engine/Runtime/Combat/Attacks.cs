@@ -76,5 +76,46 @@ namespace Broodline.Sim.Combat
             int max = Stats.CreatureHp(s.CreatureSpecies[c]);
             return s.CreatureHp[c] * denominator < max * numerator;
         }
+
+        /// What a defender actually loses from an incoming hit, after Carapace.
+        ///
+        /// The other side of this file. Everything above modifies what a
+        /// CREATURE deals; this modifies what one TAKES, and it is the only
+        /// thing in the engine that does - combat_numbers section 4.2 is
+        /// explicit that "no counter has a damage component", which is what
+        /// keeps counters off the power ladder, and Carapace is a utility
+        /// trait precisely so that it may be a number.
+        ///
+        /// Integer and truncating, like every other modifier here: 100 at
+        /// -25% is 75, and the Lash's 30 at -25% is 22 rather than 22.5.
+        /// Rounding toward zero costs the defender less than a point per hit
+        /// and keeps the arithmetic exact on both runtimes.
+        ///
+        /// Tier 0 means the trait is not really carried - CreatureCarries
+        /// reports a match on a Trait.None slot too - so the percentage table
+        /// returning 0 there is load-bearing, not defensive.
+        public static int DamageTaken(SimState s, int c, int incoming)
+        {
+            if (!s.CreatureCarries(c, Trait.Carapace, out int tier)) return incoming;
+
+            int percent = Stats.CarapacePercent(tier);
+            if (percent <= 0) return incoming;
+
+            return incoming * (100 - percent) / 100;
+        }
+
+        /// Ticks between a raider's attacks. Zero means it does not attack at
+        /// all, which is every raider but the Lash - see Stats section 6.
+        ///
+        /// No Instinct and no Rally on this side: those describe creatures.
+        /// The indirection exists so phase 5 asks one question rather than
+        /// reaching into the stat table itself, and so a raider that later
+        /// gains a rate modifier has one place to gain it.
+        public static int RaiderIntervalTicks(SimState s, int r) =>
+            Stats.RaiderIntervalTicks(s.RaiderType[r]);
+
+        /// Damage a raider lands per hit, before the defender's Carapace.
+        public static int RaiderDamage(SimState s, int r) =>
+            Stats.RaiderDamage(s.RaiderType[r]);
     }
 }
