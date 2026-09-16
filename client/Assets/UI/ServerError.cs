@@ -188,12 +188,33 @@ namespace Broodline.UI
                 case ServerErrorKind.SubmissionRejected:
                     return Remedy.StartOver;
 
+                // NOT a defect, and the only 404 a player actually meets.
+                // Both splice routes answer `not_found` when a parent is no
+                // longer live - a deliberate anti-enumeration choice on the
+                // server, made so that a wrong id and an unowned id are
+                // indistinguishable. For the player that is an ordinary stale
+                // roster: a cache older than a relaunch, or a parent consumed
+                // by an earlier splice. Refreshing fixes it, and this assembly
+                // already names that remedy for the same condition caught
+                // earlier - RosterScreen.CanSplice blocks with "That creature
+                // is not loaded. Refresh your roster."
+                //
+                // Grouping it with the defect codes told those players to file
+                // a bug and offered them no button. The residual cost of
+                // moving it is the genuine "no player on this server" 404,
+                // which refreshing will not fix - but that is a bootstrap
+                // error a player cannot hit mid-session, and offering the
+                // wrong button there is far cheaper than offering none here.
+                // Closing that gap properly needs its own code on the server;
+                // `not_found` cannot carry both meanings.
+                case ServerErrorKind.NotFound:
+                    return Remedy.RefreshRoster;
+
                 // Well-formed requests this client should not have been able to
                 // send. Nothing the player can do, so nothing is offered to
                 // them - but it is a defect worth reporting.
                 case ServerErrorKind.InvalidRequest:
                 case ServerErrorKind.IdempotencyKeyReused:
-                case ServerErrorKind.NotFound:
                 case ServerErrorKind.Conflict:
                     return Remedy.ReportDefect;
 

@@ -187,6 +187,31 @@ export async function loadOwnedCreatures(
   return owned
 }
 
+/**
+ * Serialise this player's grant paths for the rest of the transaction.
+ *
+ * `rosterCount` below is a plain count with no lock, and BOTH granting paths
+ * - `claimNode` and `grantWaveBaseStock` - read it and then insert. Nothing
+ * held between them: a claim locks its own `node_depletion` row, a settling
+ * submit locks its issuance, and those never overlap. Under READ COMMITTED
+ * (the default; nothing here sets an isolation level) two concurrent grants
+ * for one player both read 19 against a cap of 20, both pass, both insert,
+ * and the roster lands at 21 - defeating a refusal path written so that
+ * "nothing is credited, nothing is granted". Two claims on DIFFERENT node
+ * slots contend on nothing at all, so this needs no unusual timing.
+ *
+ * An advisory lock rather than `SELECT ... FOR UPDATE` on `arks`, because
+ * nothing creates an `arks` row yet - `loadArk` returns a documented default
+ * - and locking a row that does not exist locks nothing. `pg_advisory_xact_lock`
+ * needs no row and releases at commit, so no path can leak it.
+ *
+ * NOT called by `regionState`: that read must stay off this lock or every
+ * screen open would queue behind a claim.
+ */
+export async function lockRoster(tx: Tx, serverId: number, playerId: string): Promise<void> {
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(${serverId}::int, hashtext(${playerId}))`)
+}
+
 /** Live creatures this player holds - the Hatchery cap's left-hand side. */
 export async function rosterCount(tx: Tx, serverId: number, playerId: string): Promise<number> {
   const [row] = await tx.select({ n: count() }).from(creatures)

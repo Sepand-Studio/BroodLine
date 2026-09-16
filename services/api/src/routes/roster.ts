@@ -1,9 +1,7 @@
-import { eq } from 'drizzle-orm'
 import type { Hono } from 'hono'
 import type { Deps } from '../app.ts'
 import { withServer, type Tx } from '../db/client.ts'
-import { players } from '../db/schema.ts'
-import { requireSession } from '../http/auth.ts'
+import { loadPlayerId, requireSession } from '../http/auth.ts'
 import { fail } from '../http/errors.ts'
 import { loadArk } from '../map/claim.ts'
 import { loadRoster, rosterCap } from '../roster/creatures.ts'
@@ -63,8 +61,3 @@ export function registerRosterRoutes(app: Hono, deps: Deps): void {
   })
 }
 
-/** Inlined the way sync.ts, wave.ts and region.ts inline it - one small scoped read. */
-async function loadPlayerId(tx: Tx, accountId: string): Promise<string | undefined> {
-  const [player] = await tx.select().from(players).where(eq(players.accountId, accountId))
-  return player?.playerId
-}

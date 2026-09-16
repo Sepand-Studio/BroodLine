@@ -53,4 +53,13 @@
 -- RLS needs no change: a column inherits the policies already on this table
 -- (0002_rls.sql), and every read of it is scoped by the same server_id and
 -- player_id its row always was.
-ALTER TABLE wave_issuances ADD COLUMN deployment jsonb;
+-- IF NOT EXISTS, because 0005 lists re-runnable idioms as a deliberate
+-- property of this directory and this was the one statement in the phase
+-- that broke it. It matters more here than anywhere: this file's own header
+-- prescribes applying it BY HAND against the running service, and
+-- db/migrate.ts keys `_migrations` on filename with no checksum - so a
+-- replay (an out-of-band apply, or a boot against a post-0006 schema dump
+-- whose `_migrations` came from a pre-0006 snapshot) raised 42701, failed
+-- the wrapping transaction, and took every later migration in the
+-- directory down with it.
+ALTER TABLE wave_issuances ADD COLUMN IF NOT EXISTS deployment jsonb;

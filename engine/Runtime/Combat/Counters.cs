@@ -63,18 +63,46 @@ namespace Broodline.Sim.Combat
             for (int taken = 0; taken < capacity; taken++)
             {
                 int best = -1;
+                int bestCarrier = -1;
+                int bestDistSq = 0;
+
                 for (int r = 0; r < s.RaiderCount; r++)
                 {
                     if (!s.RaiderAlive[r]) continue;
                     if (s.RaiderTargetCreature[r] >= 0) continue;   // already held
                     if (Stats.CounterFor(s.RaiderType[r]) != Trait.Taunt) continue;
-                    if (Capacity.NearestTaunter(s, r) < 0) continue;
 
-                    if (best < 0 || Capacity.CompareTaunt(s, r, best) < 0) best = r;
+                    // WITH ROOM. The capacity above is a pooled sum, but 4.2
+                    // spends it per creature, so a carrier that already holds
+                    // its tier's worth is not a candidate for the next raider
+                    // however near it is - see NearestTaunterWithRoom.
+                    //
+                    // Carrier and distance are taken ONCE here and carried to
+                    // the assignment below. This scan used to call
+                    // NearestTaunter to test validity, again twice inside
+                    // CompareTaunt to rank, and once more for the winner -
+                    // three O(creatures) searches per candidate, every tick,
+                    // for an answer that cannot change within one iteration.
+                    int carrier = Capacity.NearestTaunterWithRoom(s, r);
+                    if (carrier < 0) continue;
+
+                    int d = s.Lane.DistSq(s.CreaturePocket[carrier], s.RaiderTile(r));
+
+                    // CompareTaunt's order, inlined: (distance, raider index)
+                    // ascending. The scan runs in ascending raider order and a
+                    // challenger only wins on a STRICT improvement, so an equal
+                    // distance leaves the earlier raider in place - the same
+                    // total order, tie-broken the same way.
+                    if (best < 0 || d < bestDistSq)
+                    {
+                        best = r;
+                        bestCarrier = carrier;
+                        bestDistSq = d;
+                    }
                 }
                 if (best < 0) return;      // nothing left that Taunt can hold
 
-                s.RaiderTargetCreature[best] = Capacity.NearestTaunter(s, best);
+                s.RaiderTargetCreature[best] = bestCarrier;
             }
         }
 

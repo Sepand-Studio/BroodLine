@@ -244,11 +244,42 @@ namespace Broodline.UI
         public void ApplySplice(SpliceCommitResponse committed, Guid parentA, Guid parentB)
         {
             if (committed == null) throw new ArgumentNullException("committed");
+
             Forget(parentA);
             Forget(parentB);
             Observe(committed.Child);
-            // Two consumed, one born.
-            if (ServerCount > 0) ServerCount = Math.Max(_order.Count, ServerCount - 1);
+
+            // SERVERCOUNT IS DELIBERATELY NOT TOUCHED, and the arithmetic that
+            // used to be here - `Math.Max(_order.Count, ServerCount - 1)` -
+            // is the thing being removed rather than corrected.
+            //
+            // That was a client-side guess at a server-authoritative number,
+            // and it is only right while nothing else has touched the roster
+            // since the last sync - the one assumption the other three writers
+            // never make. A creature gained through a channel this cache never
+            // heard about (a claim before the next map poll) makes the guess
+            // land LOW, and a low ServerCount makes IsComplete report a
+            // COMPLETE roster that is missing creatures: the same false
+            // completeness RosterLoadState was added to prevent, reached by
+            // mutation instead of by a failed first load.
+            //
+            // And the cache cannot tell that case apart from a healthy one:
+            // in both, it holds every creature it has ever been told about.
+            // "Was it complete before?" is answered from the same stale
+            // picture that is wrong, so conditioning on it reproduces the bug.
+            // There is no client-side number here that is safe to invent.
+            //
+            // Leaving it alone makes _order.Count fall BELOW ServerCount, so
+            // IsComplete goes false and the screen asks for a refresh. After a
+            // splice against a genuinely complete cache that is one redundant
+            // refresh; after one against a stale cache it is the truth. Over-
+            // reporting incompleteness is the safe direction to be wrong in.
+            //
+            // OWED: SpliceCommitResponse carries no `roster` headline though
+            // RegionStateResponse does, and claimNode already computes count
+            // and cap inside its own transaction. With one on both mutating
+            // responses, this would ASSIGN a server-stated number like every
+            // other writer and the refresh would not be needed.
         }
 
         /// Record a creature the server handed us.

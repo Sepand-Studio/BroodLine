@@ -414,7 +414,12 @@ namespace Broodline.UI.Tests
             // carries Count 0 / Cap 0 and a null check would not catch it.
             var model = RegionScreen.Build(new RegionStateResponse { RegionId = "r1", Epoch = 1 });
 
-            Assert.IsNotNull(model.RosterCap);
+            // NOT `Assert.IsNotNull(model.RosterCap)`. RosterCap is a plain
+            // `int`, which NUnit boxes into a non-null object, so that
+            // assertion held for every possible value - including the 0 this
+            // test exists to catch. It is the exact trap RegionScreen's own
+            // `HasRosterCounts = cap > 0` comment warns about. The two below
+            // carry the invariant; the third only looked like it did.
             Assert.IsFalse(model.HasRosterCounts);
             Assert.IsFalse(model.RosterIsFull);
         }
@@ -591,7 +596,18 @@ namespace Broodline.UI.Tests
             Assert.IsNull(roster.Find(b.CreatureId));
             Assert.IsNotNull(roster.Find(child.CreatureId));
             Assert.AreEqual(1, roster.Known.Count);
-            Assert.AreEqual(1, roster.ServerCount);
+
+            // ServerCount is NOT decremented to 1, and that is the fix rather
+            // than a regression. It used to be derived as
+            // `Math.Max(_order.Count, ServerCount - 1)`, which is only right
+            // while nothing else has touched the roster since the last sync -
+            // and when that assumption fails the guess lands low and
+            // IsComplete reports a COMPLETE roster that is missing creatures.
+            // The cache cannot tell the two cases apart, so it no longer
+            // invents the number: the count stays where the server last put
+            // it and the screen asks for a refresh.
+            Assert.AreEqual(2, roster.ServerCount);
+            Assert.IsFalse(roster.IsComplete);
         }
 
         // ---------------------------------------------------------------
@@ -631,6 +647,28 @@ namespace Broodline.UI.Tests
 
             Assert.IsTrue(model.Nodes[0].CanClaim);
             Assert.IsEmpty(model.Nodes[0].Blocker);
+        }
+
+        [Test]
+        public void ANodeThatHasAccruedNothingIsStillClaimable_OrHarvestNeverStarts()
+        {
+            // The clock is `harvest_positions.last_settled_at`, and the only
+            // writer is the claim itself. Until a player claims once, an
+            // absent row reads as `now` and accrues zero - and the row is
+            // keyed by epoch, so this recurs at every weekly rollover.
+            // Greying the button out on `accrued <= 0` made that permanent:
+            // the screen refused to send the one write that arms the clock.
+            var state = new RegionStateResponse
+            {
+                RegionId = "r1",
+                Epoch = 1,
+                Roster = new Roster { Count = 0, Cap = 20 },
+            };
+            state.Nodes.Add(new Nodes { Slot = 1, Type = "common_vein", Accrued = 0, Remaining = null, Grants = 0 });
+
+            var model = RegionScreen.Build(state);
+
+            Assert.IsTrue(model.Nodes[0].CanClaim);
         }
     }
 }

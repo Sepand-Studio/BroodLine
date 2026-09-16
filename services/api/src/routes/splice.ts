@@ -4,7 +4,7 @@ import type { Deps } from '../app.ts'
 import { loadBundle } from '../config/bundle.ts'
 import { withServer, type Tx } from '../db/client.ts'
 import { creatures, players } from '../db/schema.ts'
-import { requireSession } from '../http/auth.ts'
+import { loadPlayerId, requireSession } from '../http/auth.ts'
 import { fail } from '../http/errors.ts'
 import { hashRequest } from '../http/hash.ts'
 import { normalizeUuid } from '../http/ids.ts'
@@ -115,11 +115,6 @@ function parseCommit(raw: unknown): CommitBody | null {
   return { ...parents, bodyFrom: b.bodyFrom }
 }
 
-/** Inlined the way sync.ts, wave.ts and region.ts inline it - one small read. */
-async function loadPlayerId(tx: Tx, accountId: string): Promise<string | undefined> {
-  const [player] = await tx.select().from(players).where(eq(players.accountId, accountId))
-  return player?.playerId
-}
 
 /**
  * The player's two live creatures, or undefined if either is not one.

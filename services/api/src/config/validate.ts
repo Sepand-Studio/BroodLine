@@ -166,10 +166,16 @@ async function validateWaveRewardDistinctness(dir: string): Promise<string[]> {
   if (raw === null) return ['waves.json is missing.']
 
   const waves = JSON.parse(raw) as AuthoredWave[]
-  const rewards = new Set(
-    waves.filter((w) => w.reward !== undefined).map((w) => `${w.reward!.currency}:${w.reward!.amount}`),
-  )
-  if (waves.length > 1 && rewards.size < 2) {
+  // BOTH SIDES FILTERED. The Set was built over the waves that carry a
+  // reward while the count below was taken over all of them, so a two-wave
+  // bundle missing one reward reported this violation - about reward
+  // distinctness - on top of validateWaveRewards' correct "Wave N has no
+  // reward", pointing the author at the wrong fix. That is precisely the
+  // confusing second violation the docstring above says skipping them
+  // avoids; skipping them only avoids it if the length is filtered too.
+  const rewarded = waves.filter((w) => w.reward !== undefined)
+  const rewards = new Set(rewarded.map((w) => `${w.reward!.currency}:${w.reward!.amount}`))
+  if (rewarded.length > 1 && rewards.size < 2) {
     return ['authored waves must carry at least two distinct reward values']
   }
   return []

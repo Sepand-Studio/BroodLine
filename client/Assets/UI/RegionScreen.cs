@@ -140,12 +140,22 @@ namespace Broodline.UI
                 return row;
             }
 
-            if (node.Accrued <= 0 && node.Grants <= 0)
-            {
-                row.CanClaim = false;
-                row.Blocker = "Nothing has accrued here yet.";
-                return row;
-            }
+            // A NODE THAT HAS ACCRUED NOTHING IS STILL CLAIMABLE, and that is
+            // not a cosmetic choice.
+            //
+            // A node's clock is `harvest_positions.last_settled_at`, and
+            // `settlePosition` - called only by `claimNode` - is its only
+            // writer. An absent row reads as `now` (map/claim.ts's
+            // `loadLastSettled`, deliberately, so that a first claim is not
+            // backdated to the cap), which accrues zero. So until a player
+            // claims once, nothing accrues; and the row is keyed by EPOCH, so
+            // the same thing is true again after every weekly rollover.
+            //
+            // Greying the button out on `accrued <= 0` made that state
+            // permanent: the only write that arms the clock was the one this
+            // screen refused to send, and harvest - the loop's first beat -
+            // could never start. The claim pays zero, writes the clock, and
+            // the next visit accrues. Leave it enabled.
 
             // `capIsKnown` GATES THIS, and without it the check inverts its
             // own purpose: an unset cap of 0 makes `count + grants > 0` true

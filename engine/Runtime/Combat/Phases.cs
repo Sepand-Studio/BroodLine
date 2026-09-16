@@ -202,8 +202,28 @@ namespace Broodline.Sim.Combat
                 if (interval <= 0) continue;
                 if (s.Tick < s.RaiderNextAttackAt[r]) continue;
 
+                // NO ALIVENESS CHECK, and its absence is the symmetry the
+                // comment on Attack above claims.
+                //
+                // `CreatureAlive` is `CreatureHp[c] > 0` - a LIVE read - while
+                // the creature pass guards on `RaiderAlive`, a flag written
+                // only in Spawn, Death and Breach and therefore frozen through
+                // all of phase 5. Guarding here on live HP broke that symmetry
+                // for creatures only: a second Lash forced onto the same
+                // carrier by Taunt (tier II holds two, by design) found it at
+                // zero from the first Lash's hit earlier in this very loop and
+                // skipped - dropping its damage AND leaving
+                // RaiderNextAttackAt[r] unadvanced, so it re-evaluated as due
+                // on the next tick, retargeted, and landed early against a
+                // fresh victim in defiance of its authored 2s interval.
+                //
+                // Targets are re-selected every tick in phase 4 (ApplyTaunt
+                // clears every slot first), so a target reaching here was alive
+                // at targeting time. The only way it is at zero now is an
+                // earlier raider in this same pass - which is exactly the case
+                // phase 6 exists to clear.
                 int target = s.RaiderTargetCreature[r];
-                if (target < 0 || !s.CreatureAlive(target)) continue;
+                if (target < 0) continue;
 
                 s.CreatureHp[target] -= Attacks.DamageTaken(s, target, Attacks.RaiderDamage(s, r));
                 s.RaiderNextAttackAt[r] = s.Tick + interval;

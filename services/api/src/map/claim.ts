@@ -3,7 +3,9 @@ import type { Bundle } from '../config/bundle.ts'
 import type { Tx } from '../db/client.ts'
 import { arks, harvestPositions, servers, wallets } from '../db/schema.ts'
 import { credit } from '../money/ledger.ts'
-import { grantBaseStock, rosterCap, rosterCount, toCreatureDto, type CreatureDto } from '../roster/creatures.ts'
+import {
+  grantBaseStock, lockRoster, rosterCap, rosterCount, toCreatureDto, type CreatureDto,
+} from '../roster/creatures.ts'
 import { accrue, baseStockFor } from './accrual.ts'
 import { epochFor, nodesFor, type NodeState } from './rotation.ts'
 
@@ -131,27 +133,6 @@ interface Depletion {
 }
 
 /**
- * Reads a node's depletion WITHOUT writing - the read path's half.
- *
- * An absent row is a node nobody has touched this epoch, which is zero
- * harvested rather than an error: `node_depletion` is keyed by epoch
- * precisely so the boundary respawns the Rich Deposit by writing a new row
- * instead of resetting an old one (design 4.1).
- */
-async function readDepletion(
-  tx: Tx, serverId: number, regionId: string, slot: number, epoch: number,
-): Promise<Depletion> {
-  const res = await tx.execute(sql`
-    SELECT harvested_units, depleted_at FROM node_depletion
-     WHERE server_id = ${serverId} AND region_id = ${regionId}
-       AND node_slot = ${slot} AND epoch = ${epoch}`)
-  const row = res.rows[0] as { harvested_units: string | number; depleted_at: Date | null } | undefined
-  return row === undefined
-    ? { harvestedUnits: 0, depletedAt: null }
-    : { harvestedUnits: Number(row.harvested_units), depletedAt: row.depleted_at }
-}
-
-/**
  * THE OVERSHOOT GUARD, and the reason this is an upsert rather than a
  * SELECT.
  *
@@ -225,6 +206,55 @@ async function lockDepletion(
  */
 function remainingOf(node: NodeState, depletion: Depletion): number | null {
   return node.totalYield === null ? null : Math.max(0, node.totalYield - depletion.harvestedUnits)
+}
+
+/**
+ * Every depletion row for one region-epoch, in ONE round trip.
+ *
+ * `regionState` used to call `readDepletion` per node, and `node-postgres`
+ * cannot pipeline on a single transaction, so each was a full network hop on
+ * the map screen - the most frequently opened endpoint there is - against a
+ * pool capped at five connections. The same function already hoists its
+ * roster count out of the loop for the same reason; this is that discipline
+ * applied to the other two reads. Scoped by region and epoch rather than by
+ * a slot list because a region's node set is single digits: fetching it whole
+ * is cheaper than building an `ANY` array, and the shape does not change as
+ * content adds nodes.
+ */
+async function readDepletions(
+  tx: Tx, serverId: number, regionId: string, epoch: number,
+): Promise<Map<number, Depletion>> {
+  const res = await tx.execute(sql`
+    SELECT node_slot, harvested_units, depleted_at FROM node_depletion
+     WHERE server_id = ${serverId} AND region_id = ${regionId} AND epoch = ${epoch}`)
+  const out = new Map<number, Depletion>()
+  for (const r of res.rows as { node_slot: number; harvested_units: string | number; depleted_at: string | Date | null }[]) {
+    out.set(Number(r.node_slot), {
+      harvestedUnits: Number(r.harvested_units),
+      // `tx.execute` returns raw driver values - a timestamptz arrives as a
+      // string, where `tx.select()` would have mapped it to a Date. Coerced
+      // here so callers see the same shape either way.
+      depletedAt: r.depleted_at === null ? null : new Date(r.depleted_at),
+    })
+  }
+  return out
+}
+
+/** Every position this player holds in one region-epoch, in ONE round trip. */
+async function readPositions(
+  tx: Tx, serverId: number, playerId: string, regionId: string, epoch: number,
+): Promise<Map<number, Date>> {
+  const res = await tx.execute(sql`
+    SELECT node_slot, last_settled_at FROM harvest_positions
+     WHERE server_id = ${serverId} AND player_id = ${playerId}::uuid
+       AND region_id = ${regionId} AND epoch = ${epoch}`)
+  const out = new Map<number, Date>()
+  for (const r of res.rows as { node_slot: number; last_settled_at: string | Date }[]) {
+    // new Date() for the same reason readDepletions coerces: a raw execute
+    // hands back the driver's own value, and `accrue` calls .getTime() on it.
+    out.set(Number(r.node_slot), new Date(r.last_settled_at))
+  }
+  return out
 }
 
 /**
@@ -373,12 +403,18 @@ export async function regionState(
   const cap = rosterCap(ark.hatcheryTier)
   const count = await rosterCount(tx, serverId, playerId)
 
+  // TWO round trips for the whole response, not two PER NODE - see
+  // readDepletions. Both are plain reads; this path still writes nothing.
+  const depletions = await readDepletions(tx, serverId, ark.regionId, epoch)
+  const positions = await readPositions(tx, serverId, playerId, ark.regionId, epoch)
+
   const dtos: NodeStateDto[] = []
   for (const node of nodes) {
-    const depletion = await readDepletion(tx, serverId, ark.regionId, node.slot, epoch)
+    const depletion = depletions.get(node.slot) ?? { harvestedUnits: 0, depletedAt: null }
     const remaining = remainingOf(node, depletion)
-    const lastSettledAt = await loadLastSettled(
-      tx, serverId, playerId, ark.regionId, node.slot, epoch, now)
+    // Same fallback `loadLastSettled` applies, for the same reason: an
+    // absent row pays nothing rather than backdating to the cap.
+    const lastSettledAt = positions.get(node.slot) ?? now
 
     // The SAME functions the claim pays and grants from, not a second
     // estimate of either. A display computed differently from the credit is
@@ -463,7 +499,12 @@ export async function claimNode(
   const units = accrue(args)
   const grants = baseStockFor(args)
 
+  // Before the count, not after - see lockRoster. This and
+  // `grantWaveBaseStock` are the only granting paths and they share no lock
+  // otherwise: two claims on DIFFERENT node slots contend on nothing, so
+  // both could read the same pre-grant count and both clear the cap.
   const cap = rosterCap(ark.hatcheryTier)
+  if (grants > 0) await lockRoster(tx, serverId, playerId)
   if (grants > 0 && await rosterCount(tx, serverId, playerId) + grants > cap) {
     return { kind: 'roster_full', cap }
   }

@@ -1,6 +1,6 @@
 import type { Tx } from '../db/client.ts'
 import { loadArk } from '../map/claim.ts'
-import { grantBaseStock, rosterCap, rosterCount } from '../roster/creatures.ts'
+import { grantBaseStock, lockRoster, rosterCap, rosterCount } from '../roster/creatures.ts'
 
 /**
  * Design §2.4 - the supply line that makes the loop closeable rather than
@@ -82,6 +82,11 @@ export const WAVE_BASE_STOCK = 1
 export async function grantWaveBaseStock(
   tx: Tx, serverId: number, playerId: string, issuanceId: string,
 ): Promise<number> {
+  // Before the count, not after: this and `claimNode` are the only two
+  // granting paths and they hold no lock in common, so without it both can
+  // read the same pre-grant count and both pass the cap check.
+  await lockRoster(tx, serverId, playerId)
+
   const ark = await loadArk(tx, serverId, playerId)
   const cap = rosterCap(ark.hatcheryTier)
   if (await rosterCount(tx, serverId, playerId) + WAVE_BASE_STOCK > cap) return 0

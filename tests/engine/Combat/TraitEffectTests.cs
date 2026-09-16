@@ -283,6 +283,59 @@ namespace Broodline.Sim.Tests.Combat
         }
 
         [Fact]
+        public void TwoTauntICarriers_HoldOneLashEach_NotBothOnTheNearer()
+        {
+            // 4.2 spends Taunt PER CREATURE - "Forces 1 Lash to target THIS
+            // creature" - but the assignment loop spends a POOLED sum. With
+            // both Lash equidistant, NearestTaunter answers carrier 0 for each
+            // of them, so the pool of 2 used to land entirely on carrier 0: it
+            // held two Lash on a tier-I slot and took double damage, while
+            // carrier 1 - whose capacity funded the second hold - was never
+            // attacked at all.
+            var s = LaneWith(new[]
+            {
+                Spec(Species.Vetch, pocket: 0, trait: Trait.Taunt, tier: 1),
+                Spec(Species.Vetch, pocket: 1, trait: Trait.Taunt, tier: 1)
+            }, lashes: 2);
+
+            Phases.Targeting(s);
+
+            Assert.Equal(0, s.RaiderTargetCreature[0]);
+            Assert.Equal(1, s.RaiderTargetCreature[1]);
+        }
+
+        [Fact]
+        public void ASecondLashOnADyingCarrier_StillLandsAndStillAdvancesItsCooldown()
+        {
+            // Phases.Attack's own comment: "a creature taken to zero by the
+            // raider pass is only cleared in phase 6." RaiderAttack used to
+            // guard on CreatureAlive - a LIVE HP read - so once the first Lash
+            // took the carrier to zero the second skipped, dropping its damage
+            // AND leaving its cooldown unadvanced, which let it fire again on
+            // the very next tick against a fresh target.
+            var s = LaneWith(new[]
+            {
+                Spec(Species.Vetch, pocket: 0, trait: Trait.Taunt, tier: 2)
+            }, lashes: 2);
+
+            Phases.Targeting(s);
+            Assert.Equal(0, s.RaiderTargetCreature[0]);
+            Assert.Equal(0, s.RaiderTargetCreature[1]);
+
+            // Low enough that the FIRST hit takes it under zero, so the second
+            // meets exactly the state the old guard refused to act on.
+            s.CreatureHp[0] = 20;
+            int oneHit = Attacks.DamageTaken(s, 0, Attacks.RaiderDamage(s, 0));
+
+            Phases.Attack(s, SplashScratch());
+
+            Assert.Equal(20 - (2 * oneHit), s.CreatureHp[0]);
+            // Both cooldowns advanced. A skipped attack that left this at 0
+            // would re-fire next tick, ahead of its authored interval.
+            Assert.Equal(2 * Stats.TicksPerSecond, s.RaiderNextAttackAt[1]);
+        }
+
+        [Fact]
         public void Taunt_ReleasesTheLashWhenItsCarrierDies()
         {
             // Capacity is recomputed from scratch every tick from the LIVE

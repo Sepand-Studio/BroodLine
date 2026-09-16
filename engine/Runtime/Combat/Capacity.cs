@@ -164,6 +164,57 @@ namespace Broodline.Sim.Combat
             return best;
         }
 
+        /// How many raiders are currently held onto one creature.
+        ///
+        /// Reads the assignment slots ApplyTaunt is filling, which is what
+        /// makes them the running count - the same slot that doubles as the
+        /// "already taken" mark on the raider side.
+        private static int TauntHoldsOn(SimState s, int creature)
+        {
+            int n = 0;
+            for (int r = 0; r < s.RaiderCount; r++)
+                if (s.RaiderTargetCreature[r] == creature) n++;
+            return n;
+        }
+
+        /// The nearest Taunt carrier THAT STILL HAS ROOM, or -1.
+        ///
+        /// Taunt's capacity is per-creature - 4.2 is "Forces 1 Lash to target
+        /// THIS CREATURE", 2 at tier II and 4 at III - but the assignment loop
+        /// spends a POOLED sum. Selecting on `NearestTaunter` alone let both
+        /// halves of a two-carrier pool land on whichever carrier happened to
+        /// be nearer to both raiders: that creature then held two Lash on a
+        /// tier-I slot and took double damage, dying in roughly half the time,
+        /// while the carrier whose capacity funded the second hold was never
+        /// attacked at all. Diagnosis reads the same pooled sum, so the breach
+        /// report called the coverage satisfied.
+        ///
+        /// Same scan and same total order as NearestTaunter - ascending
+        /// creature index, strict improvement only - with one extra gate.
+        public static int NearestTaunterWithRoom(SimState s, int raider)
+        {
+            int tile = s.RaiderTile(raider);
+            int range = Stats.RaiderRange(s.RaiderType[raider]);
+            if (range <= 0) return -1;
+
+            int best = -1;
+            int bestDistSq = 0;
+
+            for (int c = 0; c < s.CreatureCount; c++)
+            {
+                if (!s.CreatureAlive(c)) continue;
+                if (!s.CreatureCarries(c, Trait.Taunt, out int tier) || tier <= 0) continue;
+                if (TauntHoldsOn(s, c) >= Stats.TauntCapacity(tier)) continue;
+
+                int pocket = s.CreaturePocket[c];
+                if (!s.Lane.InRange(pocket, tile, range)) continue;
+
+                int d = s.Lane.DistSq(pocket, tile);
+                if (best < 0 || d < bestDistSq) { best = c; bestDistSq = d; }
+            }
+            return best;
+        }
+
         /// Squared distance from a raider to the carrier NearestTaunter picked,
         /// or -1 when there is none. Split out so the assignment scan can rank
         /// on it without a second search returning a different answer.

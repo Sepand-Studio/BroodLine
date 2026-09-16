@@ -397,9 +397,17 @@ async function consume(tx: Tx, serverId: number, ids: string[], now: Date): Prom
      WHERE server_id = ${serverId}
        AND creature_id IN (${sql.join(ids.map((id) => sql`${id}::uuid`), sql`, `)})
        AND consumed_at IS NULL`)
-  if (res.rowCount !== ids.length) {
+  // `?? 0`, as every other row-count check in this service does
+  // (money/ledger.ts, map/claim.ts, roster/creatures.ts, roster/lineage.ts,
+  // wave/issuance.ts's commitCreatures). rowCount is typed `number | null`,
+  // and a bare `null !== 2` is true - so a splice that consumed both parents
+  // correctly would throw and roll back, turning a successful write into a
+  // 500 on the one route that destroys player property. This was the single
+  // site in the branch that omitted the guard.
+  const consumed = res.rowCount ?? 0
+  if (consumed !== ids.length) {
     throw new Error(
-      `splice consumed ${res.rowCount} of ${ids.length} parents on server ${serverId}`)
+      `splice consumed ${consumed} of ${ids.length} parents on server ${serverId}`)
   }
 }
 
