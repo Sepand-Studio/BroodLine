@@ -49,6 +49,45 @@ namespace Broodline.Game.Tests
             Assert.AreEqual("Bearer a1", handler.Requests[1].Headers["Authorization"]);   // the sync that followed
         }
 
+        [Test]
+        public async Task ColdStart_RetriesOnceAfterA401_WithTheRefreshedToken()
+        {
+            // Fix round 1 finding: Session.RefreshAsync (the 401 retry) had
+            // zero coverage - a returning player whose access token expired
+            // between launches goes through exactly this path, and a bug in
+            // it (wrong header order, the wrong tokens object saved) fails
+            // silently and surfaces only as "I got logged out."
+            var handler = new RefreshFlowHandler(
+                unauthorized: ErrorJson("unauthorized", "token expired"),
+                refresh: RefreshJson("a2", "r2"),
+                sync: SnapshotJson(highestWaveCleared: 3));
+            var auth = new InMemoryAuthStore(token: "expired");
+            var s = new Session(ApiOver(handler), new InMemorySnapshotStore(cached: null), auth, onSnapshot: _ => { });
+
+            var snapshot = await s.ColdStartAsync();
+
+            // The retried sync returned the real snapshot, not the 401.
+            Assert.AreEqual(3, snapshot.HighestWaveCleared);
+
+            // Three requests, in order: the sync that was refused, the
+            // refresh it provoked, and the sync that was retried with the
+            // refreshed token.
+            Assert.AreEqual(3, handler.Requests.Count);
+            Assert.AreEqual("/v1/sync", handler.Requests[0].Path);
+            Assert.AreEqual("/v1/session/refresh", handler.Requests[1].Path);
+            Assert.AreEqual("/v1/sync", handler.Requests[2].Path);
+
+            // The retry carries the REFRESHED bearer token, not the expired
+            // one the first attempt used.
+            Assert.AreEqual("Bearer expired", handler.Requests[0].Headers["Authorization"]);
+            Assert.AreEqual("Bearer a2", handler.Requests[2].Headers["Authorization"]);
+
+            // The new tokens - not the old ones, not half of each - were
+            // handed to the auth store.
+            Assert.AreEqual("a2", auth.Saved.AccessToken);
+            Assert.AreEqual("r2", auth.Saved.RefreshToken);
+        }
+
         // -----------------------------------------------------------------
         // Test doubles for ISnapshotStore / IAuthStore
         // -----------------------------------------------------------------
@@ -164,6 +203,38 @@ namespace Broodline.Game.Tests
             }
         }
 
+        /// 401 on the first call to /v1/sync, 200 on every call after;
+        /// /v1/session/refresh always answers 200. Exactly the shape
+        /// Session.ColdStartAsync's catch-and-retry needs to prove itself
+        /// against: a real BroodlineApiException with StatusCode 401 out of
+        /// the first sync, then success once the token has been refreshed.
+        sealed class RefreshFlowHandler : StubHandler
+        {
+            readonly string _unauthorizedJson;
+            readonly string _refreshJson;
+            readonly string _syncJson;
+            int _syncCalls;
+
+            public RefreshFlowHandler(string unauthorized, string refresh, string sync)
+            {
+                _unauthorizedJson = unauthorized;
+                _refreshJson = refresh;
+                _syncJson = sync;
+            }
+
+            protected override Task<HttpResponseMessage> Respond(HttpRequestMessage request, string body)
+            {
+                if (request.RequestUri.AbsolutePath.EndsWith("/session/refresh"))
+                    return Task.FromResult(JsonResponse(HttpStatusCode.OK, _refreshJson));
+
+                _syncCalls++;
+                var response = _syncCalls == 1
+                    ? JsonResponse(HttpStatusCode.Unauthorized, _unauthorizedJson)
+                    : JsonResponse(HttpStatusCode.OK, _syncJson);
+                return Task.FromResult(response);
+            }
+        }
+
         // -----------------------------------------------------------------
         // Fixture helpers
         // -----------------------------------------------------------------
@@ -221,5 +292,11 @@ namespace Broodline.Game.Tests
             RefreshToken = refreshToken,
             Balances = new Dictionary<string, int>(),
         });
+
+        static string ErrorJson(string code, string message) =>
+            JsonConvert.SerializeObject(new ErrorResponse { Code = code, Message = message });
+
+        static string RefreshJson(string accessToken, string refreshToken) =>
+            JsonConvert.SerializeObject(new RefreshResponse { AccessToken = accessToken, RefreshToken = refreshToken });
     }
 }

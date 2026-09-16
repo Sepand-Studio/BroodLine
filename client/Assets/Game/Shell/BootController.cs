@@ -31,13 +31,22 @@ namespace Broodline.Game.Shell
         Session _session;
         ScreenHost _screenHost;
         TabBar _tabBar;
+        SafeAreaBinder _safeArea;
 
         async void Start()
         {
             var document = GetComponent<UIDocument>();
             var root = document.rootVisualElement;
 
-            ApplySafeArea(root);
+            // Applied now (in case a panel is already live) and re-applied on
+            // every layout change - client_architecture section 10's
+            // "size- and aspect-tolerant by construction" needs the second
+            // half too: an iPad in Split View or Slide Over resizes the
+            // window with no rotation involved, so a one-shot apply at Start
+            // goes stale the first time that happens. See SafeAreaBinder.
+            _safeArea = SafeAreaBinder.ForRuntimePanel(root);
+            _safeArea.ApplyIfChanged();
+            root.RegisterCallback<GeometryChangedEvent>(_ => _safeArea.ApplyIfChanged());
 
             var tabBarSlot = root.Q<VisualElement>("tab-bar");
             _tabBar = new TabBar();
@@ -89,26 +98,6 @@ namespace Broodline.Game.Shell
             if (asset == null) return null;
             var config = JsonUtility.FromJson<ClientConfig>(asset.text);
             return config?.apiBaseUrl;
-        }
-
-        /// client_architecture section 10: safe-area driven, no fixed pixel
-        /// positions. `RuntimePanelUtils.ScreenToPanel` converts a
-        /// screen-space point into the panel's own coordinate space, which is
-        /// what actually varies under `PanelScaleMode.ScaleWithScreenSize` -
-        /// so the inset is computed per device rather than assumed.
-        static void ApplySafeArea(VisualElement root)
-        {
-            var panel = root.panel;
-            if (panel == null) return; // not yet attached; the USS default (0) stands
-
-            var safeArea = Screen.safeArea;
-            float topInsetScreen = Screen.height - safeArea.yMax;
-            float bottomInsetScreen = safeArea.yMin;
-
-            float PanelY(float screenY) => RuntimePanelUtils.ScreenToPanel(panel, new Vector2(0f, screenY)).y;
-
-            root.style.paddingTop = Mathf.Abs(PanelY(topInsetScreen) - PanelY(0f));
-            root.style.paddingBottom = Mathf.Abs(PanelY(Screen.height) - PanelY(Screen.height - bottomInsetScreen));
         }
     }
 }
