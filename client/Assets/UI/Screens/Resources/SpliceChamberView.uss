@@ -1,0 +1,44 @@
+.splice-chamber-view {
+    flex-direction: column;
+    padding: 12px;
+}
+
+.splice-chamber-view__parents {
+    flex-direction: row;
+}
+
+.splice-chamber-view__parents > .creature-card.locked-out {
+    opacity: 0.4;
+}
+
+.splice-chamber-view__destruction-notice {
+    margin-top: 10px;
+    white-space: normal;
+    color: rgb(230, 120, 120);
+}
+
+.splice-chamber-view__coverage-warning {
+    margin-top: 4px;
+    white-space: normal;
+    color: rgb(230, 190, 120);
+}
+
+.splice-chamber-view__mutation {
+    margin-top: 4px;
+    color: rgb(200, 200, 210);
+}
+
+.splice-chamber-view__forecast {
+    flex-direction: column;
+    margin-top: 8px;
+}
+
+.forecast-row {
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 2px 0;
+}
+
+.splice-chamber-view__cta {
+    margin-top: 12px;
+}

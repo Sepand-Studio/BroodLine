@@ -1,0 +1,23 @@
+.deploy-view {
+    flex-direction: column;
+    padding: 12px;
+}
+
+.deploy-view__slots {
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.deploy-view__slot {
+    margin-right: 8px;
+    margin-bottom: 8px;
+}
+
+.deploy-view__blocker {
+    margin-top: 8px;
+    color: rgb(230, 120, 120);
+}
+
+.deploy-view__start {
+    margin-top: 12px;
+}

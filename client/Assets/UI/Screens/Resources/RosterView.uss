@@ -1,0 +1,20 @@
+.roster-view {
+    flex-direction: column;
+    padding: 12px;
+}
+
+.roster-view__notice {
+    margin-bottom: 8px;
+    color: rgb(230, 190, 120);
+    white-space: normal;
+}
+
+.roster-view__cards {
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.roster-view__card {
+    margin-right: 8px;
+    margin-bottom: 8px;
+}

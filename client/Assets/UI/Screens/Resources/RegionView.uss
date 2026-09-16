@@ -1,0 +1,25 @@
+.region-view {
+    flex-direction: column;
+    padding: 12px;
+}
+
+.region-view__roster {
+    margin-bottom: 8px;
+    color: rgb(220, 220, 225);
+}
+
+.region-view__nodes {
+    flex-direction: column;
+}
+
+.node-row {
+    flex-direction: row;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.node-row > Label {
+    margin-right: 10px;
+}

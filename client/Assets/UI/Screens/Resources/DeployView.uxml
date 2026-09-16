@@ -1,0 +1,6 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="DeployView.uss" />
+    <ui:VisualElement name="slots" class="deploy-view__slots" />
+    <ui:Label name="blocker" class="deploy-view__blocker" />
+    <ui:Button name="start" class="deploy-view__start" />
+</ui:UXML>
