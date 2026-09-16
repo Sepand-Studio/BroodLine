@@ -835,6 +835,43 @@ coincidental hardcode sits inert until the wording changes, and that desync is
 exactly what a mutation run proved this shape does catch. Adjudicated twice
 (Tasks 15 and 17), consistently. **Do not re-litigate it.**
 
+### And one the fix round found by auditing itself: the repo cites its own scratch
+
+Fix round 2 caught §1.1 citing `task-10-report.md` — which lives under
+`.superpowers/sdd/`, **gitignored**, and which this file's own preamble says
+will not survive a `git clean` — as the sole evidence for a Definition-of-Done
+clause. Fixed by transcribing the evidence into §1.2.
+
+**Auditing for others found it is not one instance, it is a house habit.**
+Across the tracked tree at this commit: **38 citations of `task-N-brief.md` or
+`task-N-report.md` in 22 files**, of which **19 cite a *report*** — a
+measurement or a transcript — rather than a brief. They span Phases 5, 6 and 7.
+Most are provenance ("the brief said X and was wrong"), where the claim stands
+on its own and losing the pointer costs only context. **Some are not**, and
+read exactly like the one just fixed:
+
+- `services/api/test/weakenings.md:202` — *"task-11-report.md carries both runs
+  verbatim."*
+- `services/api/test/sweep.test.ts:316` — *"VERIFIED BOTH WAYS - task-11-report.md
+  has the transcripts."*
+- `services/api/test/adversarial.test.ts:607` — *"Measured, not assumed:
+  task-11-report.md records the ..."*
+
+In each, the durable file asserts a measurement and delegates the evidence to a
+file that is one `git clean` from gone.
+
+**Not fixed here**, and deliberately: it is nineteen transcripts across two
+phases, in files this task has no mandate over, and the fix round it surfaced
+in was scoped to documentation and comments. **Recorded as inherited** (§13),
+with the distinction that matters for whoever takes it: *a pointer to context
+is fine; a pointer that IS the evidence has to be transcribed.* The cheap first
+pass is the grep that found it —
+`git grep -nE "task-[0-9]+-(report|brief)\.md" -- . | grep -v superpowers`.
+
+**The generalisation, which is §6 again in a third costume:** durable claims
+must rest on durable evidence. §6 was about verifying through the deliverable's
+own channel; this is about *citing* through it.
+
 ### A new one, from Task 22: running the Unity gates reintroduces the drift the settings gate exists to catch
 
 Phase 6 recorded that `SENTIS_ANALYTICS_ENABLED` "came back: a package write,
@@ -982,9 +1019,15 @@ it does not make the queue shorter.
     `wave/start`'s `loadOwnedCreatures`, or vs `creature/name`), and a rewrite
     of `wave.ts:386-397`'s justification. §7.
 12. **`ref readonly SimState`** — six times deferred.
-13. **Waves 8–10 and the raiders they require**; Brood, Drift, Bulwark and
+13. **Nineteen load-bearing-ish citations from tracked files into gitignored
+    scratch.** §12. A durable claim resting on a `task-N-report.md` that one
+    `git clean` removes. Triage with
+    `git grep -nE "task-[0-9]+-(report|brief)\.md" -- . | grep -v superpowers`,
+    and transcribe the ones where the citation IS the evidence rather than
+    context. §1.2 is the worked example.
+14. **Waves 8–10 and the raiders they require**; Brood, Drift, Bulwark and
     Delver. Explicitly out of this phase's scope.
-14. **`Diagnosis.PreWaveCheck` cannot clear wave 7** — it counts all six
+15. **`Diagnosis.PreWaveCheck` cannot clear wave 7** — it counts all six
     Skirmishers as simultaneous while Splash III caps at five. Resolved this
     phase by not shipping a caller: the threat board is dropped with it. **The
     two move together or neither moves**, because the board is the surface that
