@@ -295,7 +295,14 @@ namespace Broodline.UI
                 + " — of which Aberrant " + Percent(forecast.Aberrant) + ".";
         }
 
-        private static string Percent(double p)
+        /// The one place a probability becomes a percent string on this
+        /// screen - `MutationLine` uses it, and so does `SpliceChamberView`
+        /// for each `Combat2` row, so the same number reads the same way on
+        /// both. Public (not private) for exactly that second caller: a view
+        /// formatting `outcome.P` itself, even with a standard .NET
+        /// specifier like `"P1"`, is a second copy of this rule that can -
+        /// and did - drift from it (`"55%"` here vs `"55.0 %"` from `P1`).
+        public static string Percent(double p)
         {
             return Math.Round(p * 100.0, 1).ToString(CultureInfo.InvariantCulture) + "%";
         }

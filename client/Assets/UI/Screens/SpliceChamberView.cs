@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using Broodline.Api;
 using Broodline.UI.Components;
 using UnityEngine;
@@ -112,14 +111,14 @@ namespace Broodline.UI.Screens
                 name = "trait",
                 text = CreatureLabel.TraitWithTier(outcome.Trait, outcome.Tier),
             });
-            // The server's own probability, formatted with .NET's standard
-            // percent specifier - not re-derived, just rendered
-            // (client_architecture 9.1: "renders the server's numbers and
-            // computes none").
+            // The server's own probability, formatted by SpliceScreen.Percent
+            // - the same helper MutationLine uses - not re-derived here.
+            // (A view-local ToString("P1") looked equivalent but is not:
+            // Percent gives "55%", InvariantCulture's "P1" gives "55.0 %".)
             row.Add(new Label
             {
                 name = "probability",
-                text = outcome.P.ToString("P1", CultureInfo.InvariantCulture),
+                text = SpliceScreen.Percent(outcome.P),
             });
 
             return row;

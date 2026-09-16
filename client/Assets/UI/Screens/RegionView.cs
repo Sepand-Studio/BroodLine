@@ -68,18 +68,13 @@ namespace Broodline.UI.Screens
                 name = "accrued",
                 text = node.Accrued.ToString(CultureInfo.InvariantCulture),
             });
-            row.Add(new Label
-            {
-                name = "remaining",
-                // Null means a node that never depletes - RegionScreenModel's
-                // own doc calls this out; render it as a fact, not a number.
-                text = node.Remaining == null
-                    ? "unlimited"
-                    : node.Remaining.Value.ToString(CultureInfo.InvariantCulture),
-            });
+            // The model's own text either way - NodeRow.RemainingLabel
+            // already chose between the number and RegionScreen.
+            // UnlimitedLabel; this view does not choose again.
+            row.Add(new Label { name = "remaining", text = node.RemainingLabel ?? string.Empty });
             row.Add(new Label { name = "blocker", text = node.Blocker ?? string.Empty });
 
-            var claim = new Button { name = "claim", text = "Claim" };
+            var claim = new Button { name = "claim", text = node.ClaimLabel ?? string.Empty };
             claim.SetEnabled(node.CanClaim);
             var slot = node.Slot;
             claim.clicked += () => onClaim?.Invoke(slot);

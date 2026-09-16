@@ -37,7 +37,6 @@ namespace Broodline.UI.Screens
             _slots = this.Q<VisualElement>("slots");
             _blocker = this.Q<Label>("blocker");
             _start = this.Q<Button>("start");
-            _start.text = "Start";
 
             // Registered once, in the constructor, against a field the next
             // Bind can overwrite - so re-binding this same instance (a
@@ -65,6 +64,9 @@ namespace Broodline.UI.Screens
             // The model's own sentence, verbatim - empty when `CanDeploy`.
             _blocker.text = m.Blocker ?? string.Empty;
 
+            // The model's own label too - DeployScreen.Cta, not a literal
+            // this view authors itself.
+            _start.text = m.CtaLabel ?? string.Empty;
             _start.SetEnabled(m.CanDeploy);
             _onStart = onStart;
         }

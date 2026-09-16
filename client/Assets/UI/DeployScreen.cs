@@ -26,6 +26,13 @@ namespace Broodline.UI
         /// Why not, when not. Empty when `CanDeploy`.
         public string Blocker { get; internal set; }
 
+        /// The Start button's label - `DeployScreen.Cta`, mirrored the same
+        /// way `SpliceScreenModel.CtaLabel` mirrors `SpliceScreen.Cta`.
+        /// Every player-facing string is authored outside the view (see
+        /// `Progression.Order`, `SpliceScreen.Cta`), even one this plain,
+        /// so `DeployView` reads it here rather than writing it itself.
+        public string CtaLabel { get; internal set; }
+
         /// The wave/start body. THROWS rather than sending an illegal one.
         ///
         /// An empty deployment is refused by the server as `invalid_request`
@@ -64,6 +71,9 @@ namespace Broodline.UI
         public const int Floor = 1;
         public const int Cap = 5;
 
+        /// The Start button's label, in one place - see `CtaLabel`.
+        public const string Cta = "Start";
+
         /// Build from the ids the player selected, in selection order.
         ///
         /// ORDER IS PART OF THE REQUEST. The engine indexes its parallel
@@ -84,6 +94,7 @@ namespace Broodline.UI
                 Slots = slots,
                 CanDeploy = false,
                 Blocker = string.Empty,
+                CtaLabel = Cta,
             };
 
             if (waveId < 1)

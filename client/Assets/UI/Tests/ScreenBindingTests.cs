@@ -110,9 +110,17 @@ namespace Broodline.UI.Tests
             // none - client_architecture 9.1. Row count, not just presence:
             // a view that rendered a single static row would pass a
             // "not empty" check and fail this one.
+            var rows = v.Query(className: SpliceChamberView.ForecastRowUssClassName).ToList();
+            Assert.AreEqual(m.Forecast.Combat2.Count, rows.Count);
+
+            // Fix round 1: the row's probability text is SpliceScreen.Percent
+            // - the model's own formatter, already used by MutationLine -
+            // not a view-local ToString("P1"). The two are not the same
+            // string ("55%" vs "55.0 %"), which is exactly why this is
+            // pinned rather than left to look equivalent.
             Assert.AreEqual(
-                m.Forecast.Combat2.Count,
-                v.Query(className: SpliceChamberView.ForecastRowUssClassName).ToList().Count);
+                SpliceScreen.Percent(m.Forecast.Combat2.First().P),
+                rows[0].Q<Label>("probability").text);
         }
 
         [Test]
@@ -254,6 +262,20 @@ namespace Broodline.UI.Tests
             Assert.AreEqual(string.Empty, v.Q<Label>("blocker").text);
         }
 
+        [Test]
+        public void DeployView_ShowsTheModelsStartLabelVerbatim()
+        {
+            // Fix round 1: "Start" used to be a literal in DeployView.cs.
+            // It is now DeployScreen.Cta, mirrored onto the model as
+            // DeployScreenModel.CtaLabel - this pins the view against
+            // whatever the model says, not against a fixed string.
+            var model = DeployModelWith(1);
+            var v = new DeployView();
+            v.Bind(model, () => { });
+
+            Assert.AreEqual(model.CtaLabel, v.Q<Button>("start").text);
+        }
+
         // ---------------------------------------------------------------
         // RosterView
         // ---------------------------------------------------------------
@@ -337,6 +359,42 @@ namespace Broodline.UI.Tests
             var row = v.Query(className: RegionView.NodeRowUssClassName).ToList()[0];
             Assert.AreEqual(string.Empty, row.Q<Label>("blocker").text);
             Assert.IsTrue(row.Q<Button>("claim").enabledSelf);
+        }
+
+        [Test]
+        public void RegionView_ShowsANodesRemainingAndClaimLabelsVerbatim()
+        {
+            // Fix round 1: "Claim" and the "unlimited"/numeric remaining
+            // text used to be literals in RegionView.cs. They are now
+            // NodeRow.ClaimLabel/.RemainingLabel, populated in
+            // RegionScreen.Build exactly as Blocker is.
+            var node = new Nodes { Slot = 4, Type = "Shard", Accrued = 8, Remaining = 3, Grants = 0 };
+            var m = RegionScreen.Build(RegionState(new Roster { Count = 5, Cap = 20 }, node));
+
+            var v = new RegionView();
+            v.Bind(m, _ => { });
+
+            var row = v.Query(className: RegionView.NodeRowUssClassName).ToList()[0];
+            Assert.AreEqual(m.Nodes[0].RemainingLabel, row.Q<Label>("remaining").text);
+            Assert.AreEqual(m.Nodes[0].ClaimLabel, row.Q<Button>("claim").text);
+        }
+
+        [Test]
+        public void RegionView_ANodeThatNeverDepletes_ShowsTheModelsUnlimitedLabelVerbatim()
+        {
+            // The complement of the test above: a null `Remaining` takes the
+            // other branch of `RemainingLabel`, and this proves the view
+            // still just mirrors it rather than falling back to a literal
+            // of its own for this case.
+            var node = new Nodes { Slot = 5, Type = "Shard", Accrued = 8, Remaining = null, Grants = 0 };
+            var m = RegionScreen.Build(RegionState(new Roster { Count = 5, Cap = 20 }, node));
+            Assert.AreEqual(RegionScreen.UnlimitedLabel, m.Nodes[0].RemainingLabel);
+
+            var v = new RegionView();
+            v.Bind(m, _ => { });
+
+            var row = v.Query(className: RegionView.NodeRowUssClassName).ToList()[0];
+            Assert.AreEqual(m.Nodes[0].RemainingLabel, row.Q<Label>("remaining").text);
         }
 
         [Test]
