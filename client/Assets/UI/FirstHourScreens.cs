@@ -240,6 +240,17 @@ namespace Broodline.UI
     {
         public const string Title = "Trait Codex";
 
+        /// The sheet's own dismissal. `client_architecture` section 9: a
+        /// sheet "overlays, it dismisses, it does not push" - so it carries a
+        /// close, not a back chevron, and the word says which.
+        ///
+        /// Here rather than in `CodexSheet.cs` because it was the one
+        /// player-facing literal left in the five new screens, in the one
+        /// file whose every other string already came from this class - and
+        /// nothing asserted it, which is exactly how the Task 15 review's
+        /// three strings survived a 382-line suite.
+        public const string DismissLabel = "Close";
+
         /// What this trait answers, from the BUNDLE's own `config.traits`
         /// table. `Broodline.UI` references no engine assembly, so the
         /// counter printed here is the one the content bundle authored and

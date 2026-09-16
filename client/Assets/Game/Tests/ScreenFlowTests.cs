@@ -110,11 +110,50 @@ namespace Broodline.Game.Tests
             Assert.AreSame(under, screenHost.ElementAt(0));
             Assert.AreEqual(DisplayStyle.Flex, tabBar.style.display.value);
 
+            // THE ORDERING, FROM INSIDE THE CONTINUATION. Asserting after
+            // `resume(true)` has returned passes whether `HideSheet` runs
+            // before or after `TrySetResult` - it reads as covering the race
+            // and does not touch it. A continuation attached to the turn runs
+            // at the moment the result is published, so what it sees IS the
+            // ordering: if `after` ran late, the sheet is still up here.
+            var sheetWasAlreadyDownWhenTheTurnPublished = (bool?)null;
+            var observed = turn.ContinueWith(_ =>
+                sheetWasAlreadyDownWhenTheTurnPublished =
+                    sheetLayer.style.display.value == DisplayStyle.None && sheetLayer.childCount == 0,
+                TaskContinuationOptions.ExecuteSynchronously);
+
+            resume(true);
+            observed.Wait();
+
+            Assert.IsTrue(sheetWasAlreadyDownWhenTheTurnPublished,
+                "the turn's result was published while the sheet was still up - a continuation that " +
+                "shows the next screen would have raced it");
+            Assert.IsTrue(turn.Result);
+            Assert.AreEqual(DisplayStyle.None, sheetLayer.style.display.value);
+            Assert.AreEqual(0, sheetLayer.childCount);
+        }
+
+        [Test]
+        public void ASheetThatAnswersTwiceIsNotTakenDownTwice()
+        {
+            // `after` is guarded by `IsCompleted` at the single publication
+            // point. The consequence a test can read: a second answer must
+            // not re-run the dismissal against whatever the first answer's
+            // continuation put up in the meantime.
+            var flow = NewFlow(out _, out var sheetLayer, out _);
+            Action<bool> resume = null;
+            flow.ShowSheetAsync<bool>(new VisualElement { name = "sheet" }, r => resume = r);
+
             resume(true);
 
-            Assert.IsTrue(turn.Result);
-            Assert.AreEqual(DisplayStyle.None, sheetLayer.style.display.value, "the sheet stayed up after answering");
-            Assert.AreEqual(0, sheetLayer.childCount);
+            // Someone else's sheet, up after the turn ended.
+            sheetLayer.Add(new VisualElement { name = "someone-elses" });
+            sheetLayer.style.display = DisplayStyle.Flex;
+
+            resume(false);
+
+            Assert.AreEqual(1, sheetLayer.childCount, "a stale resume tore down a sheet it does not own");
+            Assert.AreEqual(DisplayStyle.Flex, sheetLayer.style.display.value);
         }
 
         [Test]

@@ -411,6 +411,26 @@ namespace Broodline.Game.Tests
         }
 
         [Test]
+        public void FtueNotice_CarriesTheTwoSentencesTheSpliceBeatCanStopOn()
+        {
+            // Both were literals inside `FtueDirector`, which contradicts
+            // this class's own reason for existing - sentences live here "so
+            // they can be tested as sentences". Neither was tested.
+            Assert.IsNotEmpty(FtueNotice.NoTutorialPair);
+            Assert.IsNotEmpty(FtueNotice.FounderInTutorialPair);
+            Assert.AreNotEqual(FtueNotice.NoTutorialPair, FtueNotice.FounderInTutorialPair,
+                "two different reasons the splice cannot proceed must not read the same");
+
+            // splice_confirm_spec 6 makes the Founder lockout the point of
+            // the second one, so it says Founder.
+            StringAssert.Contains("Founder", FtueNotice.FounderInTutorialPair);
+
+            // And the first tells the player what to DO, which is the
+            // difference between a notice and an apology.
+            StringAssert.Contains("Refresh", FtueNotice.NoTutorialPair);
+        }
+
+        [Test]
         public void FtueNotice_NamesTheActionThatWasBlocked()
         {
             // "Something went wrong" is the sentence this exists to avoid.

@@ -52,6 +52,24 @@ namespace Broodline.Game
             }
         }
 
+        /// Beat 6 has nothing to splice. `TutorialPair` returns null when
+        /// fewer than two eligible creatures are in the roster - every
+        /// candidate a Founder, out fighting, or simply absent because the
+        /// roster read is behind the grant.
+        ///
+        /// A SENTENCE, NOT A LITERAL AT THE CALL SITE, for the reason this
+        /// class exists: a string inside the director is one no test can tell
+        /// from a string inside a view, which is the slip Tasks 15 and 16
+        /// each paid for once.
+        public const string NoTutorialPair =
+            "The tutorial pair is not in your roster. Refresh and try again.";
+
+        /// splice_confirm_spec section 6: "the named Founder is visibly
+        /// locked out." This is what the player is told if the pair selection
+        /// ever produced one anyway.
+        public const string FounderInTutorialPair =
+            "The tutorial splice cannot use one of your Founders.";
+
         public const string SubmitWave = "Your wave result";
         public const string NameFounder = "Naming";
         public const string SpliceStock = "The tutorial stock";
@@ -248,9 +266,36 @@ namespace Broodline.Game
                 return false;
             }
 
-            var report = await _play(
-                start.WaveId, SpecsFor(start.Deployment), SeedOf(start.Seed), inputEnabled: true)
-                .ConfigureAwait(false);
+            // GUARDED FOR THE SAME REASON `StartAsync` IS, six lines up, and
+            // it is not hypothetical: `SpecsFor` throws when the bundle names
+            // content this client build has no enum for (see its own comment,
+            // and `SpecsFor_RefusesAThingThisEngineDoesNotCarry`), `SeedOf`
+            // throws on a seed that is not one, and `WaveHost.RunAsync`
+            // throws `InvalidOperationException` when the wave scene or its
+            // runner is missing - and `WaveDef.ForId` throws
+            // `WaveCompositionException` for any id this build does not
+            // author, which Campaign Select can now reach because it renders
+            // whatever `config.waves` sends.
+            //
+            // Unguarded, all four escape `RunAsync` into `BootController`'s
+            // `Debug.LogError` and leave the player on a Deploy screen whose
+            // Start button no longer resumes anything, with nothing said.
+            // That is the awaited-screen model's own failure class: an
+            // exception between the screen and its continuation strands the
+            // turn. The throw stays - conflating an Aberrant with tier 0 is
+            // the worse answer - this is what makes it audible.
+            WaveReport report;
+            try
+            {
+                report = await _play(
+                    start.WaveId, SpecsFor(start.Deployment), SeedOf(start.Seed), inputEnabled: true)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception error)
+            {
+                _notice(ServerError.From(error).PlayerMessage);
+                return false;
+            }
 
             var submitted = await _outbox.SubmitWaveAsync(start.IssuanceId, report.ReplayBytes)
                 .ConfigureAwait(false);
@@ -361,7 +406,7 @@ namespace Broodline.Game
             var pair = TutorialPair(stock, _roster.Known);
             if (pair == null)
             {
-                _notice("The tutorial pair is not in your roster. Refresh and try again.");
+                _notice(FtueNotice.NoTutorialPair);
                 return false;
             }
 
@@ -376,7 +421,7 @@ namespace Broodline.Game
             // tutorial consumes the creature the player just named.
             if (lockedOut.Contains(parentA.CreatureId) || lockedOut.Contains(parentB.CreatureId))
             {
-                _notice("The tutorial splice cannot use one of your Founders.");
+                _notice(FtueNotice.FounderInTutorialPair);
                 return false;
             }
 

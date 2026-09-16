@@ -265,10 +265,13 @@ namespace Broodline.UI.Tests
         // Lineage - beat 8
         // ---------------------------------------------------------------
 
+        /// The DIRECTED binding - the one the director uses at beat 8 - so
+        /// the tree tests below all exercise that path. `BindStandalone` has
+        /// its own test; it is the named opt-out, not the default.
         static LineageView BoundLineage(Guid highlight, params LineageNode[] nodes)
         {
             var view = new LineageView();
-            view.Bind(new LineageResponse { Nodes = nodes }, highlight);
+            view.Bind(new LineageResponse { Nodes = nodes }, highlight, next: () => { });
             return view;
         }
 
@@ -313,16 +316,34 @@ namespace Broodline.UI.Tests
             // forward parks a returning player on it and never lets them
             // reach the designed first loss.
             var directed = new LineageView();
-            directed.Bind(new LineageResponse { Nodes = new[] { Node("Hollow", F, founder: true) } },
-                F, next: () => { });
+            directed.Bind(Tree(), F, next: () => { });
             Assert.AreNotEqual(DisplayStyle.None, directed.Q<Button>("next").style.display.value);
             Assert.AreEqual(LineageScreen.NextLabel, directed.Q<Button>("next").text);
 
             // ...and a plain tab destination with nothing waiting on it gets
             // a hidden button rather than a dead one.
             var standalone = new LineageView();
-            standalone.Bind(new LineageResponse { Nodes = new[] { Node("Hollow", F, founder: true) } }, F);
+            standalone.BindStandalone(Tree(), F);
             Assert.AreEqual(DisplayStyle.None, standalone.Q<Button>("next").style.display.value);
+        }
+
+        [Test]
+        public void Lineage_ADirectedTurnWithNowhereToGoIsRefused()
+        {
+            // `next` is REQUIRED on `Bind`, so omitting it does not compile -
+            // which is the actual guard. This covers the remaining hole: a
+            // caller that passes a null it computed. Hanging the walk on a
+            // hidden button is the failure; throwing names it.
+            var view = new LineageView();
+            Assert.Throws<ArgumentNullException>(() => view.Bind(Tree(), F, next: null));
+
+            // And the named opt-out is the ONLY way to the hidden button.
+            Assert.DoesNotThrow(() => view.BindStandalone(Tree(), F));
+        }
+
+        static LineageResponse Tree()
+        {
+            return new LineageResponse { Nodes = new[] { Node("Hollow", F, founder: true) } };
         }
 
         [Test]
@@ -499,6 +520,21 @@ namespace Broodline.UI.Tests
             Assert.AreEqual(3, view.Query(className: CodexSheet.EntryUssClassName).ToList().Count);
             Assert.IsNotNull(view.Q("Taunt"));
             StringAssert.Contains("Lash", view.Q("Taunt").Q<Label>("counters").text);
+        }
+
+        [Test]
+        public void CodexSheet_DismissesRatherThanGoingBack_AndTakesThatWordFromTheModel()
+        {
+            // client_architecture 9: a sheet "overlays, it dismisses, it does
+            // not push", so it carries a close and not a back chevron. This
+            // was the one player-facing literal left in the five new screens
+            // and nothing asserted it - which is how the Task 15 review's
+            // three strings walked past a 382-line suite.
+            var view = new CodexSheet();
+            view.Bind(new[] { Trait("Chill", "Pale", "Courser") });
+
+            Assert.AreEqual(TraitCodexScreen.DismissLabel, view.Q<Button>("dismiss").text);
+            Assert.IsNotEmpty(TraitCodexScreen.DismissLabel);
         }
     }
 }

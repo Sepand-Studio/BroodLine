@@ -61,16 +61,44 @@ namespace Broodline.UI.Screens
         /// Founder at beat 8. It is a plain `Guid` rather than a nullable
         /// one: `Guid.Empty` matches no node the server can send, so "nothing
         /// highlighted" needs no second parameter to express.
-        /// `next` IS OPTIONAL, AND ITS ABSENCE IS A REAL STATE. Beat 8 ends
-        /// session one, but it must not be a dead end: `Ftue.Derive` answers
-        /// `Lineage` on every launch between wave 2 and wave 6, so a tree
-        /// with no way forward would park a returning player on the screen
-        /// that closed their first session and never let them reach wave 6 -
-        /// the designed first loss that design section 5 puts in this same
-        /// phase. The director passes a continuation onward to Campaign
-        /// Select. A later caller showing this as a plain tab destination
-        /// passes none, and the button is hidden rather than dead.
-        public void Bind(LineageResponse lineage, Guid highlight, Action next = null)
+        /// `next` IS REQUIRED, and that is the point of the signature.
+        ///
+        /// Beat 8 ends session one but must not be a dead end: `Ftue.Derive`
+        /// answers `Lineage` on every launch between wave 2 and wave 6, so a
+        /// tree with no way forward parks a returning player on the screen
+        /// that closed their first session and never lets them reach wave 6 -
+        /// the designed first loss design section 5 puts in this same phase.
+        ///
+        /// It was `Action next = null` for one commit, and an optional
+        /// default is a weak guard for exactly that: a caller who forgets the
+        /// argument compiles cleanly, gets a hidden button, and hangs the
+        /// walk on a turn nothing can resume. A REQUIRED parameter makes the
+        /// compiler the guard, and `BindStandalone` makes the no-continuation
+        /// case a named, greppable decision instead of an omitted argument.
+        ///
+        /// (The alternative considered - having `ScreenFlow` assert in a
+        /// debug build that a presented turn's resume was wired - cannot
+        /// honestly be written: the flow hands the resume to `bind` and has
+        /// no way to see whether the view kept it. All it could check is
+        /// that `bind` ran, which it always does. A guard that cannot fire on
+        /// the failure it names is worse than none.)
+        public void Bind(LineageResponse lineage, Guid highlight, Action next)
+        {
+            if (next == null) throw new ArgumentNullException(nameof(next),
+                "A directed lineage turn needs somewhere to go. Use BindStandalone for a tab destination.");
+            Render(lineage, highlight, next);
+        }
+
+        /// The tree as a plain destination, with nothing waiting on it - a
+        /// tab or a deep link rather than a beat. The continue button is
+        /// hidden rather than dead, and choosing that is what calling this
+        /// method means.
+        public void BindStandalone(LineageResponse lineage, Guid highlight)
+        {
+            Render(lineage, highlight, next: null);
+        }
+
+        void Render(LineageResponse lineage, Guid highlight, Action next)
         {
             if (lineage == null) throw new ArgumentNullException(nameof(lineage));
 

@@ -51,7 +51,7 @@ namespace Broodline.UI.Screens
             if (traits == null) throw new ArgumentNullException(nameof(traits));
 
             _title.text = TraitCodexScreen.Title;
-            _dismiss.text = "Close";
+            _dismiss.text = TraitCodexScreen.DismissLabel;
             _onDismiss = onDismiss;
 
             _entries.Clear();
