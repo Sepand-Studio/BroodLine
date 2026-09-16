@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { and, count, eq, sql, type SQL } from 'drizzle-orm'
 import type { Tx } from '../db/client.ts'
 import { creatures } from '../db/schema.ts'
+import type { Markers } from '../ftue/markers.ts'
 
 /**
  * Roster reads, the Hatchery cap, and the base-stock grant.
@@ -25,7 +26,7 @@ export interface CreatureDto {
   committedTo: string | null
 }
 
-type CreatureRow = typeof creatures.$inferSelect
+export type CreatureRow = typeof creatures.$inferSelect
 
 /**
  * PRUNED ROWS HAVE NO DTO. Every field below is nullable in the schema only
@@ -352,6 +353,33 @@ export type BaseStockSpecies = (typeof BASE_STOCK_SPECIES)[number]
 export const baseStockSpecies: readonly BaseStockSpecies[] = BASE_STOCK_SPECIES
 
 /**
+ * `baseStockSpecies` with Pale removed - the pool every base-stock grant
+ * draws from until the wave-6 grant has fired.
+ *
+ * campaign_structure 1 / whats_left 2: Pale is WITHHELD until the Wave
+ * Defeat screen grants it at wave 6, carrying Chill - the counter to that
+ * wave's lone, unanswerable Courser. Before this task the pool was Vetch,
+ * Pale, Ember: one roll in three handed the player Chill before the beat
+ * that exists to make them want it.
+ */
+export const BASE_STOCK_BEFORE_PALE: readonly BaseStockSpecies[] =
+  BASE_STOCK_SPECIES.filter((s) => s.species !== 'Pale')
+
+/**
+ * The pool a base-stock grant may draw from, for THIS player right now.
+ *
+ * A FUNCTION OF THE MARKERS, not of a flag threaded through every caller:
+ * `wave/base-stock.ts`'s wave-completion grant and `map/claim.ts`'s node
+ * claim are the two minting paths (roster/creatures.ts's own doc on
+ * `grantBaseStock` names them), and both must withhold Pale on the identical
+ * condition - so the condition lives here once rather than being re-derived
+ * at each call site.
+ */
+export function baseStockPool(m: Markers): readonly BaseStockSpecies[] {
+  return m.wave6PaleGrantedAt === null ? BASE_STOCK_BEFORE_PALE : baseStockSpecies
+}
+
+/**
  * Which species a given grant mints - a pure function of a seed string, so
  * the roll is reproducible rather than a `Math.random()` nobody can
  * re-derive after a dispute. Same discipline design 5.1 applies to the
@@ -364,10 +392,19 @@ export const baseStockSpecies: readonly BaseStockSpecies[] = BASE_STOCK_SPECIES
  * times. The modulo is biased by about one part in 1.4 billion over three
  * species out of 2^32, which is far below anything this distribution's
  * provisional status could justify correcting.
+ *
+ * `pool` DEFAULTS TO THE FULL TABLE rather than to the Pale-withheld one,
+ * because this function has no player context to derive `baseStockPool`
+ * from - only a caller holding `Markers` can decide that, and both real
+ * callers (`grantBaseStock` below) do. The default exists so a caller with
+ * no marker-dependent rule (this file's own tests, sampling the raw
+ * distribution) is not forced to fabricate one.
  */
-export function speciesForSeed(seed: string): BaseStockSpecies {
+export function speciesForSeed(
+  seed: string, pool: readonly BaseStockSpecies[] = baseStockSpecies,
+): BaseStockSpecies {
   const digest = createHash('sha256').update(seed).digest()
-  return BASE_STOCK_SPECIES[digest.readUInt32BE(0) % BASE_STOCK_SPECIES.length]!
+  return pool[digest.readUInt32BE(0) % pool.length]!
 }
 
 /**
@@ -379,9 +416,15 @@ export function speciesForSeed(seed: string): BaseStockSpecies {
  * submission - two different policies over the same write. Putting the check
  * here would force one of them on the other; the callers decide, and this
  * function grants exactly what it is asked for.
+ *
+ * `pool` DEFAULTS TO THE FULL TABLE for the same reason `speciesForSeed`'s
+ * does - this function has no player context of its own, and both real
+ * callers (`wave/base-stock.ts`, `map/claim.ts`) pass `baseStockPool(markers)`
+ * explicitly rather than relying on the default.
  */
 export async function grantBaseStock(
   tx: Tx, serverId: number, playerId: string, n: number, seed: string,
+  pool: readonly BaseStockSpecies[] = baseStockSpecies,
 ): Promise<CreatureRow[]> {
   if (n <= 0) return []
   return tx.insert(creatures)
@@ -398,7 +441,7 @@ export async function grantBaseStock(
       name: null,
       // The INDEX is in the seed, so a claim granting three creatures rolls
       // three times rather than minting one species three times.
-      ...speciesForSeed(`${seed}:${i}`),
+      ...speciesForSeed(`${seed}:${i}`, pool),
     })))
     .returning()
 }

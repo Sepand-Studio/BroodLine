@@ -405,3 +405,17 @@ export const SpliceCommitResponse = z.object({
   // same reason.
   balance: z.number().int(),
 }).openapi('SpliceCommitResponse')
+
+// Phase 7, Task 6. design §5 beat 4 - naming the Founder. The response is
+// CreatureDto itself, not a new shape: the only thing this route changes is
+// `name`, and the client already knows how to render a CreatureDto.
+//
+// Registered into openapi.ts's registry in the SAME task that adds the
+// route, the discipline every route above states.
+export const CreatureNameRequest = z.object({
+  creatureId: z.string().uuid(),
+  // Trimmed and length-checked server-side (routes/creature.ts); z.string()
+  // rather than a stricter schema because the 400 has to name the WHOLE rule
+  // (1-16 printable characters after trimming), not just "must be a string".
+  name: z.string(),
+}).openapi('CreatureNameRequest')

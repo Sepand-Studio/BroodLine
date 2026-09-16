@@ -5,6 +5,7 @@ import { HttpError } from './http/auth.ts'
 import { fail } from './http/errors.ts'
 import type { ReplayStore } from './replays/store.ts'
 import { registerAccountRoutes } from './routes/account.ts'
+import { registerCreatureRoutes } from './routes/creature.ts'
 import { registerRegionRoutes } from './routes/region.ts'
 import { registerRosterRoutes } from './routes/roster.ts'
 import { registerSessionRoutes } from './routes/session.ts'
@@ -37,6 +38,7 @@ export function createApp(deps: Deps): Hono {
   registerRegionRoutes(app, deps)
   registerRosterRoutes(app, deps)
   registerSpliceRoutes(app, deps)
+  registerCreatureRoutes(app, deps)
 
   app.notFound(() => fail('not_found', 'No such route.'))
   app.onError((err) => {

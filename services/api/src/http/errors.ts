@@ -25,6 +25,8 @@ export type ErrorCode =
   | 'creature_committed'
   | 'generation_ceiling'
   | 'insufficient_charges'
+  // Phase 7
+  | 'not_a_founder'
 
 export interface ErrorBody {
   code: ErrorCode
@@ -96,6 +98,10 @@ const STATUS: Record<ErrorCode, number> = {
   creature_committed: 409,
   generation_ceiling: 409,
   insufficient_charges: 409,
+  // 409, understood and refused on state: the creature named is real and
+  // live, but only a Founder can be named - 0005's only_founders_named is
+  // the storage half of the same rule.
+  not_a_founder: 409,
 }
 
 export function fail(code: ErrorCode, message: string, details?: unknown): Response {

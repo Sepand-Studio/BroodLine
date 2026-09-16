@@ -2,9 +2,11 @@ import { and, eq, sql } from 'drizzle-orm'
 import type { Bundle } from '../config/bundle.ts'
 import type { Tx } from '../db/client.ts'
 import { arks, harvestPositions, servers, wallets } from '../db/schema.ts'
+import { readMarkers } from '../ftue/markers.ts'
 import { credit } from '../money/ledger.ts'
 import {
-  grantBaseStock, lockRoster, rosterCap, rosterCount, toCreatureDto, type CreatureDto,
+  baseStockPool, grantBaseStock, lockRoster, rosterCap, rosterCount, toCreatureDto,
+  type CreatureDto,
 } from '../roster/creatures.ts'
 import { accrue, baseStockFor } from './accrual.ts'
 import { epochFor, nodesFor, type NodeState } from './rotation.ts'
@@ -561,8 +563,15 @@ export async function claimNode(
   // roll (withIdempotency returns the stored response and never re-runs
   // this function, so that is a property nothing depends on today - but it
   // is the property a dispute would be settled with).
+  //
+  // POOL WITHHOLDS PALE UNTIL THE WAVE-6 GRANT HAS FIRED, the same rule
+  // `wave/base-stock.ts`'s grant applies - a node claim is the OTHER minting
+  // path (roster/creatures.ts's grantBaseStock doc names both), and it must
+  // not hand the player Chill before the beat that exists to make them want
+  // it either.
   const granted = await grantBaseStock(tx, serverId, playerId, grants,
-    `${serverId}:${playerId}:${ark.regionId}:${epoch}:${slot}:${idempotencyKey}`)
+    `${serverId}:${playerId}:${ark.regionId}:${epoch}:${slot}:${idempotencyKey}`,
+    baseStockPool(await readMarkers(tx, serverId, playerId)))
   await settlePosition(tx, serverId, playerId, ark.regionId, slot, epoch, now, baseStock.carried)
   await addHarvested(tx, serverId, ark.regionId, slot, epoch, units, remaining, now)
 

@@ -34,6 +34,7 @@ export const SIM_PORTS: ReadonlyArray<{ port: number; owner: string }> = [
   { port: 5399, owner: 'test/replays.test.ts' },
   { port: 5499, owner: 'test/adversarial.test.ts' },
   { port: 5599, owner: 'test/loop.test.ts' },
+  { port: 5699, owner: 'test/founder.test.ts' },
 ]
 
 const REPO = fileURLToPath(new URL('../../../', import.meta.url))

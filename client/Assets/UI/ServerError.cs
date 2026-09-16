@@ -40,6 +40,9 @@ namespace Broodline.UI
         CreatureCommitted,
         GenerationCeiling,
         InsufficientCharges,
+
+        // Phase 7
+        NotAFounder,
     }
 
     /// What the screen should OFFER the player next. errors.ts keeps three
@@ -139,6 +142,7 @@ namespace Broodline.UI
                 { "creature_committed", ServerErrorKind.CreatureCommitted },
                 { "generation_ceiling", ServerErrorKind.GenerationCeiling },
                 { "insufficient_charges", ServerErrorKind.InsufficientCharges },
+                { "not_a_founder", ServerErrorKind.NotAFounder },
             };
 
         /// The next action per code. Each one is the action errors.ts itself
@@ -213,9 +217,15 @@ namespace Broodline.UI
                 // Well-formed requests this client should not have been able to
                 // send. Nothing the player can do, so nothing is offered to
                 // them - but it is a defect worth reporting.
+                //
+                // NotAFounder joins this group rather than getting its own
+                // remedy: only a Founder's Roster entry should ever offer a
+                // "Name" action (bible §3.3), so reaching this refusal means
+                // the screen offered naming on a creature it should not have.
                 case ServerErrorKind.InvalidRequest:
                 case ServerErrorKind.IdempotencyKeyReused:
                 case ServerErrorKind.Conflict:
+                case ServerErrorKind.NotAFounder:
                     return Remedy.ReportDefect;
 
                 // Including Unrecognised. No guessing.

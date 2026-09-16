@@ -2,7 +2,8 @@ import { fileURLToPath } from 'node:url'
 import { writeFile } from 'node:fs/promises'
 import { OpenAPIRegistry, OpenApiGeneratorV31 } from '@asteasolutions/zod-to-openapi'
 import {
-  CreateAccountRequest, CreateAccountResponse, DeleteAccountResponse, ErrorResponse,
+  CreateAccountRequest, CreateAccountResponse, CreatureDto, CreatureNameRequest,
+  DeleteAccountResponse, ErrorResponse,
   NodeClaimRequest, NodeClaimResponse, RefreshRequest, RefreshResponse,
   RegionStateResponse, RosterResponse, SpliceCommitRequest, SpliceCommitResponse,
   SplicePreviewRequest, SplicePreviewResponse, SyncResponse,
@@ -200,6 +201,25 @@ registry.registerPath({
   responses: {
     200: { description: 'The child, and the roll that produced it', content: { 'application/json': { schema: SpliceCommitResponse } } },
     ...errors([400, 401, 404, 409, 422, 500]),
+  },
+})
+
+// Phase 7, Task 6. design §5 beat 4 - naming the Founder, registered here in
+// the task that adds the route, the discipline every route above states.
+registry.registerPath({
+  method: 'post',
+  path: '/v1/creature/name',
+  operationId: 'nameCreature',
+  security: [{ [bearerAuth.name]: [] }],
+  parameters: [{
+    name: 'Idempotency-Key', in: 'header', required: true,
+    schema: { type: 'string' },
+    description: 'Generated when the action is taken, not when it is sent.',
+  }],
+  request: { body: { content: { 'application/json': { schema: CreatureNameRequest } } } },
+  responses: {
+    200: { description: 'The renamed creature - naming is repeatable, bible §3.3', content: { 'application/json': { schema: CreatureDto } } },
+    ...errors([400, 401, 404, 409, 422]),
   },
 })
 

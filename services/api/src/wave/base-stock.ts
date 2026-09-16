@@ -1,6 +1,8 @@
 import type { Tx } from '../db/client.ts'
+import { grantFounder } from '../ftue/founder.ts'
+import { readMarkers } from '../ftue/markers.ts'
 import { loadArk } from '../map/claim.ts'
-import { grantBaseStock, lockRoster, rosterCap, rosterCount } from '../roster/creatures.ts'
+import { baseStockPool, grantBaseStock, lockRoster, rosterCap, rosterCount } from '../roster/creatures.ts'
 
 /**
  * Design §2.4 - the supply line that makes the loop closeable rather than
@@ -78,6 +80,19 @@ export const WAVE_BASE_STOCK = 1
  * the roll is re-derivable after a dispute and cannot be re-rolled by
  * retrying. It is an IDENTITY, not a multiplier; the guardrail above is
  * untouched by it.
+ *
+ * BEAT 3: THE FIRST COMPLETION'S DROP IS THE FOUNDER, NOT A ROLL. design §5
+ * beats 3-4 and campaign_structure name Hollow a Founder handed over on
+ * session one's first wave clear, for the player to name at beat 4. That is
+ * a DIFFERENT shape from every later completion, which rolls ordinary base
+ * stock - so the branch below reads `founderGrantedAt` before deciding which
+ * grant this is, rather than the Founder being a fourth species base stock
+ * could roll.
+ *
+ * THE CAP CHECK ABOVE ALREADY COVERS BOTH BRANCHES. `WAVE_BASE_STOCK` is 1
+ * whether the drop is a Founder or a roll, so a player at the cap is skipped
+ * before either grant path runs - the Founder does not get a cap exemption
+ * a rolled creature would not.
  */
 export async function grantWaveBaseStock(
   tx: Tx, serverId: number, playerId: string, issuanceId: string,
@@ -91,7 +106,18 @@ export async function grantWaveBaseStock(
   const cap = rosterCap(ark.hatcheryTier)
   if (await rosterCount(tx, serverId, playerId) + WAVE_BASE_STOCK > cap) return 0
 
-  const granted = await grantBaseStock(
-    tx, serverId, playerId, WAVE_BASE_STOCK, `wave:${serverId}:${playerId}:${issuanceId}`)
+  const markers = await readMarkers(tx, serverId, playerId)
+  if (markers.founderGrantedAt === null) {
+    // `grantFounder` returns null only when some other call already set the
+    // marker between the read above and this insert - ftue/markers.ts's
+    // `setMarker` is what makes that exactly-once under concurrency. That
+    // caller is granting the Founder; this one grants nothing further,
+    // rather than falling through to a rolled creature the cap check above
+    // has already budgeted for as "one creature, this completion".
+    return (await grantFounder(tx, serverId, playerId)) === null ? 0 : 1
+  }
+
+  const granted = await grantBaseStock(tx, serverId, playerId, WAVE_BASE_STOCK,
+    `wave:${serverId}:${playerId}:${issuanceId}`, baseStockPool(markers))
   return granted.length
 }
