@@ -9,7 +9,7 @@ import { clearBundleCache } from '../src/config/bundle.ts'
 import { publishBundle } from '../src/config/publish.ts'
 import { LocalBundleStore } from '../src/config/store.ts'
 import { withServer } from '../src/db/client.ts'
-import { accounts, ledger, players, servers, wallets } from '../src/db/schema.ts'
+import { accounts, creatures, ledger, players, servers, wallets } from '../src/db/schema.ts'
 import { redeemRefreshToken } from '../src/identity/jwt.ts'
 import { LocalReplayStore } from '../src/replays/store.ts'
 import { SimClient } from '../src/sim/client.ts'
@@ -18,10 +18,11 @@ import { startTestDb, type TestDb } from './harness.ts'
 // fileURLToPath, not .pathname - a path containing a space would arrive
 // percent-encoded and every join below would miss.
 const REPO = fileURLToPath(new URL('../../../', import.meta.url))
-// 0.1.1, not 0.1.0: wave 6 carries no reward in 0.1.0, and Task 7 makes a
-// missing reward a publish-time validation failure - 0.1.0 is already
-// published to GCS and must stay byte-identical to what shipped in Phase 4.
-const SEED = join(REPO, 'config/bundles/0.1.1')
+// 0.1.3, not 0.1.1: it is the bundle that authors starter.json's `creatures`
+// array (Task 3) - the cold-open pair this file's new test grants - and its
+// starterGrants are unchanged from 0.1.1's, so every currency assertion below
+// still holds.
+const SEED = join(REPO, 'config/bundles/0.1.3')
 
 let t: TestDb
 let app: ReturnType<typeof createApp>
@@ -35,8 +36,8 @@ beforeAll(async () => {
 
   bundleRoot = await mkdtemp(join(tmpdir(), 'broodline-acct-'))
   const store = new LocalBundleStore(bundleRoot)
-  await publishBundle(store, SEED, '0.1.1')
-  await store.setPointer('0.1.1')
+  await publishBundle(store, SEED, '0.1.3')
+  await store.setPointer('0.1.3')
   clearBundleCache()
 
   app = createApp({
@@ -63,6 +64,10 @@ function create(key: string, body: Record<string, unknown> = { birthdateBand: 'a
     headers: { 'content-type': 'application/json', 'idempotency-key': key },
     body: JSON.stringify(body),
   })
+}
+
+function roster(playerId: string) {
+  return withServer(t.db, 1, (tx) => tx.select().from(creatures).where(eq(creatures.playerId, playerId)))
 }
 
 describe('POST /v1/account', () => {
@@ -135,6 +140,21 @@ describe('POST /v1/account', () => {
     const ledgerRows = await withServer(t.db, 1, (tx) =>
       tx.select().from(ledger).where(eq(ledger.playerId, playerId)))
     expect(ledgerRows).toHaveLength(2)
+  })
+
+  it('grants the bundle\'s starter creatures in the creation transaction', async () => {
+    const res = await create('k-starter')
+    const { playerId } = await res.json() as { playerId: string }
+
+    // Two creatures, Gen-1, not Founders - starter.json's authored pair.
+    const rows = await roster(playerId)
+    expect(rows.map((r) => r.species).sort()).toEqual(['Ember', 'Vetch'])
+    expect(rows.every((r) => r.generation === 1 && r.isFounder === false)).toBe(true)
+
+    // A replayed creation under the SAME idempotency key grants nothing
+    // twice: the roster is 2, not 4.
+    await create('k-starter')
+    expect((await roster(playerId)).length).toBe(2)
   })
 
   it('returns 422 when a key is reused for a different body', async () => {

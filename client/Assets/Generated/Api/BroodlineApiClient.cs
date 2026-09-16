@@ -1582,6 +1582,9 @@ namespace Broodline.Api
         [Newtonsoft.Json.JsonProperty("config", Required = Newtonsoft.Json.Required.Always)]
         public Config Config { get; set; } = new Config();
 
+        [Newtonsoft.Json.JsonProperty("ftue", Required = Newtonsoft.Json.Required.Always)]
+        public Ftue Ftue { get; set; } = new Ftue();
+
         private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
 
         [Newtonsoft.Json.JsonExtensionData]
@@ -2203,6 +2206,38 @@ namespace Broodline.Api
         [Newtonsoft.Json.JsonProperty("minimumClientVersion", Required = Newtonsoft.Json.Required.Always)]
         public string MinimumClientVersion { get; set; }
 
+        [Newtonsoft.Json.JsonProperty("tabs", Required = Newtonsoft.Json.Required.Always)]
+        public System.Collections.Generic.IDictionary<string, int> Tabs { get; set; } = new System.Collections.Generic.Dictionary<string, int>();
+
+        [Newtonsoft.Json.JsonProperty("waves", Required = Newtonsoft.Json.Required.Always)]
+        public System.Collections.Generic.ICollection<Waves> Waves { get; set; } = new System.Collections.ObjectModel.Collection<Waves>();
+
+        [Newtonsoft.Json.JsonProperty("traits", Required = Newtonsoft.Json.Required.Always)]
+        public System.Collections.Generic.ICollection<Traits> Traits { get; set; } = new System.Collections.ObjectModel.Collection<Traits>();
+
+        private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
+
+        [Newtonsoft.Json.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class Ftue
+    {
+        [Newtonsoft.Json.JsonProperty("founderNamed", Required = Newtonsoft.Json.Required.Always)]
+        public bool FounderNamed { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("tutorialStockGranted", Required = Newtonsoft.Json.Required.Always)]
+        public bool TutorialStockGranted { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("splices", Required = Newtonsoft.Json.Required.Always)]
+        public int Splices { get; set; }
+
         private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
 
         [Newtonsoft.Json.JsonExtensionData]
@@ -2344,6 +2379,69 @@ namespace Broodline.Api
 
         [System.Runtime.Serialization.EnumMember(Value = @"trait_2")]
         Trait_2 = 1,
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class Waves
+    {
+        [Newtonsoft.Json.JsonProperty("id", Required = Newtonsoft.Json.Required.Always)]
+        public int Id { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("reward", Required = Newtonsoft.Json.Required.AllowNull)]
+        public Reward2 Reward { get; set; }
+
+        private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
+
+        [Newtonsoft.Json.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class Traits
+    {
+        [Newtonsoft.Json.JsonProperty("id", Required = Newtonsoft.Json.Required.Always)]
+        public string Id { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("species", Required = Newtonsoft.Json.Required.Always)]
+        public string Species { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("counters", Required = Newtonsoft.Json.Required.AllowNull)]
+        public string Counters { get; set; }
+
+        private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
+
+        [Newtonsoft.Json.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class Reward2
+    {
+        [Newtonsoft.Json.JsonProperty("currency", Required = Newtonsoft.Json.Required.Always)]
+        public string Currency { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("amount", Required = Newtonsoft.Json.Required.Always)]
+        public int Amount { get; set; }
+
+        private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
+
+        [Newtonsoft.Json.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
 
     }
 

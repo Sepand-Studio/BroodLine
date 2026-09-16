@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import type { Hono } from 'hono'
 import type { Deps } from '../app.ts'
 import { loadBundle } from '../config/bundle.ts'
-import { accounts, players } from '../db/schema.ts'
+import { accounts, creatures, players } from '../db/schema.ts'
 import { requireSession } from '../http/auth.ts'
 import { fail } from '../http/errors.ts'
 import { hashRequest } from '../http/hash.ts'
@@ -10,6 +10,7 @@ import { assignServer } from '../identity/accounts.ts'
 import { issueAccessToken, issueRefreshToken } from '../identity/jwt.ts'
 import { IdempotencyMismatchError, withIdempotency } from '../money/idempotency.ts'
 import { credit } from '../money/ledger.ts'
+import { creatureHp } from '../roster/creatures.ts'
 
 interface CreateBody {
   birthdateBand: string
@@ -85,6 +86,30 @@ export function registerAccountRoutes(app: Hono, deps: Deps): void {
             reasonCode: 'STARTER_GRANT',
             idempotencyKey: key,
           })
+        }
+
+        // The cold-open pair - design §4, §5 beat 1. Bundles that predate
+        // starter.json's `creatures` array (config/bundle.ts's Bundle.
+        // starterCreatures) author none, so this is a no-op for them rather
+        // than an insert of zero rows. Inside the SAME transaction as the
+        // currency grants above and gated on the SAME idempotency key, so a
+        // replayed creation - money/idempotency.ts returns the FIRST
+        // response and never re-runs `fn` - grants the pair once, not twice.
+        if (bundle.starterCreatures.length > 0) {
+          await tx.insert(creatures).values(bundle.starterCreatures.map((c) => ({
+            serverId,
+            playerId: player!.playerId,
+            generation: 1,
+            species: c.species,
+            trait1: c.trait1,
+            tier1: c.tier1,
+            trait2: c.trait2,
+            tier2: c.tier2,
+            instinct: c.instinct,
+            isFounder: c.isFounder,
+            name: null,
+            hpCurrent: creatureHp(c.species),
+          })))
         }
 
         return {

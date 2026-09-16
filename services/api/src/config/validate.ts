@@ -67,16 +67,18 @@ const TABS = ['Map', 'Ark', 'Splice', 'Lab', 'Allies']
  *
  * Phase 7 (bundle 0.1.3) adds two more, the same kind of completeness check:
  *
- *   - starter creatures (validateStarterCreatures): config/bundle.ts already
- *     loads starter.json's `creatures` into `Bundle.starterCreatures`, but
- *     routes/account.ts does not consume that field yet - Task 5 is what
- *     inserts the pair into the account-creation transaction, at the same
- *     `credit()` call site validateStarterGrants's blast radius describes.
- *     This check validates the content now so it is already safe when that
- *     wiring lands: once it does, a species roster/creatures.ts's creatureHp
- *     does not know would otherwise 500 every sign-up, and a trait this
- *     bundle does not author would be undefined input to the same dominance
- *     roll validateTraitDominance exists for.
+ *   - starter creatures (validateStarterCreatures): config/bundle.ts loads
+ *     starter.json's `creatures` into `Bundle.starterCreatures`, and
+ *     routes/account.ts (Task 5) inserts the pair into the account-creation
+ *     transaction, at the same `credit()` call site validateStarterGrants's
+ *     blast radius describes. This check validates the content at PUBLISH
+ *     time, ahead of that insert, for the same reason validateStarterGrants
+ *     does: a species roster/creatures.ts's creatureHp does not know would
+ *     otherwise 500 every sign-up - and unlike a bad currency, which at
+ *     least lands the account with a broken wallet, that is the one request
+ *     a new player cannot retry their way past - and a trait this bundle
+ *     does not author would be undefined input to the same dominance roll
+ *     validateTraitDominance exists for.
  *   - tab thresholds (validateProgression): client_architecture 9's reveal
  *     bar is a pure function of progress and these thresholds. A tab missing
  *     from progression.json is a tab the client can never reveal.
@@ -436,13 +438,12 @@ async function validateNodeRates(dir: string): Promise<string[]> {
 }
 
 /**
- * config/bundle.ts already loads starter.json's `creatures` into
- * `Bundle.starterCreatures` - but as of this task, nothing reads that field
- * yet. routes/account.ts still grants only `starterGrants`; Task 5 is the
- * one that inserts the cold-open pair into the account-creation transaction,
- * at the same blast radius validateStarterGrants documents for the currency
- * grants in the same file. This check validates the content now, ahead of
- * that wiring, so that once Task 5 lands:
+ * config/bundle.ts loads starter.json's `creatures` into
+ * `Bundle.starterCreatures`, and routes/account.ts (Task 5) inserts the
+ * cold-open pair into the account-creation transaction, at the same blast
+ * radius validateStarterGrants documents for the currency grants in the same
+ * file. This check validates the content at PUBLISH time, ahead of that
+ * insert, which is what keeps that wiring safe:
  *
  *   - a species roster/creatures.ts's creatureHp does not know would THROW
  *     there instead of here - a 500 on every account creation, and (unlike a

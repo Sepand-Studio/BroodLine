@@ -15,10 +15,10 @@ import { startTestDb, type TestDb } from './harness.ts'
 // fileURLToPath, not .pathname - a path containing a space would arrive
 // percent-encoded and every join below would miss.
 const REPO = fileURLToPath(new URL('../../../', import.meta.url))
-// 0.1.1, not 0.1.0: wave 6 carries no reward in 0.1.0, and Task 7 makes a
-// missing reward a publish-time validation failure - 0.1.0 is already
-// published to GCS and must stay byte-identical to what shipped in Phase 4.
-const SEED = join(REPO, 'config/bundles/0.1.1')
+// 0.1.3, not 0.1.1: it is the bundle that authors progression.json's tab
+// thresholds and starter.json's `creatures` array (Task 3), both of which
+// this file's sync assertions read back.
+const SEED = join(REPO, 'config/bundles/0.1.3')
 
 let t: TestDb
 let app: ReturnType<typeof createApp>
@@ -34,8 +34,8 @@ beforeAll(async () => {
 
   bundleRoot = await mkdtemp(join(tmpdir(), 'broodline-sync-'))
   const store = new LocalBundleStore(bundleRoot)
-  await publishBundle(store, SEED, '0.1.1')
-  await store.setPointer('0.1.1')
+  await publishBundle(store, SEED, '0.1.3')
+  await store.setPointer('0.1.3')
   clearBundleCache()
 
   app = createApp({
@@ -84,8 +84,28 @@ describe('GET /v1/sync', () => {
     // Read from wallets, never summed from the ledger - solo_execution 5.3.
     expect(body.balances).toEqual({ splice_charges: 3, shards: 250 })
     expect(body.campaign.highestWaveCleared).toBe(0)
-    expect(body.config.bundleVersion).toBe('0.1.1')
-    expect(body.config.minimumClientVersion).toBe('0.1.0')
+    expect(body.config.bundleVersion).toBe('0.1.3')
+    expect(body.config.minimumClientVersion).toBe('0.3.0')
+  })
+
+  it('returns the tab thresholds, the wave list and the trait table from the bundle', async () => {
+    const body = await (await sync()).json() as {
+      config: {
+        tabs: Record<string, number>
+        waves: Array<{ id: number; reward: { currency: string; amount: number } | null }>
+        traits: Array<{ id: string; species: string; counters: string | null }>
+      }
+    }
+    expect(body.config.tabs).toEqual({ Map: 0, Ark: 0, Splice: 2, Lab: 61, Allies: 61 })
+    expect(body.config.waves.map((w) => w.id)).toEqual([1, 2, 6, 7])
+    expect(body.config.traits.find((t) => t.id === 'Chill')?.counters).toBe('Courser')
+  })
+
+  it('reports the FTUE facts the client derives beats from', async () => {
+    const body = await (await sync()).json() as {
+      ftue: { founderNamed: boolean; tutorialStockGranted: boolean; splices: number }
+    }
+    expect(body.ftue).toEqual({ founderNamed: false, tutorialStockGranted: false, splices: 0 })
   })
 
   it('refuses a request with no token', async () => {
@@ -109,7 +129,7 @@ describe('GET /v1/sync', () => {
   })
 
   it('serves a client at or above the floor', async () => {
-    expect((await sync({ 'x-client-version': '0.1.0' })).status).toBe(200)
+    expect((await sync({ 'x-client-version': '0.3.0' })).status).toBe(200)
     expect((await sync({ 'x-client-version': '1.4.2' })).status).toBe(200)
   })
 })

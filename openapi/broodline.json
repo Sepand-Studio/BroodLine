@@ -153,11 +153,97 @@
               },
               "minimumClientVersion": {
                 "type": "string"
+              },
+              "tabs": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "integer"
+                }
+              },
+              "waves": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "reward": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "currency": {
+                          "type": "string"
+                        },
+                        "amount": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "currency",
+                        "amount"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "reward"
+                  ]
+                }
+              },
+              "traits": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "species": {
+                      "type": "string"
+                    },
+                    "counters": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "species",
+                    "counters"
+                  ]
+                }
               }
             },
             "required": [
               "bundleVersion",
-              "minimumClientVersion"
+              "minimumClientVersion",
+              "tabs",
+              "waves",
+              "traits"
+            ]
+          },
+          "ftue": {
+            "type": "object",
+            "properties": {
+              "founderNamed": {
+                "type": "boolean"
+              },
+              "tutorialStockGranted": {
+                "type": "boolean"
+              },
+              "splices": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "founderNamed",
+              "tutorialStockGranted",
+              "splices"
             ]
           }
         },
@@ -166,7 +252,8 @@
           "balances",
           "campaign",
           "timers",
-          "config"
+          "config",
+          "ftue"
         ]
       },
       "DeleteAccountResponse": {

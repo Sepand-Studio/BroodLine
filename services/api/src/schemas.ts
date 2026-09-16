@@ -43,9 +43,35 @@ export const SyncResponse = z.object({
     kind: z.string(),
     completesAt: z.string(),
   })),
+  // tabs, waves and traits joined bundleVersion/minimumClientVersion in
+  // Phase 7, Task 5 (design §4/§5 beat 1) - additive, so the Phase 6 client
+  // keeps parsing this object.
   config: z.object({
     bundleVersion: z.string(),
     minimumClientVersion: z.string(),
+    // client_architecture §9's reveal bar - a tab name to the progress value
+    // that unlocks it.
+    tabs: z.record(z.string(), z.number().int()),
+    waves: z.array(z.object({
+      id: z.number().int(),
+      reward: z.object({
+        currency: z.string(),
+        amount: z.number().int(),
+      }).nullable(),
+    })),
+    traits: z.array(z.object({
+      id: z.string(),
+      species: z.string(),
+      counters: z.string().nullable(),
+    })),
+  }),
+  // The FTUE facts the client derives its current tutorial beat from.
+  // Nothing about FTUE progress is stored on the client - this, and this
+  // alone, is the source of truth it polls on every cold start.
+  ftue: z.object({
+    founderNamed: z.boolean(),
+    tutorialStockGranted: z.boolean(),
+    splices: z.number().int(),
   }),
 }).openapi('SyncResponse')
 
