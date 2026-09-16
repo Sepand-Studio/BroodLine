@@ -3,7 +3,7 @@ import { writeFile } from 'node:fs/promises'
 import { OpenAPIRegistry, OpenApiGeneratorV31 } from '@asteasolutions/zod-to-openapi'
 import {
   CreateAccountRequest, CreateAccountResponse, CreatureDto, CreatureNameRequest,
-  DeleteAccountResponse, ErrorResponse, FtueStockResponse,
+  DeleteAccountResponse, ErrorResponse, FtueStockResponse, LineageResponse,
   NodeClaimRequest, NodeClaimResponse, RefreshRequest, RefreshResponse,
   RegionStateResponse, RosterResponse, SpliceCommitRequest, SpliceCommitResponse,
   SplicePreviewRequest, SplicePreviewResponse, SyncResponse,
@@ -241,6 +241,21 @@ registry.registerPath({
   responses: {
     200: { description: 'The tutorial\'s Vetch and Ember, granted once', content: { 'application/json': { schema: FtueStockResponse } } },
     ...errors([400, 401, 404, 409, 422]),
+  },
+})
+
+// Phase 7, Task 9. design §5 beat 8, `splice_confirm_spec` §5 - the Lineage
+// View, registered here in the task that adds the route, the discipline
+// every route above states. No Idempotency-Key: derived and writes nothing,
+// the same shape `GET /v1/roster` takes.
+registry.registerPath({
+  method: 'get',
+  path: '/v1/lineage',
+  operationId: 'lineage',
+  security: [{ [bearerAuth.name]: [] }],
+  responses: {
+    200: { description: 'The player\'s whole tree, live and consumed', content: { 'application/json': { schema: LineageResponse } } },
+    ...errors([401, 404]),
   },
 })
 
