@@ -425,11 +425,32 @@ describe('the loop', () => {
       })
       expect(start6.status).toBe(200)
       const s6 = await start6.json() as { issuanceId: string; seed: string }
-      const { result: sub6 } = await roster.earn('wave-6 win granted base stock on the verified submit path',
+      const { result: sub6 } = await roster.earn(
+        'wave-6 win granted the Founder - this player\'s first-ever completion - on the verified submit path',
         () => submit(s6.issuanceId, buildWinningReplay(6, BigInt(s6.seed)), randomUUID()))
       expect(sub6.status).toBe(200)
       expect(await sub6.json()).toMatchObject({ result: 'Win' })
       await roster.reconcile('the wave-6 win')
+
+      // THE COUNT ALONE CANNOT SEE THIS, and that is exactly the blindness
+      // this file's own header opens by warning about - just for
+      // Founder-vs-rolled rather than earned-vs-seeded. `roster.earn()`
+      // above measured a roster-count delta of +1, and that delta is
+      // identical whether the grant was an ordinary roll or Task 6's
+      // Founder - `WAVE_BASE_STOCK` is 1 either way. Nothing before this
+      // player's wave-6 submit ever advanced `campaign_progress` (no wave
+      // was cleared by playing it, and `clearWave`/`clearThrough` are never
+      // called in this drive), so wave 6 genuinely IS this player's
+      // first-ever completion - Task 6's Founder branch fires HERE, not at
+      // wave 7's. Pinned by reading the roster the way a client would
+      // (GET /v1/roster), not by trusting the count `roster.reconcile` just
+      // vouched for: a count that agrees is not evidence about WHAT was
+      // granted, only how much.
+      const afterWave6 = await (await app.request('/v1/roster', { headers: auth })).json() as
+        { creatures: Array<{ species: string; isFounder: boolean }> }
+      const wave6Founders = afterWave6.creatures.filter((c) => c.isFounder)
+      expect(wave6Founders, 'wave 6\'s grant IS the Founder, not a roll').toHaveLength(1)
+      expect(wave6Founders[0]?.species).toBe('Hollow')
 
       // --------------------------------- wave 7, with five owned creatures
       const w7 = await roster.seed('giveRoster minted the wave-7 deployment',

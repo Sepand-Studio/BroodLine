@@ -86,8 +86,17 @@ export function registerCreatureRoutes(app: Hono, deps: Deps): void {
           // only_founders_named in SQL; this is the same rule with a sentence.
           if (!row.isFounder) return { refused: 'not_a_founder' }
 
+          // `playerId` restated here too, not inherited from the SELECT's
+          // lock three lines up - `wave/issuance.ts`'s `commitCreatures`
+          // makes the same choice for the same reason: a mutation this
+          // consequential should not depend on a reader reasoning "the row
+          // lock from the read above is still held" across two statements
+          // in one function, let alone across a future edit that separates
+          // them further.
           const [updated] = await tx.update(creatures).set({ name: body.name })
-            .where(and(eq(creatures.serverId, session.serverId), eq(creatures.creatureId, body.creatureId)))
+            .where(and(
+              eq(creatures.serverId, session.serverId), eq(creatures.playerId, playerId),
+              eq(creatures.creatureId, body.creatureId)))
             .returning()
           return { creature: toCreatureDto(updated!) }
         })
