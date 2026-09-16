@@ -88,6 +88,30 @@ export interface IssuanceHooks {
    * finding splice-commit.test.ts's race test was rewritten for.
    */
   beforeClaim?: () => Promise<void>
+
+  /**
+   * Awaited inside `settle()`, immediately after `releaseCreatures` has
+   * taken (and released) its `FOR UPDATE` locks on every creature this
+   * issuance committed - fix round 2's finding, and the only window in
+   * which those row locks are held by THIS transaction while nothing past
+   * this point has run yet.
+   *
+   * THE DEADLOCK THIS STANDS IN: `grantWaveBaseStock` (called after
+   * `settle()` returns, only on a verified Win) takes the player-level
+   * `lockRoster` advisory lock, and does so AFTER this window - while
+   * `splice/commit.ts`'s `commitSplice` takes the SAME advisory lock BEFORE
+   * its own row locks. A player who deploys a creature to a wave and then
+   * splices it as a parent while racing their own `wave/submit` can put one
+   * transaction here (holding the row lock, about to want the advisory
+   * lock) and the other blocked on that same row lock while already holding
+   * the advisory lock - Postgres's deadlock detector aborts one with
+   * `40P01`. No test driving two HTTP requests can construct this
+   * reliably; this is the only place to stand.
+   *
+   * A no-op for every real caller - the parameter defaults to `{}` and
+   * nothing under `src/routes/` passes it.
+   */
+  afterRelease?: () => Promise<void>
 }
 
 // Re-exported so the wave path has ONE import for what an issuance carries.
@@ -548,7 +572,9 @@ export async function claimIssuance(
  * different Idempotency-Keys both observe "settle ran, no exception" and
  * both credit the reward, because neither could tell it had lost the race.
  */
-export async function settle(tx: Tx, issuance: Issuance, settlement: 'consumed' | 'expired'): Promise<boolean> {
+export async function settle(
+  tx: Tx, issuance: Issuance, settlement: 'consumed' | 'expired', hooks: IssuanceHooks = {},
+): Promise<boolean> {
   const res = await tx.execute(sql`
     UPDATE wave_issuances SET settled_at = now(), settlement = ${settlement}
     WHERE server_id = ${issuance.serverId}
@@ -556,6 +582,9 @@ export async function settle(tx: Tx, issuance: Issuance, settlement: 'consumed' 
       AND settled_at IS NULL`)
 
   await releaseCreatures(tx, issuance)
+  // The read-to-write window fix round 2 stands in - see IssuanceHooks.
+  // A no-op for every real caller.
+  if (hooks.afterRelease) await hooks.afterRelease()
 
   return (res.rowCount ?? 0) > 0
 }

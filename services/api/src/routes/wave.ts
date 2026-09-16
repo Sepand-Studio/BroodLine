@@ -11,6 +11,7 @@ import { hashRequest } from '../http/hash.ts'
 import type { SessionClaims } from '../identity/jwt.ts'
 import { IdempotencyMismatchError, withIdempotency } from '../money/idempotency.ts'
 import { credit } from '../money/ledger.ts'
+import { lockRoster } from '../roster/creatures.ts'
 import { grantWaveBaseStock } from '../wave/base-stock.ts'
 import { rewardForWave } from '../wave/rewards.ts'
 import {
@@ -576,6 +577,35 @@ export function registerWaveRoutes(app: Hono, deps: Deps): void {
 
           const playerId = await loadPlayerId(tx, session.accountId)
           if (playerId === undefined) return { refused: 'issuance_invalid' }
+
+          // THE PLAYER-LEVEL LOCK, FIRST IN THIS TRANSACTION - fix round 2's
+          // finding, and the reason round 1's own fix (splice/commit.ts
+          // taking this SAME advisory lock before its row locks) introduced
+          // a Critical deadlock rather than closing one. `settle()` below
+          // (every branch - `submission_rejected`, `deployment_mismatch` and
+          // the win path) calls `releaseCreatures`, which takes ROW locks
+          // (`SELECT ... FOR UPDATE`) on every creature this issuance
+          // committed - and only much later, on a verified Win,
+          // `grantWaveBaseStock` takes this advisory lock. Row locks then
+          // advisory is the OPPOSITE order `commitSplice` now takes them in,
+          // so a player who deploys a creature to a wave and then splices it
+          // as a parent while racing their own `wave/submit` could put one
+          // transaction holding the row lock and wanting the advisory lock
+          // while the other holds the advisory lock and wants the row lock -
+          // Postgres aborts one with `40P01`.
+          //
+          // Taking it HERE, before `loadLiveIssuance` and before EVERY
+          // `settle()` call site in this callback (not only the win branch -
+          // `releaseCreatures` runs on all three), makes the invariant true
+          // for the WHOLE transaction rather than function-by-function:
+          // wave-submit now takes the same order `commitSplice`,
+          // `grantWaveBaseStock` and `claimNode` already agree on - the
+          // advisory lock, then any row lock. `grantWaveBaseStock`'s own
+          // `lockRoster` call further down is now a redundant re-acquisition
+          // of a lock this transaction already holds (`pg_advisory_xact_lock`
+          // is re-entrant within one transaction) - see that function's own
+          // doc for why it stays rather than being trimmed.
+          await lockRoster(tx, session.serverId, playerId)
 
           // 2, AUTHORITATIVE. The pre-sim read above is advisory and racy
           // by construction; this one runs inside the money transaction and

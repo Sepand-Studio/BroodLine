@@ -100,6 +100,18 @@ export async function grantWaveBaseStock(
   // Before the count, not after: this and `claimNode` are the only two
   // granting paths and they hold no lock in common, so without it both can
   // read the same pre-grant count and both pass the cap check.
+  //
+  // REDUNDANT BUT HARMLESS when reached from `routes/wave.ts`'s wave-submit
+  // handler, which is this function's only real caller - fix round 2.
+  // `pg_advisory_xact_lock` is re-entrant within one transaction, and that
+  // handler now takes this SAME lock, on this SAME player, as the first
+  // thing it does in the whole submit transaction, for a different reason
+  // (serialising against a concurrent `splice/commit` at the row-lock layer
+  // - fix round 2's deadlock). LEFT HERE rather than trimmed: this
+  // function's own contract - "does not race `claimNode`'s cap check" -
+  // should not silently start depending on a caller having already taken
+  // the lock for an unrelated reason. The cost of keeping it is one no-op
+  // re-acquisition per call.
   await lockRoster(tx, serverId, playerId)
 
   const ark = await loadArk(tx, serverId, playerId)

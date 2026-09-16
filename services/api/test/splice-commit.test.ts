@@ -10,12 +10,16 @@ import { clearBundleCache, loadBundle } from '../src/config/bundle.ts'
 import { publishBundle } from '../src/config/publish.ts'
 import { LocalBundleStore } from '../src/config/store.ts'
 import { withServer } from '../src/db/client.ts'
-import { accounts, creatures, ledger, players, servers, splices, wallets } from '../src/db/schema.ts'
+import {
+  accounts, creatures, ledger, players, servers, splices, wallets, waveIssuances,
+} from '../src/db/schema.ts'
 import { LocalReplayStore } from '../src/replays/store.ts'
-import { creatureHp, rosterCount } from '../src/roster/creatures.ts'
+import { creatureHp, lockRoster, rosterCount } from '../src/roster/creatures.ts'
 import { SimClient } from '../src/sim/client.ts'
 import { commitSplice, isFirstSplice } from '../src/splice/commit.ts'
 import { sampleSplice, spliceDistribution, type TraitRef } from '../src/splice/distribution.ts'
+import { grantWaveBaseStock } from '../src/wave/base-stock.ts'
+import { settle } from '../src/wave/issuance.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 import { balance, setupPlayer } from './wave-helpers.ts'
 
@@ -650,57 +654,107 @@ describe('POST /v1/splice/commit', () => {
     expect(await liveCount()).toBe(2) // the child, and the untouched c
   })
 
-  it('does not deadlock when two splices name the same pair in opposite orders', async () => {
-    // THE LOCK ORDER, and it is a property rather than a comment only
-    // because there is a seam to stand in. `lockParents` takes its two
-    // FOR UPDATE locks in SORTED id order; taking them in REQUEST order
-    // instead lets (a, b) hold a while (b, a) holds b, and Postgres breaks
-    // the cycle by aborting one transaction with 40P01 - a 500 on a route
-    // that is destroying player property, where a clean refusal was
-    // available.
+  it('does not deadlock against a wave-submit releasing the same committed creature - fix round 2', async () => {
+    // REPLACES "does not deadlock when two splices name the same pair in
+    // opposite orders", which fix round 1 made VACUOUS rather than merely
+    // redundant. That test constructed two `commitSplice` calls for the SAME
+    // player racing each other's `lockParents` in opposite order - but
+    // `commitSplice` now takes `lockRoster` (the player-level advisory lock)
+    // as its FIRST statement, so two same-player commits fully serialise
+    // there before EITHER reaches `lockParents`. Its `betweenParentLocks`
+    // hooks became dead code (the second transaction blocks on the advisory
+    // lock and never reaches the hook at all), and the assertion that
+    // neither transaction was aborted followed from mutual exclusion, not
+    // from the sorted-id discipline the test's own comments claimed to
+    // verify. `lockParents`' sorted-id ordering and its rationale are UNTOUCHED
+    // and still correct - just no longer exercisable by two commits from one
+    // player, which is the only pairing that old test could construct.
     //
-    // The window is between the two lock statements and is microseconds
-    // wide, so `betweenParentLocks` is what makes the interleaving real
-    // instead of hoped for: A pauses holding exactly one lock, and B is
-    // given its chance to take the other.
-    const { a, b } = await pair()
+    // THE PAIRING THAT CAN STILL RACE AT THE ROW-LOCK LAYER, and the one fix
+    // round 2's own bug lived in: a splice/commit naming a creature that is
+    // ALSO committed to a live wave issuance, racing that wave's own submit.
+    // `wave/submit`'s `settle()` -> `releaseCreatures()` takes a ROW lock
+    // (`SELECT ... ORDER BY creature_id FOR UPDATE`) on every creature the
+    // issuance committed; only later does `grantWaveBaseStock` take
+    // `lockRoster`. Before fix round 2, that was ROW LOCK then ADVISORY -
+    // the OPPOSITE of `commitSplice`'s ADVISORY then ROW LOCK - so a
+    // splice naming that same creature while the wave settles could put one
+    // transaction holding the row lock and wanting the advisory lock while
+    // the other held the advisory lock and wanted the row lock: a genuine
+    // Postgres deadlock (40P01). Note WHY `commitSplice` blocks on the row
+    // lock at all rather than bouncing off `creature_committed` immediately:
+    // that refusal (`commit.ts`, after `lockParents`) runs AFTER
+    // `lockParents` has already tried to take the lock.
+    //
+    // TX_B below reproduces `routes/wave.ts`'s FIXED sequence directly -
+    // `lockRoster` first, then `settle`, then `grantWaveBaseStock` - the
+    // same order that route now takes inside its `withIdempotency` callback,
+    // ahead of `loadLiveIssuance` and every `settle()` call site. Verified
+    // empirically (not merely reasoned about): commenting out ONLY the
+    // `lockRoster` call below - reproducing the PRE-fix-round-2 order, where
+    // the sole `lockRoster` call was the one still inside `grantWaveBaseStock`
+    // - throws a genuine Postgres "deadlock detected" out of `lockParents`
+    // within ~1s against this exact construction. See the task report for
+    // the transcript.
+    const a = await give(VETCH)
+    const b = await give(PALE)
     const bundle = await loadBundle(deps.bundleStore)
+
+    const issuanceId = randomUUID()
+    const [issuance] = await t.ownerDb.insert(waveIssuances).values({
+      serverId: SERVER_ID, issuanceId, playerId, waveId: 6, seed: '1',
+      expiresAt: new Date(Date.now() + 7_200_000),
+    }).returning()
+    await t.ownerDb.update(creatures).set({ committedTo: issuanceId })
+      .where(and(eq(creatures.serverId, SERVER_ID), eq(creatures.creatureId, a)))
 
     let release!: () => void
     const paused = new Promise<void>((r) => { release = r })
-    let bTookOne!: () => void
-    const bTookItsFirstLock = new Promise<void>((r) => { bTookOne = r })
+    let bReachedTheWindow!: () => void
+    const bIsInTheWindow = new Promise<void>((r) => { bReachedTheWindow = r })
 
+    const txB = withServer(deps.db, SERVER_ID, async (tx) => {
+      await lockRoster(tx, SERVER_ID, playerId)
+      const settled = await settle(tx, issuance!, 'consumed', {
+        // The read-to-write window: `a`'s row lock is held (and its
+        // `committed_to` already cleared, uncommitted) and nothing past
+        // this point has run yet.
+        afterRelease: async () => { bReachedTheWindow(); await paused },
+      })
+      if (settled) await grantWaveBaseStock(tx, SERVER_ID, playerId, issuanceId)
+      return settled
+    })
+
+    // B holds `lockRoster` and `a`'s row lock, and has written nothing past
+    // `releaseCreatures`.
+    await bIsInTheWindow
+
+    // A names the COMMITTED creature as a parent. With the fix, A blocks on
+    // `lockRoster` ALONE - B took it first - and never even attempts `a`'s
+    // row lock while B holds it, so there is nothing left for the two to
+    // deadlock over.
+    let aSettled = false
     const txA = withServer(deps.db, SERVER_ID, (tx) => commitSplice(
       tx, SERVER_ID, playerId, bundle,
       { parentA: a, parentB: b, locked: LOCK_A1, bodyFrom: 'Vetch' },
-      new Date(), randomUUID(), {
-        betweenParentLocks: async () => {
-          // Hold one lock and wait - either for B to take the other (which
-          // is what an UNSORTED order would let it do, and the deadlock),
-          // or for the timeout, which is B being correctly blocked.
-          await Promise.race([bTookItsFirstLock, paused])
-        },
-      }))
+      new Date(), randomUUID()))
+      .then((r) => { aSettled = true; return r })
 
-    // B names the SAME pair in the opposite order.
-    const txB = withServer(deps.db, SERVER_ID, (tx) => commitSplice(
-      tx, SERVER_ID, playerId, bundle,
-      { parentA: b, parentB: a, locked: LOCK_A1, bodyFrom: 'Vetch' },
-      new Date(), randomUUID(), {
-        betweenParentLocks: async () => { bTookOne() },
-      }))
+    await new Promise((r) => setTimeout(r, 400))
+    // A IS BLOCKED - correctly, on the SAME lock B holds, not deadlocked
+    // against it.
+    expect(aSettled).toBe(false)
 
-    setTimeout(release, 400)
-    const outcomes = await Promise.all([txA, txB])
+    release()
+    const [resultA, resultB] = await Promise.all([txA, txB])
 
-    // Exactly one splice happened, and NEITHER transaction was aborted by
-    // the deadlock detector - which is what `await` above would have
-    // surfaced as a rejection.
-    expect(outcomes.filter((o) => o.kind === 'ok')).toHaveLength(1)
-    expect(outcomes.filter((o) => o.kind === 'not_owned')).toHaveLength(1)
-    expect(await spliceRows()).toHaveLength(1)
-    expect(await balance('splice_charges')).toBe(STARTING_CHARGES - 1)
+    // NEITHER transaction was aborted by the deadlock detector - which is
+    // what the `await` above would have surfaced as a rejection. B settled
+    // the issuance and granted base stock; A then proceeded against the
+    // NOW-released creature and spliced it successfully.
+    expect(resultB).toBe(true)
+    expect(resultA.kind).toBe('ok')
+    expect(await isLive(a)).toBe(false) // consumed by A's splice
   })
 
   it('requires an Idempotency-Key', async () => {
