@@ -1,0 +1,4 @@
+[
+  { "id": "common_vein",  "ratePerHour": 20, "totalYield": null, "multiplier": 1 },
+  { "id": "rich_deposit", "ratePerHour": 60, "totalYield": 8640, "multiplier": 3 }
+]

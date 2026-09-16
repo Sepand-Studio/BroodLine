@@ -44,6 +44,34 @@ describe('bundle 0.1.2', () => {
   }, 120_000)
 })
 
+describe('bundle 0.1.3', () => {
+  const BUNDLE_0_1_3 = join(REPO, 'config/bundles/0.1.3')
+
+  it('refuses a starter creature whose species has no authored HP', async () => {
+    // roster/creatures.ts's creatureHp THROWS for an unknown species, and
+    // account creation would then 500 on every sign-up - the one request a
+    // new player cannot retry their way past.
+    expect(await validateBundle(FIX('bad-starter-species'))).toEqual(
+      expect.arrayContaining([expect.stringMatching(/starter.json creature 0 .* species 'Gryphon'/)]))
+  }, 120_000)
+
+  it('refuses a starter creature naming a trait the bundle does not author', async () => {
+    expect(await validateBundle(FIX('bad-starter-trait'))).toEqual(
+      expect.arrayContaining([expect.stringMatching(/trait 'Regrow'/)]))
+  }, 120_000)
+
+  it('refuses a progression.json missing any of the five tabs', async () => {
+    // client_architecture 9: the bar is a pure function of progress and
+    // THESE thresholds. A missing tab is a tab the client can never reveal.
+    expect(await validateBundle(FIX('missing-tab-threshold'))).toEqual(
+      expect.arrayContaining([expect.stringMatching(/progression.json .* 'Allies'/)]))
+  }, 120_000)
+
+  it('accepts 0.1.3', async () => {
+    expect(await validateBundle(BUNDLE_0_1_3)).toEqual([])
+  }, 120_000)
+})
+
 describe('node rates', () => {
   // map/accrual.ts's accrue() (Task 4) converts a node's ratePerHour to a
   // BigInt; a fractional rate throws a cryptic RangeError deep inside a

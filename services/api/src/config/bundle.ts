@@ -3,6 +3,26 @@ import type { Currency } from '../money/ledger.ts'
 
 export interface StarterGrant { currency: Currency; amount: number }
 
+/**
+ * A creature as authored in starter.json's `creatures` array (Task 3, bundle
+ * 0.1.3) - the cold-open pair a new account is handed alongside its currency
+ * grants. Structurally the authored subset of roster/creatures.ts's
+ * `CreatureDto`: no `creatureId`, `generation`, or `name`, because those are
+ * assigned at grant time rather than authored.
+ */
+export interface StarterCreature {
+  species: string
+  trait1: string
+  tier1: number
+  trait2: string
+  tier2: number
+  instinct: string
+  isFounder: boolean
+}
+
+/** The tab-reveal thresholds authored in progression.json (Task 3). */
+export interface Progression { tabs: Record<string, number> }
+
 export interface WaveSpawn { tick: number; type: string }
 
 /**
@@ -78,6 +98,18 @@ export interface Bundle {
    * the trait.
    */
   traits: BundleTrait[]
+  /**
+   * The cold-open pair - EMPTY when starter.json carries no `creatures` array,
+   * for the same reason `nodes` and `traits` are empty rather than a load
+   * failure: bundles 0.1.0-0.1.2 predate the field and are immutable, and
+   * 0.1.0 must stay byte-identical to what is published to GCS.
+   */
+  starterCreatures: StarterCreature[]
+  /**
+   * The tab-reveal thresholds - `{ tabs: {} }` when progression.json is
+   * absent, same tolerance as above: bundles 0.1.0-0.1.2 predate the file.
+   */
+  progression: Progression
 }
 
 /**
@@ -110,7 +142,9 @@ export async function loadBundle(store: BundleStore, opts: { refresh?: boolean }
   const manifest = JSON.parse(await store.readFile(version, 'manifest.json')) as {
     version: string; minimumClientVersion: string
   }
-  const starter = JSON.parse(await store.readFile(version, 'starter.json')) as { grants: StarterGrant[] }
+  const starter = JSON.parse(await store.readFile(version, 'starter.json')) as {
+    grants: StarterGrant[]; creatures?: StarterCreature[]
+  }
   const waves = JSON.parse(await store.readFile(version, 'waves.json')) as BundleWave[]
   // Absent means "this bundle authors no nodes", not "this bundle is
   // broken" - see Bundle.nodes. The catch is on the READ, so a nodes.json
@@ -120,6 +154,9 @@ export async function loadBundle(store: BundleStore, opts: { refresh?: boolean }
   // Same shape of tolerance, same placement of the catch - see Bundle.traits.
   // A traits.json that EXISTS and is malformed still throws from JSON.parse.
   const traitsRaw = await store.readFile(version, 'traits.json').catch(() => null)
+  // Same tolerance again - see Bundle.progression. progression.json that
+  // EXISTS and is malformed still throws from JSON.parse.
+  const progressionRaw = await store.readFile(version, 'progression.json').catch(() => null)
 
   cached = {
     version: manifest.version,
@@ -129,6 +166,10 @@ export async function loadBundle(store: BundleStore, opts: { refresh?: boolean }
     nodes: nodesRaw === null ? [] : JSON.parse(nodesRaw) as BundleNode[],
     // Object-wrapped, unlike every other file here.
     traits: traitsRaw === null ? [] : (JSON.parse(traitsRaw) as { traits: BundleTrait[] }).traits,
+    starterCreatures: starter.creatures ?? [],
+    progression: progressionRaw === null
+      ? { tabs: {} }
+      : JSON.parse(progressionRaw) as Progression,
   }
   return cached
 }
