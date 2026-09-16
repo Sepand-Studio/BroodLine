@@ -102,11 +102,16 @@ function effectiveFrom(a: AccrueArgs): number {
 /**
  * `floor(to * numer / denom) - floor(from * numer / denom)`, in BigInt.
  *
- * The telescoping shape accrue's comment above argues for, extracted so
- * base stock uses the SAME one rather than a second implementation of it -
- * a per-call `floor(elapsed * rate)` in either place is the drift this
- * shape exists to rule out, and one of the two silently having it would be
- * worse than neither.
+ * The telescoping shape accrue's comment above argues for.
+ *
+ * SHARDS ONLY, as of 0007. Base stock used to share it, and that was the
+ * bug: dividing by 480 units a creature turns this denominator into a
+ * wall-clock grid - 24 hours wide for the Common Vein, 8 for the Rich
+ * Deposit - so a grant depended on whether a window happened to straddle an
+ * absolute boundary rather than on how long it was. Shards have no such
+ * problem because a shard IS the unit; there is no second division to turn
+ * the remainder into a grid. Base stock now carries its remainder in a
+ * column instead - see baseStockFor.
  */
 function floorDifference(fromMs: number, toMs: number, numer: bigint, denom: bigint): number {
   return Number((BigInt(toMs) * numer) / denom - (BigInt(fromMs) * numer) / denom)
@@ -168,34 +173,54 @@ function baseStockMultiplierHundredths(arrayTier: number): number {
  * shards for - design 4.3's second write, and the supply line design 2.4
  * makes the difference between a loop that closes and one that seizes.
  *
- * IT TAKES THE SAME ARGUMENTS AS `accrue` RATHER THAN ITS RESULT, which is
- * a deviation from the plan's sketched `baseStockFor(units, arrayTier,
- * nodeType)` and the reason is arithmetic rather than taste. A count
- * derived from one claim's `units` has to floor, and the remainder is then
- * thrown away on every claim instead of carried - which at 480 units a
- * creature and a twelve-hour cap means the Common Vein, whose largest
- * possible single claim is 12 x 20 = 240 units, grants base stock NEVER, at
- * any cadence, forever. Telescoping over absolute timestamps the way
- * `accrue` already does carries the remainder into the next claim's floor,
- * and two twelve-hour Common Vein claims in a day then grant exactly the
- * one creature a day the rate says they should. `nodeType` is absent for a
- * different reason: it selects the SPECIES (`base_stock` 4.2's region
- * weighting), not the count, and species selection lives with the grant in
- * roster/creatures.ts.
+ * THE REMAINDER IS CARRIED IN A COLUMN, not recovered from the phase of an
+ * absolute floor grid - 0007, and the reason is a real bug rather than
+ * taste.
  *
- * THE DEPLETION BOUND IS APPLIED BY RE-ASKING `accrue`, not by reproducing
- * its clamp. A node that ran dry inside the window paid fewer shards than
- * the window would otherwise have earned, and base stock is earned on
- * shards actually harvested - so that case leaves the telescoping branch
- * and counts against what was paid. The branch is exact where it matters
- * and terminal where it is not: a dry node pays zero and grants zero on
- * every subsequent claim, so the remainder it drops cannot accumulate.
+ * A count derived by flooring one claim's `units` throws the remainder away
+ * every time, which at 480 units a creature and a twelve-hour cap means the
+ * Common Vein - largest possible single claim 12 x 20 = 240 units - grants
+ * base stock NEVER, at any cadence, forever. That is why this used to
+ * telescope over absolute timestamps the way `accrue` still does.
+ *
+ * But `accrue`'s denominator is an hour and this one's is 480 units, and
+ * that difference is the whole problem: dividing by 480 turns the grid into
+ * 24 hours wide for the Common Vein and 8 for the Rich Deposit, so a claim
+ * granted a creature if and only if its window crossed one of those
+ * ABSOLUTE boundaries. Measured: six hours of Common Vein granted 1 creature
+ * at 00:15 UTC and 0 at 21:15. Two players harvesting identical windows got
+ * different counts; a player claiming at 23:59 and again at 00:01 could be
+ * handed a whole creature for two minutes of harvesting; and the long-run
+ * rate was only right while a player kept claiming inside the twelve-hour
+ * cap, because going past it breaks the chain and leaves nothing but the
+ * wall-clock dependence.
+ *
+ * Carrying the remainder keeps the property the telescoping was chosen for -
+ * two twelve-hour Common Vein claims in a day still grant exactly the one
+ * creature a day the rate says they should - and drops the grid. The result
+ * is a pure function of units actually paid.
+ *
+ * `nodeType` is absent for a different reason: it selects the SPECIES
+ * (`base_stock` 4.2's region weighting), not the count, and species
+ * selection lives with the grant in roster/creatures.ts.
+ *
+ * THE DEPLETION BOUND NEEDS NO SPECIAL BRANCH ANY MORE. `accrue` already
+ * clamps a dry node's payout, and base stock is earned on shards actually
+ * harvested, so a clipped window simply contributes less to the carry. The
+ * two branches this function used to have - one telescoping, one flooring
+ * `paid` - disagreed with each other; there is now one rule for both.
  */
-export function baseStockFor(a: AccrueArgs): number {
-  const nowMs = a.now.getTime()
-  const fromMs = effectiveFrom(a)
-  if (nowMs <= fromMs) return 0
+export interface BaseStock {
+  /** Whole creatures this claim earns. */
+  creatures: number
+  /**
+   * What to persist for the next claim - always strictly below one
+   * creature's worth, because anything at or above it was converted above.
+   */
+  carried: number
+}
 
+export function baseStockFor(a: AccrueArgs, carried: number): BaseStock {
   // The base-stock table is consulted FIRST so that an uncalibrated tier is
   // refused by the table this function owns rather than by the shard table
   // it happens to share a key set with - otherwise that guard is
@@ -203,25 +228,18 @@ export function baseStockFor(a: AccrueArgs): number {
   // be caught by nothing.
   const baseMult = BigInt(baseStockMultiplierHundredths(a.arrayTier))
   const shardMult = BigInt(shardMultiplierHundredths(a.arrayTier))
-  const perCreature = BigInt(UNITS_PER_CREATURE)
 
-  const paid = accrue(a)
-  if (paid >= accrue({ ...a, remaining: null })) {
-    // THE SHARD MULTIPLIER IS ABSENT HERE, and its absence is the scaling
-    // rule rather than an omission. Over a window this pays
-    // `rate x baseMult / (480 x 100)` creatures an hour, so tier 12's 2.00x
-    // base-stock multiplier makes it 2x tier 1 while the SAME window's
-    // shards go up 3.00x - `base_stock` 3.1's "half the rate shards do",
-    // expressed as the thing it is rather than as a correction applied
-    // afterwards. Dividing by the shard multiplier as well would scale base
-    // stock DOWN at higher tiers (2/3 x at tier 12), which is the bug this
-    // note exists to stop someone reintroducing for symmetry with the
-    // branch below.
-    return floorDifference(fromMs, nowMs, BigInt(a.ratePerHour) * baseMult,
-      perCreature * 100n * BigInt(HOUR_MS))
+  // CARRIED IN BASE-STOCK NUMERATOR UNITS - `paid x baseMult` - rather than
+  // in shards, so the tier ratio stays exact. Converting to shards first
+  // would divide by `shardMult` on every claim and lose a remainder to the
+  // very rounding this carry exists to remove. At tier 1 both multipliers
+  // are 100, so the threshold is the plain 480 units a reader expects.
+  const threshold = BigInt(UNITS_PER_CREATURE) * shardMult
+  const total = BigInt(carried) + BigInt(accrue(a)) * baseMult
+
+  return {
+    creatures: Number(total / threshold),
+    carried: Number(total % threshold),
   }
-  // The clipped branch starts from `paid`, which DOES already carry the
-  // shard multiplier - so here it is divided back out, and the same tier-12
-  // window again pays 3x the shards for 2x the creatures.
-  return Number((BigInt(paid) * baseMult) / (perCreature * shardMult))
 }
+

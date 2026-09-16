@@ -318,6 +318,12 @@ export const harvestPositions = pgTable('harvest_positions', {
   nodeSlot: smallint('node_slot').notNull(),
   epoch: bigint('epoch', { mode: 'number' }).notNull(),
   lastSettledAt: timestamp('last_settled_at', { withTimezone: true }).notNull(),
+  // Units paid but not yet worth a whole creature - 0007. Base stock used to
+  // recover this remainder from the phase of an absolute floor grid, which
+  // made a grant depend on what time of day the window sat in; carrying it
+  // here makes it a pure function of units paid. Shards are unaffected:
+  // `accrue` still telescopes, which is correct for a continuous currency.
+  baseStockCarried: bigint('base_stock_carried', { mode: 'number' }).notNull().default(0),
 }, (t) => ({
   pk: primaryKey({ columns: [t.serverId, t.playerId, t.regionId, t.nodeSlot, t.epoch] }),
 }))

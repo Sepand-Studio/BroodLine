@@ -134,7 +134,11 @@ const WAVE_7_REWARD = 230 // config/bundles/0.1.2/waves.json
  * expectation would move with whatever the drive happens to do - which is the
  * one thing this must not do.
  */
-const EXPECTED_EARNED = 3   // +1 +1 claims, -2 consumed, +1 child, +1 wave 6, +1 wave 7
+// +1 then +2 from the two claims (see the claim block: 720 units is 1.5
+// creatures, and 0007 carries the half rather than letting the phase of an
+// absolute grid decide where it lands), -2 consumed, +1 child, +1 wave 6,
+// +1 wave 7.
+const EXPECTED_EARNED = 4
 const EXPECTED_SEEDED = 10  // two giveRoster() deployments of five
 
 /** The composition that actually beats wave 7, verified against the engine in adversarial.test.ts. */
@@ -337,6 +341,7 @@ describe('the loop', () => {
       }
 
       const pool: Array<{ creatureId: string; species: string }> = []
+      const granted: number[] = []
       for (let i = 0; i < 2; i++) {
         const { result, delta } = await roster.earn(
           `node/claim on slot ${rich.slot} granted base stock`, claim)
@@ -345,11 +350,19 @@ describe('the loop', () => {
         }
         expect(result.status).toBe(200)
         expect(body.shards, 'a twelve-hour window on the rich deposit pays 60/hr x 12').toBe(720)
-        expect(delta, 'and grants exactly one creature (720 units / 480 per creature)').toBe(1)
+        // 720 units is ONE AND A HALF creatures at 480 each, so the two claims
+        // pay 1 then 2 rather than 1 each: 0007 carries the half in a column
+        // instead of recovering it from the phase of an absolute floor grid,
+        // and the total is the authored rate exactly - 24h x 60/hr is 1,440
+        // units, which is the 3 creatures a day `perDay(60, 1)` pins. Before
+        // 0007 this assertion read `toBe(1)` and passed or failed depending on
+        // what time of day the suite ran.
+        granted.push(delta)
         pool.push(...body.creatures)
         await roster.reconcile(`claim ${i + 1}`)
       }
-      expect(pool, 'two claims, two parents').toHaveLength(2)
+      expect(granted, 'lumpy per claim, exact in total').toEqual([1, 2])
+      expect(pool, 'two claims, three creatures - the splice takes the first two').toHaveLength(3)
 
       // ------------------------------------------------------------- the splice
       const [a, b] = [pool[0]!, pool[1]!]
@@ -480,7 +493,7 @@ describe('the loop', () => {
    * the original transcript got wrong, and it should fail under its own name
    * so the report says "the split moved" rather than "the loop broke".
    */
-  it('accounts every creature as EARNED or SEEDED, and ten of the thirteen were SEEDED', () => {
+  it('accounts every creature as EARNED or SEEDED, and ten of the fourteen were SEEDED', () => {
     // Printed on failure only - a reader diagnosing a moved split needs the
     // itemisation, and a reader of a green run does not.
     const detail = `\n${roster.entries.map((e) => `  ${e}`).join('\n')}\n`

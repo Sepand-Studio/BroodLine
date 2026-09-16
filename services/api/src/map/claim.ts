@@ -240,19 +240,30 @@ async function readDepletions(
   return out
 }
 
+/** A player's stake in one node this epoch: when it last settled, and what
+ * it had left over towards the next creature. */
+interface Position {
+  lastSettledAt: Date
+  carried: number
+}
+
 /** Every position this player holds in one region-epoch, in ONE round trip. */
 async function readPositions(
   tx: Tx, serverId: number, playerId: string, regionId: string, epoch: number,
-): Promise<Map<number, Date>> {
+): Promise<Map<number, Position>> {
   const res = await tx.execute(sql`
-    SELECT node_slot, last_settled_at FROM harvest_positions
+    SELECT node_slot, last_settled_at, base_stock_carried FROM harvest_positions
      WHERE server_id = ${serverId} AND player_id = ${playerId}::uuid
        AND region_id = ${regionId} AND epoch = ${epoch}`)
-  const out = new Map<number, Date>()
-  for (const r of res.rows as { node_slot: number; last_settled_at: string | Date }[]) {
+  const out = new Map<number, Position>()
+  for (const r of res.rows as
+    { node_slot: number; last_settled_at: string | Date; base_stock_carried: string | number }[]) {
     // new Date() for the same reason readDepletions coerces: a raw execute
     // hands back the driver's own value, and `accrue` calls .getTime() on it.
-    out.set(Number(r.node_slot), new Date(r.last_settled_at))
+    out.set(Number(r.node_slot), {
+      lastSettledAt: new Date(r.last_settled_at),
+      carried: Number(r.base_stock_carried),
+    })
   }
   return out
 }
@@ -267,9 +278,9 @@ async function readPositions(
  * cap instead would make a player's first-ever claim, and every epoch
  * rollover, free money nobody authored.
  */
-async function loadLastSettled(
+async function loadPosition(
   tx: Tx, serverId: number, playerId: string, regionId: string, slot: number, epoch: number, now: Date,
-): Promise<Date> {
+): Promise<Position> {
   const [row] = await tx.select().from(harvestPositions).where(and(
     eq(harvestPositions.serverId, serverId),
     eq(harvestPositions.playerId, playerId),
@@ -277,18 +288,31 @@ async function loadLastSettled(
     eq(harvestPositions.nodeSlot, slot),
     eq(harvestPositions.epoch, epoch),
   ))
-  return row?.lastSettledAt ?? now
+  // An absent row has carried nothing towards a creature, for the same
+  // reason it settles at `now`: nothing has been harvested here yet.
+  return {
+    lastSettledAt: row?.lastSettledAt ?? now,
+    carried: row?.baseStockCarried ?? 0,
+  }
 }
 
 async function settlePosition(
-  tx: Tx, serverId: number, playerId: string, regionId: string, slot: number, epoch: number, now: Date,
+  tx: Tx, serverId: number, playerId: string, regionId: string, slot: number, epoch: number,
+  now: Date, carried: number,
 ): Promise<void> {
+  // `carried` moves with `lastSettledAt` and in the same statement. They are
+  // one fact - how far this position has got towards its next creature - and
+  // settling the clock without the carry would drop the remainder on every
+  // claim, which is the drift 0007 exists to remove.
   await tx.insert(harvestPositions)
-    .values({ serverId, playerId, regionId, nodeSlot: slot, epoch, lastSettledAt: now })
+    .values({
+      serverId, playerId, regionId, nodeSlot: slot, epoch,
+      lastSettledAt: now, baseStockCarried: carried,
+    })
     .onConflictDoUpdate({
       target: [harvestPositions.serverId, harvestPositions.playerId, harvestPositions.regionId,
         harvestPositions.nodeSlot, harvestPositions.epoch],
-      set: { lastSettledAt: now },
+      set: { lastSettledAt: now, baseStockCarried: carried },
     })
 }
 
@@ -413,8 +437,10 @@ export async function regionState(
     const depletion = depletions.get(node.slot) ?? { harvestedUnits: 0, depletedAt: null }
     const remaining = remainingOf(node, depletion)
     // Same fallback `loadLastSettled` applies, for the same reason: an
-    // absent row pays nothing rather than backdating to the cap.
-    const lastSettledAt = positions.get(node.slot) ?? now
+    // absent row pays nothing rather than backdating to the cap, and has
+    // carried nothing towards a creature yet.
+    const position = positions.get(node.slot)
+    const lastSettledAt = position?.lastSettledAt ?? now
 
     // The SAME functions the claim pays and grants from, not a second
     // estimate of either. A display computed differently from the credit is
@@ -428,7 +454,10 @@ export async function regionState(
       type: node.type,
       accrued: accrue(args),
       remaining,
-      grants: baseStockFor(args),
+      // The COUNT only. This is the read path: the carry it would leave is
+      // deliberately discarded, because persisting it here is the write
+      // regionState is not allowed to make.
+      grants: baseStockFor(args, position?.carried ?? 0).creatures,
     })
   }
 
@@ -490,14 +519,16 @@ export async function claimNode(
   if (hooks.afterDepletionRead) await hooks.afterDepletionRead()
   const remaining = remainingOf(node, depletion)
 
-  const lastSettledAt = await loadLastSettled(
+  const position = await loadPosition(
     tx, serverId, playerId, ark.regionId, slot, epoch, now)
+  const lastSettledAt = position.lastSettledAt
   const args = {
     lastSettledAt, now, ratePerHour: node.ratePerHour,
     arrayTier: ark.harvestArrayTier, remaining,
   }
   const units = accrue(args)
-  const grants = baseStockFor(args)
+  const baseStock = baseStockFor(args, position.carried)
+  const grants = baseStock.creatures
 
   // Before the count, not after - see lockRoster. This and
   // `grantWaveBaseStock` are the only granting paths and they share no lock
@@ -532,7 +563,7 @@ export async function claimNode(
   // is the property a dispute would be settled with).
   const granted = await grantBaseStock(tx, serverId, playerId, grants,
     `${serverId}:${playerId}:${ark.regionId}:${epoch}:${slot}:${idempotencyKey}`)
-  await settlePosition(tx, serverId, playerId, ark.regionId, slot, epoch, now)
+  await settlePosition(tx, serverId, playerId, ark.regionId, slot, epoch, now, baseStock.carried)
   await addHarvested(tx, serverId, ark.regionId, slot, epoch, units, remaining, now)
 
   return { kind: 'ok', slot, shards: units, creatures: granted.map(toCreatureDto), balance }

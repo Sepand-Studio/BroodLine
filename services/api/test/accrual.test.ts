@@ -77,13 +77,21 @@ describe('baseStockFor', () => {
    * `new Date(0)` and `new Date(DAY)` would silently be measuring half a
    * day, which is exactly the mistake that wrote this helper.
    *
-   * Both timestamps are exact multiples of a day, so the floor difference
-   * carries no phase and the assertion is on the RATE rather than on where
-   * a boundary happened to fall.
+   * The timestamps used to have to be exact multiples of a day, because the
+   * count came from a floor difference over absolute time and would
+   * otherwise have depended on where a boundary fell. 0007 removed that:
+   * the carry is threaded between the two claims below the way the column
+   * threads it between two real ones, and the answer is now the same wherever
+   * the window sits.
    */
-  const perDay = (ratePerHour: number, arrayTier: number) =>
-    baseStockFor({ lastSettledAt: new Date(0), now: new Date(12 * HOUR), ratePerHour, arrayTier, remaining: null })
-    + baseStockFor({ lastSettledAt: new Date(12 * HOUR), now: new Date(DAY), ratePerHour, arrayTier, remaining: null })
+  const perDay = (ratePerHour: number, arrayTier: number, from = 0) => {
+    const first = baseStockFor(
+      { lastSettledAt: new Date(from), now: new Date(from + 12 * HOUR), ratePerHour, arrayTier, remaining: null }, 0)
+    const second = baseStockFor(
+      { lastSettledAt: new Date(from + 12 * HOUR), now: new Date(from + DAY), ratePerHour, arrayTier, remaining: null },
+      first.carried)
+    return first.creatures + second.creatures
+  }
 
   it('pays one Gen-1 creature per 24h of Common Vein harvest at tier 1', () => {
     // The ABSOLUTE pin on the constant, and it is absolute on purpose: a
@@ -106,11 +114,14 @@ describe('baseStockFor', () => {
     // Common Vein would grant base stock never, at any cadence, forever.
     // 96 half-hour claims must sum to what the same 48 hours pays whole.
     let total = 0
+    let carried = 0
     for (let i = 0; i < 96; i++) {
-      total += baseStockFor({
+      const step = baseStockFor({
         lastSettledAt: new Date(i * 30 * 60_000), now: new Date((i + 1) * 30 * 60_000),
         ratePerHour: 20, arrayTier: 1, remaining: null,
-      })
+      }, carried)
+      total += step.creatures
+      carried = step.carried
     }
     expect(total).toBe(2)   // 48h at one creature a day
   })
@@ -136,7 +147,7 @@ describe('baseStockFor', () => {
     expect(baseStockFor({
       lastSettledAt: new Date(0), now: new Date(DAY),
       ratePerHour: 60, arrayTier: 1, remaining: 0,
-    })).toBe(0)
+    }, 0).creatures).toBe(0)
   })
 
   it('counts against what a dying node actually paid, not the whole window', () => {
@@ -150,13 +161,85 @@ describe('baseStockFor', () => {
     expect(baseStockFor({
       lastSettledAt: new Date(0), now: new Date(DAY),
       ratePerHour: 60, arrayTier: 1, remaining: 100,
-    })).toBe(0)     // floor(100 / 480)
+    }, 0).creatures).toBe(0)     // floor(100 / 480)
 
     // ...and a node with enough left to cover a whole creature does pay it.
     expect(baseStockFor({
       lastSettledAt: new Date(0), now: new Date(DAY),
       ratePerHour: 60, arrayTier: 1, remaining: 500,
-    })).toBe(1)     // floor(500 / 480)
+    }, 0).creatures).toBe(1)     // floor(500 / 480)
+  })
+
+  it('grants the same count wherever the window sits in the day', () => {
+    // THE 0007 BUG, and the assertion that would have caught it. The count
+    // used to come from a telescoping difference of absolute floors, which
+    // at 480 units a creature turns the denominator into a wall-clock grid -
+    // 24 hours wide for the Common Vein, 8 for the Rich Deposit - so a claim
+    // granted a creature if and only if its window straddled one of those
+    // boundaries. Six hours of Common Vein paid 1 creature at 00:15 UTC and
+    // 0 at 21:15, and every test in this file happened to use windows
+    // anchored at multiples of a day, where the phase is always zero.
+    //
+    // Swept across a whole day at half-hour offsets: the answer must not
+    // move. Both nodes, because their grids were different widths.
+    for (const ratePerHour of [20, 60]) {
+      const counts = new Set<number>()
+      for (let offsetMinutes = 0; offsetMinutes < 24 * 60; offsetMinutes += 30) {
+        const from = offsetMinutes * 60_000
+        counts.add(baseStockFor({
+          lastSettledAt: new Date(from), now: new Date(from + 6 * HOUR),
+          ratePerHour, arrayTier: 1, remaining: null,
+        }, 0).creatures)
+      }
+      expect(counts.size, `rate ${ratePerHour} moved with the time of day`).toBe(1)
+    }
+
+    // And the same for a full day's harvest, at every offset.
+    for (let offsetMinutes = 0; offsetMinutes < 24 * 60; offsetMinutes += 30) {
+      expect(perDay(20, 1, offsetMinutes * 60_000)).toBe(1)
+      expect(perDay(60, 1, offsetMinutes * 60_000)).toBe(3)
+    }
+  })
+
+  it('carries the remainder forward rather than discarding it', () => {
+    // Six hours of Common Vein is 120 units against 480 to the creature, so
+    // no single claim pays one - but four of them must, and the fourth is
+    // where the carry proves it is being persisted rather than recovered
+    // from a global origin.
+    let carried = 0
+    const counts: number[] = []
+    for (let i = 0; i < 4; i++) {
+      const step = baseStockFor({
+        lastSettledAt: new Date(i * 6 * HOUR), now: new Date((i + 1) * 6 * HOUR),
+        ratePerHour: 20, arrayTier: 1, remaining: null,
+      }, carried)
+      counts.push(step.creatures)
+      carried = step.carried
+    }
+    expect(counts).toEqual([0, 0, 0, 1])
+    expect(carried).toBe(0)
+  })
+
+  it('never carries a whole creature, so the column cannot hide one', () => {
+    // The carry is what the NEXT claim starts from, so anything at or above
+    // one creature's worth left in it is a creature the player earned and
+    // was not given. Swept over a range of windows including ones far past
+    // the twelve-hour cap.
+    //
+    // THE THRESHOLD IS 480 x shardMult, NOT 480. The carry is held in
+    // base-stock numerator units - `paid x baseMult` - so that the tier
+    // ratio stays exact without dividing (and losing a remainder) on every
+    // claim. At tier 1 both multipliers are 100, so one creature is 48,000
+    // of these units rather than 480 shards.
+    const oneCreature = 480 * 100
+    for (const hours of [0.5, 1, 6, 11.9, 12, 13, 48]) {
+      const { carried } = baseStockFor({
+        lastSettledAt: new Date(0), now: new Date(hours * HOUR),
+        ratePerHour: 60, arrayTier: 1, remaining: null,
+      }, 0)
+      expect(carried, `${hours}h left a whole creature in the carry`).toBeLessThan(oneCreature)
+      expect(carried).toBeGreaterThanOrEqual(0)
+    }
   })
 
   it('refuses a Harvest Array tier the base-stock table does not calibrate', () => {
@@ -166,6 +249,6 @@ describe('baseStockFor', () => {
     expect(() => baseStockFor({
       lastSettledAt: new Date(0), now: new Date(DAY),
       ratePerHour: 20, arrayTier: 2, remaining: null,
-    })).toThrow(/base-stock multiplier for Harvest Array tier 2/)
+    }, 0)).toThrow(/base-stock multiplier for Harvest Array tier 2/)
   })
 })
