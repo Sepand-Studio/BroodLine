@@ -95,6 +95,29 @@ grep -q "$URP_LIT_GUID" "$G" \
   || bad "URP/Lit not in Always Included Shaders" \
          "Project Settings > Graphics > Always Included Shaders > + > Universal Render Pipeline/Lit  (without it Shader.Find returns null in a build and every device run in Task 5 renders magenta)"
 
+# --- The client floor coupling. config/bundles/<highest>/manifest.json's
+# minimumClientVersion is what routes/sync.ts refuses clients below with 426;
+# ProjectSettings.asset's bundleVersion is what the client sends. Phase 6
+# shipped with the floor at 0.1.0 and the client at 0.2.0 - inert - and then
+# found parseStart had made the OLD client unusable while the floor still
+# told it it was current. The two halves moved in a8e5785; this is what
+# keeps them moving together.
+#
+# FAIL CLOSED: if the bundle listing is empty, or either version string can't
+# be read, floor and/or client come back empty below. Both branches of the
+# guard's condition already route an empty value to `bad`, never a skip -
+# a guard that can't compare the two halves must not report ok.
+highest_bundle=$(ls -d config/bundles/*/ 2>/dev/null | sed 's#config/bundles/##; s#/##' | sort -V | tail -1)
+floor=$(sed -n 's/.*"minimumClientVersion": *"\([0-9.]*\)".*/\1/p' "config/bundles/$highest_bundle/manifest.json" 2>/dev/null)
+client=$(sed -n 's/^  bundleVersion: *\([0-9.]*\).*/\1/p' "$P")
+lowest=$(printf '%s\n%s\n' "$floor" "$client" | sort -V | head -1)
+if [ -n "$floor" ] && [ -n "$client" ] && [ "$lowest" = "$floor" ]; then
+  ok "client $client is not below bundle $highest_bundle's minimumClientVersion $floor"
+else
+  bad "client bundleVersion '$client' is below bundle $highest_bundle's minimumClientVersion '$floor' (or one is unreadable)" \
+      "move ProjectSettings.asset bundleVersion and the manifest's floor TOGETHER - a player told they are current while every wave they start is refused is the failure this check exists for"
+fi
+
 echo
 [ $fail -eq 0 ] && echo "Task 2 settings verified." || echo "Fix what is marked FAIL in the Unity editor, then re-run."
 exit $fail
