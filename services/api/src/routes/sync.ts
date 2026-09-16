@@ -4,7 +4,7 @@ import type { Deps } from '../app.ts'
 import { loadBundle } from '../config/bundle.ts'
 import { withServer } from '../db/client.ts'
 import { campaignProgress, creatures, players, splices, wallets } from '../db/schema.ts'
-import { readMarkers } from '../ftue/markers.ts'
+import { markersFrom } from '../ftue/markers.ts'
 import { isBelow, requireSession } from '../http/auth.ts'
 import { fail } from '../http/errors.ts'
 
@@ -46,8 +46,11 @@ export function registerSyncRoutes(app: Hono, deps: Deps): void {
           eq(campaignProgress.serverId, session.serverId),
           eq(campaignProgress.playerId, player.playerId)))
 
-      // Three more indexed reads on the player's own rows - the p99 budget
-      // comment below is what bounds adding a fourth without measuring.
+      // Two more indexed reads on the player's own rows - the p99 budget
+      // comment below is what bounds adding a third without measuring. The
+      // FTUE markers are NOT a third: `progress` above already selected the
+      // whole campaign_progress row, and ftue/markers.ts's `markersFrom` is
+      // a pure extractor over it rather than a query - see below.
       const [founder] = await tx.select({
         named: sql<boolean>`coalesce(bool_or(${creatures.name} IS NOT NULL), false)`,
       }).from(creatures).where(and(
@@ -58,9 +61,7 @@ export function registerSyncRoutes(app: Hono, deps: Deps): void {
       const [spliceCount] = await tx.select({ n: count() }).from(splices)
         .where(and(eq(splices.serverId, session.serverId), eq(splices.playerId, player.playerId)))
 
-      const markers = await readMarkers(tx, session.serverId, player.playerId)
-
-      return { player, walletRows, progress, founder, spliceCount, markers }
+      return { player, walletRows, progress, founder, spliceCount }
     })
 
     if (snapshot === null) return fail('not_found', 'No player on this server for that account.')
@@ -100,10 +101,13 @@ export function registerSyncRoutes(app: Hono, deps: Deps): void {
       // What the client derives the current tutorial beat from - nothing
       // about FTUE progress is stored on the client. `tutorialStockGranted`
       // is the only marker read today; the other two land with the grant
-      // paths that set them (Tasks 6-8).
+      // paths that set them (Tasks 6-8). `markersFrom`, not `readMarkers`:
+      // `snapshot.progress` above is already the whole campaign_progress row,
+      // so extracting the markers from it is a pure function call, not a
+      // second query against a row this handler already holds.
       ftue: {
         founderNamed: snapshot.founder?.named ?? false,
-        tutorialStockGranted: snapshot.markers.tutorialStockGrantedAt !== null,
+        tutorialStockGranted: markersFrom(snapshot.progress).tutorialStockGrantedAt !== null,
         splices: Number(snapshot.spliceCount?.n ?? 0),
       },
     })

@@ -10,7 +10,7 @@ import { publishBundle } from '../src/config/publish.ts'
 import { LocalBundleStore } from '../src/config/store.ts'
 import { withServer } from '../src/db/client.ts'
 import { campaignProgress, servers } from '../src/db/schema.ts'
-import { readMarkers, setMarker } from '../src/ftue/markers.ts'
+import { markersFrom, readMarkers, setMarker } from '../src/ftue/markers.ts'
 import { LocalReplayStore } from '../src/replays/store.ts'
 import { SimClient } from '../src/sim/client.ts'
 import { startTestDb, type TestDb } from './harness.ts'
@@ -100,5 +100,18 @@ describe('ftue markers', () => {
     expect(after.length).toBe(1)
     expect(after[0]!.highestWaveCleared).toBe(0)           // the insert took the column defaults
     expect(after[0]!.wave6PaleGrantedAt).not.toBeNull()
+  })
+
+  // Deferred from Task 4's review: readMarkers' no-row case (a player with no
+  // campaign_progress row yet) was correct by inspection - `row?.x ?? null`
+  // - but never asserted. markersFrom being a pure function over an
+  // already-fetched row (Task 5's fix round) makes that a one-line test with
+  // no database involved at all.
+  it('markersFrom(undefined) returns all three markers null', () => {
+    expect(markersFrom(undefined)).toEqual({
+      founderGrantedAt: null,
+      tutorialStockGrantedAt: null,
+      wave6PaleGrantedAt: null,
+    })
   })
 })

@@ -18,14 +18,29 @@ export interface Markers {
   wave6PaleGrantedAt: Date | null
 }
 
-export async function readMarkers(tx: Tx, serverId: number, playerId: string): Promise<Markers> {
-  const [row] = await tx.select().from(campaignProgress)
-    .where(and(eq(campaignProgress.serverId, serverId), eq(campaignProgress.playerId, playerId)))
+type CampaignProgressRow = typeof campaignProgress.$inferSelect
+
+/**
+ * PURE - no I/O, no `Tx`. The single place the three marker column names are
+ * read off an already-fetched row, so a caller who already holds one (Task
+ * 5's review: routes/sync.ts selects the whole row for `campaign` anyway)
+ * does not have to re-query through `readMarkers` just to re-extract these
+ * three fields. `undefined` is a player with no `campaign_progress` row yet
+ * (same case `readMarkers` has always tolerated) and returns all three null.
+ */
+export function markersFrom(row: CampaignProgressRow | undefined): Markers {
   return {
     founderGrantedAt: row?.founderGrantedAt ?? null,
     tutorialStockGrantedAt: row?.tutorialStockGrantedAt ?? null,
     wave6PaleGrantedAt: row?.wave6PaleGrantedAt ?? null,
   }
+}
+
+/** Signature and behaviour unchanged - later tasks (6-8) call this directly. */
+export async function readMarkers(tx: Tx, serverId: number, playerId: string): Promise<Markers> {
+  const [row] = await tx.select().from(campaignProgress)
+    .where(and(eq(campaignProgress.serverId, serverId), eq(campaignProgress.playerId, playerId)))
+  return markersFrom(row)
 }
 
 /**
