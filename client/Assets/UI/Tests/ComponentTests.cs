@@ -38,6 +38,23 @@ namespace Broodline.UI.Tests
     ///    on every property). `SpliceConfirmTests.cs` already established the
     ///    fix for the exact same constraint: build the dialog the same way
     ///    production code does, through `SpliceScreen.Build(...)`.
+    ///
+    /// 3. (Fix round 1.) There is no way, from this assembly, to prove a
+    ///    registered `ClickEvent` callback actually runs - only that one
+    ///    COULD run. Confirming it fires needs a dispatched `ClickEvent`,
+    ///    which needs an attached `Panel` (the same constraint
+    ///    `TabBarTests`'s class comment documents for `Button.clicked`), and
+    ///    a bare `new ConfirmDialog()` has none. So
+    ///    `StandardConfirm_IsPrimaryAndTheScrimAcceptsPointerEvents` pins
+    ///    only the structural precondition for dismissal - the scrim is
+    ///    pickable, so a live Panel WOULD route a tap to it - not the
+    ///    dismissal itself. `ConfirmDialog.Standard`'s
+    ///    `RegisterCallback&lt;ClickEvent&gt;(_ =&gt; cancel?.Invoke())` is
+    ///    trusted the same way `TabBar`'s per-button click closures are.
+    ///    (The mirror-image `Named` case in point 1 above is provable
+    ///    precisely because `PickingMode.Ignore` is a structural fact a
+    ///    test CAN read back; "a handler is registered and would fire" has
+    ///    no equivalently-readable positive form.)
     public class ComponentTests
     {
         // ---------------------------------------------------------------
@@ -111,6 +128,10 @@ namespace Broodline.UI.Tests
             Assert.AreEqual(2, card.Query<TraitPip>().ToList().Count);           // two, not four - screen_inventory 3
             StringAssert.Contains("Ash", card.Q<Label>("name").text);
             Assert.IsTrue(card.ClassListContains("founder"));
+
+            // CreatureLabel.Generation is the one place this format is
+            // written (fix round 1: it used to be inlined here too).
+            Assert.AreEqual("G1", card.Q<Label>("generation").text);
         }
 
         [Test]
@@ -295,8 +316,14 @@ namespace Broodline.UI.Tests
         }
 
         [Test]
-        public void StandardConfirm_IsPrimaryAndDismissibleByTheScrim()
+        public void StandardConfirm_IsPrimaryAndTheScrimAcceptsPointerEvents()
         {
+            // Fix round 1: this does NOT prove a tap on the scrim cancels -
+            // see the class comment's point 3. It pins the structural
+            // precondition (the scrim is pickable, unlike Named's
+            // PickingMode.Ignore) plus the primary-button flag; the actual
+            // dismiss-on-tap wiring in ConfirmDialog.Standard is trusted,
+            // not dispatched.
             var vm = SpliceScreen.Build(A(), B(), Preview());
             var d = ConfirmDialog.Standard(vm.StandardDialog, () => { }, () => { });
 

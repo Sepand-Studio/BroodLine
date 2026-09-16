@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using Broodline.Api;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -61,7 +60,7 @@ namespace Broodline.UI.Components
             counters = counters ?? new Dictionary<string, string>();
 
             _name.text = CreatureLabel.DisplayName(creature);
-            _generation.text = "G" + creature.Generation.ToString(CultureInfo.InvariantCulture);
+            _generation.text = CreatureLabel.Generation(creature.Generation);
             _instinct.text = creature.Instinct;
             _silhouette.tooltip = creature.Species;
 

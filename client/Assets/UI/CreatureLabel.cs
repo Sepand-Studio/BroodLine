@@ -29,6 +29,16 @@ namespace Broodline.UI
             return string.IsNullOrWhiteSpace(creature.Name) ? creature.Species : creature.Name;
         }
 
+        /// "G4" - the generation badge on its own, e.g. `CreatureCard`'s
+        /// standalone generation label. Centralized for the same reason as
+        /// every other method here: two call sites formatting a generation
+        /// independently is exactly how "G4" and "Gen 4" end up on different
+        /// screens.
+        public static string Generation(int generation)
+        {
+            return "G" + generation.ToString(CultureInfo.InvariantCulture);
+        }
+
         /// "Ash (G4)". The generation belongs beside the name in the
         /// destruction notice - splice_confirm_spec section 3's own example
         /// carries it, and it is what distinguishes two creatures of a species
@@ -36,8 +46,7 @@ namespace Broodline.UI
         public static string WithGeneration(CreatureDto creature)
         {
             if (creature == null) return string.Empty;
-            return DisplayName(creature) + " (G"
-                + creature.Generation.ToString(CultureInfo.InvariantCulture) + ")";
+            return DisplayName(creature) + " (" + Generation(creature.Generation) + ")";
         }
 
         /// Coverage tiers are written I-III (splice_confirm_spec section 2,
