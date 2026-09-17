@@ -1705,7 +1705,18 @@ namespace Broodline.UI.Tests
         [Test]
         public void EveryScreenComposesTheScaffold()
         {
-            var screens = typeof(Broodline.UI.Screens.RosterView).Assembly
+            // The two OVERLAYS in this namespace are not screens and take no
+            // scaffold. Exempted BY NAME, not by a namespace accident:
+            //   CodexSheet  - a bottom sheet. ScreenHost.ShowSheet overlays it,
+            //                 never pushes it, and it never touches the back
+            //                 stack (client_architecture section 9).
+            //   WaveHudView - a HUD drawn over the wave scene, not a screen
+            //                 the host swaps in.
+            // The list is asserted to be exactly these two, so a third screen
+            // cannot be quietly excused by adding a name here.
+            var exempt = new[] { "CodexSheet", "WaveHudView" };
+
+            var all = typeof(Broodline.UI.Screens.RosterView).Assembly
                 .GetTypes()
                 .Where(t => t.Namespace == "Broodline.UI.Screens"
                             && typeof(VisualElement).IsAssignableFrom(t)
@@ -1713,8 +1724,12 @@ namespace Broodline.UI.Tests
                             && t.GetConstructor(Type.EmptyTypes) != null)
                 .ToList();
 
-            Assert.That(screens.Count, Is.GreaterThanOrEqualTo(11),
-                "the reflection sweep found almost no screens - it is not sweeping what it thinks it is");
+            Assert.That(all.Count, Is.EqualTo(12),
+                "the namespace holds 12 constructible VisualElements; if this moved, the " +
+                "sweep's exemption list below needs re-deciding rather than silently widening");
+
+            var screens = all.Where(t => !exempt.Contains(t.Name)).ToList();
+            Assert.That(screens.Count, Is.EqualTo(10), "10 screens must carry the frame");
 
             var bare = screens
                 .Where(t => ((VisualElement)Activator.CreateInstance(t))
@@ -2106,9 +2121,9 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-## Tasks 9–12 — the eleven screens
+## Tasks 9–12 — the screens (10 swept, 2 overlays exempt)
 
-Four tasks. Each brings its own screens to handoff specification and ends with `EveryScreenComposesTheScaffold` naming fewer; Task 12 is where it goes green. Each task below repeats the shared steps in full — do not treat them as a cross-reference.
+Four tasks covering twelve types: **10 screens that must carry the scaffold**, plus `CodexSheet` and `WaveHudView`, which are overlays and are exempt by name in Task 7. Each task ends with `EveryScreenComposesTheScaffold` naming fewer; Task 12 is where it goes green. Task 9 greens 3, Task 10 greens 4, Task 11 greens 2, Task 12 greens the last 1. Each task below repeats the shared steps in full — do not treat them as a cross-reference.
 
 ---
 
@@ -2116,7 +2131,11 @@ Four tasks. Each brings its own screens to handoff specification and ends with `
 
 **Files:** `FounderNamingView`, `CampaignSelectView`, `CodexSheet`, `LineageView` — `.cs`, `.uxml`, `.uss` each, under `client/Assets/UI/Screens/`.
 
-Pushed sub-screens: `CodexSheet` (a sheet, so **no scaffold header** — it is an overlay and `ScreenHost.ShowSheet` never touches the back stack; it is excluded from the sweep by not living in `Broodline.UI.Screens`, or, if it does, by carrying the scaffold with `pushed: false`). `LineageView` is pushed from the roster.
+`CodexSheet` **is** in `Broodline.UI.Screens` — verified, not assumed — so it IS reached by the sweep, and Task 7 exempts it **by name** because it is a bottom sheet rather than a screen: `ScreenHost.ShowSheet` overlays it, never pushes it, and it never touches the back stack. It takes no scaffold. Do not give it one to satisfy the sweep, and do not move the type to dodge the sweep.
+
+`LineageView` is a pushed sub-screen (`pushed: true`, `onBack` → `ScreenHost.Pop`). `FounderNamingView` and `CampaignSelectView` are top-level (`pushed: false`).
+
+**This task greens 3 of the sweep's 10**: FounderNaming, CampaignSelect, Lineage.
 
 **The five steps, in order.** Repeated in each of Tasks 9–12 rather than cross-referenced, because a brief is extracted per task and an implementer may never see its neighbours.
 
@@ -2206,10 +2225,10 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 **Component interfaces** (from Task 8, used verbatim): `OptionRow(string title, string detail, Action onSelect)` with `.Selected`; `SectionCard(string heading = null)` with `.Body`; `StatCell(string label, string value)` with `.Value`; `ProgressBar(float fill01, string modifier = null)` with `.Fill`; `EmptyState(string message, string glyph = null)`. Scaffold: `ScreenScaffold(string title, bool pushed = false, Action onBack = null)` with `.Content`, `.CtaRow`, `.HeaderSlot`, `.FooterNote`.
 
-- [ ] **Step 1:** `WaveHudView` — the HUD is an overlay on the wave scene, so it takes **no scaffold** and is excluded from the sweep by that fact; instead it adopts `SectionCard`-consistent surfaces, `.t-num` on integrity, tick and wave number, and `.elev-1` on the bar container. Confirm `WaveScreensTests` and the cached bar children from `3b49931` still pass — that commit is a performance fix and this task must not undo it.
+- [ ] **Step 1:** `WaveHudView` — the HUD is an overlay on the wave scene, so it takes **no scaffold**. It **is** in `Broodline.UI.Screens` and therefore IS reached by the sweep; Task 7 exempts it by name for that reason. Do not add a scaffold to satisfy the sweep and do not move the type. Instead it adopts `SectionCard`-consistent surfaces, `.t-num` on integrity, tick and wave number, and `.elev-1` on the bar container. Confirm `WaveScreensTests` and the cached bar children from `3b49931` still pass — that commit is a performance fix and this task must not undo it.
 - [ ] **Step 2:** `PostWaveView` — scaffold titled *"Wave cleared"*; rewards as `StatCell`s; primary CTA *"Continue"*.
 - [ ] **Step 3:** `WaveDefeatView` — scaffold titled *"Wave lost"*; the breach diagnosis as a `SectionCard`; **the diagnosis still comes from `sim`'s echo through `WaveSubmitResponse.breaches` and the client's local outcome. `api` never parses a replay.** Primary CTA *"Try again"*, secondary *"Roster"*.
-- [ ] **Step 4:** Tests and lint. Expected: `EveryScreenComposesTheScaffold` **passes** if `WaveHudView` is correctly outside `Broodline.UI.Screens`, or names only it if not — in which case give it `pushed: false` and a blank title rather than moving the type.
+- [ ] **Step 4:** Tests and lint. Expected: the sweep now names **only `RegionView`**, which Task 12 finishes. `WaveHudView` must not appear — it is exempt by name in Task 7.
 - [ ] **Step 5: Commit**
 
 ```bash
@@ -2267,7 +2286,7 @@ Design §5.3. **The one screen that does not reach handoff specification, and th
  */
 ```
 
-- [ ] **Step 4:** Tests and lint. **Expected: `EveryScreenComposesTheScaffold` passes.** If it still names a screen, that screen was missed — finish it before committing.
+- [ ] **Step 4:** Tests and lint. **This task greens the last of the 10**, so `EveryScreenComposesTheScaffold` passes. If it still names anything, that screen was missed — finish it before committing. If it names `CodexSheet` or `WaveHudView`, Task 7's exemption list was broken; restore it rather than scaffolding an overlay.
 - [ ] **Step 5: Commit**
 
 ```bash
