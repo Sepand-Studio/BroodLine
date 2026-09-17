@@ -45,12 +45,26 @@ public static class WaveBuilder
         // directory - which is where WaveRunner writes replay.bin. Phase 0
         // retrieved the sweep CSV exactly this way; it is the proven route off
         // a device in this project, and the one to try before devicectl.
+        //
+        // NO `AllowDebugging`, AND ITS ABSENCE IS DELIBERATE. That flag adds the
+        // Mono soft debugger, which puts `-DIL2CPP_MONO_DEBUGGER=1` on every
+        // translation unit - 2,558 of them in the 0.4.0 wave build - and
+        // compiles `debugger-agent.c` in, for 422 of that build's 484 clang
+        // warnings and a longer IL2CPP pass. What it buys is the ability to
+        // attach a C# debugger to the running player, which nothing in this
+        // project's workflow does.
+        //
+        // NEITHER REASON ABOVE DEPENDS ON IT. Managed stack traces come from
+        // `Development`. The container route comes from `Development`'s
+        // get-task-allow plus the two Info.plist keys IosFileSharingPostProcess
+        // writes - and that file's own doc records that Phase 0's pull "needs
+        // neither key", so the debugger was never what made the pull work.
         var opts = new BuildPlayerOptions
         {
             scenes = new[] { ScenePath },
             locationPathName = outDir,
             target = BuildTarget.iOS,
-            options = BuildOptions.Development | BuildOptions.AllowDebugging
+            options = BuildOptions.Development
         };
 
         Debug.Log("[WaveBuilder] building to " + outDir);
