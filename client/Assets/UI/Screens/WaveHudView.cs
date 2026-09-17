@@ -74,7 +74,22 @@ namespace Broodline.UI.Screens
         /// redraws every frame of a scene with a defended per-frame budget;
         /// `new VisualElement()` per body per frame is exactly the garbage
         /// `WaveRunner._onTick` was hoisted out of `Update` to avoid.
-        readonly List<VisualElement> _pool = new List<VisualElement>();
+        readonly List<Bar> _pool = new List<Bar>();
+
+        /// A pooled bar and the two children `Draw` writes every frame.
+        ///
+        /// CACHED AT CONSTRUCTION, not looked up per draw. `UQuery`'s `Q<T>`
+        /// walks the subtree on every call, and `Draw` ran two of them per
+        /// body per frame on the one scene `WaveHost` calls "the only one
+        /// with a per-frame budget worth defending" - a dozen bodies at
+        /// 60fps is well over a thousand subtree walks a second for two
+        /// references that never change after `NewBar` builds them.
+        sealed class Bar
+        {
+            public VisualElement Root;
+            public VisualElement Fill;
+            public Label Tag;
+        }
 
         Func<HudSnapshot> _read;
 
@@ -140,7 +155,12 @@ namespace Broodline.UI.Screens
             var bodies = snapshot.Bodies;
             var count = bodies == null ? 0 : bodies.Count;
             Attach(count);
-            for (var i = 0; i < count; i++) Draw(_bars.ElementAt(i), bodies[i]);
+            // `_pool[i]` IS `_bars`' child i: `Attach` only ever appends
+            // `_pool[_bars.childCount]` and only ever removes from the end,
+            // so the two stay index-aligned. Drawing from the pool rather
+            // than `_bars.ElementAt(i)` is what makes the cached `Fill` and
+            // `Tag` reachable without a per-frame query.
+            for (var i = 0; i < count; i++) Draw(_pool[i], bodies[i]);
         }
 
         /// Exactly `count` bars attached, drawn from a pool that only ever
@@ -152,11 +172,11 @@ namespace Broodline.UI.Screens
             while (_bars.childCount < count)
             {
                 if (_bars.childCount >= _pool.Count) _pool.Add(NewBar());
-                _bars.Add(_pool[_bars.childCount]);
+                _bars.Add(_pool[_bars.childCount].Root);
             }
         }
 
-        static VisualElement NewBar()
+        static Bar NewBar()
         {
             var bar = new VisualElement { name = "bar", pickingMode = PickingMode.Ignore };
             bar.AddToClassList(BarUssClassName);
@@ -176,13 +196,17 @@ namespace Broodline.UI.Screens
             tag.AddToClassList(TagUssClassName);
             bar.Add(tag);
 
-            return bar;
+            // The names stay on the elements: `Q<T>("fill")` is how the tests
+            // reach them, and nothing about caching the references here
+            // changes the tree those queries walk.
+            return new Bar { Root = bar, Fill = fill, Tag = tag };
         }
 
-        void Draw(VisualElement bar, BodyBar body)
+        void Draw(Bar pooled, BodyBar body)
         {
-            var fill = bar.Q<VisualElement>("fill");
-            var tag = bar.Q<Label>("tag");
+            var bar = pooled.Root;
+            var fill = pooled.Fill;
+            var tag = pooled.Tag;
 
             var fraction = body.MaxHp > 0 ? Mathf.Clamp01((float)body.Hp / body.MaxHp) : 0f;
             fill.style.width = Length.Percent(fraction * 100f);

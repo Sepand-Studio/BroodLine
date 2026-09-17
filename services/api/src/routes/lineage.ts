@@ -71,6 +71,13 @@ import { fail } from '../http/errors.ts'
  */
 export const LINEAGE_ORDER = [creatures.generation, creatures.acquiredAt, creatures.creatureId] as const
 
+/// The most creatures one response will draw as a tree. Far above anything
+/// this phase's campaign can produce - waves 1-7 grant single digits - and
+/// low enough that a pathological account cannot ask the database for an
+/// unbounded row count. See the probe at the query for why exceeding it is
+/// a refusal rather than a truncation.
+export const MAX_LINEAGE_NODES = 2000
+
 export function registerLineageRoutes(app: Hono, deps: Deps): void {
   app.get('/v1/lineage', async (c) => {
     const session = await requireSession(c)
@@ -99,6 +106,23 @@ export function registerLineageRoutes(app: Hono, deps: Deps): void {
         // between two calls - `roster/creatures.ts`'s `loadRoster` orders by
         // `creatureId` for the identical reason, on the identical hazard.
         .orderBy(...LINEAGE_ORDER)
+        // BOUNDED, BUT NOT TRUNCATED - and the difference is the whole
+        // reason this is a probe rather than a plain `.limit(MAX)`.
+        //
+        // A lineage is a TREE: every node carries `parentA`/`parentB` and
+        // `LineageView` draws the edges between them. Cutting the result at
+        // a limit would hand the client nodes whose parents are missing -
+        // a silently wrong picture on the one screen whose job is to show
+        // that consumed parents are still in the record. Unbounded, though,
+        // this grows with every creature the account has ever owned, live or
+        // consumed or pruned, forever.
+        //
+        // So: ask for one more than the cap. Under it, the tree is whole and
+        // this costs a row. Over it, nothing is rendered from a partial
+        // answer - the route says so instead.
+        .limit(MAX_LINEAGE_NODES + 1)
+
+      if (rows.length > MAX_LINEAGE_NODES) return 'too_large' as const
 
       return rows.map(({ c, mutated }) => ({
         creatureId: c.creatureId,
@@ -120,6 +144,13 @@ export function registerLineageRoutes(app: Hono, deps: Deps): void {
 
     // The same sentence roster.ts and region.ts use for the same condition.
     if (nodes === null) return fail('not_found', 'No player on this server for that account.')
+
+    // Unreachable in this phase's campaign - waves 1-7 grant single digits -
+    // and a loud refusal rather than a quiet half-tree if it ever is not.
+    if (nodes === 'too_large') {
+      return fail('invalid_request',
+        `This lineage is larger than ${MAX_LINEAGE_NODES} creatures and cannot be drawn as one tree.`)
+    }
 
     // AN EMPTY TREE IS A 200, not a 404 - roster.ts's reasoning applies
     // again: a new player who has never spliced anything owns a correct,

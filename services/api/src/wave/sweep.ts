@@ -79,6 +79,12 @@ export async function settleExpiredForPlayer(
 //     the cap would never bind. 48h is a safety margin over the ~24h a row
 //     issued right at a day's start needs to survive to be counted for the
 //     rest of that day, not the minimum itself.
+// How many live-past-expiry rows one sweep settles. Each costs an UPDATE
+// plus a `releaseCreatures` row-locking SELECT, serially, inside one
+// transaction - so an unbounded backlog would hold creature locks across
+// hundreds of round trips. Re-run the CLI until it reports fewer than this.
+const SETTLE_BATCH = 200
+
 const EXPIRED_GRACE_MS = 3_600_000 // one hour past expires_at - design 4.3
 const CONSUMED_RETENTION_MS = 172_800_000 // 48h past issued_at - it is the replay counter
 
@@ -143,6 +149,19 @@ export async function sweepRetention(db: Db, serverId: number, now: Date): Promi
       eq(waveIssuances.serverId, serverId), isNull(waveIssuances.settledAt),
       sql`${waveIssuances.expiresAt} <= ${now}`))
       .orderBy(asc(waveIssuances.playerId), asc(waveIssuances.issuanceId))
+      .limit(SETTLE_BATCH)
+    // ONE ROUND TRIP PER ROW, so the batch is what keeps a backlog from
+    // turning into an unbounded serial transaction. The settles cannot be
+    // parallelised: each is a `SELECT ... ORDER BY creature_id FOR UPDATE`
+    // and it is the ORDER BY above - visiting players in a fixed order -
+    // that makes the union of them globally ascending. Running them at once
+    // would put two of those statements in flight in an order nothing
+    // controls, which is the deadlock the ordering exists to prevent.
+    //
+    // Truncating is safe here in a way it is not elsewhere: `settle` is
+    // idempotent (`WHERE settled_at IS NULL`), the counts come back to the
+    // operator, and the next run picks up exactly where this one stopped.
+    // A sweep that finds `SETTLE_BATCH` rows should simply be run again.
     for (const row of stale) await settle(tx, row, 'expired')
 
     const expired = await tx.delete(waveIssuances).where(and(
