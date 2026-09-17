@@ -289,6 +289,273 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
+## Task 1a: A test runner that is not `-runTests` — the phase's gate
+
+**Everything from Task 1 to Task 13 gates on running the EditMode suite. `-runTests` cannot run it on this machine, so this task builds the gate before anything needs it.**
+
+### Why, in one paragraph
+
+`Unity.PerformanceTesting.Editor.TestRunBuilder.Setup()` — an `IPrebuildSetup` the test framework discovers from the loaded domain — deadlocks on a `Monitor.Wait` on the main thread inside `EditorApplication:Internal_CallUpdateFunctions`. Confirmed by two `sample` captures of the hung process. It is reached ~60s into every `-runTests` invocation and never leaves.
+
+**Eliminated, with evidence — do not re-test any of these:** orphaned Unity/relay processes and a stale `Temp/UnityLockfile`; Editor lock contention (none was open); the package removals in `ad7ff3c`/`1e6c77f` (the lock has zero unresolved dependencies); `com.unity.ai.assistant 2.19.0-pre.2`; licensing (`verify-prereqs.sh` passes all five, `license.unity3d.com` reachable); network and UPM (`packages.unity.com` 200 in 0.19s; `upm.log` shows `project:list-packages --> 200 (94 ms)` seconds before a freeze); a corrupt `Library` (deleted all 6.8G, cold reimport, identical deadlock); and `-assemblyNames` filtering.
+
+**Routes closed:** `com.unity.test-framework.performance` is `source: builtin` — it ships with Unity 6000.6 and cannot be removed or downgraded. `com.unity.collections` pulls it via `render-pipelines.core` ← URP, which is the renderer. Only `6000.6.0f1` is installed.
+
+**What still works, and is the whole basis of this task:** `dotnet test` passes 231. Unity `-batchmode -executeMethod` drives this same Editor headlessly — the determinism gate ran green in 7m58s today. It is `-runTests`'s prebuild pipeline specifically that is broken.
+
+**And the EditMode suites are plain NUnit.** Measured: **264 `[Test]` methods** across six Editor-only assemblies, and **zero** `[UnityTest]` or `IEnumerator` tests once the nested `PlayMode/` folders are excluded. So running NUnit directly loses nothing — it is not a degraded fallback, it is an equivalent path that never enters `TestJobRunner`.
+
+**Files:**
+- Create: `client/Assets/Editor/TestHarness/Broodline.TestHarness.asmdef`, `client/Assets/Editor/TestHarness/EditModeRunner.cs`
+- Modify: `implementation/scripts/run-unity-tests.sh`
+
+**Interfaces:**
+- Produces: `-executeMethod Broodline.TestHarness.EditModeRunner.Run`, writing NUnit3-format XML to the path in `-testResults`, exiting **0** when all pass and **2** when any fail. Every later task's gate is `./implementation/scripts/run-unity-tests.sh EditMode`, unchanged in how it is called.
+
+- [ ] **Step 1: The assembly definition**
+
+`client/Assets/Editor/TestHarness/Broodline.TestHarness.asmdef`. It must reference the six EditMode test assemblies so their types are loadable, and carry the same define constraint they do, so it compiles only when tests are included:
+
+```json
+{
+  "name": "Broodline.TestHarness",
+  "rootNamespace": "Broodline.TestHarness",
+  "references": [
+    "Broodline.UI.Tests", "Broodline.Game.Tests", "Broodline.View.Tests",
+    "Broodline.Net.Tests", "Broodline.Benchmark.Tests", "Broodline.EditorBuild.Tests"
+  ],
+  "includePlatforms": ["Editor"],
+  "excludePlatforms": [],
+  "overrideReferences": true,
+  "precompiledReferences": ["nunit.framework.dll"],
+  "autoReferenced": false,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
+```
+
+**If a referenced assembly name is wrong the whole harness silently does not compile**, and `-executeMethod` then fails with "method not found" rather than a compile error. Confirm all six names against their `.asmdef` files before moving on.
+
+- [ ] **Step 2: The runner**
+
+`client/Assets/Editor/TestHarness/EditModeRunner.cs`:
+
+```csharp
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using NUnit.Framework.Api;
+using NUnit.Framework.Interfaces;
+using NUnit.Framework.Internal;
+using UnityEditor;
+using UnityEngine;
+
+namespace Broodline.TestHarness
+{
+    /// Runs the EditMode suites through NUnit directly, bypassing Unity's
+    /// TestJobRunner.
+    ///
+    /// WHY THIS EXISTS. `-runTests` deadlocks on this Editor:
+    /// Unity.PerformanceTesting.Editor.TestRunBuilder.Setup(), an IPrebuildSetup
+    /// the framework discovers from the loaded domain, blocks on a Monitor.Wait
+    /// on the main thread inside EditorApplication:Internal_CallUpdateFunctions
+    /// and never returns. The package is `source: builtin` so it cannot be
+    /// removed, and com.unity.collections pulls it via URP. See the task text
+    /// for the eight hypotheses already eliminated.
+    ///
+    /// THIS IS NOT A DEGRADED PATH. All 264 EditMode tests are plain NUnit
+    /// [Test]; there is not one [UnityTest] or IEnumerator test outside the
+    /// nested PlayMode/ folders, which this runner does not claim to run and
+    /// does not touch. What is given up is Unity's test *pipeline*, which is
+    /// exactly the broken part.
+    ///
+    /// PLAYMODE IS NOT COVERED. run-unity-tests.sh PlayMode still uses
+    /// -runTests and is expected to deadlock the same way. No task in Phase 8
+    /// needs it; whoever needs it next owns that problem.
+    public static class EditModeRunner
+    {
+        static readonly string[] Assemblies =
+        {
+            "Broodline.UI.Tests", "Broodline.Game.Tests", "Broodline.View.Tests",
+            "Broodline.Net.Tests", "Broodline.Benchmark.Tests", "Broodline.EditorBuild.Tests",
+        };
+
+        public static void Run()
+        {
+            string outPath = ArgAfter("-testResults")
+                             ?? Path.Combine(Directory.GetCurrentDirectory(), "test-results-EditMode.xml");
+
+            int total = 0, passed = 0, failed = 0, skipped = 0;
+            var results = new List<ITestResult>();
+            var problems = new List<string>();
+
+            foreach (var name in Assemblies)
+            {
+                var asm = AppDomain.CurrentDomain.GetAssemblies()
+                                   .FirstOrDefault(a => a.GetName().Name == name);
+                if (asm == null)
+                {
+                    // Loud, not silent: a missing assembly is indistinguishable
+                    // from a passing one in the counts otherwise, which is the
+                    // failure mode this whole phase keeps finding in records.
+                    problems.Add($"assembly not loaded: {name}");
+                    continue;
+                }
+
+                var runner = new NUnitTestAssemblyRunner(new DefaultTestAssemblyBuilder());
+                runner.Load(asm, new Dictionary<string, object>());
+                var r = runner.Run(TestListener.NULL, NUnit.Framework.Internal.TestFilter.Empty);
+
+                results.Add(r);
+                total += r.PassCount + r.FailCount + r.SkipCount + r.InconclusiveCount;
+                passed += r.PassCount;
+                failed += r.FailCount;
+                skipped += r.SkipCount + r.InconclusiveCount;
+
+                foreach (var leaf in Leaves(r).Where(x => x.ResultState.Status == TestStatus.Failed))
+                    problems.Add($"FAILED {leaf.FullName}: {leaf.Message}");
+            }
+
+            WriteXml(outPath, results, total, passed, failed, skipped);
+
+            Debug.Log($"[EditModeRunner] total={total} passed={passed} failed={failed} skipped={skipped}");
+            foreach (var p in problems) Debug.Log("[EditModeRunner] " + p);
+
+            bool broken = failed > 0 || problems.Any(p => p.StartsWith("assembly not loaded"));
+            EditorApplication.Exit(broken ? 2 : 0);
+        }
+
+        static IEnumerable<ITestResult> Leaves(ITestResult r)
+        {
+            if (!r.HasChildren) { yield return r; yield break; }
+            foreach (var c in r.Children) foreach (var l in Leaves(c)) yield return l;
+        }
+
+        static string ArgAfter(string flag)
+        {
+            var a = Environment.GetCommandLineArgs();
+            for (int i = 0; i < a.Length - 1; i++) if (a[i] == flag) return a[i + 1];
+            return null;
+        }
+
+        /// NUnit3 format, because run-unity-tests.sh's python parser reads
+        /// `total`/`passed`/`failed`/`skipped` off the root element.
+        static void WriteXml(string path, List<ITestResult> results,
+                             int total, int passed, int failed, int skipped)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            using var w = new StreamWriter(path);
+            w.WriteLine("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
+            w.WriteLine($"<test-run id=\"1\" testcasecount=\"{total}\" result=\"{(failed > 0 ? "Failed" : "Passed")}\" " +
+                        $"total=\"{total}\" passed=\"{passed}\" failed=\"{failed}\" " +
+                        $"inconclusive=\"0\" skipped=\"{skipped}\" asserts=\"0\">");
+            foreach (var r in results) w.WriteLine(r.ToXml(true).OuterXml);
+            w.WriteLine("</test-run>");
+        }
+    }
+}
+```
+
+- [ ] **Step 3: Point the script at it, and make it observable**
+
+Rewrite `run-unity-tests.sh`'s invocation. Two changes in one edit: `-executeMethod` instead of `-runTests`, and a real log file instead of `-logFile -` piped through `tail -40`.
+
+**The log change is not cosmetic.** The current form emits nothing until a run ends, so a slow run and a deadlocked run are indistinguishable. That is why the first three attempts at this blocker produced "it hangs" with no detail — three people looked at an empty screen. Diagnosis only became possible when the log went to a file.
+
+```bash
+LOG="$(pwd)/implementation/results/unity-$PLATFORM.log"
+rm -f "$LOG" "$RESULTS"
+
+if [ "$PLATFORM" = "EditMode" ]; then
+  "$UNITY" -batchmode -quit \
+    -projectPath "$(pwd)/client" \
+    -executeMethod Broodline.TestHarness.EditModeRunner.Run \
+    -testResults "$RESULTS" \
+    -logFile "$LOG"
+  code=$?
+else
+  # PlayMode still uses -runTests and is EXPECTED TO DEADLOCK on this Editor.
+  # Not fixed here: no Phase 8 task needs PlayMode. Left honest rather than
+  # silently routed somewhere that would report a false green.
+  "$UNITY" -batchmode -runTests \
+    -projectPath "$(pwd)/client" \
+    -testPlatform "$PLATFORM" \
+    -testResults "$RESULTS" \
+    -logFile "$LOG"
+  code=$?
+fi
+
+echo "--- unity log: $LOG ---"
+tail -40 "$LOG"
+```
+
+`implementation/results/*.log` is already gitignored.
+
+- [ ] **Step 4: Run it, and check the count against a known number**
+
+```bash
+./implementation/scripts/run-unity-tests.sh EditMode
+```
+
+**Expected: exit 0, and a total of 264.** That number is measured from source — `[Test]` attributes across the six assemblies: UI 141, Game 77, Benchmark 14, View 14, Net 11, EditorBuild 7.
+
+**A total materially below 264 means an assembly did not load, not that tests passed.** The runner reports `assembly not loaded` and exits 2 for exactly this reason, but check the number yourself as well: the entire subject of Task 0 was a record that reported success while proving nothing.
+
+If some tests fail, that is a real result — record which, and do not "fix" them as part of this task without saying so.
+
+- [ ] **Step 5: Prove the runner discriminates**
+
+A runner that cannot report failure is worse than none.
+
+```bash
+# Weaken: make one existing test fail, confirm the gate goes red and exits 2.
+cat >> client/Assets/UI/Tests/ComponentTests.cs.probe <<'PROBE'
+PROBE
+# Add a deliberately failing [Test] to Broodline.UI.Tests, e.g.
+#   [Test] public void ProbeThatMustFail() => Assert.Fail("probe");
+# then:
+./implementation/scripts/run-unity-tests.sh EditMode; echo "EXIT: $?"
+#   expect: failed=1, "FAILED ...ProbeThatMustFail: probe" in the output, EXIT 2
+# Remove the probe, re-run, expect 264 passed and EXIT 0.
+rm -f client/Assets/UI/Tests/ComponentTests.cs.probe
+git status --porcelain    # expect empty
+```
+
+Record both transcripts in the commit message. Also confirm, while a run is in progress, that `implementation/results/unity-EditMode.log` exists and is growing — that observability is the second half of this task's deliverable and it has no test.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add client/Assets/Editor/TestHarness implementation/scripts/run-unity-tests.sh
+git commit -m "test(harness): run EditMode through NUnit, because -runTests deadlocks
+
+Unity.PerformanceTesting.Editor.TestRunBuilder.Setup() blocks on a
+Monitor.Wait on the main thread inside the editor update loop and never
+returns. Two sample captures of the hung process agree. The package is
+source: builtin so it cannot be removed, and com.unity.collections pulls
+it via URP. Eight other hypotheses were eliminated first and are listed
+in the task text so nobody re-tests them.
+
+This is not a degraded path. All 264 EditMode tests are plain NUnit
+[Test] - there is not one [UnityTest] outside the nested PlayMode
+folders - so running NUnit directly gives up only Unity's test pipeline,
+which is the broken part. PlayMode still uses -runTests and is expected
+to deadlock; no Phase 8 task needs it and that is said out loud rather
+than routed somewhere that would report a false green.
+
+The script also stops piping -logFile - through tail -40. That form emits
+nothing until a run ends, so a slow run and a dead run look identical -
+which is why this blocker cost three attempts before anyone could see
+where it hung.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
+```
+
+---
+
 ## Task 1: Fonts — and bible §10.6's tabular figures, asserted for the first time
 
 Design §4.1. **First among the foundation, because its gate can fail and the fallback changes the work.**
@@ -302,36 +569,7 @@ Design §4.1. **First among the foundation, because its gate can fail and the fa
 **Interfaces:**
 - Produces: `Broodline.UI.Theme.FontPaths.Display` and `.Body` — the two `AssetDatabase` paths Task 15's capture and this task's test both load. Exact strings in Step 3.
 
-- [ ] **Step 0: Make the test runner observable — do this before anything else**
-
-`run-unity-tests.sh` invokes Unity with `-logFile -` and pipes it through `tail -40`. Nothing is
-visible until the run ends, so **a slow run and a dead run produce identical output: none.** That
-defect cost Phase 8 an entire implementer cycle and two controller runs before anyone could even
-see where a hang was — three separate attempts looked at an empty screen and could not tell a
-working run from a deadlocked one.
-
-Change the invocation to log to a file and tail it afterwards, so a live run can be watched:
-
-```bash
-# was:  -logFile - 2>&1 | tail -40
-#       code=${PIPESTATUS[0]}
-LOG="$(pwd)/implementation/results/unity-$PLATFORM.log"
-rm -f "$LOG"
-"$UNITY" -batchmode -runTests \
-  -projectPath "$(pwd)/client" \
-  -testPlatform "$PLATFORM" \
-  -testResults "$RESULTS" \
-  -logFile "$LOG"
-code=$?
-echo "--- unity log: $LOG ---"
-tail -40 "$LOG"
-```
-
-`implementation/results/*.log` is already gitignored, so the log is scratch and is not committed.
-
-Verify the change does not break the script's contract: it must still exit 0 on all-pass, 2 on
-test failure, and print the parsed counts. Run it once and confirm the log file exists and has
-content **while the run is still going** — that is the property being added.
+**The test runner is Task 1a's, not this task's.** Your gate is `./implementation/scripts/run-unity-tests.sh EditMode`, which Task 1a rebuilt on `-executeMethod` because `-runTests` deadlocks on this Editor. Expect a baseline of **264 passing** before your changes.
 
 - [ ] **Step 1: Fetch both faces and their licence**
 
