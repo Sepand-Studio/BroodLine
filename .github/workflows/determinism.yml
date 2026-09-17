@@ -26,11 +26,16 @@ name: Determinism gate
 # all of this and is the fast, readable way to confirm a runner is ready.
 #
 # Timeout: a COLD build (no warm client/Library cache — a brand-new runner,
-# or the first run ever) takes roughly 10 minutes for the IL2CPP player
-# alone, most of it one-time URP/Sentis shader-variant compilation. An
-# incremental build is 19-36 seconds. 45 minutes leaves headroom for a fully
-# cold runner plus normal checkout/restore/test overhead without masking a
-# genuine hang.
+# or the first run ever) is MEASURED, not estimated: 7m58s for the whole job
+# on sd-sassadi-m1's first run, most of it one-time URP shader-variant
+# compilation. An incremental build is 19-36 seconds. 45 minutes leaves
+# headroom for a fully cold runner plus normal checkout/restore/test
+# overhead without masking a genuine hang.
+#
+# The number above replaces an estimate that read "roughly 10 minutes for
+# the IL2CPP player alone, most of it one-time URP/Sentis shader-variant
+# compilation". Sentis (com.unity.ai.inference) was removed as unused in
+# ad7ff3c, so half of that attribution no longer describes anything.
 #
 # Fix round 2, Finding 7: this gate exists to stop a determinism regression
 # from landing, and until now it had no `pull_request` trigger — so it never
@@ -52,106 +57,98 @@ name: Determinism gate
 # "expected" on PRs that do not touch these paths. Either leave it advisory,
 # or pair it with a path-filtered no-op job of the same name.
 on:
-  # AUTOMATIC TRIGGERS ARE DISABLED, and this is not a filter tweak.
+  # TRIGGERS ARE LIVE as of 2026-09-17, on the self-hosted macOS runner
+  # `sd-sassadi-m1` - .NET 10.0.401, Unity 6000.6.0f1 with macOS IL2CPP
+  # support, activated licence; verify-prereqs.sh passes all five. First
+  # green run: 35238465972, 7m58s cold, 500 corpus scenarios byte-identical
+  # across CoreCLR and IL2CPP. That was the first time the IL2CPP half of
+  # this diff had ever executed in CI.
   #
-  # This job declares `runs-on: [self-hosted, macOS]` and no such runner is
-  # registered. GitHub had nothing to assign it to, so it did not fail - it
-  # sat QUEUED for 5h34m and was cancelled by hand. On a pull request that
-  # surfaces as a check that is permanently pending, which blocks a merge
-  # under branch protection and, worse, reads to a human as "still running"
-  # rather than "can never run".
+  # SECURITY, and it is why Step 2 came before Step 3: this repository is
+  # PUBLIC and the runner is a daily driver carrying an activated Unity
+  # licence and SSH keys. Fork pull-request workflows are set to require
+  # approval for ALL outside collaborators (`all_external_contributors`,
+  # set 2026-09-17, before the runner was registered - the prior setting,
+  # `first_time_contributors`, would have let anyone with one merged PR run
+  # code here unattended). Do not relax that while this runner exists.
   #
-  # A check that cannot resolve is worse than an absent one for the same
-  # reason the path filter below was widened: a board that reports something
-  # other than the truth is trusted anyway.
-  #
-  # So the gate is MANUAL, which is what solo_execution 7.3 already asks for
-  # - it prescribes running the corpus on a physical iPhone by hand before
-  # each release, so a human is in this loop regardless.
-  #
-  # TO RE-ENABLE: register a self-hosted macOS runner with the .NET SDK,
-  # Unity 6000.6.0f1 with macOS IL2CPP support and an activated licence, then
-  # uncomment the push/pull_request/schedule blocks below. They are preserved
-  # verbatim rather than deleted because their path lists encode two rounds of
-  # review findings - including the false green where a PR touching only
-  # IosFileSharingPostProcess.cs produced two passing checks without
-  # compiling a line of it, and shipped a plist Apple's parser refuses.
-  #
-  # SECURITY, before re-enabling: this repository is now PUBLIC. A self-hosted
-  # runner on a public repo executes fork pull-request code on the host
-  # machine. Restrict fork runs, or use an ephemeral machine - not a daily
-  # driver carrying an activated Unity licence and SSH keys.
+  # `schedule:` IS DELIBERATELY STILL OFF, and not as an oversight. A
+  # scheduled workflow runs from the DEFAULT branch, never from the branch
+  # the block is written on - so a cron here does nothing until this file
+  # reaches `main`, and the moment it does it would build `main` nightly on
+  # a machine somebody is using. Turn it on when `main` is current and the
+  # runner is not a daily driver.
 
-  # push:
-  #   paths:
-  #     - 'engine/**'
-  #     - 'tests/engine/**'
-  #     # Fix round 1, Finding 3: the original two paths cover the simulation
-  #     # code the corpus runs, but not the gate's own machinery — a change
-  #     # here can silently gut the gate (softening the backend guard below is
-  #     # exactly Finding 1's failure mode) and still land with a green board
-  #     # if nothing watches these paths too.
-  #     - 'client/Assets/Editor/DeterminismHarness.cs'
-  #     - 'client/Assets/Determinism/**'
-  #     - 'implementation/scripts/cross-runtime-diff.sh'
-  #     - '.github/workflows/determinism.yml'
-  #     - 'client/ProjectSettings/ProjectSettings.asset'
-  #     - 'Broodline.sln'
-  #     # Fix round 2, Finding 7: two more load-bearing paths that were
-  #     # unwatched. manifest.json's `file:../../engine` line is the wire that
-  #     # makes Unity compile the very same Broodline.Sim source CoreCLR runs —
-  #     # repoint or drop it and IL2CPP is silently compiling something else,
-  #     # or nothing, while the gate still reports on two files it believes are
-  #     # one. ProjectVersion.txt matters because cross-runtime-diff.sh
-  #     # hardcodes the editor path (6000.6.0f1): an editor upgrade lands here
-  #     # and the script then fails preflight at exit 127, which is worth
-  #     # learning from CI rather than from the next person to run it locally.
-  #     - 'client/Packages/manifest.json'
-  #     - 'client/ProjectSettings/ProjectVersion.txt'
-  #     # ALL of client/Assets, not the two folders someone listed.
-  #     #
-  #     # This job is the only thing that COMPILES Unity C#, and the narrow
-  #     # filter created a false green: a PR touching only
-  #     # client/Assets/Editor/IosFileSharingPostProcess.cs triggered tests.yml
-  #     # alone, which produced two passing checks - one of them named "Unity
-  #     # settings" - without compiling a line of the changed file. That is worse
-  #     # than no checks at all, because a green check reads as coverage. It cost
-  #     # exactly that: the plist rewrite shipped a file Apple's parser refuses,
-  #     # and nothing in CI could have said so.
-  #     #
-  #     # It costs a full self-hosted run on an Editor-only change; that is the
-  #     # correct trade when the alternative is a check that lies.
-  #     - 'client/Assets/**'
-  #     # The scripts this job runs.
-  #     - 'implementation/scripts/run-unity-tests.sh'
-  # pull_request:
-  #   paths:
-  #     - 'engine/**'
-  #     - 'tests/engine/**'
-  #     - 'client/Assets/Editor/DeterminismHarness.cs'
-  #     - 'client/Assets/Determinism/**'
-  #     - 'implementation/scripts/cross-runtime-diff.sh'
-  #     - '.github/workflows/determinism.yml'
-  #     - 'client/ProjectSettings/ProjectSettings.asset'
-  #     - 'Broodline.sln'
-  #     - 'client/Packages/manifest.json'
-  #     - 'client/ProjectSettings/ProjectVersion.txt'
-  #     # ALL of client/Assets, not the two folders someone listed.
-  #     #
-  #     # This job is the only thing that COMPILES Unity C#, and the narrow
-  #     # filter created a false green: a PR touching only
-  #     # client/Assets/Editor/IosFileSharingPostProcess.cs triggered tests.yml
-  #     # alone, which produced two passing checks - one of them named "Unity
-  #     # settings" - without compiling a line of the changed file. That is worse
-  #     # than no checks at all, because a green check reads as coverage. It cost
-  #     # exactly that: the plist rewrite shipped a file Apple's parser refuses,
-  #     # and nothing in CI could have said so.
-  #     #
-  #     # It costs a full self-hosted run on an Editor-only change; that is the
-  #     # correct trade when the alternative is a check that lies.
-  #     - 'client/Assets/**'
-  #     # The scripts this job runs.
-  #     - 'implementation/scripts/run-unity-tests.sh'
+  push:
+    paths:
+      - 'engine/**'
+      - 'tests/engine/**'
+      # Fix round 1, Finding 3: the original two paths cover the simulation
+      # code the corpus runs, but not the gate's own machinery — a change
+      # here can silently gut the gate (softening the backend guard below is
+      # exactly Finding 1's failure mode) and still land with a green board
+      # if nothing watches these paths too.
+      - 'client/Assets/Editor/DeterminismHarness.cs'
+      - 'client/Assets/Determinism/**'
+      - 'implementation/scripts/cross-runtime-diff.sh'
+      - '.github/workflows/determinism.yml'
+      - 'client/ProjectSettings/ProjectSettings.asset'
+      - 'Broodline.sln'
+      # Fix round 2, Finding 7: two more load-bearing paths that were
+      # unwatched. manifest.json's `file:../../engine` line is the wire that
+      # makes Unity compile the very same Broodline.Sim source CoreCLR runs —
+      # repoint or drop it and IL2CPP is silently compiling something else,
+      # or nothing, while the gate still reports on two files it believes are
+      # one. ProjectVersion.txt matters because cross-runtime-diff.sh
+      # hardcodes the editor path (6000.6.0f1): an editor upgrade lands here
+      # and the script then fails preflight at exit 127, which is worth
+      # learning from CI rather than from the next person to run it locally.
+      - 'client/Packages/manifest.json'
+      - 'client/ProjectSettings/ProjectVersion.txt'
+      # ALL of client/Assets, not the two folders someone listed.
+      #
+      # This job is the only thing that COMPILES Unity C#, and the narrow
+      # filter created a false green: a PR touching only
+      # client/Assets/Editor/IosFileSharingPostProcess.cs triggered tests.yml
+      # alone, which produced two passing checks - one of them named "Unity
+      # settings" - without compiling a line of the changed file. That is worse
+      # than no checks at all, because a green check reads as coverage. It cost
+      # exactly that: the plist rewrite shipped a file Apple's parser refuses,
+      # and nothing in CI could have said so.
+      #
+      # It costs a full self-hosted run on an Editor-only change; that is the
+      # correct trade when the alternative is a check that lies.
+      - 'client/Assets/**'
+      # The scripts this job runs.
+      - 'implementation/scripts/run-unity-tests.sh'
+  pull_request:
+    paths:
+      - 'engine/**'
+      - 'tests/engine/**'
+      - 'client/Assets/Editor/DeterminismHarness.cs'
+      - 'client/Assets/Determinism/**'
+      - 'implementation/scripts/cross-runtime-diff.sh'
+      - '.github/workflows/determinism.yml'
+      - 'client/ProjectSettings/ProjectSettings.asset'
+      - 'Broodline.sln'
+      - 'client/Packages/manifest.json'
+      - 'client/ProjectSettings/ProjectVersion.txt'
+      # ALL of client/Assets, not the two folders someone listed.
+      #
+      # This job is the only thing that COMPILES Unity C#, and the narrow
+      # filter created a false green: a PR touching only
+      # client/Assets/Editor/IosFileSharingPostProcess.cs triggered tests.yml
+      # alone, which produced two passing checks - one of them named "Unity
+      # settings" - without compiling a line of the changed file. That is worse
+      # than no checks at all, because a green check reads as coverage. It cost
+      # exactly that: the plist rewrite shipped a file Apple's parser refuses,
+      # and nothing in CI could have said so.
+      #
+      # It costs a full self-hosted run on an Editor-only change; that is the
+      # correct trade when the alternative is a check that lies.
+      - 'client/Assets/**'
+      # The scripts this job runs.
+      - 'implementation/scripts/run-unity-tests.sh'
   # schedule:
   #   # Nightly at 09:00 UTC.
   #   - cron: '0 9 * * *'
