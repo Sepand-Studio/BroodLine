@@ -302,6 +302,37 @@ Design §4.1. **First among the foundation, because its gate can fail and the fa
 **Interfaces:**
 - Produces: `Broodline.UI.Theme.FontPaths.Display` and `.Body` — the two `AssetDatabase` paths Task 15's capture and this task's test both load. Exact strings in Step 3.
 
+- [ ] **Step 0: Make the test runner observable — do this before anything else**
+
+`run-unity-tests.sh` invokes Unity with `-logFile -` and pipes it through `tail -40`. Nothing is
+visible until the run ends, so **a slow run and a dead run produce identical output: none.** That
+defect cost Phase 8 an entire implementer cycle and two controller runs before anyone could even
+see where a hang was — three separate attempts looked at an empty screen and could not tell a
+working run from a deadlocked one.
+
+Change the invocation to log to a file and tail it afterwards, so a live run can be watched:
+
+```bash
+# was:  -logFile - 2>&1 | tail -40
+#       code=${PIPESTATUS[0]}
+LOG="$(pwd)/implementation/results/unity-$PLATFORM.log"
+rm -f "$LOG"
+"$UNITY" -batchmode -runTests \
+  -projectPath "$(pwd)/client" \
+  -testPlatform "$PLATFORM" \
+  -testResults "$RESULTS" \
+  -logFile "$LOG"
+code=$?
+echo "--- unity log: $LOG ---"
+tail -40 "$LOG"
+```
+
+`implementation/results/*.log` is already gitignored, so the log is scratch and is not committed.
+
+Verify the change does not break the script's contract: it must still exit 0 on all-pass, 2 on
+test failure, and print the parsed counts. Run it once and confirm the log file exists and has
+content **while the run is still going** — that is the property being added.
+
 - [ ] **Step 1: Fetch both faces and their licence**
 
 ```bash
