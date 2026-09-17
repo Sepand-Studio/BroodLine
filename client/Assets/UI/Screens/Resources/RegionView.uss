@@ -1,25 +1,22 @@
-.region-view {
-    flex-direction: column;
-    padding: 12px;
-}
+/* The map/region hub. The node states have their own reserved palette in the
+ * handoff (rich / common / drained / contested / apex) and this phase draws
+ * rows rather than polygons, so only the row chrome is styled here. */
+.region-view { flex-direction: column; padding: var(--gutter); }
 
-.region-view__roster {
-    margin-bottom: 8px;
-    color: rgb(220, 220, 225);
-}
+.region-view__roster { flex-direction: row; flex-wrap: wrap; margin-bottom: var(--space-3); }
 
-.region-view__nodes {
-    flex-direction: column;
-}
+.region-view__nodes { flex-direction: column; }
 
 .node-row {
     flex-direction: row;
+    justify-content: space-between;
     align-items: center;
-    padding: 6px 0;
-    border-bottom-width: 1px;
-    border-bottom-color: rgba(255, 255, 255, 0.08);
+    background-color: var(--surface);
+    border-radius: var(--radius-row);
+    border-width: 1px;
+    border-color: var(--divider);
+    padding: var(--space-3);
+    margin-bottom: var(--space-2);
 }
 
-.node-row > Label {
-    margin-right: 10px;
-}
+.node-row > Label { font-size: var(--text-body); color: var(--ink); }

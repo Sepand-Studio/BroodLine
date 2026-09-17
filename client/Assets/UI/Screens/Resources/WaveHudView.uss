@@ -12,18 +12,27 @@
 
    The bars ARE absolutely positioned, because they track world bodies; that
    position comes from the camera and is clamped into the frame, never taken
-   from a constant. */
+   from a constant.
+
+   THIS IS THE ONE SCREEN THAT IS NOT PAPER-WHITE, and that is deliberate
+   rather than an oversight in the design pass. It renders OVER the wave
+   scene, not over the shell, so `--paper` here would be a white sheet across
+   the battlefield. Light text on the world is correct; what moves onto the
+   token palette is the semantic colour of the bars, so a chilled raider is
+   the same teal as Vetch everywhere else. bible 10.1 asks for the interface
+   to be recessive and the creatures to carry the colour - over live combat
+   that argument points this way. */
 .wave-hud-view {
     flex-grow: 1;
     flex-direction: column;
 }
 
 .wave-hud-view__integrity {
-    margin-left: 12px;
-    margin-top: 8px;
+    margin-left: var(--gutter);
+    margin-top: var(--space-2);
     font-size: 15px;
     -unity-font-style: bold;
-    color: rgb(240, 240, 245);
+    color: rgb(250, 249, 252);
 }
 
 .wave-hud-view__bars {
@@ -43,31 +52,33 @@
 .wave-hud-view__track {
     height: 6px;
     flex-direction: row;
-    background-color: rgba(0, 0, 0, 0.55);
+    background-color: rgba(46, 42, 61, 0.55);
+    border-radius: 3px;
 }
 
+/* Default is a raider: coral, the token table's danger. */
 .wave-hud-view__fill {
     height: 6px;
-    background-color: rgb(217, 89, 77);
+    border-radius: 3px;
+    background-color: #e5867a;
 }
 
-.wave-hud-view__bar.creature .wave-hud-view__fill {
-    background-color: rgb(102, 204, 115);
-}
+/* Yours. Green - the same success colour the post-wave screen uses. */
+.wave-hud-view__bar.creature .wave-hud-view__fill { background-color: #7cc492; }
 
-.wave-hud-view__bar.chilled .wave-hud-view__fill {
-    background-color: rgb(115, 191, 255);
-}
+/* Chill applied: teal, matching the Vetch/info token. Chill is the trait the
+ * wave-6 defeat screen teaches, so it should be the same colour there and
+ * here or the lesson does not transfer. */
+.wave-hud-view__bar.chilled .wave-hud-view__fill { background-color: #6ba7c0; }
 
-.wave-hud-view__bar.rallied .wave-hud-view__fill {
-    background-color: rgb(255, 217, 77);
-}
+/* Rally: amber-bright, the apex/attention colour. */
+.wave-hud-view__bar.rallied .wave-hud-view__fill { background-color: #ffb703; }
 
-.wave-hud-view__bar.breaching .wave-hud-view__fill {
-    background-color: rgb(255, 102, 102);
-}
+/* Breaching - the one state a player must catch in peripheral vision, so it
+ * is the brightest thing on the field. */
+.wave-hud-view__bar.breaching .wave-hud-view__fill { background-color: #ff6b5c; }
 
 .wave-hud-view__tag {
-    font-size: 11px;
-    color: rgb(235, 235, 240);
+    font-size: var(--text-secondary);
+    color: rgb(240, 238, 246);
 }

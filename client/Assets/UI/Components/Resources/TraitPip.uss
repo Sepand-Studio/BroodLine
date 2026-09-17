@@ -1,37 +1,49 @@
+/* Three tiers, three pips - bible 10.4, "the body says which, the card says
+ * how much".
+ *
+ * COLOUR NEVER CARRIES INFORMATION ALONE (bible 10.4). The pip count is the
+ * information and it works in greyscale; the tint below is reinforcement, so
+ * losing it costs nothing a colourblind player needs.
+ */
 .trait-pip {
     flex-direction: row;
     align-items: center;
-    padding: 2px 6px;
-    border-radius: 4px;
-    background-color: rgba(0, 0, 0, 0.35);
+    background-color: var(--violet-tint);
+    border-radius: var(--radius-chip);
+    padding-top: 3px;
+    padding-bottom: 3px;
+    padding-left: 7px;
+    padding-right: 7px;
 }
 
 .trait-pip__icon {
-    width: 14px;
-    height: 14px;
-    margin-right: 4px;
-    border-radius: 2px;
-    background-color: rgba(255, 255, 255, 0.25);
+    width: 8px;
+    height: 8px;
+    border-radius: var(--radius-pill);
+    background-color: var(--violet);
+    margin-right: 5px;
 }
 
 .trait-pip__label {
-    font-size: 11px;
+    font-size: var(--text-micro);
     -unity-font-style: bold;
-    color: rgb(240, 240, 240);
+    color: var(--violet-text);
+    letter-spacing: 1px;
 }
 
-/* A trait with a nonzero coverage tier that answers a raider - bible 1.2's
- * bold traits. Purely a hook for a future badge; the tooltip carries the
- * actual "counters X" text regardless of this class. */
+/* The trait that answers the raider on screen. Green is the token table's
+ * success, and this is the counter system's teaching surface (bible 10.5) -
+ * it should read as "this is the answer", not as decoration. */
 .trait-pip--counters .trait-pip__icon {
-    background-color: rgb(210, 180, 90);
+    background-color: var(--green-deep);
 }
 
-/* data_model 2: a null coverage tier is an Aberrant, never a zero. */
 .trait-pip.aberrant {
-    background-color: rgba(120, 60, 160, 0.45);
+    background-color: #ffffff;
+    border-width: 1px;
+    border-color: #efe9fb;
 }
 
 .trait-pip.aberrant .trait-pip__icon {
-    background-color: rgb(190, 140, 230);
+    background-color: #d9cdf5;
 }

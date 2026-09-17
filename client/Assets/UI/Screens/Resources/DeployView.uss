@@ -1,23 +1,25 @@
-.deploy-view {
-    flex-direction: column;
-    padding: 12px;
-}
+/* Placement, before a wave. */
+.deploy-view { flex-direction: column; padding: var(--gutter); }
 
-.deploy-view__slots {
-    flex-direction: row;
-    flex-wrap: wrap;
-}
+.deploy-view__slots { flex-direction: row; flex-wrap: wrap; justify-content: space-between; }
 
 .deploy-view__slot {
-    margin-right: 8px;
-    margin-bottom: 8px;
+    background-color: var(--surface-sunk);
+    border-radius: var(--radius-row);
+    border-width: 1px;
+    border-color: var(--hairline);
+    padding: var(--space-2);
+    margin-bottom: var(--space-2);
 }
 
 .deploy-view__blocker {
-    margin-top: 8px;
-    color: rgb(230, 120, 120);
+    color: var(--coral-text);
+    background-color: var(--coral-tint);
+    border-radius: var(--radius-row);
+    padding: var(--space-2);
+    white-space: normal;
+    margin-top: var(--space-2);
+    font-size: var(--text-body);
 }
 
-.deploy-view__start {
-    margin-top: 12px;
-}
+.deploy-view__start { margin-top: var(--space-4); }

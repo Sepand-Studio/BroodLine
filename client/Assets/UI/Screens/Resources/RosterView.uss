@@ -1,20 +1,13 @@
-.roster-view {
-    flex-direction: column;
-    padding: 12px;
-}
+/* The roster. Cards do their own styling; this is the grid around them. */
+.roster-view { flex-direction: column; padding: var(--gutter); }
 
 .roster-view__notice {
-    margin-bottom: 8px;
-    color: rgb(230, 190, 120);
+    color: var(--mute);
     white-space: normal;
+    font-size: var(--text-body);
+    margin-bottom: var(--space-2);
 }
 
-.roster-view__cards {
-    flex-direction: row;
-    flex-wrap: wrap;
-}
+.roster-view__cards { flex-direction: row; flex-wrap: wrap; justify-content: space-between; }
 
-.roster-view__card {
-    margin-right: 8px;
-    margin-bottom: 8px;
-}
+.roster-view__card { margin-bottom: var(--space-3); }

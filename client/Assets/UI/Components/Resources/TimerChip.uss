@@ -1,18 +1,24 @@
+/* A countdown. bible 10.6 wants tabular figures so it does not jitter as it
+ * ticks; no face is imported yet, so this sets the size and weight the
+ * handoff specifies and the jitter remains until one is.
+ */
 .timer-chip {
     flex-direction: row;
     align-items: center;
-    padding: 2px 6px;
-    border-radius: 10px;
-    background-color: rgba(0, 0, 0, 0.35);
+    background-color: var(--surface-sunk);
+    border-radius: var(--radius-pill);
+    padding-top: 3px;
+    padding-bottom: 3px;
+    padding-left: 10px;
+    padding-right: 10px;
 }
 
 .timer-chip__time {
-    font-size: 11px;
+    font-size: var(--text-secondary);
     -unity-font-style: bold;
-    color: rgb(235, 235, 235);
-    -unity-text-align: middle-center;
+    color: var(--ink);
 }
 
 .timer-chip.expired .timer-chip__time {
-    color: rgb(220, 100, 100);
+    color: var(--coral-text);
 }

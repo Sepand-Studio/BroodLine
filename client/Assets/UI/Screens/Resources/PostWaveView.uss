@@ -1,30 +1,35 @@
-.post-wave-view {
-    flex-direction: column;
-    padding: 12px;
-}
+/* A win. Green is the token table's success and this is the only screen that
+ * should feel like one. */
+.post-wave-view { flex-direction: column; padding: var(--gutter); align-items: center; }
 
 .post-wave-view__headline {
-    font-size: 22px;
+    font-size: var(--text-hero);
+    color: var(--green-text);
     -unity-font-style: bold;
-    color: rgb(235, 235, 240);
+    white-space: normal;
+    margin-bottom: var(--space-3);
 }
 
 .post-wave-view__reward {
-    margin-top: 8px;
-    color: rgb(240, 215, 140);
+    font-size: var(--text-body);
+    color: var(--mute);
+    white-space: normal;
+    margin-bottom: var(--space-2);
 }
 
 .post-wave-view__granted {
-    flex-direction: row;
-    flex-wrap: wrap;
-    margin-top: 16px;
+    background-color: var(--green-tint);
+    border-radius: var(--radius-row);
+    padding: var(--space-3);
+    width: 100%;
+    margin-bottom: var(--space-2);
 }
 
 .post-wave-view__grant {
-    margin-right: 8px;
-    margin-bottom: 8px;
+    font-size: var(--text-body);
+    color: var(--green-text);
+    -unity-font-style: bold;
+    white-space: normal;
 }
 
-.post-wave-view__next {
-    margin-top: 16px;
-}
+.post-wave-view__next { margin-top: var(--space-4); width: 100%; }
