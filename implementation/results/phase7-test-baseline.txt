@@ -69,7 +69,7 @@
 #        <(grep -v '^#' implementation/results/phase7-test-baseline.txt)
 #
 # ---------------------------------------------------------------------------
-# THE ONE RED ROW IS DELIBERATE AND MUST STAY RED.
+# THE ONE RED ROW WAS DELIBERATE, AND IT IS GREEN NOW.
 #
 # gate.dotnet.failed WAS 1 and is now 0. The failure was
 #   Broodline.Sim.Tests.Combat.ReplayArtifactPresenceTests.TheTrackedCapturesAreCurrent
@@ -84,29 +84,42 @@
 # what its last measurement was worth, so the regeneration commands above are
 # the authority and these rows are a cache of them.
 #
-# WHILE IT IS RED, EditorReplayTests AND DeviceReplayTests BAIL BEFORE THEIR
-# ASSERTIONS AND REPORT PASSED. Every re-simulating test in those files opens
-# with `if (ReplayArtifact.Superseded(record, _out)) return;`, so the committed
-# round-trip proof - Phase 3's done-when - is dark right now and the suite says
-# "passed" for both files while it is. This one test is the guard on that
-# guard, and it is the only thing in the solution that announces it.
+# WHILE IT WAS RED, EditorReplayTests AND DeviceReplayTests BAILED BEFORE
+# THEIR ASSERTIONS AND REPORTED PASSED. Every re-simulating test in those files
+# opens with `if (ReplayArtifact.Superseded(record, _out)) return;`, so the
+# committed round-trip proof - Phase 3's done-when - was dark for the rest of
+# Phase 7, and the suite said "passed" for both files while it was. This one
+# test was the guard on that guard, and it was the only thing in the solution
+# that announced it. It is lit again as of e217bea: EditorReplayTests and
+# DeviceReplayTests now run their assertions for real.
 #
-# DO NOT re-baseline, skip, or "fix" this row. Phase 6 STILL cannot close, and
-# now neither can Phase 7. gate.dotnet.skipped is 0 and must stay 0 - there is
-# no Skip anywhere in the solution, so no count will report this for you.
+# THAT WARNING GOVERNED THE ROW WHILE IT WAS RED: do not silently re-baseline,
+# skip, or "fix" a red row to make it disappear. It does not forbid what this
+# correction does - recording a re-measurement after a legitimate re-capture
+# (e217bea) - which is the distinction the corrected paragraph above now draws
+# explicitly. Phase 6 closed with that capture, and this gate no longer holds
+# Phase 7 either. gate.dotnet.skipped is 0 and must stay 0 - there is no Skip
+# anywhere in the solution, so no count will report this for you.
 #
 # ---------------------------------------------------------------------------
-# TWO GATES COULD NOT BE RUN AT ALL, AND THEY ARE ROWS HERE RATHER THAN
-# OMISSIONS. A gate left out of a table reads as a gate nobody thought of; a
-# gate written down with a value of "never" reads as what it is.
+# ONE GATE COULD NOT BE RUN AT ALL, AND ONE MORE IS ROWED HERE BECAUSE ITS OLD
+# "NEVER RAN" VALUE WAS WRONG BY THE TIME THIS CORRECTION MEASURED IT AGAIN. A
+# gate left out of a table reads as a gate nobody thought of; a gate written
+# down with a value of "never" reads as what it is - and a stale "never" is
+# worse than either, which is why this entry is corrected here rather than
+# quietly removed.
 #
-#   gate.determinism-ci.*  - determinism.yml declares `runs-on: [self-hosted,
-#     macOS]` and NO RUNNER IS REGISTERED: `gh api repos/:owner/:repo/actions/
-#     runners` returns {"total_count":0,"runners":[]}. Its newest trigger has
-#     been QUEUED for over nine hours and the four before it were CANCELLED
-#     after 8h34m to 24h. A queued run is not a failing run, so nothing ever
-#     goes red. FOUR phases have now changed the engine without this gate
-#     running once. Task 12.
+#   gate.determinism-ci.*  - REGISTERED, AND GREEN ONCE, NOT YET PROVEN
+#     AUTOMATIC. `gh api repos/:owner/:repo/actions/runners` now returns one
+#     runner: sd-sassadi-m1, macOS/ARM64, online - Task 12's runner. Run
+#     35238465972 (workflow_dispatch, manually triggered) completed green in
+#     8m3s, the first execution of the IL2CPP half of that diff in CI ever.
+#     But every push/pull_request/schedule-triggered run measured SINCE that
+#     one has queued rather than executed: three cancelled after 11m-56m and a
+#     fourth still queued past 1h40m as this file was corrected. The runner
+#     exists and the gate has proven it CAN pass; that it runs unattended, on
+#     its own triggers, is not yet shown, and no task number is assigned to
+#     that gap.
 #
 #   gate.smoke-loop.*      - there is no deployed stack (`gcloud run services
 #     list` and `gcloud sql instances list` both return "Listed 0 items.") and
@@ -147,9 +160,9 @@
 #   unity EditMode 87 -> 267, and PlayMode is a row for the first time (3)
 #
 # PlayMode is recorded here because Phase 7 is the phase that gave it tests
-# worth recording: WaveCapturePlayTests is currently the ONLY live proof that
-# the Editor capture path still works, which matters precisely because the
-# committed proof is dark (above).
+# worth recording: WaveCapturePlayTests was the only live proof that the
+# Editor capture path still worked while the committed round-trip proof above
+# was dark. Both are lit now (above).
 #
 # cross-runtime was re-run rather than carried over: Task 1 restructured the
 # lane model, added two authored waves and moved SimVersion, which is the exact
@@ -182,6 +195,41 @@
 #
 #   -> Run verify-unity-settings.sh AFTER the Unity gates, never only before.
 #      It was run twice here for that reason, and both runs are recorded below.
+#
+# ---------------------------------------------------------------------------
+# A SECOND CORRECTION PASS, LATER THE SAME DAY - WHAT WIDENING IT FOUND.
+#
+# The first pass fixed gate.dotnet.* and the paragraph above it. Widening the
+# same re-measurement to every row in this file, rather than trusting that
+# scope, found three more instances of exactly the same failure, from the
+# same two commits: gate.determinism-ci.* and its header section still said
+# NO RUNNER IS REGISTERED after 60ed64c registered one and ran the gate
+# green; gate.device-capture.simversion still read the pre-capture version
+# after the same e217bea that fixed gate.dotnet; and this section's own
+# heading and two paragraphs were still narrating the round-trip proof as red
+# and dark after the row three lines above them had already been corrected.
+#
+# Four stale spots from two commits, missed by a fix scoped to the rows a
+# diff had flagged rather than to everything a diff could have flagged, is
+# not four mistakes - it is this file's own thesis, applied to the size of
+# its own fix instead of to the tree. phase7-followups.md's §13 carried the
+# same two facts stale into its own punch list and is corrected alongside
+# this file for the same reason.
+#
+# THE gate.unity.* ROWS WERE NOT RE-VERIFIED, AND THIS IS WHY, NOT A GUESS.
+# `run-unity-tests.sh EditMode` was attempted twice at this tree, on a clean
+# Temp/UnityLockfile with no Editor open (confirmed both times). Both attempts
+# reproducibly hung at the identical point - "Executing IPrebuildSetup for:
+# Unity.PerformanceTesting.Editor.TestRunBuilder." - with CPU time across the
+# whole Unity process tree flat (under 20s total CPU over 18+ minutes wall
+# time on the first attempt), never reaching a single test or writing
+# test-results-EditMode.xml. Both were terminated rather than left running,
+# and both left the tree clean (no stray results file, no lockfile - removed
+# after each attempt). PlayMode was not attempted, on the same tool. The
+# gate.unity.* rows below are therefore UNCHANGED from the 2026-09-16
+# measurement and are NOT re-confirmed at this tree - carried, not verified.
+# Client commits have landed since 2026-09-16; whether these counts still
+# hold is genuinely unknown until something other than this script can check.
 #
 # ---------------------------------------------------------------------------
 # PROVENANCE (comments, so they never pollute a diff)
@@ -241,20 +289,20 @@ gate.api.total	455
 gate.api.failed	0	see NOTE ON gate.api - the FIRST run of this tree was red again, on a different project
 gate.typecheck.errors	0
 gate.contract.diff.files	0	git status --porcelain over the three generated paths: empty
-gate.unity.editmode.total	267
+gate.unity.editmode.total	267	CARRIED from 2026-09-16, NOT RE-VERIFIED — re-run hung twice; see header
 gate.unity.editmode.passed	267
 gate.unity.editmode.failed	0
 gate.unity.editmode.skipped	0
-gate.unity.playmode.total	4
+gate.unity.playmode.total	4	CARRIED from 2026-09-16, NOT RE-VERIFIED — not attempted; see header
 gate.unity.playmode.passed	4
 gate.unity.playmode.failed	0
 gate.unity.playmode.skipped	0
 gate.unity.settings.checks	12
 gate.unity.settings.failed	0	re-run AFTER the Unity gates — see the finding above
-gate.determinism-ci.runs	0	NEVER RUN — no self-hosted macOS runner is registered (Task 12)
-gate.determinism-ci.runners	0	gh api actions/runners → {"total_count":0,"runners":[]}
+gate.determinism-ci.runs	1	RAN GREEN ONCE — run 35238465972, workflow_dispatch, 8m3s. Later push/PR/schedule triggers queued rather than ran; see header
+gate.determinism-ci.runners	1	sd-sassadi-m1, macOS/ARM64, online — gh api actions/runners
 gate.smoke-loop.runs	0	NEVER RUN — no deployed stack, and no such script (Task 19)
-gate.device-capture.simversion	0.2.0	THE CAPTURES. The engine is 0.4.0 (Task 2 owed)
+gate.device-capture.simversion	0.4.0	Matches the engine. Taken in e217bea (Task 2 done)
 gate.testflight.builds	0	NEVER BUILT (Task 20)
 
 api.file.account.test.ts	9

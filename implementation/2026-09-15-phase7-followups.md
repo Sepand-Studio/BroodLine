@@ -1210,10 +1210,18 @@ inherited as §13 item 17.
    regenerate recipe in `phase7-test-baseline.txt` will redden its own last
    line if you run it in the order it lists, which that file now says above the
    recipe rather than leaving as a trap.
-1. **The device capture.** §1, §3. It has blocked Phase 6's close since
-   2026-09-15 and now blocks Phase 7's.
-2. **A self-hosted macOS runner**, and with it the determinism gate — which has
-   still, across four phases that each changed the engine, **never run**. §1.
+1. ~~**The device capture.** §1, §3. It has blocked Phase 6's close since
+   2026-09-15 and now blocks Phase 7's.~~ **CLOSED 2026-09-17.** Taken in
+   `e217bea`, on hardware, under engine `0.4.0`. §1.
+2. ~~**A self-hosted macOS runner**, and with it the determinism gate — which
+   has still, across four phases that each changed the engine, **never
+   run**.~~ **PARTIALLY CLOSED 2026-09-17.** The runner (`sd-sassadi-m1`,
+   macOS/ARM64) is registered and online, and the gate has run green once, on
+   a manual `workflow_dispatch` (run `35238465972`, 8m3s). **Newly inherited
+   in its place:** every push/pull_request/schedule-triggered run measured
+   since has queued rather than executed — three cancelled after 11m–56m, one
+   still queued past 1h40m at measurement time — so the gate running
+   unattended, on its own triggers, is not yet shown. §1.
 3. **A deployed stack, `smoke-loop.sh` written, and the loop driven on it.**
    §1. Inherited unchanged from Phase 5's Task 11 and Phase 6's §12 item 2.
 4. **A TestFlight build in someone else's hands**, and their report added to
