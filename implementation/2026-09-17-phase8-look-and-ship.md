@@ -2027,11 +2027,19 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-## Tasks 9–12: The eleven screens
+## Tasks 9–12 — the eleven screens
 
-Four tasks, grouped the way Phase 7 grouped its screen work. **Each one ends with `EveryScreenComposesTheScaffold` listing fewer screens**, and Task 12 is where it goes green.
+Four tasks. Each brings its own screens to handoff specification and ends with `EveryScreenComposesTheScaffold` naming fewer; Task 12 is where it goes green. Each task below repeats the shared steps in full — do not treat them as a cross-reference.
 
-Every screen in these tasks follows the same five steps, so they are stated once here rather than repeated eleven times:
+---
+
+## Task 9: The first-hour screens
+
+**Files:** `FounderNamingView`, `CampaignSelectView`, `CodexSheet`, `LineageView` — `.cs`, `.uxml`, `.uss` each, under `client/Assets/UI/Screens/`.
+
+Pushed sub-screens: `CodexSheet` (a sheet, so **no scaffold header** — it is an overlay and `ScreenHost.ShowSheet` never touches the back stack; it is excluded from the sweep by not living in `Broodline.UI.Screens`, or, if it does, by carrying the scaffold with `pushed: false`). `LineageView` is pushed from the roster.
+
+**The five steps, in order.** Repeated in each of Tasks 9–12 rather than cross-referenced, because a brief is extracted per task and an implementer may never see its neighbours.
 
 1. Wrap the existing tree in a `ScreenScaffold` — title from the handoff's copy, `pushed: true` for sub-screens per the handoff's push table, `onBack` calling `ScreenHost.Pop`.
 2. Move the screen's body into `scaffold.Content`; move its buttons into `scaffold.CtaRow`.
@@ -2039,13 +2047,9 @@ Every screen in these tasks follows the same five steps, so they are stated once
 4. Put `.t-num` on every numeral and `.elev-1` on every card.
 5. Delete from the screen's own `.uss` every rule the scaffold or a component now provides. **The stylesheet should shrink.** If it grows, the layout is being re-derived rather than composed.
 
-**Gate for each task:** `run-unity-tests.sh EditMode` green, `verify-uss-tokens.sh` green, and the scaffold sweep's failure list shorter by exactly the screens the task names.
+**Gate for this task:** `./implementation/scripts/run-unity-tests.sh EditMode` green, `bash implementation/scripts/verify-uss-tokens.sh` green, and `EveryScreenComposesTheScaffold`'s failure list shorter by exactly the screens this task names. That test is deliberately red until Task 12; a shorter list is this task's success signal, not a failure.
 
-### Task 9: The first-hour screens
-
-**Files:** `FounderNamingView`, `CampaignSelectView`, `CodexSheet`, `LineageView` — `.cs`, `.uxml`, `.uss` each, under `client/Assets/UI/Screens/`.
-
-Pushed sub-screens: `CodexSheet` (a sheet, so **no scaffold header** — it is an overlay and `ScreenHost.ShowSheet` never touches the back stack; it is excluded from the sweep by not living in `Broodline.UI.Screens`, or, if it does, by carrying the scaffold with `pushed: false`). `LineageView` is pushed from the roster.
+**Component interfaces** (from Task 8, used verbatim): `OptionRow(string title, string detail, Action onSelect)` with `.Selected`; `SectionCard(string heading = null)` with `.Body`; `StatCell(string label, string value)` with `.Value`; `ProgressBar(float fill01, string modifier = null)` with `.Fill`; `EmptyState(string message, string glyph = null)`. Scaffold: `ScreenScaffold(string title, bool pushed = false, Action onBack = null)` with `.Content`, `.CtaRow`, `.HeaderSlot`, `.FooterNote`.
 
 - [ ] **Step 1:** Apply the five steps to `FounderNamingView`. Title *"Name your Founder"*; the name field is the content; the CTA row carries the primary *"Confirm"*; footer note *"Founders keep their names for life."*
 - [ ] **Step 2:** `CampaignSelectView` — each chapter becomes an `OptionRow`; locked chapters carry `icon--lock` and are unselectable.
@@ -2068,9 +2072,21 @@ explaining why.
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
-### Task 10: The loop screens
+## Task 10: The loop screens
 
 **Files:** `RosterView`, `SpliceChamberView`, `SpliceRevealView`, `DeployView`.
+
+**The five steps, in order.** Repeated in each of Tasks 9–12 rather than cross-referenced, because a brief is extracted per task and an implementer may never see its neighbours.
+
+1. Wrap the existing tree in a `ScreenScaffold` — title from the handoff's copy, `pushed: true` for sub-screens per the handoff's push table, `onBack` calling `ScreenHost.Pop`.
+2. Move the screen's body into `scaffold.Content`; move its buttons into `scaffold.CtaRow`.
+3. Replace bespoke rows with `SectionCard` / `OptionRow` / `StatCell` / `ProgressBar`; give every list an `EmptyState`.
+4. Put `.t-num` on every numeral and `.elev-1` on every card.
+5. Delete from the screen's own `.uss` every rule the scaffold or a component now provides. **The stylesheet should shrink.** If it grows, the layout is being re-derived rather than composed.
+
+**Gate for this task:** `./implementation/scripts/run-unity-tests.sh EditMode` green, `bash implementation/scripts/verify-uss-tokens.sh` green, and `EveryScreenComposesTheScaffold`'s failure list shorter by exactly the screens this task names. That test is deliberately red until Task 12; a shorter list is this task's success signal, not a failure.
+
+**Component interfaces** (from Task 8, used verbatim): `OptionRow(string title, string detail, Action onSelect)` with `.Selected`; `SectionCard(string heading = null)` with `.Body`; `StatCell(string label, string value)` with `.Value`; `ProgressBar(float fill01, string modifier = null)` with `.Fill`; `EmptyState(string message, string glyph = null)`. Scaffold: `ScreenScaffold(string title, bool pushed = false, Action onBack = null)` with `.Content`, `.CtaRow`, `.HeaderSlot`, `.FooterNote`.
 
 - [ ] **Step 1:** `RosterView` — `CreatureCard` grid inside `scaffold.Content`; the `IncompleteNotice` becomes the scaffold's footer note rather than a floating label; `EmptyState` for an empty roster.
 - [ ] **Step 2:** `SpliceChamberView` — parent pickers become `OptionRow`s; the forecast becomes a `SectionCard` of `StatCell`s; the mutation percentage carries `.t-num`. The existing confirm flow and `SpliceConfirmTests` are untouched.
@@ -2093,11 +2109,23 @@ row is for.
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
-### Task 11: The wave screens
+## Task 11: The wave screens
 
 **Files:** `WaveHudView`, `PostWaveView`, `WaveDefeatView`.
 
 **This is the largest of the four.** `WaveHudView` was written before the token layer existed and carries the most bespoke styling; Task 2 already replaced its five hexes, and this task replaces its layout.
+
+**The five steps, in order.** Repeated in each of Tasks 9–12 rather than cross-referenced, because a brief is extracted per task and an implementer may never see its neighbours.
+
+1. Wrap the existing tree in a `ScreenScaffold` — title from the handoff's copy, `pushed: true` for sub-screens per the handoff's push table, `onBack` calling `ScreenHost.Pop`.
+2. Move the screen's body into `scaffold.Content`; move its buttons into `scaffold.CtaRow`.
+3. Replace bespoke rows with `SectionCard` / `OptionRow` / `StatCell` / `ProgressBar`; give every list an `EmptyState`.
+4. Put `.t-num` on every numeral and `.elev-1` on every card.
+5. Delete from the screen's own `.uss` every rule the scaffold or a component now provides. **The stylesheet should shrink.** If it grows, the layout is being re-derived rather than composed.
+
+**Gate for this task:** `./implementation/scripts/run-unity-tests.sh EditMode` green, `bash implementation/scripts/verify-uss-tokens.sh` green, and `EveryScreenComposesTheScaffold`'s failure list shorter by exactly the screens this task names. That test is deliberately red until Task 12; a shorter list is this task's success signal, not a failure.
+
+**Component interfaces** (from Task 8, used verbatim): `OptionRow(string title, string detail, Action onSelect)` with `.Selected`; `SectionCard(string heading = null)` with `.Body`; `StatCell(string label, string value)` with `.Value`; `ProgressBar(float fill01, string modifier = null)` with `.Fill`; `EmptyState(string message, string glyph = null)`. Scaffold: `ScreenScaffold(string title, bool pushed = false, Action onBack = null)` with `.Content`, `.CtaRow`, `.HeaderSlot`, `.FooterNote`.
 
 - [ ] **Step 1:** `WaveHudView` — the HUD is an overlay on the wave scene, so it takes **no scaffold** and is excluded from the sweep by that fact; instead it adopts `SectionCard`-consistent surfaces, `.t-num` on integrity, tick and wave number, and `.elev-1` on the bar container. Confirm `WaveScreensTests` and the cached bar children from `3b49931` still pass — that commit is a performance fix and this task must not undo it.
 - [ ] **Step 2:** `PostWaveView` — scaffold titled *"Wave cleared"*; rewards as `StatCell`s; primary CTA *"Continue"*.
@@ -2124,9 +2152,21 @@ parses a replay.
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
-### Task 12: `RegionView` — the interim, recorded as interim
+## Task 12: `RegionView` — the interim, recorded as interim
 
 Design §5.3. **The one screen that does not reach handoff specification, and the commit says so.**
+
+**The five steps, in order.** Repeated in each of Tasks 9–12 rather than cross-referenced, because a brief is extracted per task and an implementer may never see its neighbours.
+
+1. Wrap the existing tree in a `ScreenScaffold` — title from the handoff's copy, `pushed: true` for sub-screens per the handoff's push table, `onBack` calling `ScreenHost.Pop`.
+2. Move the screen's body into `scaffold.Content`; move its buttons into `scaffold.CtaRow`.
+3. Replace bespoke rows with `SectionCard` / `OptionRow` / `StatCell` / `ProgressBar`; give every list an `EmptyState`.
+4. Put `.t-num` on every numeral and `.elev-1` on every card.
+5. Delete from the screen's own `.uss` every rule the scaffold or a component now provides. **The stylesheet should shrink.** If it grows, the layout is being re-derived rather than composed.
+
+**Gate for this task:** `./implementation/scripts/run-unity-tests.sh EditMode` green, `bash implementation/scripts/verify-uss-tokens.sh` green, and `EveryScreenComposesTheScaffold`'s failure list shorter by exactly the screens this task names. That test is deliberately red until Task 12; a shorter list is this task's success signal, not a failure.
+
+**Component interfaces** (from Task 8, used verbatim): `OptionRow(string title, string detail, Action onSelect)` with `.Selected`; `SectionCard(string heading = null)` with `.Body`; `StatCell(string label, string value)` with `.Value`; `ProgressBar(float fill01, string modifier = null)` with `.Fill`; `EmptyState(string message, string glyph = null)`. Scaffold: `ScreenScaffold(string title, bool pushed = false, Action onBack = null)` with `.Content`, `.CtaRow`, `.HeaderSlot`, `.FooterNote`.
 
 - [ ] **Step 1:** Scaffold titled *"Region"*, `CurrencyHeader` in the header slot.
 - [ ] **Step 2:** Each node becomes a `SectionCard` with a `ProgressBar` for richness and `StatCell`s for rate and yield. `EmptyState` when no nodes are claimable.
