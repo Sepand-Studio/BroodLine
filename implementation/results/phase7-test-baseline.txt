@@ -71,15 +71,18 @@
 # ---------------------------------------------------------------------------
 # THE ONE RED ROW IS DELIBERATE AND MUST STAY RED.
 #
-# gate.dotnet.failed is 1, not 0, and the failure is
+# gate.dotnet.failed WAS 1 and is now 0. The failure was
 #   Broodline.Sim.Tests.Combat.ReplayArtifactPresenceTests.TheTrackedCapturesAreCurrent
+# and it was deliberate: the capture was owed under SimVersion 0.4.0.
 #
-# Phase 6 moved SimVersion 0.2.0 -> 0.3.0 and PHASE 7 TASK 1 MOVED IT AGAIN TO
-# 0.4.0 (waves 1 and 2 needed a six-pocket lane, and WaveDef.ForId now answers
-# four wave ids where it answered two). The tracked device and editor captures
-# are still the 0.2.0 ones, so solo_execution 9.4 supersedes them and the
-# renderer round-trip is NOT being proven. No iOS hardware reached this phase;
-# Task 2 was never run.
+# It was taken in e217bea, which landed AFTER ec06d40 wrote this file. Nothing
+# re-measured, so this file spent the rest of Phase 7 asserting a deliberate red
+# against a tree that was green. That is this file's own thesis happening to
+# this file, for the second time in the project.
+#
+# The lesson is not "re-read the record." It is that a baseline is only worth
+# what its last measurement was worth, so the regeneration commands above are
+# the authority and these rows are a cache of them.
 #
 # WHILE IT IS RED, EditorReplayTests AND DeviceReplayTests BAIL BEFORE THEIR
 # ASSERTIONS AND REPORT PASSED. Every re-simulating test in those files opens
@@ -224,12 +227,12 @@
 # §13 item 17.
 
 gate.dotnet.total	231
-gate.dotnet.passed	230
-gate.dotnet.failed	1	TheTrackedCapturesAreCurrent — DELIBERATE, see above
+gate.dotnet.passed	231
+gate.dotnet.failed	0
 gate.dotnet.skipped	0
 gate.dotnet.engine.total	214
-gate.dotnet.engine.passed	213
-gate.dotnet.engine.failed	1
+gate.dotnet.engine.passed	214
+gate.dotnet.engine.failed	0
 gate.dotnet.sim-service.total	17
 gate.dotnet.sim-service.passed	17
 gate.cross-runtime.scenarios	500	PASS: 500 scenarios agree
