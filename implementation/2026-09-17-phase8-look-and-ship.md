@@ -575,7 +575,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-## Task 2: The token lint — and the five raw hexes in the combat HUD
+## Task 2: The token lint — and the nineteen raw hexes it finds
 
 Design §4, §7.1, and the amendment in "What this plan found the design missed" item 2.
 
@@ -620,9 +620,27 @@ fi
 ok "$(printf '%s\n' "$sheets" | wc -l | tr -d ' ') stylesheets to check"
 
 # --- 1. No raw hex outside Tokens.uss. -------------------------------------
-# url(...) lines are asset references and carry no colour.
+# Two exclusions, both load-bearing:
+#   url(...)  - asset references, no colour.
+#   comments  - Theme.uss DOCUMENTS the handoff's `linear-gradient(180deg,
+#               #8878cf, #6f5fbb)` and `box-shadow: 0 3px 0 #5b4d9e` in its
+#               header, explaining which primitives USS cannot express. A lint
+#               that reddens on that turns the file's honesty into a failure,
+#               which is the opposite of the point.
+# The awk strips /* ... */ (including multi-line) before the grep sees it.
 offenders=$(printf '%s\n' "$sheets" | while read -r f; do
-  grep -nE '#[0-9a-fA-F]{3,8}\b' "$f" | grep -v 'url(' | sed "s#^#$f:#"
+  awk '
+    { line = $0
+      while (1) {
+        if (inc) { i = index(line, "*/"); if (!i) { line = ""; break }
+                   inc = 0; line = substr(line, i + 2); continue }
+        i = index(line, "/*"); if (!i) break
+        rest = substr(line, i + 2); j = index(rest, "*/")
+        if (j) { line = substr(line, 1, i - 1) substr(rest, j + 2); continue }
+        line = substr(line, 1, i - 1); inc = 1; break
+      }
+      printf "%d:%s\n", NR, line }
+  ' "$f" | grep -E ':.*#[0-9a-fA-F]{3,8}\b' | grep -v 'url(' | sed "s#^#$f:#"
 done)
 if [ -z "$offenders" ]; then
   ok "no raw hex outside Tokens.uss"
@@ -648,8 +666,14 @@ else
 fi
 
 # --- 3. Every var() resolves to a token that exists. -----------------------
+# RUNTIME-INJECTED properties are legitimate and are not in Tokens.uss:
+# SafeAreaBinder sets --safe-top/--safe-bottom on the panel root at runtime
+# from Screen.safeArea. They cannot be static values and Shell.uss is right to
+# use them. Anything else added here needs a comment saying who sets it.
+RUNTIME_SET="--safe-top --safe-bottom"
 missing=$(printf '%s\n' "$sheets" | while read -r f; do
   grep -oE 'var\(--[a-z0-9-]+' "$f" | sed 's/var(//' | sort -u | while read -r t; do
+    case " $RUNTIME_SET " in *" $t "*) continue ;; esac
     grep -q -- "^\s*$t:" "$TOKENS" || echo "$f: $t"
   done
 done)
@@ -675,17 +699,41 @@ chmod +x implementation/scripts/verify-uss-tokens.sh
 bash implementation/scripts/verify-uss-tokens.sh
 ```
 
-Expected: FAIL on check 1, naming `WaveHudView.uss` lines 63, 67, 72, 75 and 79. Exit code 1.
+Expected: FAIL on check 1, exit code 1, naming **seventeen** offenders across four files — and **not** `Theme.uss` lines 12 and 23, which are hexes inside its header comment and are legitimate documentation of the two primitives USS cannot express.
 
-- [ ] **Step 3: Add the one genuinely missing token**
+The full expected offender list, measured at this tree:
 
-Four of the five hexes are token values already. `#ff6b5c` is not — it is the breaching-bar colour and has no token. Add to `Tokens.uss` in the semantic block, after `--coral-deep`:
+| File | Lines |
+|---|---|
+| `Components/Resources/ConfirmDialog.uss` | 59 `#ddd3f0`, 76 `#ffffff` |
+| `Components/Resources/CreatureCard.uss` | 85 `#ffffff`, 86 `#fdfcff`, 90 `#f3eefc` |
+| `Components/Resources/TraitPip.uss` | 42 `#ffffff`, 44 `#efe9fb`, 48 `#d9cdf5` |
+| `Screens/Resources/WaveHudView.uss` | 63, 67, 72, 75, 79 |
+| `Shell/Theme.uss` | 135 `#ffffff`, 173 `#ddd3f0`, 175 `#e7e0f6`, 239 `#f7f5fb` |
+
+**If the run flags `Theme.uss:12` or `:23`, the comment-stripping is wrong — fix the lint, not the comment.**
+
+- [ ] **Step 3: Add the genuinely missing tokens**
+
+Most offenders are token values already spelled out longhand. Three are not, and each is a real
+value the design system should own. Add to `Tokens.uss`:
 
 ```css
     --coral-alert: #ff6b5c;       /* breach state - hotter than --coral, HUD only */
+    --surface-raised: #fdfcff;    /* CreatureCard's selected fill, above --surface */
+    --violet-pressed: #e7e0f6;    /* secondary button :active, under --violet-tint */
 ```
 
-- [ ] **Step 4: Replace all five in `WaveHudView.uss`**
+`#ddd3f0` (ConfirmDialog 59, Theme 173) and `#efe9fb` (TraitPip 44) are both one step off
+`--hairline` (`#ece7f6`); `#f3eefc` (CreatureCard 90) and `#f7f5fb` (Theme 239) are both one
+step off `--violet-tint` (`#f1ecfa`) and `--surface-sunk` (`#f8f6fc`). **Map each to the nearest
+existing token rather than minting four more** — they are almost certainly drift, not intent, and
+the handoff defines no such values. Record in the commit which four you collapsed and to what, so
+a later reader can object if one was deliberate.
+
+`#ffffff` is `--surface` everywhere it appears.
+
+- [ ] **Step 4: Replace every offender, starting with `WaveHudView.uss`**
 
 | Line | Was | Becomes |
 |---|---|---|
