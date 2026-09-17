@@ -151,10 +151,30 @@ export class SimClient {
     return { kind: 'none', reason }
   }
 
+  // EXPLICIT FIELDS, NOT CONSTRUCTOR PARAMETER PROPERTIES, and this class is
+  // where that rule was actually broken. `config/store.ts` and
+  // `replays/store.ts` each carry a comment saying a parameter property
+  // "anywhere in index.ts's import graph crashes on boot" because the
+  // container runs `node --experimental-strip-types` (Dockerfile CMD), which
+  // is strip-only and cannot emit the assignment a parameter property needs.
+  // index.ts imports THIS file, so index.ts could not load at all:
+  // `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`, at module load, before a line of
+  // configuration was read. The service would have crash-looped on its first
+  // deploy.
+  //
+  // Nothing caught it because nothing runs the entrypoint. Vitest compiles
+  // with esbuild, which DOES support parameter properties, so all 455 api
+  // tests passed over a service that could not start - the precise trap the
+  // two store files predicted in writing and this one then walked into.
+  private readonly baseUrl: string
+  private readonly auth: SimAuth
+  private readonly fetchImpl: typeof fetch
+  private readonly budgetMs: number
+
   constructor(
-    private readonly baseUrl: string,
-    private readonly auth: SimAuth,
-    private readonly fetchImpl = fetch,
+    baseUrl: string,
+    auth: SimAuth,
+    fetchImpl = fetch,
     /**
      * One budget for the WHOLE outbound call - minting the ID token and the
      * request itself share it, rather than each getting 5s and the pair
@@ -166,8 +186,12 @@ export class SimClient {
      * unavailable and issues no unauthenticated request" otherwise means a
      * five-second unit test, which is how that assertion ends up deleted.
      */
-    private readonly budgetMs = 5_000,
+    budgetMs = 5_000,
   ) {
+    this.baseUrl = baseUrl
+    this.auth = auth
+    this.fetchImpl = fetchImpl
+    this.budgetMs = budgetMs
     // LOUD AT CONSTRUCTION, not quiet at runtime. See the SimAuth comment:
     // the type is the primary gate, this is the one that survives erasure.
     // The alternative failure is a 403 per wave submission on a deploy that
