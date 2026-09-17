@@ -1,0 +1,50 @@
+/* Beat 7. The tree, alive and consumed.
+ *
+ * FOUNDER IS AMBER AND MUTATED IS VIOLET, matching CreatureCard so one
+ * creature does not change colour between the roster and the tree. The
+ * previous pairing was a blue founder and a gold mutation, which collided
+ * with the card's gold founder ring.
+ */
+.lineage-view { flex-direction: column; padding: var(--gutter); }
+
+.lineage-view__title {
+    font-size: var(--text-screen-title);
+    color: var(--ink);
+    -unity-font-style: bold;
+    margin-bottom: var(--space-2);
+}
+
+.lineage-view__notice {
+    color: var(--amber-text);
+    background-color: var(--amber-tint);
+    border-radius: var(--radius-row);
+    padding: var(--space-2);
+    white-space: normal;
+    font-size: var(--text-body);
+}
+
+.lineage-view__generations { flex-direction: column; }
+
+.generation-row { flex-direction: row; flex-wrap: wrap; margin-bottom: var(--space-3); }
+
+.node {
+    flex-direction: column;
+    margin-right: var(--space-2);
+    margin-bottom: var(--space-2);
+    padding: var(--space-2);
+    background-color: var(--surface);
+    border-radius: var(--radius-tile);
+    border-left-width: 3px;
+    border-left-color: var(--divider);
+}
+
+.node.founder  { border-left-color: var(--amber); }
+.node.mutated  { border-left-color: var(--violet); }
+
+/* Dimmed, never removed: a consumed parent still being in the record is the
+ * thing this screen exists to show. */
+.node.consumed { opacity: 0.55; }
+
+.node.highlight { background-color: var(--violet-tint); }
+
+.lineage-view__next { margin-top: var(--space-4); }

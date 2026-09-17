@@ -419,13 +419,13 @@ Transit time scales with the **Drive** facility. A full Inner-to-Outer crossing 
 
 ## 5.3 Resource nodes
 
-| Tier | Yield | Lifespan | Character |
+| Tier | Rate | Lifespan | Character |
 |---|---|---|---|
-| **Common Vein** | 1× | Never fully depletes; yield decays ~30% after a week of continuous harvesting | Safe fallback, low competition, **never claimable** |
-| **Rich Deposit** | 3× | Depletes in ~6 days of active harvesting | Worth relocating for, draws competition |
-| **Apex Vein** | 8× | Burns out in 48–72 hours | High-value, high-contest, alliance-scale |
+| **Common Vein** | **20/hour**, no cap | Never fully depletes; yield decays ~30% after a week of continuous harvesting | Safe fallback, low competition, **never claimable** |
+| **Rich Deposit** | **60/hour**, `totalYield` **8640** (144 hours = six days) | Depletes in ~6 days of active harvesting | Worth relocating for, draws competition |
+| **Apex Vein** | 8× base yield (design spec, not yet implemented) | Burns out in 48–72 hours | High-value, high-contest, alliance-scale |
 
-**Rich Deposit depletion is set at six days to sync with the weekly rotation.** A deposit runs dry roughly a day before the map refreshes, producing a short window of pressure to move rather than several days of dead ground. The original specs said 5–7 days and the design prototypes said four; four leaves too long a gap before the refresh.
+**Rich Deposit duration is a consequence of the authored numbers: 8640 ÷ 60 = 144 hours = six days.** This duration syncs with the weekly rotation, producing a short window where a deposit runs dry a day before the map refreshes, which creates pressure to move rather than several days of dead ground.
 
 **Apex Veins yield high-tier species samples plus a catalyst** that raises the Aberrant sub-roll on the next splice. This is what makes an Apex Vein the route to an Aberrant — it grants the chance, never the trait, which is what keeps Aberrants unbuyable.
 

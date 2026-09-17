@@ -1,0 +1,122 @@
+/* client_architecture section 10: safe-area driven, no fixed pixel positions.
+ *
+ * --safe-top/--safe-bottom are declared here as the documented default (0)
+ * for whatever renders before the first frame. UI Toolkit's runtime style API
+ * has no public way to SET a custom property from script (only to read one
+ * that a stylesheet already defines - UnityEngine.UIElements.CustomStyleAccess
+ * only exposes TryGetValue, verified against UnityEngine.UIElementsModule.dll
+ * for this Editor version), so BootController does not actually write through
+ * these variables. It computes the safe-area inset from Screen.safeArea via
+ * RuntimePanelUtils.ScreenToPanel and applies it as concrete padding on
+ * #shell-root directly, which is inline style and wins the cascade over the
+ * rule below regardless. These two lines stay as the spec'd fallback and as
+ * documentation of the intent.
+ */
+:root {
+    --safe-top: 0;
+    --safe-bottom: 0;
+}
+
+.shell-root {
+    flex-grow: 1;
+    flex-direction: column;
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bottom);
+}
+
+.top-bar {
+    flex-direction: row;
+    flex-shrink: 0;
+}
+
+.screen-host {
+    flex-grow: 1;
+}
+
+.sheet-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: none;
+}
+
+.tab-bar-slot {
+    flex-shrink: 0;
+}
+
+.tab-bar {
+    flex-direction: row;
+    justify-content: space-around;
+    flex-shrink: 0;
+}
+
+/* ---------------------------------------------------------------- chrome
+ *
+ * Added with the design pass. The rules above this line are layout and
+ * safe-area only - deliberately, per client_architecture section 10 - and
+ * nothing below changes a position or a flex value.
+ *
+ * The bottom nav follows the handoff's navigation model verbatim: active tab
+ * is a violet-tint pill with violet-text at the heavier weight, inactive is
+ * mute. The handoff specifies five tabs (Map / Ark / Splice / Lab / Allies)
+ * with 19px 1.9-stroke icons; this phase draws text-only tabs and only the
+ * ones Progression.TabsFor unlocks, so the icon half is not implemented and
+ * the pill/colour half is.
+ */
+
+.top-bar {
+    background-color: var(--paper);
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+    padding-left: 14px;
+    padding-right: 14px;
+    align-items: center;
+}
+
+.screen-host {
+    padding-left: var(--gutter);
+    padding-right: var(--gutter);
+}
+
+.tab-bar {
+    background-color: var(--surface);
+    border-top-width: 1px;
+    border-top-color: var(--divider);
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+    padding-left: var(--space-2);
+    padding-right: var(--space-2);
+}
+
+/* A tab is a Button, so it inherits the primary-CTA fill from Theme.uss.
+ * All of that is undone here: a nav item is not a call to action, and the
+ * drop edge in particular would read as five buttons stacked on a shelf. */
+.tab-bar__tab {
+    background-color: rgba(0, 0, 0, 0);
+    color: var(--mute);
+    font-size: var(--text-nav);
+    border-bottom-width: 0;
+    border-radius: var(--radius-pill);
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+    margin: 0;
+    flex-grow: 1;
+}
+
+.tab-bar__tab:active {
+    translate: 0 0;
+    background-color: var(--surface-sunk);
+}
+
+.tab-bar__tab--active {
+    background-color: var(--violet-tint);
+    color: var(--violet-text);
+}
+
+.tab-bar__tab--active:active {
+    background-color: var(--violet-tint);
+}

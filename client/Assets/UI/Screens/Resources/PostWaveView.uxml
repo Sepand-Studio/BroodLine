@@ -1,0 +1,7 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="PostWaveView.uss" />
+    <ui:Label name="headline" class="post-wave-view__headline" />
+    <ui:Label name="reward" class="post-wave-view__reward" />
+    <ui:VisualElement name="granted" class="post-wave-view__granted" />
+    <ui:Button name="next" class="post-wave-view__next" />
+</ui:UXML>

@@ -1,6 +1,10 @@
 import type { Tx } from '../db/client.ts'
+import { grantFounder } from '../ftue/founder.ts'
+import { readMarkers } from '../ftue/markers.ts'
 import { loadArk } from '../map/claim.ts'
-import { grantBaseStock, lockRoster, rosterCap, rosterCount } from '../roster/creatures.ts'
+import {
+  baseStockPool, grantBaseStock, lockRoster, rosterCap, rosterCount, toCreatureDto, type CreatureDto,
+} from '../roster/creatures.ts'
 
 /**
  * Design §2.4 - the supply line that makes the loop closeable rather than
@@ -78,20 +82,57 @@ export const WAVE_BASE_STOCK = 1
  * the roll is re-derivable after a dispute and cannot be re-rolled by
  * retrying. It is an IDENTITY, not a multiplier; the guardrail above is
  * untouched by it.
+ *
+ * BEAT 3: THE FIRST COMPLETION'S DROP IS THE FOUNDER, NOT A ROLL. design §5
+ * beats 3-4 and campaign_structure name Hollow a Founder handed over on
+ * session one's first wave clear, for the player to name at beat 4. That is
+ * a DIFFERENT shape from every later completion, which rolls ordinary base
+ * stock - so the branch below reads `founderGrantedAt` before deciding which
+ * grant this is, rather than the Founder being a fourth species base stock
+ * could roll.
+ *
+ * THE CAP CHECK ABOVE ALREADY COVERS BOTH BRANCHES. `WAVE_BASE_STOCK` is 1
+ * whether the drop is a Founder or a roll, so a player at the cap is skipped
+ * before either grant path runs - the Founder does not get a cap exemption
+ * a rolled creature would not.
  */
 export async function grantWaveBaseStock(
   tx: Tx, serverId: number, playerId: string, issuanceId: string,
-): Promise<number> {
+): Promise<CreatureDto[]> {
   // Before the count, not after: this and `claimNode` are the only two
   // granting paths and they hold no lock in common, so without it both can
   // read the same pre-grant count and both pass the cap check.
+  //
+  // REDUNDANT BUT HARMLESS when reached from `routes/wave.ts`'s wave-submit
+  // handler, which is this function's only real caller - fix round 2.
+  // `pg_advisory_xact_lock` is re-entrant within one transaction, and that
+  // handler now takes this SAME lock, on this SAME player, as the first
+  // thing it does in the whole submit transaction, for a different reason
+  // (serialising against a concurrent `splice/commit` at the row-lock layer
+  // - fix round 2's deadlock). LEFT HERE rather than trimmed: this
+  // function's own contract - "does not race `claimNode`'s cap check" -
+  // should not silently start depending on a caller having already taken
+  // the lock for an unrelated reason. The cost of keeping it is one no-op
+  // re-acquisition per call.
   await lockRoster(tx, serverId, playerId)
 
   const ark = await loadArk(tx, serverId, playerId)
   const cap = rosterCap(ark.hatcheryTier)
-  if (await rosterCount(tx, serverId, playerId) + WAVE_BASE_STOCK > cap) return 0
+  if (await rosterCount(tx, serverId, playerId) + WAVE_BASE_STOCK > cap) return []
 
-  const granted = await grantBaseStock(
-    tx, serverId, playerId, WAVE_BASE_STOCK, `wave:${serverId}:${playerId}:${issuanceId}`)
-  return granted.length
+  const markers = await readMarkers(tx, serverId, playerId)
+  if (markers.founderGrantedAt === null) {
+    // `grantFounder` returns null only when some other call already set the
+    // marker between the read above and this insert - ftue/markers.ts's
+    // `setMarker` is what makes that exactly-once under concurrency. That
+    // caller is granting the Founder; this one grants nothing further,
+    // rather than falling through to a rolled creature the cap check above
+    // has already budgeted for as "one creature, this completion".
+    const founder = await grantFounder(tx, serverId, playerId)
+    return founder === null ? [] : [toCreatureDto(founder)]
+  }
+
+  const granted = await grantBaseStock(tx, serverId, playerId, WAVE_BASE_STOCK,
+    `wave:${serverId}:${playerId}:${issuanceId}`, baseStockPool(markers))
+  return granted.map(toCreatureDto)
 }

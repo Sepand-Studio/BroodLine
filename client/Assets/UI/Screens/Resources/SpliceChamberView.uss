@@ -1,0 +1,61 @@
+/* Beat 5. The one screen that consumes creatures, so the destruction notice
+ * is a coral panel rather than a coloured line - splice_confirm_spec 4 wants
+ * the consequence unmissable. */
+.splice-chamber-view { flex-direction: column; padding: var(--gutter); }
+
+.splice-chamber-view__parents { flex-direction: row; justify-content: space-between; }
+
+/* A Founder the player already named is visibly out of reach, not hidden -
+ * bible 3.3's rule read from the splice side. */
+.splice-chamber-view__parents > .creature-card.locked-out { opacity: 0.4; }
+
+.splice-chamber-view__destruction-notice {
+    margin-top: var(--space-3);
+    white-space: normal;
+    color: var(--coral-text);
+    background-color: var(--coral-tint);
+    border-radius: var(--radius-row);
+    padding: var(--space-3);
+    font-size: var(--text-body);
+}
+
+.splice-chamber-view__coverage-warning {
+    margin-top: var(--space-2);
+    white-space: normal;
+    color: var(--amber-text);
+    background-color: var(--amber-tint);
+    border-radius: var(--radius-row);
+    padding: var(--space-2);
+    font-size: var(--text-body);
+}
+
+.splice-chamber-view__mutation {
+    margin-top: var(--space-2);
+    color: var(--violet-text);
+    background-color: var(--violet-tint);
+    border-radius: var(--radius-row);
+    padding: var(--space-2);
+    font-size: var(--text-body);
+    -unity-font-style: bold;
+}
+
+.splice-chamber-view__forecast {
+    flex-direction: column;
+    margin-top: var(--space-3);
+    background-color: var(--surface);
+    border-radius: var(--radius-card);
+    border-width: 1px;
+    border-color: var(--divider);
+    padding: var(--space-3);
+}
+
+/* Odds. Every number here is decision-bearing, so none drops below 11px. */
+.forecast-row {
+    flex-direction: row;
+    justify-content: space-between;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    font-size: var(--text-secondary);
+}
+
+.splice-chamber-view__cta { margin-top: var(--space-4); }

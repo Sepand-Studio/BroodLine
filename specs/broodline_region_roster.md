@@ -39,6 +39,7 @@ A region has exactly these properties. Nothing else varies.
 | **Claimable** | Inner no; Mid and Outer yes | This document |
 | **Controller** | Alliance or neutral | Weekly tick (§6.3) |
 | **Live nodes, Arks present, alerts** | — | Runtime |
+| **Node rates** | Common Vein 20/hour, Rich Deposit 60/hour | Bible §5.3 |
 
 There are no terrain families, elevation bands, water tiles, emplacement counts or modifiers. The bible removed them: under hard counters they add noise to a decision already made at the splice screen (§4.2), and regions differ in look and lane arrangement only (§10.8). Visual identity is an art task; tactical identity is one integer.
 

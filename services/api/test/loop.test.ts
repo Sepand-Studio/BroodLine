@@ -20,9 +20,10 @@ import { SimClient } from '../src/sim/client.ts'
 import { reapOnExit } from './child-reaper.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 import { CREATURE_HP, SPECIES } from './replay-format.ts'
+import { RosterLedger } from './roster-ledger.ts'
 import {
   asRosterSpecs, balance, buildReplayOf, buildWinningReplay, giveRoster, ledgerRowCount,
-  type RosterSpec, rosterCount, setupPlayer, submit, winningDeployment, withDotnetBuildLock,
+  type RosterSpec, setupPlayer, submit, winningDeployment, withDotnetBuildLock,
 } from './wave-helpers.ts'
 
 /**
@@ -48,26 +49,13 @@ import {
  * payout assertions are. It is not instrumentation and it is not logging: the
  * split is ASSERTED.
  *
- * ---------------------------------------------------------------------------
- * HONEST BY CONSTRUCTION, not by discipline.
- *
- * Three properties do the work, and none of them relies on a future editor
- * remembering anything:
- *
- *   1. EVERY booking is of a MEASURED delta - `rosterCount()` before and after
- *      - never of an argument's length. A `giveRoster(specs)` that inserted a
- *      different number than it was asked for still books what it really did.
- *
- *   2. `reconcile()` runs after EVERY step and compares the database's own
- *      count against the booked total. So a creature that enters the roster
- *      without being booked reddens at the very next step. There is no way to
- *      add creatures to this drive quietly - not by calling `giveRoster`
- *      again, not by inserting directly, not by a route grant nobody expected.
- *
- *   3. The closing assertion is on the SPLIT, not the sum. `earned + seeded
- *      === 13` is satisfied by booking all thirteen to either bucket, which is
- *      exactly the conflation this file exists to prevent. `seeded === 10` and
- *      `earned === 3` are separate assertions and both must hold.
+ * The ledger itself is `./roster-ledger.ts` - extracted there by Task 22
+ * because `ftue.test.ts` drives the same instrument to the opposite reading.
+ * Its header carries the three properties that make it honest BY
+ * CONSTRUCTION rather than by discipline (every booking is of a MEASURED
+ * delta; `reconcile()` runs after every step; the closing assertion is on the
+ * SPLIT, never the sum) and they are not restated here, so there is one copy
+ * of them to keep true.
  *
  * THE EXACT NUMBERS ARE DELIBERATE AND THIS FILE IS MEANT TO BE BRITTLE ABOUT
  * THEM. If content or code changes the balance - a node that grants two, a
@@ -136,9 +124,11 @@ const WAVE_7_REWARD = 230 // config/bundles/0.1.2/waves.json
  */
 // +1 then +2 from the two claims (see the claim block: 720 units is 1.5
 // creatures, and 0007 carries the half rather than letting the phase of an
-// absolute grid decide where it lands), -2 consumed, +1 child, +1 wave 6,
-// +1 wave 7.
-const EXPECTED_EARNED = 4
+// absolute grid decide where it lands), -2 consumed, +1 child, +1 wave 6
+// (the Founder), +1 wave 6 AGAIN (Task 8's Pale - waves_01_12's own text:
+// the grant fires on a win too, and this player's first-ever completion IS
+// wave 6, so both land on the SAME submit), +1 wave 7.
+const EXPECTED_EARNED = 5
 const EXPECTED_SEEDED = 10  // two giveRoster() deployments of five
 
 /** The composition that actually beats wave 7, verified against the engine in adversarial.test.ts. */
@@ -220,71 +210,12 @@ afterAll(async () => {
 })
 
 /**
- * The roster ledger. See the file header for why the SPLIT is the assertion.
- *
- * `book` is private on purpose: the only ways to move the roster in this file
- * are `earn` and `seed`, each of which measures the database delta itself.
+ * The roster ledger. See `roster-ledger.ts` for why the SPLIT is the
+ * assertion, and why the class lives there rather than here: Task 22's
+ * `ftue.test.ts` drives the same instrument to the opposite reading
+ * (`seeded === 0`), and two copies of it would be free to drift apart
+ * silently - a copy that stopped measuring still reads as a ledger.
  */
-class RosterLedger {
-  earned = 0
-  seeded = 0
-  readonly entries: string[] = []
-
-  private book(delta: number, kind: 'EARNED' | 'SEEDED', why: string): void {
-    if (kind === 'EARNED') this.earned += delta
-    else this.seeded += delta
-    this.entries.push(`${delta >= 0 ? '+' : ''}${delta}  ${kind.padEnd(6)}  ${why}`)
-  }
-
-  /**
-   * Runs `action`, measures what it actually did to the roster, and books
-   * THAT. The measured delta is returned so a caller can assert on it.
-   *
-   * Measuring rather than trusting the caller is property 1 from the header:
-   * a route that grants two where one was expected, or a `giveRoster` that
-   * inserts a different number than asked, is booked for what it really did.
-   */
-  private async record<T>(kind: 'EARNED' | 'SEEDED', why: string, action: () => T | Promise<T>):
-    Promise<{ result: T; delta: number }> {
-    const before = await rosterCount()
-    // `T | Promise<T>` rather than `Promise<T>`: Hono types `app.request` as
-    // `Response | Promise<Response>`, and widening here beats an `async` on
-    // every call site - one of which would eventually be forgotten, and the
-    // resulting unawaited action would be booked with a delta of zero.
-    const result = await action()
-    const delta = (await rosterCount()) - before
-    this.book(delta, kind, why)
-    return { result, delta }
-  }
-
-  /** A roster change the player obtained through an HTTP response. */
-  earn<T>(why: string, action: () => T | Promise<T>): Promise<{ result: T; delta: number }> {
-    return this.record('EARNED', why, action)
-  }
-
-  /** A roster change written straight into the table. Never silent - see the header. */
-  seed<T>(why: string, action: () => T | Promise<T>): Promise<{ result: T; delta: number }> {
-    return this.record('SEEDED', why, action)
-  }
-
-  get total(): number { return this.earned + this.seeded }
-
-  /**
-   * Property 2: the database's own count against the booked total, after
-   * every step. A creature that entered without being booked reddens HERE, at
-   * the next step, rather than surviving to be described as earned.
-   */
-  async reconcile(label: string): Promise<void> {
-    const actual = await rosterCount()
-    expect(
-      actual,
-      `roster arithmetic after ${label}: the database holds ${actual} live creature(s) but `
-      + `${this.total} were booked (${this.earned} earned + ${this.seeded} seeded). `
-      + `A difference means something changed the roster without being accounted for.`,
-    ).toBe(this.total)
-  }
-}
-
 const roster = new RosterLedger()
 
 // State the drive captures for the assertions that follow it.
@@ -425,11 +356,33 @@ describe('the loop', () => {
       })
       expect(start6.status).toBe(200)
       const s6 = await start6.json() as { issuanceId: string; seed: string }
-      const { result: sub6 } = await roster.earn('wave-6 win granted base stock on the verified submit path',
+      const { result: sub6 } = await roster.earn(
+        'wave-6 win granted the Founder AND the Task 8 Pale - this player\'s first-ever completion - on the verified submit path',
         () => submit(s6.issuanceId, buildWinningReplay(6, BigInt(s6.seed)), randomUUID()))
       expect(sub6.status).toBe(200)
       expect(await sub6.json()).toMatchObject({ result: 'Win' })
       await roster.reconcile('the wave-6 win')
+
+      // THE COUNT ALONE CANNOT SEE THIS, and that is exactly the blindness
+      // this file's own header opens by warning about - just for
+      // Founder-vs-rolled rather than earned-vs-seeded. `roster.earn()`
+      // above measured a roster-count delta of +2: `WAVE_BASE_STOCK` is 1
+      // whether that grant is an ordinary roll or Task 6's Founder, and
+      // Task 8's wave-6 Pale is a SEPARATE, independent +1 on top of it -
+      // waves_01_12's own text is that the Pale grant fires on a win too,
+      // not only on the designed loss. Nothing before this player's wave-6
+      // submit ever advanced `campaign_progress` (no wave was cleared by
+      // playing it, and `clearWave`/`clearThrough` are never called in this
+      // drive), so wave 6 genuinely IS this player's first-ever completion -
+      // Task 6's Founder branch fires HERE, not at wave 7's. Pinned by
+      // reading the roster the way a client would (GET /v1/roster), not by
+      // trusting the count `roster.reconcile` just vouched for: a count
+      // that agrees is not evidence about WHAT was granted, only how much.
+      const afterWave6 = await (await app.request('/v1/roster', { headers: auth })).json() as
+        { creatures: Array<{ species: string; isFounder: boolean }> }
+      const wave6Founders = afterWave6.creatures.filter((c) => c.isFounder)
+      expect(wave6Founders, 'wave 6\'s grant IS the Founder, not a roll').toHaveLength(1)
+      expect(wave6Founders[0]?.species).toBe('Hollow')
 
       // --------------------------------- wave 7, with five owned creatures
       const w7 = await roster.seed('giveRoster minted the wave-7 deployment',
@@ -493,7 +446,7 @@ describe('the loop', () => {
    * the original transcript got wrong, and it should fail under its own name
    * so the report says "the split moved" rather than "the loop broke".
    */
-  it('accounts every creature as EARNED or SEEDED, and ten of the fourteen were SEEDED', () => {
+  it('accounts every creature as EARNED or SEEDED, and ten of the fifteen were SEEDED', () => {
     // Printed on failure only - a reader diagnosing a moved split needs the
     // itemisation, and a reader of a green run does not.
     const detail = `\n${roster.entries.map((e) => `  ${e}`).join('\n')}\n`

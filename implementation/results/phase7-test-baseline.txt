@@ -1,0 +1,299 @@
+# Phase 7 recorded test baseline — DATA, NOT PROSE.
+#
+# Same contract as implementation/results/phase6-test-baseline.txt and
+# phase5-test-baseline.txt, whose header carries the full rationale and is not
+# repeated here: a count written into a sentence goes stale silently (Phase 4
+# wrote "71" and was wrong by three for a whole phase). THE NUMBERS HERE
+# SUPERSEDE ANY COUNT WRITTEN INTO A SENTENCE ANYWHERE IN implementation/ OR
+# specs/, including the Phase 7 plan and the Phase 7 record beside this file.
+#
+# PER-FILE ROWS, for the same reason Phases 5 and 6 have them: the question a
+# gate must answer is not "did the total move" but "did a count FALL", because
+# a fall is a deletion nobody noticed. A total says something vanished; the
+# api.file.* rows say from where.
+#
+# ---------------------------------------------------------------------------
+# HOW TO REGENERATE, from the repo root
+#
+#   export PATH="$HOME/.nvm/versions/node/v22.22.2/bin:$PATH"
+#       # the pnpm that resolves first on a default PATH here is 3.7.5 under an
+#       # nvm node 10; it prints usage and exits 0 rather than failing.
+#       # generate-contract.sh now guards this itself and says so.
+#
+#   dotnet test Broodline.sln --nologo
+#   ./implementation/scripts/cross-runtime-diff.sh
+#   pnpm --filter @broodline/api test
+#   pnpm --filter @broodline/api typecheck
+#   ./implementation/scripts/generate-contract.sh && \
+#     git status --porcelain -- openapi/ client/Assets/Generated/ services/api/src/generated/
+#   ./implementation/scripts/run-unity-tests.sh EditMode
+#   ./implementation/scripts/run-unity-tests.sh PlayMode
+#   bash implementation/scripts/verify-unity-settings.sh
+#
+# READ THE NEXT PARAGRAPH BEFORE RUNNING THAT LIST, because as written it will
+# fail its own last line. The Unity test runs put SENTIS_ANALYTICS_ENABLED back
+# on iPhone and rewrite two URP assets (the finding below), and here
+# cross-runtime-diff.sh - whose restore_known_churn is what reverts exactly
+# those paths - has already run, two steps earlier. So the settings check runs
+# last against a dirtied tree with nothing left to clean it.
+#
+# THE REMEDY, either one:
+#
+#   (a) revert the three paths by hand after the Unity runs, then re-check:
+#
+#         git checkout -- client/ProjectSettings/ProjectSettings.asset \
+#           client/Assets/Settings/PC_RPAsset.asset \
+#           client/Assets/Settings/UniversalRenderPipelineGlobalSettings.asset
+#         git status --porcelain -- client/Assets/Resources/   # expect empty
+#         bash implementation/scripts/verify-unity-settings.sh
+#
+#   (b) or move cross-runtime-diff.sh to LAST, after both Unity runs, and let
+#       its own restore do it - then run the settings check.
+#
+# The list above is left in gate order rather than in runnable order on
+# purpose: it is the order the Definition of Done names them in, and hiding
+# the interaction by resequencing would lose the finding. Run it with (a) or
+# (b). Either way the settings check must come AFTER the Unity gates - a green
+# taken before the thing that dirties the tree is a green about a different
+# tree.
+#
+# The api.file.* rows come from vitest's own per-file summary lines:
+#
+#   grep -E "^ ✓ test/" <api-log> \
+#     | sed -E 's/^ ✓ test\/([^ ]+) \(([0-9]+) tests?\).*/api.file.\1\t\2/' \
+#     | sort
+#
+# HOW TO DIFF. Strip the comments; the data block is sorted and stable:
+#
+#   diff <(grep -v '^#' implementation/results/phase6-test-baseline.txt) \
+#        <(grep -v '^#' implementation/results/phase7-test-baseline.txt)
+#
+# ---------------------------------------------------------------------------
+# THE ONE RED ROW IS DELIBERATE AND MUST STAY RED.
+#
+# gate.dotnet.failed is 1, not 0, and the failure is
+#   Broodline.Sim.Tests.Combat.ReplayArtifactPresenceTests.TheTrackedCapturesAreCurrent
+#
+# Phase 6 moved SimVersion 0.2.0 -> 0.3.0 and PHASE 7 TASK 1 MOVED IT AGAIN TO
+# 0.4.0 (waves 1 and 2 needed a six-pocket lane, and WaveDef.ForId now answers
+# four wave ids where it answered two). The tracked device and editor captures
+# are still the 0.2.0 ones, so solo_execution 9.4 supersedes them and the
+# renderer round-trip is NOT being proven. No iOS hardware reached this phase;
+# Task 2 was never run.
+#
+# WHILE IT IS RED, EditorReplayTests AND DeviceReplayTests BAIL BEFORE THEIR
+# ASSERTIONS AND REPORT PASSED. Every re-simulating test in those files opens
+# with `if (ReplayArtifact.Superseded(record, _out)) return;`, so the committed
+# round-trip proof - Phase 3's done-when - is dark right now and the suite says
+# "passed" for both files while it is. This one test is the guard on that
+# guard, and it is the only thing in the solution that announces it.
+#
+# DO NOT re-baseline, skip, or "fix" this row. Phase 6 STILL cannot close, and
+# now neither can Phase 7. gate.dotnet.skipped is 0 and must stay 0 - there is
+# no Skip anywhere in the solution, so no count will report this for you.
+#
+# ---------------------------------------------------------------------------
+# TWO GATES COULD NOT BE RUN AT ALL, AND THEY ARE ROWS HERE RATHER THAN
+# OMISSIONS. A gate left out of a table reads as a gate nobody thought of; a
+# gate written down with a value of "never" reads as what it is.
+#
+#   gate.determinism-ci.*  - determinism.yml declares `runs-on: [self-hosted,
+#     macOS]` and NO RUNNER IS REGISTERED: `gh api repos/:owner/:repo/actions/
+#     runners` returns {"total_count":0,"runners":[]}. Its newest trigger has
+#     been QUEUED for over nine hours and the four before it were CANCELLED
+#     after 8h34m to 24h. A queued run is not a failing run, so nothing ever
+#     goes red. FOUR phases have now changed the engine without this gate
+#     running once. Task 12.
+#
+#   gate.smoke-loop.*      - there is no deployed stack (`gcloud run services
+#     list` and `gcloud sql instances list` both return "Listed 0 items.") and
+#     implementation/scripts/smoke-loop.sh DOES NOT EXIST - the directory holds
+#     smoke-wave.sh only. Task 19 owns both.
+#
+# Also not run, and not a gate row because it has no automated form: a
+# TestFlight build in a non-developer's hands (Task 20), and Task 17 Step 6's
+# eyes-on walk of beats 1-8 against a local api.
+#
+# ---------------------------------------------------------------------------
+# WHAT MOVED SINCE PHASE 6 (71e1ea1 -> this tree)
+#
+#   api.tests 409 -> 455    api.files 36 -> 43
+#
+# SEVEN files added: founder (4), ftue (3), ftue-markers (3), ftue-stock (6),
+# lineage-route (8), sweep (5), wave6-pale (3) = 32. Seven existing files moved
+# and ALL SEVEN MOVED UP: account +1, config-validate +4, splice-commit +1,
+# splice-distribution +1, splice-preview +1, sync +2, and dotnet-build-lock +3
+# in Task 22's fix round = 13. 409 + 32 + 13 = 454, and the whole-branch
+# review's fix round added ONE more - founder 4 -> 5, the missing-Idempotency-Key
+# refusal - for 455.
+# NO PER-FILE COUNT FELL, which is the only question these rows exist to answer.
+#
+# The dotnet-build-lock +3 are the cross-implementation pin the fix round added:
+# this package's lock and generate-contract.sh's define the same three constants
+# twice, and until then two comments asking an editor to keep them in step were
+# the entire mechanism - in a package that pins SIM_PORTS with a test for
+# exactly this. The TS side exports its constants; the shell side is PARSED,
+# not retyped, so a third copy of the numbers cannot agree with itself and with
+# nothing else. Shown to discriminate rather than assumed: desyncing
+# BUILD_LOCK_TIMEOUT_TENTHS 1800 -> 600 reddens one assertion with
+# "expected 60000 to be 180000", and RENAMING the variable reddens the same one
+# through the parser's own throw rather than passing on a default. Both
+# reverted; the file ships 9/9.
+#
+#   dotnet 223 -> 231 (engine 206 -> 214, sim-service 17 -> 17)
+#   unity EditMode 87 -> 267, and PlayMode is a row for the first time (3)
+#
+# PlayMode is recorded here because Phase 7 is the phase that gave it tests
+# worth recording: WaveCapturePlayTests is currently the ONLY live proof that
+# the Editor capture path still works, which matters precisely because the
+# committed proof is dark (above).
+#
+# cross-runtime was re-run rather than carried over: Task 1 restructured the
+# lane model, added two authored waves and moved SimVersion, which is the exact
+# class of change that gate exists to catch.
+#
+# ---------------------------------------------------------------------------
+# A FINDING FROM MEASURING THIS FILE, worth more than the numbers in it.
+#
+# `run-unity-tests.sh` REINTRODUCES THE DRIFT verify-unity-settings.sh EXISTS
+# TO CATCH. Directly observed here: the settings script was green (12 ok, 0
+# FAIL) BEFORE any Unity run; after EditMode and PlayMode,
+# ProjectSettings.asset read
+#
+#     Standalone: APP_UI_EDITOR_ONLY
+#     iPhone:     APP_UI_EDITOR_ONLY;SENTIS_ANALYTICS_ENABLED
+#
+# which is exactly the mismatch the guard's own comment names - a define on one
+# platform and not the other makes cross-runtime-diff.sh compare two different
+# compilations and report agreement. PC_RPAsset.asset and
+# UniversalRenderPipelineGlobalSettings.asset were rewritten by the URP package
+# in the same runs, and two untracked Performance Testing JSON files appeared
+# under client/Assets/Resources/.
+#
+# ALL OF IT WAS CLEANED UP - but only because cross-runtime-diff.sh happened to
+# run afterwards and its restore_known_churn reverts exactly those paths. A
+# session that runs the Unity suite and NOT the cross-runtime gate leaves the
+# drift in the tree, where the next `git add -A` commits it. That is the route
+# Phase 6 recorded SENTIS_ANALYTICS_ENABLED coming back by, and this is the
+# mechanism it came back THROUGH.
+#
+#   -> Run verify-unity-settings.sh AFTER the Unity gates, never only before.
+#      It was run twice here for that reason, and both runs are recorded below.
+#
+# ---------------------------------------------------------------------------
+# PROVENANCE (comments, so they never pollute a diff)
+#
+#   measured   2026-09-16, Phase 7 Task 22, all runnable gates at the tree
+#              being committed
+#   branch     phase_7 (NEVER PUSHED - there is no origin/phase_7, so no CI has
+#              run on any of this)
+#   base       92b7a70, 35 commits
+#   host       darwin/arm64, dotnet 10.0.401, node v22.22.2, pnpm 9.12.0,
+#              Unity 6000.6.0f1, Docker server 29.8.0 (testcontainers)
+#   parallel   vitest file parallelism ON, and it stays on - but see the
+#              gate.api note below, because this is the phase where the number
+#              of sim-hosting files started to matter.
+#
+# NOTE ON gate.api: the api suite was run THREE times at this tree. The FIRST
+# run was RED - loop.test.ts timed out at exactly 60037ms waiting for the
+# dotnet build lock (eight files now build services/sim through one lock, and
+# the acquire timeout was 60s), reporting its three tests as SKIPPED, and
+# contract.test.ts's SIGINT test returned 0 instead of 130 under the same load.
+# The SECOND run of the identical tree was fully green. The acquire timeout was
+# then raised 60s -> 180s on BOTH hand-synced sides (wave-helpers.ts's
+# LOCK_ACQUIRE_TIMEOUT_MS and generate-contract.sh's BUILD_LOCK_TIMEOUT_TENTHS),
+# and the THIRD run - the one recorded below - was green. Two greens after a red
+# do not prove the race is closed; they prove it is not deterministic. See
+# implementation/2026-09-15-phase7-followups.md §12.
+#
+# AND IT HAPPENED AGAIN IN THE FINAL FIX ROUND, on a project the lock does NOT
+# cover. The first run at that tree was red with 2 failed | 41 passed (43) and
+# 423 passed | 32 skipped (455): splice-commit.test.ts and sweep.test.ts both
+# died in beforeAll with "wave validator could not run ... The build failed",
+# from `dotnet run --project tools/config-validate`. TWENTY-TWO test files can
+# shell out to that project concurrently - every file that publishes a bundle,
+# since publishBundle validates unconditionally, plus the two that import
+# validateBundle directly - and they share its obj/; withDotnetBuildLock guards
+# services/sim only, and vitest.config.ts sets no pool limit and no
+# globalSetup. (An earlier note here said THREE - the two suites that failed
+# plus the obvious neighbour, which answers which files were involved in that
+# failure rather than which files can collide.) The second run of the
+# identical tree was 43 passed (43), 455 passed (455) - the numbers below. It
+# presents as a compile error rather than as a lock timeout, which is why it is
+# written here rather than left to be re-derived. Inherited as the record's
+# §13 item 17.
+
+gate.dotnet.total	231
+gate.dotnet.passed	230
+gate.dotnet.failed	1	TheTrackedCapturesAreCurrent — DELIBERATE, see above
+gate.dotnet.skipped	0
+gate.dotnet.engine.total	214
+gate.dotnet.engine.passed	213
+gate.dotnet.engine.failed	1
+gate.dotnet.sim-service.total	17
+gate.dotnet.sim-service.passed	17
+gate.cross-runtime.scenarios	500	PASS: 500 scenarios agree
+gate.api.files	43
+gate.api.total	455
+gate.api.failed	0	see NOTE ON gate.api - the FIRST run of this tree was red again, on a different project
+gate.typecheck.errors	0
+gate.contract.diff.files	0	git status --porcelain over the three generated paths: empty
+gate.unity.editmode.total	267
+gate.unity.editmode.passed	267
+gate.unity.editmode.failed	0
+gate.unity.editmode.skipped	0
+gate.unity.playmode.total	4
+gate.unity.playmode.passed	4
+gate.unity.playmode.failed	0
+gate.unity.playmode.skipped	0
+gate.unity.settings.checks	12
+gate.unity.settings.failed	0	re-run AFTER the Unity gates — see the finding above
+gate.determinism-ci.runs	0	NEVER RUN — no self-hosted macOS runner is registered (Task 12)
+gate.determinism-ci.runners	0	gh api actions/runners → {"total_count":0,"runners":[]}
+gate.smoke-loop.runs	0	NEVER RUN — no deployed stack, and no such script (Task 19)
+gate.device-capture.simversion	0.2.0	THE CAPTURES. The engine is 0.4.0 (Task 2 owed)
+gate.testflight.builds	0	NEVER BUILT (Task 20)
+
+api.file.account.test.ts	9
+api.file.accrual.test.ts	14
+api.file.adversarial.test.ts	18
+api.file.base-stock.test.ts	9
+api.file.child-reaper.test.ts	8
+api.file.config-validate.test.ts	13
+api.file.config.test.ts	15
+api.file.contract.test.ts	4
+api.file.dotnet-build-lock.test.ts	9
+api.file.founder.test.ts	5
+api.file.ftue-markers.test.ts	3
+api.file.ftue-stock.test.ts	6
+api.file.ftue.test.ts	3
+api.file.hash.test.ts	4
+api.file.health.test.ts	2
+api.file.idempotency.test.ts	4
+api.file.identity.test.ts	22
+api.file.isolation.test.ts	12
+api.file.issuance-schema.test.ts	9
+api.file.ledger.test.ts	8
+api.file.lineage-route.test.ts	8
+api.file.lineage.test.ts	9
+api.file.loop-schema.test.ts	33
+api.file.loop.test.ts	3
+api.file.masked-teardown.test.ts	2
+api.file.node-claim.test.ts	17
+api.file.pool-teardown.test.ts	3
+api.file.preflight.test.ts	11
+api.file.replays.test.ts	7
+api.file.roster.test.ts	9
+api.file.rotation.test.ts	5
+api.file.session.test.ts	6
+api.file.sim-auth.test.ts	13
+api.file.sim-client.test.ts	7
+api.file.splice-commit.test.ts	27
+api.file.splice-distribution.test.ts	30
+api.file.splice-preview.test.ts	14
+api.file.sweep.test.ts	5
+api.file.sync.test.ts	7
+api.file.validate-rewards.test.ts	2
+api.file.wave-start.test.ts	32
+api.file.wave-submit.test.ts	25
+api.file.wave6-pale.test.ts	3

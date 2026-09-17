@@ -1,0 +1,46 @@
+/* A designed loss (wave 6). bible 4.11 makes this a TEACHING screen, not a
+ * failure screen: the diagnosis is the content and the Pale grant is the
+ * recovery, so the resupply panel is green while only the headline is coral.
+ */
+.wave-defeat-view { flex-direction: column; padding: var(--gutter); align-items: center; }
+
+.wave-defeat-view__headline {
+    font-size: var(--text-hero);
+    color: var(--coral-text);
+    -unity-font-style: bold;
+    white-space: normal;
+    margin-bottom: var(--space-3);
+}
+
+/* "Chill or Ward would have answered it." The single most important sentence
+ * on the screen - it is the counter system's teaching surface. */
+.wave-defeat-view__diagnosis {
+    font-size: var(--text-card-title);
+    color: var(--ink);
+    background-color: var(--surface);
+    border-radius: var(--radius-card);
+    border-width: 1px;
+    border-color: var(--divider);
+    padding: var(--space-4);
+    white-space: normal;
+    width: 100%;
+    margin-bottom: var(--space-3);
+}
+
+.wave-defeat-view__granted {
+    font-size: var(--text-secondary);
+    color: var(--green-text);
+    -unity-font-style: bold;
+    margin-bottom: var(--space-1);
+}
+
+.wave-defeat-view__grants {
+    background-color: var(--green-tint);
+    border-radius: var(--radius-row);
+    padding: var(--space-3);
+    width: 100%;
+}
+
+.wave-defeat-view__grant { font-size: var(--text-body); color: var(--green-text); white-space: normal; }
+
+.wave-defeat-view__retry { margin-top: var(--space-4); width: 100%; }

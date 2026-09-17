@@ -1139,6 +1139,10 @@ describe("the reward's source of truth (design §2.2)", () => {
     // the map or about the splice, which it does not.
     nodes: [],
     traits: [],
+    // Same reasoning again for Task 3's `starterCreatures` and `progression`:
+    // rewardForWave reads waves and nothing else.
+    starterCreatures: [],
+    progression: { tabs: {} },
   }
 
   it('pays what the wave id it is given pays, and nothing else', () => {

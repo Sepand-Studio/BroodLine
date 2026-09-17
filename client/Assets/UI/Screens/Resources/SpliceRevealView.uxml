@@ -1,0 +1,9 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="SpliceRevealView.uss" />
+    <ui:Label name="headline" class="splice-reveal-view__headline" />
+    <ui:VisualElement name="child" class="splice-reveal-view__child" />
+    <ui:Label name="child-line" class="splice-reveal-view__child-line" />
+    <ui:VisualElement name="parents" class="splice-reveal-view__parents" />
+    <ui:Label name="consumption" class="splice-reveal-view__consumption" />
+    <ui:Button name="next" class="splice-reveal-view__next" />
+</ui:UXML>

@@ -1,0 +1,96 @@
+/* Paper-white card, per bible 10.1 and the handoff's token table.
+ *
+ * WAS A DARK CARD - rgba(20,20,24,.85) with near-white text. That is the
+ * Era-2 clinical direction from specs/broodline_art_direction.md, which
+ * bible 10.1 records as abandoned ("It is a good idea and it is not what got
+ * built"). Every screen in the client had been styled to it, which is why
+ * the app rendered as dark boxes. This file is the pattern the rest follow.
+ *
+ * ELEVATION IS THE SURFACE/PAPER CONTRAST, not a shadow: USS has no
+ * box-shadow, and on a light theme white-on-paper is what reads as lifted.
+ * See Theme.uss's header note 2.
+ */
+.creature-card {
+    flex-direction: column;
+    width: 160px;
+    padding: 12px;
+    border-radius: 18px;
+    background-color: var(--surface);
+    border-width: 1px;
+    border-color: var(--divider);
+}
+
+/* The slot final creature art drops into. The handoff sizes and positions
+ * every art slot so it can be swapped without layout changes - so this keeps
+ * its height and only changes colour. */
+.creature-card__silhouette {
+    height: 64px;
+    border-radius: 12px;
+    background-color: var(--surface-sunk);
+    margin-bottom: 8px;
+}
+
+.creature-card__header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.creature-card__name {
+    font-size: var(--text-card-title);
+    -unity-font-style: bold;
+    color: var(--ink);
+}
+
+/* A generation count is a number a decision depends on - bible 10.6's 11px
+ * floor applies, so this is --text-secondary and not --text-micro. */
+.creature-card__generation {
+    font-size: var(--text-secondary);
+    color: var(--mute);
+}
+
+.creature-card__pips {
+    flex-direction: row;
+    margin-top: 8px;
+}
+
+.creature-card__pips > .trait-pip {
+    margin-right: 4px;
+}
+
+.creature-card__instinct {
+    margin-top: 6px;
+    font-size: var(--text-micro);
+    color: var(--mute-soft);
+    letter-spacing: 1px;
+    -unity-font-style: bold;
+}
+
+/* bible 3.3: the Founder's name is what stops a player. A visible marker on
+ * the card itself is the read that carries into the roster and the splice
+ * screen alike. Amber, which is the token table's Apex/gold - and NOT the
+ * aberrant treatment below, which bible 10.4 keeps white on purpose. */
+.creature-card.founder {
+    border-width: 2px;
+    border-color: var(--amber);
+}
+
+/* bible 10.4: "Aberrant traits take an iridescent white-hot treatment...
+ * Keeping it white rather than gold avoids colliding with the map's gold
+ * Apex Vein pulse." White-hot here, gold on the Founder above - the two
+ * markers must not converge. The spec also calls this the only animated
+ * treatment in the system; the motion half is not implemented. */
+.creature-card.aberrant {
+    border-width: 2px;
+    border-color: #ffffff;
+    background-color: #fdfcff;
+}
+
+.creature-card.aberrant .creature-card__silhouette {
+    background-color: #f3eefc;
+}
+
+/* Committed to a wave: still legible, visibly not actionable. */
+.creature-card.committed {
+    opacity: 0.55;
+}

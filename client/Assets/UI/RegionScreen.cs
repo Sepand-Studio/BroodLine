@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading.Tasks;
 using Broodline.Api;
 
@@ -30,6 +31,18 @@ namespace Broodline.UI
         public bool CanClaim { get; internal set; }
 
         public string Blocker { get; internal set; }
+
+        /// `Remaining` as text - the harvest count when it depletes, or
+        /// `RegionScreen.UnlimitedLabel` when it does not. `Remaining`
+        /// doubles as a number and a fact (this class's own doc on it), so
+        /// the view must not be the one choosing between the two.
+        public string RemainingLabel { get; internal set; }
+
+        /// The claim button's label. Static today, but authored here rather
+        /// than in `RegionView`, per the same convention as `SpliceScreen.
+        /// Cta` and `DeployScreen.Cta` - every player-facing string is
+        /// authored outside the view.
+        public string ClaimLabel { get; internal set; }
     }
 
     /// The region, its nodes, and what each has accrued. Built from
@@ -76,10 +89,19 @@ namespace Broodline.UI
     /// The map screen. Harvest a node; that is the loop's first beat.
     public static class RegionScreen
     {
+        /// `NodeRow.RemainingLabel`'s word for a node that never depletes -
+        /// deliberately not a number, so a node with no `Remaining` count
+        /// never prints something a player could mistake for a countdown.
+        public const string UnlimitedLabel = "unlimited";
+
+        /// `NodeRow.ClaimLabel`, in one place - see `DeployScreen.Cta` for
+        /// the same convention.
+        public const string ClaimCta = "Claim";
+
         public static async Task<RegionStateResponse> LoadAsync(BroodlineApiClient api)
         {
             if (api == null) throw new ArgumentNullException("api");
-            return await api.RegionStateAsync().ConfigureAwait(false);
+            return await api.RegionStateAsync();
         }
 
         public static RegionScreenModel Build(RegionStateResponse state)
@@ -131,6 +153,10 @@ namespace Broodline.UI
                 Grants = node.Grants,
                 CanClaim = true,
                 Blocker = string.Empty,
+                RemainingLabel = node.Remaining == null
+                    ? UnlimitedLabel
+                    : node.Remaining.Value.ToString(CultureInfo.InvariantCulture),
+                ClaimLabel = ClaimCta,
             };
 
             if (node.Remaining != null && node.Remaining.Value <= 0)
@@ -195,8 +221,7 @@ namespace Broodline.UI
                 throw new ArgumentOutOfRangeException("slot", "A node slot is not negative.");
             }
 
-            return await api.ClaimNodeAsync(idempotencyKey, new NodeClaimRequest { Slot = slot })
-                .ConfigureAwait(false);
+            return await api.ClaimNodeAsync(idempotencyKey, new NodeClaimRequest { Slot = slot });
         }
     }
 }

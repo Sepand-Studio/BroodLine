@@ -1,10 +1,10 @@
 import { randomUUID, getRandomValues } from 'node:crypto'
-import { and, eq, sql } from 'drizzle-orm'
+import { and, count, eq, sql } from 'drizzle-orm'
 import type { Tx } from '../db/client.ts'
 import { creatures, splices, wallets } from '../db/schema.ts'
 import { loadArk } from '../map/claim.ts'
 import { debit } from '../money/ledger.ts'
-import { creatureHp, liveCreature, toCreatureDto, type CreatureDto } from '../roster/creatures.ts'
+import { creatureHp, liveCreature, lockRoster, toCreatureDto, type CreatureDto } from '../roster/creatures.ts'
 import { pruneLineage } from '../roster/lineage.ts'
 import {
   combatPool, sampleSplice, spliceDistribution,
@@ -156,8 +156,9 @@ async function lockParents(
  * an exception, and the lock is what makes the read still true by the time
  * the debit happens.
  *
- * LOCK ORDER: after the parents, always. Every path through this file takes
- * creatures then the wallet, so two concurrent splices cannot hold one
+ * LOCK ORDER: after `lockRoster` and after the parents, always. Every path
+ * through this file takes the player-level advisory lock, then creatures,
+ * then the wallet, in that order, so two concurrent splices cannot hold one
  * another's next lock.
  */
 async function lockCharges(tx: Tx, serverId: number, playerId: string): Promise<number> {
@@ -204,6 +205,27 @@ export interface SpliceHooks {
 }
 
 /**
+ * Zero rows in `splices` for this player - Task 7, design §5 beat 7.
+ *
+ * READ INSIDE THE CALLER'S TRANSACTION, always. `commitSplice` calls this
+ * before it inserts this splice's own row, so a player's first-ever splice
+ * reads a true zero; `routes/splice.ts`'s preview calls it inside its own
+ * read-only transaction on the same table. Both feed the result into
+ * `spliceDistribution`'s `guaranteedMutation` option - never into a branch of
+ * their own - which is the whole of how the forecast and the roll agree
+ * about a splice neither route can see the other computing.
+ *
+ * EXPORTED for exactly one other caller: `routes/splice.ts`'s preview. A
+ * third copy of "count this player's splices" would be the very drift
+ * distribution.ts's header warns against, one file over.
+ */
+export async function isFirstSplice(tx: Tx, serverId: number, playerId: string): Promise<boolean> {
+  const [row] = await tx.select({ n: count() }).from(splices)
+    .where(and(eq(splices.serverId, serverId), eq(splices.playerId, playerId)))
+  return Number(row?.n ?? 0) === 0
+}
+
+/**
  * The splice, in one transaction.
  *
  * THE ORDER OF THE REFUSALS IS DELIBERATE and runs cheapest-and-most-
@@ -224,6 +246,31 @@ export async function commitSplice(
   req: SpliceRequest, now: Date, idempotencyKey: string,
   hooks: SpliceHooks = {},
 ): Promise<SpliceResult> {
+  // THE PLAYER-LEVEL LOCK, FIRST - fix round 1's finding, and not merely a
+  // style tidy. `ftue/stock.ts`'s `grantTutorialStock` decides whether the
+  // tutorial's guaranteed-mutation pair is still available by reading
+  // `isFirstSplice` - a bare, unlocked `count(*)` on `splices` - and shared
+  // no lock with this function. Under READ COMMITTED that read and this
+  // write could interleave: the grant counts zero splice rows at the exact
+  // moment a real commit is landing one, and both proceed - the tutorial
+  // pair granted to a player who has already spliced. Reachable in
+  // production, not theoretical: starter creatures are granted at sign-up,
+  // so every player holds splice-eligible creatures from their first
+  // session. `lockRoster` is the SAME player-scoped advisory lock
+  // `wave/base-stock.ts`, `map/claim.ts` and `grantTutorialStock` already
+  // take for their own grants; taking it here, before anything else, makes
+  // every writer of this player's roster agree on one order - the advisory
+  // lock, then row locks - which cannot deadlock against `lockParents`'
+  // sorted ids below, because the advisory lock is acquired before any row
+  // lock is ever requested.
+  //
+  // THE WIDENED SCOPE, named rather than left implicit: this also
+  // serialises a player's splice commits against their OWN wave-completion
+  // base-stock grants and node claims, which did not contend with a splice
+  // before this fix. That is correct behaviour - all three mutate the same
+  // roster - but it is a real change to a path that pays currency.
+  await lockRoster(tx, serverId, playerId)
+
   const parents = await lockParents(tx, serverId, playerId, [req.parentA, req.parentB], hooks)
   if (parents === undefined) return { kind: 'not_owned' }
   const [a, b] = parents
@@ -285,8 +332,11 @@ export async function commitSplice(
     // THE SAME VALUE preview returns for this pair and this lock -
     // `spliceDistribution` is pure and takes no clock, so recomputing it
     // here inside the transaction yields the identical object rather than a
-    // second opinion about it.
-    const forecast = spliceDistribution(parentA, parentB, req.locked, bundle)
+    // second opinion about it. `guaranteedMutation` is read from the SAME
+    // row count preview's own transaction reads (`isFirstSplice`, above) -
+    // Task 7's parameter, not a branch this file adds on its own.
+    const forecast = spliceDistribution(parentA, parentB, req.locked, bundle,
+      { guaranteedMutation: await isFirstSplice(tx, serverId, playerId) })
     // The locked INSTANCE, by position, out of the same pool the forecast
     // was built from - not a second reading of the request. `combatPool` is
     // the one definition of what the four combat slots are, and

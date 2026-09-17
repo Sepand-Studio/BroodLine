@@ -1,0 +1,31 @@
+/* The trait reference. bible 10.5: recognition is the counter system's
+ * teaching surface, so this reads as a reference table, not a dialog. */
+.codex-sheet {
+    flex-direction: column;
+    padding: var(--space-4);
+    background-color: var(--surface);
+    border-radius: var(--radius-card);
+}
+
+.codex-sheet__title {
+    font-size: var(--text-section);
+    color: var(--ink);
+    -unity-font-style: bold;
+    margin-bottom: var(--space-3);
+}
+
+.codex-sheet__entries { flex-direction: column; }
+
+.codex-entry {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--surface-sunk);
+    border-radius: var(--radius-row);
+    padding: var(--space-3);
+    margin-bottom: var(--space-2);
+    font-size: var(--text-body);
+    color: var(--ink);
+}
+
+.codex-sheet__dismiss { margin-top: var(--space-3); }

@@ -113,7 +113,7 @@ namespace Broodline.UI
                 ParentA = parentA,
                 ParentB = parentB,
                 Locked = locked,
-            }).ConfigureAwait(false);
+            });
         }
 
         /// Build the screen from the two parents and the server's preview.
@@ -295,7 +295,14 @@ namespace Broodline.UI
                 + " — of which Aberrant " + Percent(forecast.Aberrant) + ".";
         }
 
-        private static string Percent(double p)
+        /// The one place a probability becomes a percent string on this
+        /// screen - `MutationLine` uses it, and so does `SpliceChamberView`
+        /// for each `Combat2` row, so the same number reads the same way on
+        /// both. Public (not private) for exactly that second caller: a view
+        /// formatting `outcome.P` itself, even with a standard .NET
+        /// specifier like `"P1"`, is a second copy of this rule that can -
+        /// and did - drift from it (`"55%"` here vs `"55.0 %"` from `P1`).
+        public static string Percent(double p)
         {
             return Math.Round(p * 100.0, 1).ToString(CultureInfo.InvariantCulture) + "%";
         }
@@ -333,7 +340,7 @@ namespace Broodline.UI
                 ParentB = parentB,
                 Locked = locked,
                 BodyFrom = bodyFrom,
-            }).ConfigureAwait(false);
+            });
         }
 
         /// /v1/splice/preview and /v1/splice/commit both refuse

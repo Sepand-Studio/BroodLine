@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -12,7 +13,7 @@ import { LocalBundleStore } from '../src/config/store.ts'
 import { creatures, servers } from '../src/db/schema.ts'
 import { LocalReplayStore } from '../src/replays/store.ts'
 import { SimClient } from '../src/sim/client.ts'
-import { spliceDistribution, type TraitRef } from '../src/splice/distribution.ts'
+import { MUTATION_RATE, spliceDistribution, type TraitRef } from '../src/splice/distribution.ts'
 import { startTestDb, type TestDb } from './harness.ts'
 import { setupPlayer } from './wave-helpers.ts'
 
@@ -161,12 +162,15 @@ describe('POST /v1/splice/preview', () => {
     const res = await preview({ parentA: a, parentB: b, locked: LOCK_A1 })
     expect(res.status).toBe(200)
 
+    // { guaranteedMutation: true }: this player has done no splice yet, and
+    // Task 7 makes that a parameter this route reads the same way commit
+    // does - see the guaranteed-mutation test below for the other half.
     const bundle = await loadBundle(deps.bundleStore)
     expect(await res.json()).toEqual({
       forecast: JSON.parse(JSON.stringify(
         spliceDistribution(
           { ...VETCH, instinct: 'Vanguard' }, { ...PALE, instinct: 'Vanguard' },
-          LOCK_A1, bundle))),
+          LOCK_A1, bundle, { guaranteedMutation: true }))),
       coverageLost: [],
     })
   })
@@ -203,6 +207,38 @@ describe('POST /v1/splice/preview', () => {
     expect(await res.json()).toMatchObject({
       coverageLost: [{ trait: 'Carapace', tier: 3 }],
     })
+  })
+
+  it('forecasts a guaranteed mutation before this player\'s first splice, and the base rate after', async () => {
+    // Task 7, design §5.1 extended by one input: preview and commit read the
+    // SAME row count, so the certainty published here is the certainty
+    // commit rolls - splice-commit.test.ts's half of this pair pins the
+    // other side. Proven end to end rather than by re-deriving
+    // `isFirstSplice` here, which would only show this test agrees with
+    // itself.
+    const a = await give(VETCH)
+    const b = await give(PALE)
+
+    const first = await preview({ parentA: a, parentB: b, locked: LOCK_A1 })
+    expect((await first.json() as { forecast: { mutation: number } }).forecast.mutation).toBe(1)
+
+    // Committed for real, so the player's splice count moves off zero -
+    // the same fact preview's own forecast reads.
+    const commitRes = await app.request('/v1/splice/commit', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json', authorization: `Bearer ${token}`,
+        'idempotency-key': randomUUID(),
+      },
+      body: JSON.stringify({ parentA: a, parentB: b, locked: LOCK_A1, bodyFrom: 'Vetch' }),
+    })
+    expect(commitRes.status).toBe(200)
+
+    const c = await give(VETCH)
+    const d = await give(PALE)
+    const second = await preview({ parentA: c, parentB: d, locked: LOCK_A1 })
+    expect((await second.json() as { forecast: { mutation: number } }).forecast.mutation)
+      .toBeCloseTo(MUTATION_RATE, 10)
   })
 
   it('writes nothing, so two previews in a row are identical', async () => {

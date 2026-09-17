@@ -1,0 +1,8 @@
+{
+  "traits": [
+    { "id": "Chill",    "species": "Pale",   "counters": "Courser",    "dominant": true  },
+    { "id": "Splash",   "species": "Ember",  "counters": "Skirmisher", "dominant": true  },
+    { "id": "Taunt",    "species": "Vetch",  "counters": "Lash",       "dominant": false },
+    { "id": "Carapace", "species": "Vetch",  "counters": null,         "dominant": false }
+  ]
+}

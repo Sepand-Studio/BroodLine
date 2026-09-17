@@ -85,6 +85,23 @@ namespace Broodline.Api
         /// <exception cref="BroodlineApiException">A server side error occurred.</exception>
         System.Threading.Tasks.Task<SpliceCommitResponse> SpliceCommitAsync(string idempotency_Key, SpliceCommitRequest body = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
 
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <param name="idempotency_Key">Generated when the action is taken, not when it is sent.</param>
+        /// <returns>The renamed creature - naming is repeatable, bible §3.3</returns>
+        /// <exception cref="BroodlineApiException">A server side error occurred.</exception>
+        System.Threading.Tasks.Task<CreatureDto> NameCreatureAsync(string idempotency_Key, CreatureNameRequest body = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <param name="idempotency_Key">Generated when the action is taken, not when it is sent.</param>
+        /// <returns>The tutorial's Vetch and Ember, granted once</returns>
+        /// <exception cref="BroodlineApiException">A server side error occurred.</exception>
+        System.Threading.Tasks.Task<FtueStockResponse> FtueSpliceStockAsync(string idempotency_Key, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <returns>The player's whole tree, live and consumed</returns>
+        /// <exception cref="BroodlineApiException">A server side error occurred.</exception>
+        System.Threading.Tasks.Task<LineageResponse> LineageAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
+
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NSwag", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
@@ -1377,6 +1394,354 @@ namespace Broodline.Api
             }
         }
 
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <param name="idempotency_Key">Generated when the action is taken, not when it is sent.</param>
+        /// <returns>The renamed creature - naming is repeatable, bible §3.3</returns>
+        /// <exception cref="BroodlineApiException">A server side error occurred.</exception>
+        public virtual async System.Threading.Tasks.Task<CreatureDto> NameCreatureAsync(string idempotency_Key, CreatureNameRequest body = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {
+
+                    if (idempotency_Key == null)
+                        throw new System.ArgumentNullException("idempotency_Key");
+                    request_.Headers.TryAddWithoutValidation("Idempotency-Key", ConvertToString(idempotency_Key, System.Globalization.CultureInfo.InvariantCulture));
+                    var json_ = Newtonsoft.Json.JsonConvert.SerializeObject(body, JsonSerializerSettings);
+                    var content_ = new System.Net.Http.StringContent(json_);
+                    content_.Headers.ContentType = System.Net.Http.Headers.MediaTypeHeaderValue.Parse("application/json");
+                    request_.Content = content_;
+                    request_.Method = new System.Net.Http.HttpMethod("POST");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                    if (!string.IsNullOrEmpty(_baseUrl)) urlBuilder_.Append(_baseUrl);
+                    // Operation Path: "v1/creature/name"
+                    urlBuilder_.Append("v1/creature/name");
+
+                    PrepareRequest(client_, request_, urlBuilder_);
+
+                    var url_ = urlBuilder_.ToString();
+                    request_.RequestUri = new System.Uri(url_, System.UriKind.RelativeOrAbsolute);
+
+                    PrepareRequest(client_, request_, url_);
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {
+                        var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                        foreach (var item_ in response_.Headers)
+                            headers_[item_.Key] = item_.Value;
+                        if (response_.Content != null && response_.Content.Headers != null)
+                        {
+                            foreach (var item_ in response_.Content.Headers)
+                                headers_[item_.Key] = item_.Value;
+                        }
+
+                        ProcessResponse(client_, response_);
+
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 200)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<CreatureDto>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new BroodlineApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            return objectResponse_.Object;
+                        }
+                        else
+                        if (status_ == 400)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ErrorResponse>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new BroodlineApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new BroodlineApiException<ErrorResponse>("Error", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 401)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ErrorResponse>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new BroodlineApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new BroodlineApiException<ErrorResponse>("Error", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 404)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ErrorResponse>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new BroodlineApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new BroodlineApiException<ErrorResponse>("Error", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 409)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ErrorResponse>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new BroodlineApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new BroodlineApiException<ErrorResponse>("Error", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 422)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ErrorResponse>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new BroodlineApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new BroodlineApiException<ErrorResponse>("Error", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        {
+                            var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
+                            throw new BroodlineApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+                        }
+                    }
+                    finally
+                    {
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeClient_)
+                    client_.Dispose();
+            }
+        }
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <param name="idempotency_Key">Generated when the action is taken, not when it is sent.</param>
+        /// <returns>The tutorial's Vetch and Ember, granted once</returns>
+        /// <exception cref="BroodlineApiException">A server side error occurred.</exception>
+        public virtual async System.Threading.Tasks.Task<FtueStockResponse> FtueSpliceStockAsync(string idempotency_Key, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {
+
+                    if (idempotency_Key == null)
+                        throw new System.ArgumentNullException("idempotency_Key");
+                    request_.Headers.TryAddWithoutValidation("Idempotency-Key", ConvertToString(idempotency_Key, System.Globalization.CultureInfo.InvariantCulture));
+                    request_.Content = new System.Net.Http.StringContent(string.Empty, System.Text.Encoding.UTF8, "application/json");
+                    request_.Method = new System.Net.Http.HttpMethod("POST");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                    if (!string.IsNullOrEmpty(_baseUrl)) urlBuilder_.Append(_baseUrl);
+                    // Operation Path: "v1/ftue/splice-stock"
+                    urlBuilder_.Append("v1/ftue/splice-stock");
+
+                    PrepareRequest(client_, request_, urlBuilder_);
+
+                    var url_ = urlBuilder_.ToString();
+                    request_.RequestUri = new System.Uri(url_, System.UriKind.RelativeOrAbsolute);
+
+                    PrepareRequest(client_, request_, url_);
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {
+                        var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                        foreach (var item_ in response_.Headers)
+                            headers_[item_.Key] = item_.Value;
+                        if (response_.Content != null && response_.Content.Headers != null)
+                        {
+                            foreach (var item_ in response_.Content.Headers)
+                                headers_[item_.Key] = item_.Value;
+                        }
+
+                        ProcessResponse(client_, response_);
+
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 200)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<FtueStockResponse>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new BroodlineApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            return objectResponse_.Object;
+                        }
+                        else
+                        if (status_ == 400)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ErrorResponse>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new BroodlineApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new BroodlineApiException<ErrorResponse>("Error", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 401)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ErrorResponse>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new BroodlineApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new BroodlineApiException<ErrorResponse>("Error", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 404)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ErrorResponse>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new BroodlineApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new BroodlineApiException<ErrorResponse>("Error", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 409)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ErrorResponse>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new BroodlineApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new BroodlineApiException<ErrorResponse>("Error", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 422)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ErrorResponse>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new BroodlineApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new BroodlineApiException<ErrorResponse>("Error", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        {
+                            var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
+                            throw new BroodlineApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+                        }
+                    }
+                    finally
+                    {
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeClient_)
+                    client_.Dispose();
+            }
+        }
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <returns>The player's whole tree, live and consumed</returns>
+        /// <exception cref="BroodlineApiException">A server side error occurred.</exception>
+        public virtual async System.Threading.Tasks.Task<LineageResponse> LineageAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {
+                    request_.Method = new System.Net.Http.HttpMethod("GET");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                    if (!string.IsNullOrEmpty(_baseUrl)) urlBuilder_.Append(_baseUrl);
+                    // Operation Path: "v1/lineage"
+                    urlBuilder_.Append("v1/lineage");
+
+                    PrepareRequest(client_, request_, urlBuilder_);
+
+                    var url_ = urlBuilder_.ToString();
+                    request_.RequestUri = new System.Uri(url_, System.UriKind.RelativeOrAbsolute);
+
+                    PrepareRequest(client_, request_, url_);
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {
+                        var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                        foreach (var item_ in response_.Headers)
+                            headers_[item_.Key] = item_.Value;
+                        if (response_.Content != null && response_.Content.Headers != null)
+                        {
+                            foreach (var item_ in response_.Content.Headers)
+                                headers_[item_.Key] = item_.Value;
+                        }
+
+                        ProcessResponse(client_, response_);
+
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 200)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<LineageResponse>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new BroodlineApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            return objectResponse_.Object;
+                        }
+                        else
+                        if (status_ == 401)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ErrorResponse>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new BroodlineApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new BroodlineApiException<ErrorResponse>("Error", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 404)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ErrorResponse>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new BroodlineApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new BroodlineApiException<ErrorResponse>("Error", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        {
+                            var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
+                            throw new BroodlineApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+                        }
+                    }
+                    finally
+                    {
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeClient_)
+                    client_.Dispose();
+            }
+        }
+
         protected struct ObjectResponseResult<T>
         {
             public ObjectResponseResult(T responseObject, string responseText)
@@ -1582,6 +1947,9 @@ namespace Broodline.Api
         [Newtonsoft.Json.JsonProperty("config", Required = Newtonsoft.Json.Required.Always)]
         public Config Config { get; set; } = new Config();
 
+        [Newtonsoft.Json.JsonProperty("ftue", Required = Newtonsoft.Json.Required.Always)]
+        public Ftue Ftue { get; set; } = new Ftue();
+
         private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
 
         [Newtonsoft.Json.JsonExtensionData]
@@ -1750,6 +2118,53 @@ namespace Broodline.Api
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class CreatureDto
+    {
+        [Newtonsoft.Json.JsonProperty("creatureId", Required = Newtonsoft.Json.Required.Always)]
+        public System.Guid CreatureId { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("species", Required = Newtonsoft.Json.Required.Always)]
+        public string Species { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("generation", Required = Newtonsoft.Json.Required.Always)]
+        public int Generation { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("trait1", Required = Newtonsoft.Json.Required.Always)]
+        public string Trait1 { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("tier1", Required = Newtonsoft.Json.Required.AllowNull)]
+        public int? Tier1 { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("trait2", Required = Newtonsoft.Json.Required.Always)]
+        public string Trait2 { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("tier2", Required = Newtonsoft.Json.Required.AllowNull)]
+        public int? Tier2 { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("instinct", Required = Newtonsoft.Json.Required.Always)]
+        public string Instinct { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("name", Required = Newtonsoft.Json.Required.AllowNull)]
+        public string Name { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("isFounder", Required = Newtonsoft.Json.Required.Always)]
+        public bool IsFounder { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("committedTo", Required = Newtonsoft.Json.Required.AllowNull)]
+        public System.Guid? CommittedTo { get; set; }
+
+        private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
+
+        [Newtonsoft.Json.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class WaveSubmitResponse
     {
         [Newtonsoft.Json.JsonProperty("result", Required = Newtonsoft.Json.Required.Always)]
@@ -1763,6 +2178,9 @@ namespace Broodline.Api
 
         [Newtonsoft.Json.JsonProperty("reward", Required = Newtonsoft.Json.Required.DisallowNull, NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
         public Reward Reward { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("granted", Required = Newtonsoft.Json.Required.DisallowNull, NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore)]
+        public System.Collections.Generic.ICollection<CreatureDto> Granted { get; set; }
 
         private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
 
@@ -1846,53 +2264,6 @@ namespace Broodline.Api
 
         [Newtonsoft.Json.JsonProperty("roster", Required = Newtonsoft.Json.Required.Always)]
         public Roster Roster { get; set; } = new Roster();
-
-        private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
-
-        [Newtonsoft.Json.JsonExtensionData]
-        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
-        {
-            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
-            set { _additionalProperties = value; }
-        }
-
-    }
-
-    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
-    public partial class CreatureDto
-    {
-        [Newtonsoft.Json.JsonProperty("creatureId", Required = Newtonsoft.Json.Required.Always)]
-        public System.Guid CreatureId { get; set; }
-
-        [Newtonsoft.Json.JsonProperty("species", Required = Newtonsoft.Json.Required.Always)]
-        public string Species { get; set; }
-
-        [Newtonsoft.Json.JsonProperty("generation", Required = Newtonsoft.Json.Required.Always)]
-        public int Generation { get; set; }
-
-        [Newtonsoft.Json.JsonProperty("trait1", Required = Newtonsoft.Json.Required.Always)]
-        public string Trait1 { get; set; }
-
-        [Newtonsoft.Json.JsonProperty("tier1", Required = Newtonsoft.Json.Required.AllowNull)]
-        public int? Tier1 { get; set; }
-
-        [Newtonsoft.Json.JsonProperty("trait2", Required = Newtonsoft.Json.Required.Always)]
-        public string Trait2 { get; set; }
-
-        [Newtonsoft.Json.JsonProperty("tier2", Required = Newtonsoft.Json.Required.AllowNull)]
-        public int? Tier2 { get; set; }
-
-        [Newtonsoft.Json.JsonProperty("instinct", Required = Newtonsoft.Json.Required.Always)]
-        public string Instinct { get; set; }
-
-        [Newtonsoft.Json.JsonProperty("name", Required = Newtonsoft.Json.Required.AllowNull)]
-        public string Name { get; set; }
-
-        [Newtonsoft.Json.JsonProperty("isFounder", Required = Newtonsoft.Json.Required.Always)]
-        public bool IsFounder { get; set; }
-
-        [Newtonsoft.Json.JsonProperty("committedTo", Required = Newtonsoft.Json.Required.AllowNull)]
-        public System.Guid? CommittedTo { get; set; }
 
         private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
 
@@ -2135,6 +2506,116 @@ namespace Broodline.Api
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class CreatureNameRequest
+    {
+        [Newtonsoft.Json.JsonProperty("creatureId", Required = Newtonsoft.Json.Required.Always)]
+        public System.Guid CreatureId { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("name", Required = Newtonsoft.Json.Required.Always)]
+        public string Name { get; set; }
+
+        private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
+
+        [Newtonsoft.Json.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class FtueStockResponse
+    {
+        [Newtonsoft.Json.JsonProperty("creatures", Required = Newtonsoft.Json.Required.Always)]
+        public System.Collections.Generic.ICollection<CreatureDto> Creatures { get; set; } = new System.Collections.ObjectModel.Collection<CreatureDto>();
+
+        private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
+
+        [Newtonsoft.Json.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class LineageNode
+    {
+        [Newtonsoft.Json.JsonProperty("creatureId", Required = Newtonsoft.Json.Required.Always)]
+        public System.Guid CreatureId { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("species", Required = Newtonsoft.Json.Required.Always)]
+        public string Species { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("generation", Required = Newtonsoft.Json.Required.Always)]
+        public int Generation { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("isFounder", Required = Newtonsoft.Json.Required.Always)]
+        public bool IsFounder { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("name", Required = Newtonsoft.Json.Required.AllowNull)]
+        public string Name { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("parentA", Required = Newtonsoft.Json.Required.AllowNull)]
+        public System.Guid? ParentA { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("parentB", Required = Newtonsoft.Json.Required.AllowNull)]
+        public System.Guid? ParentB { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("consumedAt", Required = Newtonsoft.Json.Required.AllowNull)]
+        public string ConsumedAt { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("pruned", Required = Newtonsoft.Json.Required.Always)]
+        public bool Pruned { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("mutated", Required = Newtonsoft.Json.Required.Always)]
+        public bool Mutated { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("trait1", Required = Newtonsoft.Json.Required.AllowNull)]
+        public string Trait1 { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("tier1", Required = Newtonsoft.Json.Required.AllowNull)]
+        public int? Tier1 { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("trait2", Required = Newtonsoft.Json.Required.AllowNull)]
+        public string Trait2 { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("tier2", Required = Newtonsoft.Json.Required.AllowNull)]
+        public int? Tier2 { get; set; }
+
+        private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
+
+        [Newtonsoft.Json.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class LineageResponse
+    {
+        [Newtonsoft.Json.JsonProperty("nodes", Required = Newtonsoft.Json.Required.Always)]
+        public System.Collections.Generic.ICollection<LineageNode> Nodes { get; set; } = new System.Collections.ObjectModel.Collection<LineageNode>();
+
+        private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
+
+        [Newtonsoft.Json.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class Player
     {
         [Newtonsoft.Json.JsonProperty("playerId", Required = Newtonsoft.Json.Required.Always)]
@@ -2202,6 +2683,38 @@ namespace Broodline.Api
 
         [Newtonsoft.Json.JsonProperty("minimumClientVersion", Required = Newtonsoft.Json.Required.Always)]
         public string MinimumClientVersion { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("tabs", Required = Newtonsoft.Json.Required.Always)]
+        public System.Collections.Generic.IDictionary<string, int> Tabs { get; set; } = new System.Collections.Generic.Dictionary<string, int>();
+
+        [Newtonsoft.Json.JsonProperty("waves", Required = Newtonsoft.Json.Required.Always)]
+        public System.Collections.Generic.ICollection<Waves> Waves { get; set; } = new System.Collections.ObjectModel.Collection<Waves>();
+
+        [Newtonsoft.Json.JsonProperty("traits", Required = Newtonsoft.Json.Required.Always)]
+        public System.Collections.Generic.ICollection<Traits> Traits { get; set; } = new System.Collections.ObjectModel.Collection<Traits>();
+
+        private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
+
+        [Newtonsoft.Json.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class Ftue
+    {
+        [Newtonsoft.Json.JsonProperty("founderNamed", Required = Newtonsoft.Json.Required.Always)]
+        public bool FounderNamed { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("tutorialStockGranted", Required = Newtonsoft.Json.Required.Always)]
+        public bool TutorialStockGranted { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("splices", Required = Newtonsoft.Json.Required.Always)]
+        public int Splices { get; set; }
 
         private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
 
@@ -2344,6 +2857,69 @@ namespace Broodline.Api
 
         [System.Runtime.Serialization.EnumMember(Value = @"trait_2")]
         Trait_2 = 1,
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class Waves
+    {
+        [Newtonsoft.Json.JsonProperty("id", Required = Newtonsoft.Json.Required.Always)]
+        public int Id { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("reward", Required = Newtonsoft.Json.Required.AllowNull)]
+        public Reward2 Reward { get; set; }
+
+        private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
+
+        [Newtonsoft.Json.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class Traits
+    {
+        [Newtonsoft.Json.JsonProperty("id", Required = Newtonsoft.Json.Required.Always)]
+        public string Id { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("species", Required = Newtonsoft.Json.Required.Always)]
+        public string Species { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("counters", Required = Newtonsoft.Json.Required.AllowNull)]
+        public string Counters { get; set; }
+
+        private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
+
+        [Newtonsoft.Json.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class Reward2
+    {
+        [Newtonsoft.Json.JsonProperty("currency", Required = Newtonsoft.Json.Required.Always)]
+        public string Currency { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("amount", Required = Newtonsoft.Json.Required.Always)]
+        public int Amount { get; set; }
+
+        private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
+
+        [Newtonsoft.Json.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
 
     }
 

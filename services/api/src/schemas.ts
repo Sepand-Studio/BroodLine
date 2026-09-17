@@ -43,9 +43,35 @@ export const SyncResponse = z.object({
     kind: z.string(),
     completesAt: z.string(),
   })),
+  // tabs, waves and traits joined bundleVersion/minimumClientVersion in
+  // Phase 7, Task 5 (design §4/§5 beat 1) - additive, so the Phase 6 client
+  // keeps parsing this object.
   config: z.object({
     bundleVersion: z.string(),
     minimumClientVersion: z.string(),
+    // client_architecture §9's reveal bar - a tab name to the progress value
+    // that unlocks it.
+    tabs: z.record(z.string(), z.number().int()),
+    waves: z.array(z.object({
+      id: z.number().int(),
+      reward: z.object({
+        currency: z.string(),
+        amount: z.number().int(),
+      }).nullable(),
+    })),
+    traits: z.array(z.object({
+      id: z.string(),
+      species: z.string(),
+      counters: z.string().nullable(),
+    })),
+  }),
+  // The FTUE facts the client derives its current tutorial beat from.
+  // Nothing about FTUE progress is stored on the client - this, and this
+  // alone, is the source of truth it polls on every cold start.
+  ftue: z.object({
+    founderNamed: z.boolean(),
+    tutorialStockGranted: z.boolean(),
+    splices: z.number().int(),
   }),
 }).openapi('SyncResponse')
 
@@ -144,38 +170,6 @@ const BreachDto = z.object({
   placement: z.boolean(),
 }).openapi('BreachDto')
 
-export const WaveSubmitResponse = z.object({
-  result: z.string(),
-  integrityRemaining: z.number().int(),
-  breaches: z.array(BreachDto),
-  // Absent rather than null on a loss, so a client cannot render a zero -
-  // design §4.2's response shape, `{ result, integrityRemaining, breaches[],
-  // reward? }`.
-  reward: z.object({
-    currency: z.string(),
-    amount: z.number().int(),
-  }).optional(),
-}).openapi('WaveSubmitResponse')
-
-export const ErrorResponse = z.object({
-  code: z.string(),
-  message: z.string(),
-  details: z.unknown().optional(),
-}).openapi('ErrorResponse')
-
-// Phase 5, Task 9. POST /v1/account has returned a refreshToken since Phase
-// 4 with no route able to redeem it - this is the route.
-export const RefreshRequest = z.object({
-  refreshToken: z.string(),
-}).openapi('RefreshRequest')
-
-export const RefreshResponse = z.object({
-  accessToken: z.string(),
-  // Rotation is deferred to the first non-TestFlight players (solo_execution
-  // 6.4) - this is the SAME token the caller sent, not a freshly minted one.
-  refreshToken: z.string(),
-}).openapi('RefreshResponse')
-
 // Phase 6, Task 5. The map's two routes - design §4.3.
 //
 // Registered into openapi.ts's registry in the SAME task that adds the
@@ -184,6 +178,14 @@ export const RefreshResponse = z.object({
 // entirely until the next task found it - see openapi.ts's own note on that
 // path. A route the Unity client must call and has no generated method for
 // is the same gap wearing a new name.
+//
+// DECLARED HERE, AHEAD OF `WaveSubmitResponse` - a Phase 7, Task 8 move.
+// `const` bindings are not hoisted the way `function` ones are, so a schema
+// declared below its first reference would throw at module load rather than
+// at review time. `WaveSubmitResponse` is the earlier (Phase 5) schema and
+// the newer consumer; this one moved rather than that one, since every
+// other consumer (RegionStateResponse and friends, below) was already
+// content to read it from here.
 export const CreatureDto = z.object({
   creatureId: z.string().uuid(),
   species: z.string(),
@@ -205,6 +207,45 @@ export const CreatureDto = z.object({
   // that carries a creature because the roster screen renders it.
   committedTo: z.string().uuid().nullable(),
 }).openapi('CreatureDto')
+
+export const WaveSubmitResponse = z.object({
+  result: z.string(),
+  integrityRemaining: z.number().int(),
+  breaches: z.array(BreachDto),
+  // Absent rather than null on a loss, so a client cannot render a zero -
+  // design §4.2's response shape, `{ result, integrityRemaining, breaches[],
+  // reward? }`.
+  reward: z.object({
+    currency: z.string(),
+    amount: z.number().int(),
+  }).optional(),
+  // ADDITIVE - Phase 7, Task 8. Every creature THIS settlement minted (base
+  // stock, the Founder, the wave-6 Pale), so Post-Wave and Wave Defeat can
+  // render what arrived without diffing the roster. Optional and absent
+  // (never `[]`) when nothing was granted, so the Phase 6 client - which has
+  // never heard of this field - keeps parsing every response exactly as it
+  // always has.
+  granted: z.array(CreatureDto).optional(),
+}).openapi('WaveSubmitResponse')
+
+export const ErrorResponse = z.object({
+  code: z.string(),
+  message: z.string(),
+  details: z.unknown().optional(),
+}).openapi('ErrorResponse')
+
+// Phase 5, Task 9. POST /v1/account has returned a refreshToken since Phase
+// 4 with no route able to redeem it - this is the route.
+export const RefreshRequest = z.object({
+  refreshToken: z.string(),
+}).openapi('RefreshRequest')
+
+export const RefreshResponse = z.object({
+  accessToken: z.string(),
+  // Rotation is deferred to the first non-TestFlight players (solo_execution
+  // 6.4) - this is the SAME token the caller sent, not a freshly minted one.
+  refreshToken: z.string(),
+}).openapi('RefreshResponse')
 
 export const RegionStateResponse = z.object({
   regionId: z.string(),
@@ -379,3 +420,84 @@ export const SpliceCommitResponse = z.object({
   // same reason.
   balance: z.number().int(),
 }).openapi('SpliceCommitResponse')
+
+// Phase 7, Task 6. design §5 beat 4 - naming the Founder. The response is
+// CreatureDto itself, not a new shape: the only thing this route changes is
+// `name`, and the client already knows how to render a CreatureDto.
+//
+// Registered into openapi.ts's registry in the SAME task that adds the
+// route, the discipline every route above states.
+export const CreatureNameRequest = z.object({
+  creatureId: z.string().uuid(),
+  // Trimmed and length-checked server-side (routes/creature.ts); z.string()
+  // rather than a stricter schema because the 400 has to name the WHOLE rule
+  // (1-16 printable characters after trimming), not just "must be a string".
+  name: z.string(),
+}).openapi('CreatureNameRequest')
+
+// Phase 7, Task 7. design §5 beats 6-7 - the guided splice's provided pair.
+// NO REQUEST SCHEMA: the route is body-less, exactly as routes/creature.ts's
+// discipline note describes for a mutation with nothing for the caller to
+// supply. Registered into openapi.ts's registry in the SAME task that adds
+// the route, the discipline every route above states.
+export const FtueStockResponse = z.object({
+  creatures: z.array(CreatureDto),
+}).openapi('FtueStockResponse')
+
+// Phase 7, Task 9. `GET /v1/lineage` - design §5 beat 8, `splice_confirm_spec`
+// §5: the Lineage View shows a splice's two consumed parents still whole, so
+// this is the one response shape in the contract that covers all three of
+// 0005_loop.sql's creature states (live, consumed, pruned) rather than only
+// the live ones `CreatureDto` is built for.
+//
+// NOT `CreatureDto`, deliberately, and the difference is exactly the fields
+// that state forces open. `trait1`/`tier1`/`trait2`/`tier2` are NULLABLE
+// here - a pruned tombstone has none of them (0005's
+// `pruned_creatures_are_stripped`) - where `CreatureDto`'s are not, because
+// every route that returns a `CreatureDto` reads through `liveCreature()`
+// first and never carries a pruned row at all. `instinct` and `committedTo`
+// are absent: a tombstone has neither, and the tree this screen draws needs
+// neither from a live node either.
+export const LineageNode = z.object({
+  creatureId: z.string().uuid(),
+  // Kept on every row, pruned or not - 0005's tombstone is stripped down TO
+  // exactly `{species, generation, is_founder}` plus its identity and parent
+  // pointers, not past it.
+  species: z.string(),
+  generation: z.number().int(),
+  isFounder: z.boolean(),
+  // Founders only, and nulled by the prune same as `CreatureDto`'s - but a
+  // pruned NON-Founder was never named to begin with, so this is null there
+  // for a second, independent reason.
+  name: z.string().nullable(),
+  // The pointers the tree resolves through. NOT stripped by the prune -
+  // 0005's header is explicit that the whole point of pruning as an UPDATE
+  // rather than a DELETE is that a descendant's pointer keeps resolving to a
+  // row that really exists.
+  parentA: z.string().uuid().nullable(),
+  parentB: z.string().uuid().nullable(),
+  // NULL while live; the moment a splice consumed this creature otherwise.
+  // NOT nulled by the prune - it is the liveness marker, and a tombstone is
+  // the most dead a row gets (0005_loop.sql's column comment on `pruned`).
+  consumedAt: z.string().nullable(),
+  pruned: z.boolean(),
+  // From `splices.mutated`, joined on this creature as the splice's CHILD -
+  // false for a creature that is not one (base stock, the Founder, the
+  // tutorial pair), never null. Never carried on `CreatureDto`'s own
+  // response: `SpliceCommitResponse`'s comment records why the mutation flag
+  // is withheld from the route that just rolled it, so this join is the
+  // only place in the contract a player ever learns whether a splice
+  // mutated.
+  mutated: z.boolean(),
+  // NULLABLE, unlike `CreatureDto`'s - a pruned tombstone has none of these,
+  // and this route's whole job is returning the tombstone rather than
+  // refusing to represent it.
+  trait1: z.string().nullable(),
+  tier1: z.number().int().nullable(),
+  trait2: z.string().nullable(),
+  tier2: z.number().int().nullable(),
+}).openapi('LineageNode')
+
+export const LineageResponse = z.object({
+  nodes: z.array(LineageNode),
+}).openapi('LineageResponse')

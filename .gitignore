@@ -136,3 +136,7 @@ infra/terraform/*.tfvars
 # Config bundle build output. The AUTHORED json under config/bundles is
 # tracked; what the publish step assembles is not.
 config/out/
+
+# The local dev stack (services/api/src/dev.ts) publishes its bundle and
+# replay objects here. Scratch: delete it and the next start republishes.
+.local-stack/

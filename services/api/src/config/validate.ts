@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { currency as currencyEnum } from '../db/schema.ts'
 import { REQUIRED_NODE_IDS } from '../map/rotation.ts'
+import { creatureHp } from '../roster/creatures.ts'
+import type { StarterCreature } from './bundle.ts'
 
 const run = promisify(execFile)
 
@@ -17,12 +19,15 @@ const VALID_CURRENCIES: readonly string[] = currencyEnum.enumValues
 /** Matches isBelow's assumption in http/auth.ts: three dot-separated integers. */
 const VERSION_PATTERN = /^\d+\.\d+\.\d+$/
 
+/** progression.json's tabs, per client_architecture 9. */
+const TABS = ['Map', 'Ark', 'Splice', 'Lab', 'Allies']
+
 /**
  * Publish-time validation. solo_execution 5.2: a bundle that fails is not
  * published, and that is the entire safety model - a bad bundle is shipped to
  * every player at once and cannot be recalled by an app update.
  *
- * Eight checks now. Wave *shape* rules are the engine's and are invoked, never
+ * Ten checks now. Wave *shape* rules are the engine's and are invoked, never
  * copied - see tools/config-validate. Reward completeness is different: Design
  * 2.2 pays a wave's reward by looking it up from the bundle - rewardForWave in
  * wave/rewards.ts, called from routes/wave.ts's submit handler - so a wave
@@ -59,6 +64,24 @@ const VERSION_PATTERN = /^\d+\.\d+\.\d+$/
  *     nodes.json missing either id map/rotation.ts's `nodesFor` requires
  *     500s GET /v1/region/state and the claim route for every player on the
  *     server. See that function for both findings.
+ *
+ * Phase 7 (bundle 0.1.3) adds two more, the same kind of completeness check:
+ *
+ *   - starter creatures (validateStarterCreatures): config/bundle.ts loads
+ *     starter.json's `creatures` into `Bundle.starterCreatures`, and
+ *     routes/account.ts (Task 5) inserts the pair into the account-creation
+ *     transaction, at the same `credit()` call site validateStarterGrants's
+ *     blast radius describes. This check validates the content at PUBLISH
+ *     time, ahead of that insert, for the same reason validateStarterGrants
+ *     does: a species roster/creatures.ts's creatureHp does not know would
+ *     otherwise 500 every sign-up - and unlike a bad currency, which at
+ *     least lands the account with a broken wallet, that is the one request
+ *     a new player cannot retry their way past - and a trait this bundle
+ *     does not author would be undefined input to the same dominance roll
+ *     validateTraitDominance exists for.
+ *   - tab thresholds (validateProgression): client_architecture 9's reveal
+ *     bar is a pure function of progress and these thresholds. A tab missing
+ *     from progression.json is a tab the client can never reveal.
  */
 export async function validateBundle(dir: string): Promise<string[]> {
   const violations: string[] = []
@@ -71,6 +94,8 @@ export async function validateBundle(dir: string): Promise<string[]> {
   violations.push(...(await validateManifest(dir)))
   violations.push(...(await validateTraitDominance(dir)))
   violations.push(...(await validateNodeRates(dir)))
+  violations.push(...(await validateStarterCreatures(dir)))
+  violations.push(...(await validateProgression(dir)))
   return violations
 }
 
@@ -410,4 +435,85 @@ async function validateNodeRates(dir: string): Promise<string[]> {
     }
   }
   return violations
+}
+
+/**
+ * config/bundle.ts loads starter.json's `creatures` into
+ * `Bundle.starterCreatures`, and routes/account.ts (Task 5) inserts the
+ * cold-open pair into the account-creation transaction, at the same blast
+ * radius validateStarterGrants documents for the currency grants in the same
+ * file. This check validates the content at PUBLISH time, ahead of that
+ * insert, which is what keeps that wiring safe:
+ *
+ *   - a species roster/creatures.ts's creatureHp does not know would THROW
+ *     there instead of here - a 500 on every account creation, and (unlike a
+ *     bad currency, which at least lands the account with a broken wallet)
+ *     the one request a new player cannot retry their way past.
+ *   - a trait this bundle does not author would be undefined input to the
+ *     same dominance roll validateTraitDominance exists for (design 5.3):
+ *     the splice would read `bundle.traitById(t).dominant` off a trait that
+ *     is not there.
+ *
+ * REUSES roster/creatures.ts's `creatureHp` AS THE AUTHORITY rather than
+ * restating its species table here. That table already exists and
+ * `creatureHp` already throws for a species it does not name, which is
+ * exactly the failure this check exists to catch - a second, hand-maintained
+ * list would drift from it the same way VALID_CURRENCIES would drift from
+ * the Postgres enum if it were retyped instead of imported. Both modules
+ * live in `services/api/src` already (splice/commit.ts imports `creatureHp`
+ * the same way), so this adds no new layering.
+ */
+async function validateStarterCreatures(dir: string): Promise<string[]> {
+  const raw = await readFile(join(dir, 'starter.json'), 'utf8').catch(() => null)
+  if (raw === null) return []   // validateStarterGrants already reports the missing file
+
+  const creatures = (JSON.parse(raw) as { creatures?: StarterCreature[] }).creatures ?? []
+  const traitsRaw = await readFile(join(dir, 'traits.json'), 'utf8').catch(() => null)
+  const authored = new Set(traitsRaw === null
+    ? []
+    : (JSON.parse(traitsRaw) as { traits: Array<{ id: string }> }).traits.map((t) => t.id))
+  authored.add('None')
+
+  const violations: string[] = []
+  creatures.forEach((c, i) => {
+    try {
+      creatureHp(c.species)
+    } catch {
+      violations.push(`starter.json creature ${i} has species '${c.species}', which has no authored HP.`)
+    }
+    for (const t of [c.trait1, c.trait2]) {
+      if (!authored.has(t)) {
+        violations.push(`starter.json creature ${i} names trait '${t}', which this bundle does not author.`)
+      }
+    }
+    for (const tier of [c.tier1, c.tier2]) {
+      if (!Number.isInteger(tier) || tier < 1 || tier > 3) {
+        violations.push(`starter.json creature ${i} has coverage tier ${tier} outside 1..3.`)
+      }
+    }
+    if (typeof c.isFounder !== 'boolean') {
+      violations.push(`starter.json creature ${i} is missing isFounder.`)
+    }
+  })
+  return violations
+}
+
+/**
+ * client_architecture 9: a tab's reveal bar is a pure function of progress
+ * and these thresholds, read straight off the bundle. A tab missing from
+ * progression.json - or authored with a negative or non-integer threshold -
+ * is a tab the client can never correctly reveal.
+ *
+ * progression.json is OPTIONAL here, the same tolerance validateNodeRates
+ * documents for nodes.json: bundles 0.1.0-0.1.2 predate the file and are
+ * immutable, and this suite's fixtures for those bundles must keep passing.
+ */
+async function validateProgression(dir: string): Promise<string[]> {
+  const raw = await readFile(join(dir, 'progression.json'), 'utf8').catch(() => null)
+  if (raw === null) return []   // 0.1.0-0.1.2 predate it and are immutable
+
+  const tabs = (JSON.parse(raw) as { tabs?: Record<string, unknown> }).tabs ?? {}
+  return TABS
+    .filter((t) => !Number.isInteger(tabs[t]) || (tabs[t] as number) < 0)
+    .map((t) => `progression.json has no non-negative integer threshold for tab '${t}'.`)
 }

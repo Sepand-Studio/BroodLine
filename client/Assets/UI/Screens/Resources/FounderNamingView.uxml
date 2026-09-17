@@ -1,0 +1,9 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="FounderNamingView.uss" />
+    <ui:Label name="prompt" class="founder-naming-view__prompt" />
+    <ui:VisualElement name="founder" class="founder-naming-view__founder" />
+    <ui:TextField name="name" class="founder-naming-view__name" />
+    <ui:Label name="blocker" class="founder-naming-view__blocker" />
+    <ui:Button name="confirm" class="founder-naming-view__confirm" />
+    <ui:Button name="skip" class="founder-naming-view__skip" />
+</ui:UXML>

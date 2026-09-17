@@ -1,0 +1,77 @@
+/* The confirm sheet. Layout is unchanged; only the register moves.
+ */
+.confirm-dialog {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Ink-deep at 45%, not black at 55%. The scrim sits over a paper-white
+ * screen now, and neutral black over warm paper greys the whole frame; the
+ * ink already in the palette keeps the violet cast of the ground. USS has no
+ * color-mix, so the token is written out at alpha rather than composed. */
+.confirm-dialog__scrim {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(46, 42, 61, 0.45);
+}
+
+.confirm-dialog__content {
+    width: 300px;
+    padding: 20px;
+    border-radius: var(--radius-card);
+    background-color: var(--surface);
+}
+
+.confirm-dialog__title {
+    font-size: var(--text-section);
+    -unity-font-style: bold;
+    color: var(--ink);
+    white-space: normal;
+}
+
+.confirm-dialog__body {
+    margin-top: var(--space-2);
+    font-size: var(--text-body);
+    color: var(--mute);
+    white-space: normal;
+}
+
+.confirm-dialog__actions {
+    flex-direction: row;
+    justify-content: flex-end;
+    margin-top: var(--space-4);
+}
+
+/* Cancel: the quiet half of the pair, so the eye is not asked to choose
+ * between two equally loud buttons on a consuming action. */
+.confirm-dialog__button {
+    margin-left: var(--space-2);
+    background-color: var(--violet-tint);
+    color: var(--violet-text);
+    border-bottom-color: #ddd3f0;
+    font-size: var(--text-body);
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+/* No destructive default (splice_confirm_spec section 4): only an
+ * explicitly-primary confirm button is styled this way, and ConfirmDialog
+ * .Named never applies it regardless of what the model says.
+ *
+ * Coral, the token table's danger colour, replacing a hand-mixed rgb(180,70,
+ * 70). The SEMANTICS are the point and they are unchanged: this button is
+ * the one that consumes two creatures, and it should not look like the
+ * cheerful violet CTA that appears everywhere else. */
+.confirm-dialog__button.primary {
+    background-color: var(--coral);
+    border-bottom-color: var(--coral-deep);
+    color: #ffffff;
+}

@@ -25,6 +25,9 @@ export type ErrorCode =
   | 'creature_committed'
   | 'generation_ceiling'
   | 'insufficient_charges'
+  // Phase 7
+  | 'not_a_founder'
+  | 'ftue_stock_unavailable'
 
 export interface ErrorBody {
   code: ErrorCode
@@ -96,6 +99,15 @@ const STATUS: Record<ErrorCode, number> = {
   creature_committed: 409,
   generation_ceiling: 409,
   insufficient_charges: 409,
+  // 409, understood and refused on state: the creature named is real and
+  // live, but only a Founder can be named - 0005's only_founders_named is
+  // the storage half of the same rule.
+  not_a_founder: 409,
+  // 409, the same shape as every other "understood, refused on state you
+  // can change" code above: wave 2 not cleared yet, this player's first
+  // splice already spent, or the marker already set (ftue/stock.ts's three
+  // gates). `why` in the message names which.
+  ftue_stock_unavailable: 409,
 }
 
 export function fail(code: ErrorCode, message: string, details?: unknown): Response {

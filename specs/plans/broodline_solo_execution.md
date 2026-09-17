@@ -134,6 +134,8 @@ The third is a **gameplay requirement, not an ops preference.** `broodline_colle
 | Live state / chat | Degrades to polling |
 | `api` | Nothing about this is graceful. It is the one service with a real SLO and the one that must not be down |
 
+**Wave submission error handling:** When a wave submission receives a rejection, the Splice Charge issuance handling depends on the error. `sim_unavailable` (503) leaves the issuance live and grants no reward; `engine_too_old` (426) leaves the issuance live; every other rejection consumes the issuance.
+
 **What is watched.** Cloud Run request latency and error rate per route, Cloud SQL connection count against the cap, the ledger-versus-wallet invariant job (§5.3), simulation hash-mismatch rate, and the nightly determinism diff. **Alert on the invariant job and the mismatch rate**; graph everything else. A duplication exploit and a determinism drift are the two failures that get worse the longer they run.
 
 **Deploy safety.** With one server there is no canary population, so the substitutes are: deploy behind a health check, keep the previous Cloud Run revision one command away, and never deploy a schema migration and the code that depends on it in the same step. Once a second server exists, canary-by-server is available for free and is the strongest release tool the architecture offers.
@@ -476,7 +478,20 @@ Two deliberate deviations:
 | **4. Backend spine** | Terraform, Cloud Run, Cloud SQL, RLS, ledger, wallets, idempotency, Sign in with Apple, `/v1/sync`, generated client | Cold start fetches a real player from a real server in one call |
 | **5. Validation** | `sim` on Cloud Run, server-issued seeds, submit-and-verify, replays to GCS | A tampered submission earns nothing; an honest one pays exactly once under retry |
 | **6. The loop** | Region, nodes, lazy accrual, claim, server-rolled splice, splice confirmation per `broodline_splice_confirm_spec.md` | Harvest → splice → fight → reward closes without leaving the app |
-| **7. Slice polish** | One species of real art, FTUE beats from `broodline_build_order.md` Phase 2, `minimumClientVersion`, offline retry queue | TestFlight build in someone else's hands |
+| **7. Slice polish** — **ENGINEERING COMPLETE 2026-09-16; FOUR GATES OUTSTANDING, PHASE NOT CLOSED** | Placeholder art rather than real art (a ruling, `broodline_phase7_slice_polish.md` §1); the wave owns its lane and waves 1–2 are authored content; the FTUE beats from `broodline_build_order.md` Phase 2, with the four server-side rulings execution added — a Hollow Founder on the first completion, provided splice stock, a guaranteed first mutation, and the wave-6 Pale; the navigation shell and the first-hour screens in UI Toolkit; `minimumClientVersion` **with the coupling guard**; the offline retry queue | **NOT met.** The done-when is *TestFlight build in someone else's hands*, and **there is no build and no tester.** Seventeen engineering tasks are through their review gates and the first hour is asserted end to end by `services/api/test/ftue.test.ts` with `seeded === 0` — every creature earned through a response. **Four gates remain, all of them a human rather than an engineer:** the device capture that also still blocks Phase 6 (Task 2), the self-hosted macOS runner so the determinism gate runs even once (Task 12), the deployed stack and `smoke-loop.sh` against it (Task 19), and TestFlight itself (Task 20). `implementation/2026-09-15-phase7-followups.md` §1 |
+
+**The two rulings this phase's row rests on, so they are not re-derived.**
+**(1) Placeholder art, not real art.** §8.3 already says the Phase 7 variable is
+art rather than code and that shipping to friends on placeholder art "saves
+roughly two months and proves the spine just as well"; the phase took that
+option explicitly. One species of real art is **not** in the slice and its
+absence is not a shortfall against this row. **(2) New billable infrastructure
+is authorised inside Phase 7** — one `db-f1-micro` Cloud SQL instance and two
+Cloud Run services at `min_instance_count = 0`, all already declared in
+`infra/terraform/main.tf` and none ever applied. That ruling is what makes the
+deployed-stack gate a task rather than a deferral; **the ruling was taken and
+the money was not spent**, so the gate is outstanding rather than waived, and
+the bill is still the owner's to accept.
 
 **The note referred to above.** Phase 0 was written as "two proofs" and closed as one. The entity-count proof is signed off on an **A14 / 4 GB** floor — changed from A13 / 3 GB on 2026-09-14 because no A13 hardware could be obtained to measure on, a revenue decision recorded in `broodline_client_architecture.md` §3 and §12. The rig proof moved to the art track for the reason in §8.1's amendment. **Two obligations survive the move and neither is waived:** the twelve-part / two-socket gate over the twenty-four-asset budget, and the re-run of the entity-count harness against real delivered meshes rather than synthetic ones — both in `broodline_rig_proof.md` §8.3, both gating production species.
 

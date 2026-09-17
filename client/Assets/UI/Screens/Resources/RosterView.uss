@@ -1,0 +1,13 @@
+/* The roster. Cards do their own styling; this is the grid around them. */
+.roster-view { flex-direction: column; padding: var(--gutter); }
+
+.roster-view__notice {
+    color: var(--mute);
+    white-space: normal;
+    font-size: var(--text-body);
+    margin-bottom: var(--space-2);
+}
+
+.roster-view__cards { flex-direction: row; flex-wrap: wrap; justify-content: space-between; }
+
+.roster-view__card { margin-bottom: var(--space-3); }

@@ -156,7 +156,7 @@ Not stated anywhere before now, and it is the largest sink in this document.
 Per bible §2.2 a splice consumes two parents carrying four combat traits between them, and the child keeps two. **Coverage travels with the trait.** The two traits that do not carry take their fused coverage with them and it is gone.
 
 - The **locked** combat trait carries at its parent's full coverage
-- The **rolled** combat trait carries at full coverage if dominant, **one tier lower if recessive**
+- The **rolled** combat trait carries at full coverage if dominant, **one tier lower if recessive** — and never below Tier I. The floor is Tier I, never zero and never null. Implemented and tested in Phase 6.
 - The two traits that do not carry return nothing
 
 A recessive downtier is recoverable by re-fusing, which is why bible §2.2 can call it safe. The two non-carrying traits are not recoverable, which is why retirement exists.

@@ -2,7 +2,8 @@ import { fileURLToPath } from 'node:url'
 import { writeFile } from 'node:fs/promises'
 import { OpenAPIRegistry, OpenApiGeneratorV31 } from '@asteasolutions/zod-to-openapi'
 import {
-  CreateAccountRequest, CreateAccountResponse, DeleteAccountResponse, ErrorResponse,
+  CreateAccountRequest, CreateAccountResponse, CreatureDto, CreatureNameRequest,
+  DeleteAccountResponse, ErrorResponse, FtueStockResponse, LineageResponse,
   NodeClaimRequest, NodeClaimResponse, RefreshRequest, RefreshResponse,
   RegionStateResponse, RosterResponse, SpliceCommitRequest, SpliceCommitResponse,
   SplicePreviewRequest, SplicePreviewResponse, SyncResponse,
@@ -200,6 +201,61 @@ registry.registerPath({
   responses: {
     200: { description: 'The child, and the roll that produced it', content: { 'application/json': { schema: SpliceCommitResponse } } },
     ...errors([400, 401, 404, 409, 422, 500]),
+  },
+})
+
+// Phase 7, Task 6. design §5 beat 4 - naming the Founder, registered here in
+// the task that adds the route, the discipline every route above states.
+registry.registerPath({
+  method: 'post',
+  path: '/v1/creature/name',
+  operationId: 'nameCreature',
+  security: [{ [bearerAuth.name]: [] }],
+  parameters: [{
+    name: 'Idempotency-Key', in: 'header', required: true,
+    schema: { type: 'string' },
+    description: 'Generated when the action is taken, not when it is sent.',
+  }],
+  request: { body: { content: { 'application/json': { schema: CreatureNameRequest } } } },
+  responses: {
+    200: { description: 'The renamed creature - naming is repeatable, bible §3.3', content: { 'application/json': { schema: CreatureDto } } },
+    ...errors([400, 401, 404, 409, 422]),
+  },
+})
+
+// Phase 7, Task 7. design §5 beats 6-7 - the guided splice's provided pair,
+// registered here in the task that adds the route, the discipline every
+// route above states. Body-less: no `request` key, the same shape
+// `DELETE /v1/account` and `GET /v1/roster` above take for a call with
+// nothing for the caller to supply.
+registry.registerPath({
+  method: 'post',
+  path: '/v1/ftue/splice-stock',
+  operationId: 'ftueSpliceStock',
+  security: [{ [bearerAuth.name]: [] }],
+  parameters: [{
+    name: 'Idempotency-Key', in: 'header', required: true,
+    schema: { type: 'string' },
+    description: 'Generated when the action is taken, not when it is sent.',
+  }],
+  responses: {
+    200: { description: 'The tutorial\'s Vetch and Ember, granted once', content: { 'application/json': { schema: FtueStockResponse } } },
+    ...errors([400, 401, 404, 409, 422]),
+  },
+})
+
+// Phase 7, Task 9. design §5 beat 8, `splice_confirm_spec` §5 - the Lineage
+// View, registered here in the task that adds the route, the discipline
+// every route above states. No Idempotency-Key: derived and writes nothing,
+// the same shape `GET /v1/roster` takes.
+registry.registerPath({
+  method: 'get',
+  path: '/v1/lineage',
+  operationId: 'lineage',
+  security: [{ [bearerAuth.name]: [] }],
+  responses: {
+    200: { description: 'The player\'s whole tree, live and consumed', content: { 'application/json': { schema: LineageResponse } } },
+    ...errors([401, 404]),
   },
 })
 

@@ -62,12 +62,17 @@ public static class BenchmarkBuilder
         // Development build: keeps the managed stack traces that make a throw on
         // device diagnosable, and is required for Xcode's Download Container to
         // reach the CSV the sweep writes.
+        //
+        // NO `AllowDebugging` - WaveBuilder.BuildIOS carries the full reason.
+        // In short: it compiles in a Mono soft debugger nothing here attaches
+        // to, and costs the great majority of the generated Xcode project's
+        // clang warnings. Neither benefit above comes from it.
         var opts = new BuildPlayerOptions
         {
             scenes = new[] { ScenePath },
             locationPathName = outDir,
             target = BuildTarget.iOS,
-            options = BuildOptions.Development | BuildOptions.AllowDebugging
+            options = BuildOptions.Development
         };
 
         Debug.Log("[BenchmarkBuilder] building to " + outDir);

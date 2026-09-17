@@ -153,11 +153,97 @@
               },
               "minimumClientVersion": {
                 "type": "string"
+              },
+              "tabs": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "integer"
+                }
+              },
+              "waves": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "reward": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "currency": {
+                          "type": "string"
+                        },
+                        "amount": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "currency",
+                        "amount"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "reward"
+                  ]
+                }
+              },
+              "traits": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "species": {
+                      "type": "string"
+                    },
+                    "counters": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "species",
+                    "counters"
+                  ]
+                }
               }
             },
             "required": [
               "bundleVersion",
-              "minimumClientVersion"
+              "minimumClientVersion",
+              "tabs",
+              "waves",
+              "traits"
+            ]
+          },
+          "ftue": {
+            "type": "object",
+            "properties": {
+              "founderNamed": {
+                "type": "boolean"
+              },
+              "tutorialStockGranted": {
+                "type": "boolean"
+              },
+              "splices": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "founderNamed",
+              "tutorialStockGranted",
+              "splices"
             ]
           }
         },
@@ -166,7 +252,8 @@
           "balances",
           "campaign",
           "timers",
-          "config"
+          "config",
+          "ftue"
         ]
       },
       "DeleteAccountResponse": {
@@ -324,6 +411,71 @@
           "placement"
         ]
       },
+      "CreatureDto": {
+        "type": "object",
+        "properties": {
+          "creatureId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "species": {
+            "type": "string"
+          },
+          "generation": {
+            "type": "integer"
+          },
+          "trait1": {
+            "type": "string"
+          },
+          "tier1": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "trait2": {
+            "type": "string"
+          },
+          "tier2": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "instinct": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isFounder": {
+            "type": "boolean"
+          },
+          "committedTo": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "creatureId",
+          "species",
+          "generation",
+          "trait1",
+          "tier1",
+          "trait2",
+          "tier2",
+          "instinct",
+          "name",
+          "isFounder",
+          "committedTo"
+        ]
+      },
       "WaveSubmitResponse": {
         "type": "object",
         "properties": {
@@ -353,6 +505,12 @@
               "currency",
               "amount"
             ]
+          },
+          "granted": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CreatureDto"
+            }
           }
         },
         "required": [
@@ -466,71 +624,6 @@
           "epoch",
           "nodes",
           "roster"
-        ]
-      },
-      "CreatureDto": {
-        "type": "object",
-        "properties": {
-          "creatureId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "species": {
-            "type": "string"
-          },
-          "generation": {
-            "type": "integer"
-          },
-          "trait1": {
-            "type": "string"
-          },
-          "tier1": {
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "trait2": {
-            "type": "string"
-          },
-          "tier2": {
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "instinct": {
-            "type": "string"
-          },
-          "name": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "isFounder": {
-            "type": "boolean"
-          },
-          "committedTo": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "format": "uuid"
-          }
-        },
-        "required": [
-          "creatureId",
-          "species",
-          "generation",
-          "trait1",
-          "tier1",
-          "trait2",
-          "tier2",
-          "instinct",
-          "name",
-          "isFounder",
-          "committedTo"
         ]
       },
       "RosterResponse": {
@@ -775,6 +868,140 @@
           "parentB",
           "locked",
           "bodyFrom"
+        ]
+      },
+      "CreatureNameRequest": {
+        "type": "object",
+        "properties": {
+          "creatureId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "creatureId",
+          "name"
+        ]
+      },
+      "FtueStockResponse": {
+        "type": "object",
+        "properties": {
+          "creatures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CreatureDto"
+            }
+          }
+        },
+        "required": [
+          "creatures"
+        ]
+      },
+      "LineageNode": {
+        "type": "object",
+        "properties": {
+          "creatureId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "species": {
+            "type": "string"
+          },
+          "generation": {
+            "type": "integer"
+          },
+          "isFounder": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "parentA": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "parentB": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "consumedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pruned": {
+            "type": "boolean"
+          },
+          "mutated": {
+            "type": "boolean"
+          },
+          "trait1": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tier1": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "trait2": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tier2": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "creatureId",
+          "species",
+          "generation",
+          "isFounder",
+          "name",
+          "parentA",
+          "parentB",
+          "consumedAt",
+          "pruned",
+          "mutated",
+          "trait1",
+          "tier1",
+          "trait2",
+          "tier2"
+        ]
+      },
+      "LineageResponse": {
+        "type": "object",
+        "properties": {
+          "nodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LineageNode"
+            }
+          }
+        },
+        "required": [
+          "nodes"
         ]
       }
     },
@@ -1526,6 +1753,223 @@
             }
           },
           "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/creature/name": {
+      "post": {
+        "operationId": "nameCreature",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Generated when the action is taken, not when it is sent."
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatureNameRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The renamed creature - naming is repeatable, bible §3.3",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatureDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/ftue/splice-stock": {
+      "post": {
+        "operationId": "ftueSpliceStock",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Generated when the action is taken, not when it is sent."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The tutorial's Vetch and Ember, granted once",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FtueStockResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/lineage": {
+      "get": {
+        "operationId": "lineage",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The player's whole tree, live and consumed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LineageResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
             "description": "Error",
             "content": {
               "application/json": {

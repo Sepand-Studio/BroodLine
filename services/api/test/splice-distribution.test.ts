@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
-  coverageLost, sampleSplice, spliceDistribution,
+  ABERRANT_SUB_ROLL, coverageLost, sampleSplice, spliceDistribution,
   type Distribution, type SpliceParent, type TraitRef, type TraitTable,
 } from '../src/splice/distribution.ts'
 import { baseStockSpecies } from '../src/roster/creatures.ts'
@@ -209,6 +209,21 @@ describe('spliceDistribution', () => {
     const b = parent('Pale', { trait1: 'Screen' })
     expect(() => spliceDistribution(parent('Vetch'), b, LOCK_A1, BUNDLE))
       .toThrow(/Screen/)
+  })
+
+  it('a guaranteed mutation publishes 1 and sampleSplice honours it for every seed', () => {
+    // Task 7's guaranteed first mutation - design §5.1 extended by ONE
+    // PARAMETER to the one distribution, never a branch in commit alone. If
+    // this option changed the DRAW instead of the threshold, some seed in
+    // this range would still land on `mutated: false` at mutation = 1; none
+    // can, because `sampleSplice` compares `uMutation < d.mutation` and
+    // `uMutation` is always in [0, 1).
+    const d = spliceDistribution(VETCH, PALE, LOCK_A1, BUNDLE, { guaranteedMutation: true })
+    expect(d.mutation).toBe(1)
+    for (let s = 0n; s < 500n; s++) expect(sampleSplice(d, s).mutated).toBe(true)
+    // The Aberrant sub-roll is untouched: OF mutations, 5% - sample_economy
+    // §9. A guaranteed mutation does not make it a guaranteed Aberrant.
+    expect(d.aberrant).toBe(ABERRANT_SUB_ROLL)
   })
 
   it('refuses a pool with nothing left to roll', () => {

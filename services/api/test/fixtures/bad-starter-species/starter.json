@@ -1,0 +1,10 @@
+{
+  "grants": [
+    { "currency": "splice_charges", "amount": 3 },
+    { "currency": "shards", "amount": 250 }
+  ],
+  "creatures": [
+    { "species": "Gryphon", "trait1": "Taunt",  "tier1": 1, "trait2": "Carapace", "tier2": 1, "instinct": "Vanguard", "isFounder": false },
+    { "species": "Ember", "trait1": "Splash", "tier1": 1, "trait2": "Carapace", "tier2": 1, "instinct": "Vanguard", "isFounder": false }
+  ]
+}

@@ -1,0 +1,25 @@
+/* Placement, before a wave. */
+.deploy-view { flex-direction: column; padding: var(--gutter); }
+
+.deploy-view__slots { flex-direction: row; flex-wrap: wrap; justify-content: space-between; }
+
+.deploy-view__slot {
+    background-color: var(--surface-sunk);
+    border-radius: var(--radius-row);
+    border-width: 1px;
+    border-color: var(--hairline);
+    padding: var(--space-2);
+    margin-bottom: var(--space-2);
+}
+
+.deploy-view__blocker {
+    color: var(--coral-text);
+    background-color: var(--coral-tint);
+    border-radius: var(--radius-row);
+    padding: var(--space-2);
+    white-space: normal;
+    margin-top: var(--space-2);
+    font-size: var(--text-body);
+}
+
+.deploy-view__start { margin-top: var(--space-4); }

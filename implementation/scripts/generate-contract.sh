@@ -171,7 +171,33 @@ BUILD_LOCK_STALE_SECONDS=300            # critical section is ~1-2s; minutes is 
 # legitimate build so it can never steal from one. Mirrors
 # wave-helpers.ts's LOCK_ABSOLUTE_CEILING_MS.
 BUILD_LOCK_ABSOLUTE_CEILING_SECONDS=1800  # 30 minutes
-BUILD_LOCK_TIMEOUT_TENTHS=600            # 60s, in 0.1s polling ticks
+# 180s, in 0.1s polling ticks. RAISED FROM 60s IN TASK 22 together with
+# wave-helpers.ts's LOCK_ACQUIRE_TIMEOUT_MS, which carries the full reasoning.
+# In short: eight files in services/api/test/ now build the sim service through
+# this one lock, each taking it ONCE around the build alone, so a waiter's
+# worst case is (N-1) x build. At N=8 and 12s that is 84s, which overran the
+# old 60s exactly as observed. 180s holds to roughly N=15.
+#
+# A BOUND ON FAILING LOUDLY, not a measurement - and NOT, as an earlier draft
+# of this comment said, safe because it sits "well under
+# BUILD_LOCK_STALE_SECONDS". That inverts the mechanism: a dead owner is
+# reclaimed immediately on ESRCH regardless of this value, and the staleness
+# window governs only the liveness-unconfirmable case, which a 180s waiter now
+# gives up BEFORE reaching. It is safe because a real build queue cannot
+# plausibly reach it.
+#
+# MUST MOVE WITH wave-helpers.ts's LOCK_ACQUIRE_TIMEOUT_MS - and since Task
+# 22's fix round that is ENFORCED rather than requested:
+# services/api/test/dotnet-build-lock.test.ts parses the three BUILD_LOCK_*
+# values out of THIS FILE and asserts they equal the TypeScript side's. So
+# editing one of them alone reddens the api suite, and RENAMING one reddens it
+# through that parser's own throw rather than passing on a default.
+#
+# Keep the `NAME=<digits>` shape, at the start of a line. That is what the
+# parser matches; a value moved into a case statement or an arithmetic
+# expression would fail it loudly, which is the intended behaviour and not a
+# reason to weaken the parser.
+BUILD_LOCK_TIMEOUT_TENTHS=1800           # 180s, in 0.1s polling ticks
 
 # Reads the owner file, or prints nothing if it is missing or unreadable.
 #

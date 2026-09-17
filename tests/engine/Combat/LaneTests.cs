@@ -80,6 +80,17 @@ namespace Broodline.Sim.Tests.Combat
         }
 
         [Fact]
+        public void DefileSix_HasSixPocketsBesideTiles6To20()
+        {
+            var lane = Lane.DefileSix();
+            Assert.Equal(24, lane.Tiles);
+            Assert.Equal(6, lane.PocketCount);
+            Assert.Equal(Terrain.Defile, lane.Family);
+            for (int p = 0; p < lane.PocketCount; p++) Assert.InRange(lane.PocketTiles[p], 6, 20);
+            for (int p = 1; p < lane.PocketCount; p++) Assert.True(lane.PocketTiles[p] > lane.PocketTiles[p - 1]);
+        }
+
+        [Fact]
         public void SpeedPerTick_IsExactAcrossThirtyTicks()
         {
             // A Courser at 1.6 tiles/sec advances 1.6 tiles in 30 ticks.

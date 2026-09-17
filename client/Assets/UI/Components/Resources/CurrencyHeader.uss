@@ -1,0 +1,33 @@
+/* The three currency chips the handoff puts at the top of every hub screen.
+ * Numbers a decision depends on, so --text-secondary is the floor here
+ * (bible 10.6's 11px rule), never --text-micro.
+ */
+.currency-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+}
+
+.currency-header__items {
+    flex-direction: row;
+    align-items: center;
+}
+
+.currency-header__item {
+    flex-direction: row;
+    align-items: center;
+    background-color: var(--surface);
+    border-radius: var(--radius-pill);
+    border-width: 1px;
+    border-color: var(--divider);
+    padding-top: 5px;
+    padding-bottom: 5px;
+    padding-left: 11px;
+    padding-right: 11px;
+    margin-right: var(--space-2);
+    font-size: var(--text-secondary);
+    -unity-font-style: bold;
+    color: var(--ink);
+}

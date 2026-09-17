@@ -11,6 +11,8 @@ import { hashRequest } from '../http/hash.ts'
 import type { SessionClaims } from '../identity/jwt.ts'
 import { IdempotencyMismatchError, withIdempotency } from '../money/idempotency.ts'
 import { credit } from '../money/ledger.ts'
+import { grantWave6Pale } from '../ftue/pale.ts'
+import { lockRoster, type CreatureDto } from '../roster/creatures.ts'
 import { grantWaveBaseStock } from '../wave/base-stock.ts'
 import { rewardForWave } from '../wave/rewards.ts'
 import {
@@ -322,8 +324,14 @@ async function consumeAndRefuse(deps: Deps, session: SessionClaims, issuanceId: 
 
 type SubmitOutcome =
   | { refused: SubmitRefusal }
-  | { paid: null; result: string; integrityRemaining: number; breaches: SimulateBreach[] }
-  | { paid: { currency: string; amount: number }; result: string; integrityRemaining: number; breaches: SimulateBreach[] }
+  | {
+    paid: null; result: string; integrityRemaining: number; breaches: SimulateBreach[]
+    granted: CreatureDto[]
+  }
+  | {
+    paid: { currency: string; amount: number }; result: string; integrityRemaining: number
+    breaches: SimulateBreach[]; granted: CreatureDto[]
+  }
 
 export function registerWaveRoutes(app: Hono, deps: Deps): void {
   app.post('/v1/wave/start', async (c) => {
@@ -355,6 +363,37 @@ export function registerWaveRoutes(app: Hono, deps: Deps): void {
       const [player] = await tx.select().from(players)
         .where(eq(players.accountId, session.accountId))
       if (player === undefined) return null
+
+      // THE PLAYER-LEVEL LOCK, BEFORE `issueWave` - fix round 1's finding,
+      // reproduced as a real Postgres `40P01` rather than reasoned about
+      // (see sweep.test.ts's "wave/start's two-statement creature lock"
+      // tests and task-11-report.md).
+      //
+      // Task 11 gave `issueWave` a SECOND creature-row-locking statement:
+      // `settleExpiredForPlayer` (sorted) now runs before check 1, and
+      // `resolveDeployment` -> `loadOwnedCreatures` (sorted) still runs
+      // near the end. Each statement is internally sorted, but the
+      // TRANSACTION's combined lock order across the two is not - the
+      // first set is fixed by whatever was already committed to a stale
+      // issuance, the second by the request, and nothing relates the two.
+      // A `splice/commit.ts` transaction naming one creature from each set
+      // locks them in the OPPOSITE relative order (its own single sorted
+      // statement), and the two can deadlock purely on row locks - no
+      // advisory lock on either side, which is what makes this a genuinely
+      // different case from the splice/commit-vs-wave/submit deadlock a
+      // task ago.
+      //
+      // THE RULE THIS GENERALISES, now paid for twice on this branch: a
+      // transaction that locks a player's creature rows in MORE THAN ONE
+      // STATEMENT must take `lockRoster` first, exactly as `wave/submit`
+      // (routes/wave.ts, below), `splice/commit.ts`'s `commitSplice`,
+      // `map/claim.ts`'s `claimNode` and `wave/base-stock.ts`'s
+      // `grantWaveBaseStock` already do. A transaction that locks them in
+      // exactly ONE sorted statement (routes/creature.ts's single-row
+      // lock, `consumeAndRefuse`'s single `releaseCreatures` call above)
+      // needs no advisory lock at all - there is only one statement to
+      // order against itself, and it already is.
+      await lockRoster(tx, session.serverId, player.playerId)
 
       return issueWave(
         tx, session.serverId, player.playerId, body.waveId, body.deployment, bundle)
@@ -577,6 +616,35 @@ export function registerWaveRoutes(app: Hono, deps: Deps): void {
           const playerId = await loadPlayerId(tx, session.accountId)
           if (playerId === undefined) return { refused: 'issuance_invalid' }
 
+          // THE PLAYER-LEVEL LOCK, FIRST IN THIS TRANSACTION - fix round 2's
+          // finding, and the reason round 1's own fix (splice/commit.ts
+          // taking this SAME advisory lock before its row locks) introduced
+          // a Critical deadlock rather than closing one. `settle()` below
+          // (every branch - `submission_rejected`, `deployment_mismatch` and
+          // the win path) calls `releaseCreatures`, which takes ROW locks
+          // (`SELECT ... FOR UPDATE`) on every creature this issuance
+          // committed - and only much later, on a verified Win,
+          // `grantWaveBaseStock` takes this advisory lock. Row locks then
+          // advisory is the OPPOSITE order `commitSplice` now takes them in,
+          // so a player who deploys a creature to a wave and then splices it
+          // as a parent while racing their own `wave/submit` could put one
+          // transaction holding the row lock and wanting the advisory lock
+          // while the other holds the advisory lock and wants the row lock -
+          // Postgres aborts one with `40P01`.
+          //
+          // Taking it HERE, before `loadLiveIssuance` and before EVERY
+          // `settle()` call site in this callback (not only the win branch -
+          // `releaseCreatures` runs on all three), makes the invariant true
+          // for the WHOLE transaction rather than function-by-function:
+          // wave-submit now takes the same order `commitSplice`,
+          // `grantWaveBaseStock` and `claimNode` already agree on - the
+          // advisory lock, then any row lock. `grantWaveBaseStock`'s own
+          // `lockRoster` call further down is now a redundant re-acquisition
+          // of a lock this transaction already holds (`pg_advisory_xact_lock`
+          // is re-entrant within one transaction) - see that function's own
+          // doc for why it stays rather than being trimmed.
+          await lockRoster(tx, session.serverId, playerId)
+
           // 2, AUTHORITATIVE. The pre-sim read above is advisory and racy
           // by construction; this one runs inside the money transaction and
           // is the check the credit actually rests on. Keep both: deleting
@@ -639,7 +707,22 @@ export function registerWaveRoutes(app: Hono, deps: Deps): void {
           const integrityRemaining = toInt(verdict.outcome.integrityRemaining)
           const breaches = verdict.outcome.breaches
 
-          if (result !== 'Win') return { paid: null, result, integrityRemaining, breaches }
+          if (result !== 'Win') {
+            // waves_01_12 wave 6: a designed loss (a lone, unanswerable
+            // Courser) whose OWN Wave Defeat screen hands over a Pale
+            // carrying Chill as a Warden resupply - the only path to Chill
+            // a player who lost wave 6 has, now that base stock withholds
+            // Pale until this fires (roster/creatures.ts's `baseStockPool`).
+            // Once per player, gated on `grantWave6Pale`'s own marker, not
+            // on `waveId === 6` alone - a second loss on wave 6 grants
+            // nothing further.
+            const granted: CreatureDto[] = []
+            if (issuance.waveId === 6) {
+              const pale = await grantWave6Pale(tx, session.serverId, playerId)
+              if (pale !== null) granted.push(pale)
+            }
+            return { paid: null, result, integrityRemaining, breaches, granted }
+          }
 
           // The reward comes from the ISSUANCE's wave id - design §2.2 -
           // never from verdict.echo, which is the client's bytes echoed
@@ -677,17 +760,26 @@ export function registerWaveRoutes(app: Hono, deps: Deps): void {
           //
           // ON THE WIN BRANCH ONLY. `base_stock` §3 sources this from wave
           // COMPLETION; a Loss returns above, before the reward lookup, and
-          // grants nothing. Skipped rather than refused at the Hatchery cap
-          // - see grantWaveBaseStock, which is also where the "no multiplier
+          // grants nothing here (wave 6's Loss branch grants its OWN Pale,
+          // above). Skipped rather than refused at the Hatchery cap - see
+          // grantWaveBaseStock, which is also where the "no multiplier
           // argument" guardrail lives.
-          //
-          // ITS RESULT IS NOT IN THE RESPONSE, deliberately. design §6.2
-          // makes `SimulateEcho`'s deployment this phase's ONLY contract
-          // change; a new field on this 200 would be a second one, and the
-          // client learns its roster from the roster.
-          await grantWaveBaseStock(tx, session.serverId, playerId, issuance.issuanceId)
+          const granted = await grantWaveBaseStock(tx, session.serverId, playerId, issuance.issuanceId)
 
-          return { paid: { currency: reward.currency, amount: reward.amount }, result, integrityRemaining, breaches }
+          // THE WAVE-6 PALE, AGAIN - waves_01_12's "if they somehow win, the
+          // Pale grant fires anyway", so the beat degrades rather than
+          // breaks on a survived Courser. AFTER `grantWaveBaseStock`, not
+          // before: that call reads `baseStockPool(markers)` off
+          // `wave6PaleGrantedAt`, and this grant is what flips that marker -
+          // running it first would un-withhold Pale from THIS SAME roll,
+          // handing a player who merely won wave 6 two chances at Chill
+          // instead of one guaranteed one.
+          if (issuance.waveId === 6) {
+            const pale = await grantWave6Pale(tx, session.serverId, playerId)
+            if (pale !== null) granted.push(pale)
+          }
+
+          return { paid: { currency: reward.currency, amount: reward.amount }, result, integrityRemaining, breaches, granted }
         })
     } catch (err) {
       if (err instanceof IdempotencyMismatchError) {
@@ -747,6 +839,11 @@ export function registerWaveRoutes(app: Hono, deps: Deps): void {
       breaches: outcome.breaches.map(toBreachDto),
       // Absent rather than null on a loss, so a client cannot render a zero.
       ...(outcome.paid === null ? {} : { reward: outcome.paid }),
+      // Absent rather than `[]` when this settlement minted nothing - the
+      // Phase 6 client parses WaveSubmitResponse without this field at all,
+      // and an empty array would be a new, always-present shape to ignore
+      // rather than a genuinely optional one.
+      ...(outcome.granted.length ? { granted: outcome.granted } : {}),
     })
   })
 }

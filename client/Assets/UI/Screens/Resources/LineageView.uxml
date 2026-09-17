@@ -1,0 +1,7 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="LineageView.uss" />
+    <ui:Label name="title" class="lineage-view__title" />
+    <ui:Label name="notice" class="lineage-view__notice" />
+    <ui:VisualElement name="generations" class="lineage-view__generations" />
+    <ui:Button name="next" class="lineage-view__next" />
+</ui:UXML>

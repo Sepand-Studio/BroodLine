@@ -1,9 +1,10 @@
-import { and, eq } from 'drizzle-orm'
+import { and, count, eq, sql } from 'drizzle-orm'
 import type { Hono } from 'hono'
 import type { Deps } from '../app.ts'
 import { loadBundle } from '../config/bundle.ts'
 import { withServer } from '../db/client.ts'
-import { campaignProgress, players, wallets } from '../db/schema.ts'
+import { campaignProgress, creatures, players, splices, wallets } from '../db/schema.ts'
+import { markersFrom } from '../ftue/markers.ts'
 import { isBelow, requireSession } from '../http/auth.ts'
 import { fail } from '../http/errors.ts'
 
@@ -45,7 +46,22 @@ export function registerSyncRoutes(app: Hono, deps: Deps): void {
           eq(campaignProgress.serverId, session.serverId),
           eq(campaignProgress.playerId, player.playerId)))
 
-      return { player, walletRows, progress }
+      // Two more indexed reads on the player's own rows - the p99 budget
+      // comment below is what bounds adding a third without measuring. The
+      // FTUE markers are NOT a third: `progress` above already selected the
+      // whole campaign_progress row, and ftue/markers.ts's `markersFrom` is
+      // a pure extractor over it rather than a query - see below.
+      const [founder] = await tx.select({
+        named: sql<boolean>`coalesce(bool_or(${creatures.name} IS NOT NULL), false)`,
+      }).from(creatures).where(and(
+        eq(creatures.serverId, session.serverId),
+        eq(creatures.playerId, player.playerId),
+        eq(creatures.isFounder, true)))
+
+      const [spliceCount] = await tx.select({ n: count() }).from(splices)
+        .where(and(eq(splices.serverId, session.serverId), eq(splices.playerId, player.playerId)))
+
+      return { player, walletRows, progress, founder, spliceCount }
     })
 
     if (snapshot === null) return fail('not_found', 'No player on this server for that account.')
@@ -71,9 +87,28 @@ export function registerSyncRoutes(app: Hono, deps: Deps): void {
       // on a raid resolving, and Phase 4 has no nodes. The shape is here so
       // Phase 6 fills it rather than adding it.
       timers: [],
+      // bundleVersion and minimumClientVersion shipped from Phase 4; tabs,
+      // waves and traits join them here (Task 5, design §4/§5 beat 1) so the
+      // navigation shell derives its tab bar, campaign list and trait Codex
+      // from this one cold-start call rather than a second round trip.
       config: {
         bundleVersion: bundle.version,
         minimumClientVersion: bundle.minimumClientVersion,
+        tabs: bundle.progression.tabs,
+        waves: bundle.waves.map((w) => ({ id: w.id, reward: w.reward ?? null })),
+        traits: bundle.traits.map((t) => ({ id: t.id, species: t.species, counters: t.counters })),
+      },
+      // What the client derives the current tutorial beat from - nothing
+      // about FTUE progress is stored on the client. `tutorialStockGranted`
+      // is the only marker read today; the other two land with the grant
+      // paths that set them (Tasks 6-8). `markersFrom`, not `readMarkers`:
+      // `snapshot.progress` above is already the whole campaign_progress row,
+      // so extracting the markers from it is a pure function call, not a
+      // second query against a row this handler already holds.
+      ftue: {
+        founderNamed: snapshot.founder?.named ?? false,
+        tutorialStockGranted: markersFrom(snapshot.progress).tutorialStockGrantedAt !== null,
+        splices: Number(snapshot.spliceCount?.n ?? 0),
       },
     })
   })

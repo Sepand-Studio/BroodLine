@@ -60,6 +60,7 @@ namespace Broodline.UI.Tests
                 "submission_rejected", "engine_too_old", "sim_unavailable",
                 "deployment_mismatch", "roster_full", "creature_not_owned",
                 "creature_committed", "generation_ceiling", "insufficient_charges",
+                "not_a_founder", "ftue_stock_unavailable",
             };
 
             foreach (var code in codes)

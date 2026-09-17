@@ -1,0 +1,35 @@
+/* A win. Green is the token table's success and this is the only screen that
+ * should feel like one. */
+.post-wave-view { flex-direction: column; padding: var(--gutter); align-items: center; }
+
+.post-wave-view__headline {
+    font-size: var(--text-hero);
+    color: var(--green-text);
+    -unity-font-style: bold;
+    white-space: normal;
+    margin-bottom: var(--space-3);
+}
+
+.post-wave-view__reward {
+    font-size: var(--text-body);
+    color: var(--mute);
+    white-space: normal;
+    margin-bottom: var(--space-2);
+}
+
+.post-wave-view__granted {
+    background-color: var(--green-tint);
+    border-radius: var(--radius-row);
+    padding: var(--space-3);
+    width: 100%;
+    margin-bottom: var(--space-2);
+}
+
+.post-wave-view__grant {
+    font-size: var(--text-body);
+    color: var(--green-text);
+    -unity-font-style: bold;
+    white-space: normal;
+}
+
+.post-wave-view__next { margin-top: var(--space-4); width: 100%; }

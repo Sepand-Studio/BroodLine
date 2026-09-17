@@ -33,9 +33,40 @@ import {
 // definition for the three TS callers, for the same reason the rest of this
 // file is one definition; generate-contract.sh cannot import it and keeps
 // its own bash implementation, hand-kept in sync (see that script's
-// comment, which names this file back) - a path or timeout edit applied to
-// only one side yields two locks, no exclusion, and a flake indistinguishable
-// from the one this exists to close.
+// comment, which names this file back).
+//
+// THE TWO KINDS OF DRIFT ARE NOT THE SAME KIND, and an earlier version of
+// this comment ran them together as "a path or timeout edit applied to only
+// one side yields two locks, no exclusion". That is TRUE OF THE PATH and
+// FALSE OF THE TIMEOUT.
+//
+//   PATH - two sides computing different lock paths really do give two locks
+//   and no exclusion, which is the flake this whole apparatus exists to
+//   close. It is also the one that CANNOT drift by accident: both sides
+//   derive the path by hashing the repo root (see repoRoot() below and the
+//   script's own `pwd`), so the agreement is structural rather than
+//   maintained.
+//
+//   TIMEOUT - two waiters with different give-up times still EXCLUDE
+//   correctly. They just fail at different moments, which makes a contended
+//   suite red in one place and green in another for no reason a reader can
+//   see. That is a legibility failure, not a correctness one, and it is worth
+//   syncing for exactly that reason - but calling it "no exclusion"
+//   overstates it, and this file's neighbours are full of notes about what
+//   overstatement costs.
+//
+// THE TWO CONSTANTS ARE PINNED, by test/dotnet-build-lock.test.ts's "the build
+// lock is defined twice and the two definitions agree". It exports them below
+// as __LOCK_CONSTANTS_FOR_TEST and PARSES the shell side rather than retyping
+// it, so a third copy of the numbers cannot agree with itself and with nothing
+// else; desyncing either value, or renaming the shell variable, reddens it.
+//
+// Until Task 22's fix round they were NOT pinned, and two comments were the
+// whole mechanism - in a package that pins test/preflight.ts's SIM_PORTS with
+// a test for precisely this failure mode. This comment said so, and then went
+// on saying so in the same commit that closed it: fix round 2 caught a claim
+// of "not yet done" contradicted by work done in its own diff, which is the
+// defect class the round it was written in existed to catch.
 
 const LOCK_STALE_MS = 5 * 60 * 1000 // the critical section is ~1-2s; minutes is a generous margin
 // A SEPARATE, much longer ceiling from LOCK_STALE_MS above - deliberately
@@ -49,7 +80,46 @@ const LOCK_STALE_MS = 5 * 60 * 1000 // the critical section is ~1-2s; minutes is
 // section - it is abandoned, and sits for as long as nobody clears it. Set
 // far above any plausible legitimate build so it can never steal from one.
 const LOCK_ABSOLUTE_CEILING_MS = 30 * 60 * 1000
-const LOCK_ACQUIRE_TIMEOUT_MS = 60_000
+// 180s, RAISED FROM 60s IN TASK 22, and the reason is arithmetic rather than
+// taste. This package now has EIGHT files that build
+// services/sim/Broodline.Sim.Service.csproj for their own sim host - the
+// seven registered in test/preflight.ts's SIM_PORTS plus generate-contract.sh
+// - and they are serialised through this one lock. A build measures 2.5-12s
+// here, so eight contenders can legitimately queue past a minute, and they
+// did: the first full-suite run after ftue.test.ts landed had loop.test.ts
+// fail at exactly 60037ms with "timed out waiting for the dotnet build lock",
+// reporting its three tests as SKIPPED - which reads in a summary as a
+// deliberate skip rather than as a suite that never ran. The very next run of
+// the same tree was fully green, which is what makes this a scheduling race
+// rather than a wall.
+//
+// THE ARITHMETIC, since the first draft of this comment guessed where it
+// could have counted. Each sim-hosting file takes this lock ONCE, in its
+// beforeAll, around the build alone - so the worst case a waiter faces is
+// (N-1) x build, not N x anything ongoing. At N=8 and a 12s build that is
+// 84s, which overruns 60s and is an exact account of the 60037ms failure.
+// 180s holds to roughly N=15.
+//
+// This number is a bound on FAILING LOUDLY rather than a measurement, and it
+// must be changed together with generate-contract.sh's
+// BUILD_LOCK_TIMEOUT_TENTHS - see this file's header.
+//
+// IT IS SAFE FOR THE OPPOSITE REASON TO THE ONE FIRST WRITTEN HERE. That
+// draft said it "stays well under LOCK_STALE_MS (300s) so a genuinely
+// abandoned lock is still reclaimed rather than waited out", which inverts
+// the mechanism: a DEAD owner is reclaimed immediately on ESRCH by isStale()'s
+// liveness check, whatever this timeout is. LOCK_STALE_MS governs only the
+// case where liveness cannot be confirmed - and a 180s waiter now gives up
+// BEFORE reaching it, so that reclaim path is further out of reach than it
+// was, not nearer. The number is still safe; the reason is that a real build
+// queue cannot plausibly reach it, not that it dovetails with staleness.
+//
+// A NINTH sim-hosting file does not reintroduce the failure by arithmetic -
+// 180s covers roughly fifteen. Raising it again anyway would be the wrong
+// move for a different reason: the answer past this point is one shared build
+// the files reuse, not a longer queue. That is a scope judgement, not a
+// necessity, and it is worth saying which.
+const LOCK_ACQUIRE_TIMEOUT_MS = 180_000
 const LOCK_POLL_MS = 100
 
 /**
@@ -382,6 +452,26 @@ export const withDotnetBuildLock: DotnetBuildLock['withLock'] =
 // shared production path.
 export const __createDotnetBuildLockForTest = createDotnetBuildLock
 
+/**
+ * The three constants generate-contract.sh defines a second time, exported so
+ * `dotnet-build-lock.test.ts` can assert the two implementations agree instead
+ * of two comments asking that they do.
+ *
+ * This package already pins `test/preflight.ts`'s SIM_PORTS with a test for
+ * exactly this failure mode, and `test/replay-format.ts` parses SimVersion.cs
+ * rather than retyping it, on the stated grounds that "a constant that
+ * duplicates a fact already in the file is a claim with a maintenance cost and
+ * no enforcement". These three were that claim until Task 22's fix round.
+ *
+ * The PATH is deliberately not here: both sides derive it by hashing the repo
+ * root, so it is structurally synced and there is nothing to pin.
+ */
+export const __LOCK_CONSTANTS_FOR_TEST = {
+  staleMs: LOCK_STALE_MS,
+  absoluteCeilingMs: LOCK_ABSOLUTE_CEILING_MS,
+  acquireTimeoutMs: LOCK_ACQUIRE_TIMEOUT_MS,
+} as const
+
 // The replay byte format moved to ./replay-format.ts, so that building a
 // replay no longer drags the Hono app, the Drizzle schema and SimClient in
 // with it - see that file for why. Re-exported here so every existing
@@ -418,9 +508,17 @@ export async function setupPlayer(d: Deps): Promise<{ playerId: string; token: s
   playerId = body.playerId
   serverId = body.serverId
   token = body.accessToken
-  // The new player's roster is empty and the two cached ones belong to the
-  // PREVIOUS player - deploying those would be `creature_not_owned`, which is
-  // a confusing way to discover that a cache was not cleared.
+  // The two cached rosters belong to the PREVIOUS player - deploying those
+  // would be `creature_not_owned`, which is a confusing way to discover that
+  // a cache was not cleared.
+  //
+  // NOT "the new player's roster is empty", which this comment said until Task
+  // 22 and which bundle 0.1.3 made false: its starter.json authors a cold-open
+  // pair, and `POST /v1/account` grants it inside the creation transaction.
+  // `ftue.test.ts` depends on exactly that, and books it as the first two
+  // EARNED creatures of the first hour. Bundles 0.1.0-0.1.2 author no
+  // `creatures` array, so the old sentence was true of every caller that
+  // existed when it was written and of none of the reasons it was written.
   winners = undefined
   losers = undefined
   return { playerId, token }

@@ -17,9 +17,9 @@ It needs, in addition to Node 22+ and pnpm:
 | Requirement | Why | Used by |
 | --- | --- | --- |
 | **Docker** (running) | Real Postgres, via testcontainers | every file that touches the database |
-| **.NET SDK 10.x** (`dotnet` on PATH) | Builds and runs the real sim service | `contract.test.ts`, `wave-submit.test.ts`, `replays.test.ts`, `adversarial.test.ts`, `loop.test.ts` |
+| **.NET SDK 10.x** (`dotnet` on PATH) | Builds and runs the real sim service | `contract.test.ts`, `wave-submit.test.ts`, `replays.test.ts`, `adversarial.test.ts`, `loop.test.ts`, `founder.test.ts` |
 | **Network access to nuget.org** | `dotnet tool restore` fetches NSwag 14.2.0, pinned in `.config/dotnet-tools.json` | `contract.test.ts`, via `implementation/scripts/generate-contract.sh` |
-| **Free TCP ports 5199, 5299, 5399, 5499, 5599** | One sim host per test file, each on its own port so the files can run in parallel | as above, one port each |
+| **Free TCP ports 5199, 5299, 5399, 5499, 5599, 5699** | One sim host per test file, each on its own port so the files can run in parallel | as above, one port each |
 
 `test/preflight.ts` runs before vitest and checks the .NET half of that list,
 failing with a message that names the specific problem and how to fix it. It
@@ -62,6 +62,7 @@ substituting the sim; the preflight only gates the `test` script.
 | 5399 | `test/replays.test.ts` |
 | 5499 | `test/adversarial.test.ts` |
 | 5599 | `test/loop.test.ts` |
+| 5699 | `test/founder.test.ts` |
 
 They are distinct so the files can run under vitest's default file parallelism.
 If one is occupied it is usually an orphaned host from an interrupted run —

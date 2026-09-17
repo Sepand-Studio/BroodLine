@@ -1,0 +1,49 @@
+/* Three tiers, three pips - bible 10.4, "the body says which, the card says
+ * how much".
+ *
+ * COLOUR NEVER CARRIES INFORMATION ALONE (bible 10.4). The pip count is the
+ * information and it works in greyscale; the tint below is reinforcement, so
+ * losing it costs nothing a colourblind player needs.
+ */
+.trait-pip {
+    flex-direction: row;
+    align-items: center;
+    background-color: var(--violet-tint);
+    border-radius: var(--radius-chip);
+    padding-top: 3px;
+    padding-bottom: 3px;
+    padding-left: 7px;
+    padding-right: 7px;
+}
+
+.trait-pip__icon {
+    width: 8px;
+    height: 8px;
+    border-radius: var(--radius-pill);
+    background-color: var(--violet);
+    margin-right: 5px;
+}
+
+.trait-pip__label {
+    font-size: var(--text-micro);
+    -unity-font-style: bold;
+    color: var(--violet-text);
+    letter-spacing: 1px;
+}
+
+/* The trait that answers the raider on screen. Green is the token table's
+ * success, and this is the counter system's teaching surface (bible 10.5) -
+ * it should read as "this is the answer", not as decoration. */
+.trait-pip--counters .trait-pip__icon {
+    background-color: var(--green-deep);
+}
+
+.trait-pip.aberrant {
+    background-color: #ffffff;
+    border-width: 1px;
+    border-color: #efe9fb;
+}
+
+.trait-pip.aberrant .trait-pip__icon {
+    background-color: #d9cdf5;
+}

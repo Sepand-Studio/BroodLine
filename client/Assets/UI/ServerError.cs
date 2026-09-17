@@ -40,6 +40,10 @@ namespace Broodline.UI
         CreatureCommitted,
         GenerationCeiling,
         InsufficientCharges,
+
+        // Phase 7
+        NotAFounder,
+        FtueStockUnavailable,
     }
 
     /// What the screen should OFFER the player next. errors.ts keeps three
@@ -139,6 +143,8 @@ namespace Broodline.UI
                 { "creature_committed", ServerErrorKind.CreatureCommitted },
                 { "generation_ceiling", ServerErrorKind.GenerationCeiling },
                 { "insufficient_charges", ServerErrorKind.InsufficientCharges },
+                { "not_a_founder", ServerErrorKind.NotAFounder },
+                { "ftue_stock_unavailable", ServerErrorKind.FtueStockUnavailable },
             };
 
         /// The next action per code. Each one is the action errors.ts itself
@@ -213,9 +219,21 @@ namespace Broodline.UI
                 // Well-formed requests this client should not have been able to
                 // send. Nothing the player can do, so nothing is offered to
                 // them - but it is a defect worth reporting.
+                //
+                // NotAFounder and FtueStockUnavailable join this group rather
+                // than getting their own remedy: both are beat-gated actions
+                // the client tracks itself from `/v1/sync`'s own facts - only
+                // a Founder's Roster entry should ever offer "Name" (bible
+                // §3.3), and only the FTUE screen between wave 2 and the
+                // player's first splice should ever offer the guided splice's
+                // stock grant (`ftue/stock.ts`'s three gates). Reaching
+                // either refusal means the screen offered an action it
+                // should not have.
                 case ServerErrorKind.InvalidRequest:
                 case ServerErrorKind.IdempotencyKeyReused:
                 case ServerErrorKind.Conflict:
+                case ServerErrorKind.NotAFounder:
+                case ServerErrorKind.FtueStockUnavailable:
                     return Remedy.ReportDefect;
 
                 // Including Unrecognised. No guessing.
