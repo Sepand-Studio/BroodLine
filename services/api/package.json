@@ -8,7 +8,8 @@
     "typecheck": "tsc --noEmit",
     "openapi": "node --experimental-strip-types src/openapi.ts",
     "migrate": "node --experimental-strip-types src/migrate-cli.ts",
-    "sweep": "node --experimental-strip-types src/sweep-cli.ts"
+    "sweep": "node --experimental-strip-types src/sweep-cli.ts",
+    "dev:local": "node --experimental-strip-types src/dev.ts"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^7.3.0",
