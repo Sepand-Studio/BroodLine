@@ -101,7 +101,7 @@ namespace Broodline.UI
         public static async Task<RegionStateResponse> LoadAsync(BroodlineApiClient api)
         {
             if (api == null) throw new ArgumentNullException("api");
-            return await api.RegionStateAsync().ConfigureAwait(false);
+            return await api.RegionStateAsync();
         }
 
         public static RegionScreenModel Build(RegionStateResponse state)
@@ -221,8 +221,7 @@ namespace Broodline.UI
                 throw new ArgumentOutOfRangeException("slot", "A node slot is not negative.");
             }
 
-            return await api.ClaimNodeAsync(idempotencyKey, new NodeClaimRequest { Slot = slot })
-                .ConfigureAwait(false);
+            return await api.ClaimNodeAsync(idempotencyKey, new NodeClaimRequest { Slot = slot });
         }
     }
 }

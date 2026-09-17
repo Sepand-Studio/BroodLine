@@ -162,7 +162,7 @@ namespace Broodline.UI
 
             // Throws for an illegal deployment before any request is built.
             var body = deployment.ToRequest();
-            return await api.StartWaveAsync(body).ConfigureAwait(false);
+            return await api.StartWaveAsync(body);
         }
 
         /// Submit the replay for the issuance this screen started.
@@ -191,7 +191,7 @@ namespace Broodline.UI
             {
                 IssuanceId = issuanceId,
                 Replay = replay,
-            }).ConfigureAwait(false);
+            });
         }
     }
 }

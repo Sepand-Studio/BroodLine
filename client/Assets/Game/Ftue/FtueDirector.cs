@@ -100,6 +100,28 @@ namespace Broodline.Game
     /// grant, the commit - nothing after them is meaningful without them) or
     /// it continues having said so (naming, which bible 3.3 already makes
     /// optional).
+    ///
+    /// NO `ConfigureAwait(false)` ANYWHERE IN THIS FILE, AND THAT IS LOAD-BEARING.
+    /// In .NET library code it is good manners; in Unity UI code it is the bug.
+    /// `UnitySynchronizationContext` is the only thing that puts a continuation
+    /// back on the main thread, and `ConfigureAwait(false)` is the explicit
+    /// instruction not to use it - so the await resumes on a threadpool thread
+    /// and the next screen this director builds throws
+    /// `VisualElementCreation can only be called from the main thread`.
+    ///
+    /// ONE IS ENOUGH TO POISON THE WHOLE WALK. A pool thread carries no
+    /// synchronization context, so once the first await has moved off the main
+    /// thread, every later await captures `null` and stays off it however it is
+    /// written. `RunAsync`'s first await was the one that did it.
+    ///
+    /// AND IT IS INVISIBLE TO EVERY TEST WE HAVE. The flag only diverts a task
+    /// that has NOT already completed synchronously. Tests drive this director
+    /// against stubs that complete inline, the continuation never leaves the
+    /// calling thread, and the suite is green over a first hour that cannot run
+    /// at all against a real `api`. It took Task 17 Step 6 - a human, a live
+    /// server and a screen - to see it. `Net/` may keep the flag: it touches no
+    /// VisualElement, and a method's own `ConfigureAwait` does not follow its
+    /// caller home.
     public sealed class FtueDirector
     {
         /// The hosted wave, as a delegate rather than as `WaveHost` itself.
@@ -159,7 +181,7 @@ namespace Broodline.Game
                     return;
                 }
 
-                if (!await LoadRosterAsync().ConfigureAwait(false)) return;
+                if (!await LoadRosterAsync()) return;
 
                 var beat = Ftue.Derive(snapshot, _roster.Known);
 
@@ -171,19 +193,19 @@ namespace Broodline.Game
                 switch (beat)
                 {
                     case Beat.ColdOpen:
-                        if (!await FightAsync(1).ConfigureAwait(false)) return;
+                        if (!await FightAsync(1)) return;
                         break;
 
                     case Beat.NameFounder:
-                        await NameFounderAsync().ConfigureAwait(false);
+                        await NameFounderAsync();
                         break;
 
                     case Beat.SecondWave:
-                        if (!await FightAsync(2).ConfigureAwait(false)) return;
+                        if (!await FightAsync(2)) return;
                         break;
 
                     case Beat.GuidedSplice:
-                        if (!await SpliceAsync(snapshot).ConfigureAwait(false)) return;
+                        if (!await SpliceAsync(snapshot)) return;
                         break;
 
                     case Beat.Reveal:
@@ -196,16 +218,16 @@ namespace Broodline.Game
                         goto case Beat.Lineage;
 
                     case Beat.Lineage:
-                        await LineageAsync(lineage: null).ConfigureAwait(false);
-                        await CampaignAsync().ConfigureAwait(false);
+                        await LineageAsync(lineage: null);
+                        await CampaignAsync();
                         return;
 
                     case Beat.Done:
-                        await CampaignAsync().ConfigureAwait(false);
+                        await CampaignAsync();
                         return;
                 }
 
-                if (!await ResyncAsync().ConfigureAwait(false)) return;
+                if (!await ResyncAsync()) return;
             }
         }
 
@@ -252,13 +274,12 @@ namespace Broodline.Game
             }
 
             var deployView = new DeployView();
-            await _flow.ShowAsync(deployView, resume => deployView.Bind(deployment, onStart: resume))
-                .ConfigureAwait(false);
+            await _flow.ShowAsync(deployView, resume => deployView.Bind(deployment, onStart: resume));
 
             WaveStartResponse start;
             try
             {
-                start = await DeployScreen.StartAsync(_api, deployment).ConfigureAwait(false);
+                start = await DeployScreen.StartAsync(_api, deployment);
             }
             catch (Exception error)
             {
@@ -288,8 +309,7 @@ namespace Broodline.Game
             try
             {
                 report = await _play(
-                    start.WaveId, SpecsFor(start.Deployment), SeedOf(start.Seed), inputEnabled: true)
-                    .ConfigureAwait(false);
+                    start.WaveId, SpecsFor(start.Deployment), SeedOf(start.Seed), inputEnabled: true);
             }
             catch (Exception error)
             {
@@ -297,8 +317,7 @@ namespace Broodline.Game
                 return false;
             }
 
-            var submitted = await _outbox.SubmitWaveAsync(start.IssuanceId, report.ReplayBytes)
-                .ConfigureAwait(false);
+            var submitted = await _outbox.SubmitWaveAsync(start.IssuanceId, report.ReplayBytes);
             if (submitted.Outcome != OutboxOutcome.Sent)
             {
                 // The SERVER's verdict is the only one that counts
@@ -319,8 +338,7 @@ namespace Broodline.Game
             if (response.Result == PostWaveScreen.WinResult)
             {
                 var postWave = new PostWaveView();
-                await _flow.ShowAsync(postWave, resume => postWave.Bind(response, granted, next: resume))
-                    .ConfigureAwait(false);
+                await _flow.ShowAsync(postWave, resume => postWave.Bind(response, granted, next: resume));
                 return true;
             }
 
@@ -328,8 +346,7 @@ namespace Broodline.Game
             // retry resumes the turn and the walk re-derives to this same
             // beat, because nothing cleared - which is the retry.
             var defeat = new WaveDefeatView();
-            await _flow.ShowAsync(defeat, resume => defeat.Bind(report, granted, retry: resume))
-                .ConfigureAwait(false);
+            await _flow.ShowAsync(defeat, resume => defeat.Bind(report, granted, retry: resume));
             return true;
         }
 
@@ -356,7 +373,7 @@ namespace Broodline.Game
                 founder,
                 FounderNamingScreen.DefaultFor(founder),
                 onName: name => resume(name),
-                onSkip: () => resume(null))).ConfigureAwait(false);
+                onSkip: () => resume(null)));
 
             // SET BEFORE the await's outcome is acted on and regardless of
             // which answer came back: the beat has been offered either way,
@@ -365,7 +382,7 @@ namespace Broodline.Game
 
             if (chosen == null) return;
 
-            var named = await _outbox.NameCreatureAsync(founder.CreatureId, chosen).ConfigureAwait(false);
+            var named = await _outbox.NameCreatureAsync(founder.CreatureId, chosen);
             if (named.Outcome != OutboxOutcome.Sent)
             {
                 // SAID, NOT STOPPED. bible 3.3 makes the name optional and
@@ -388,7 +405,7 @@ namespace Broodline.Game
             FtueStockResponse stock = null;
             if (!facts.TutorialStockGranted)
             {
-                var granted = await _outbox.FtueSpliceStockAsync().ConfigureAwait(false);
+                var granted = await _outbox.FtueSpliceStockAsync();
                 if (granted.Outcome != OutboxOutcome.Sent)
                 {
                     _notice(FtueNotice.For(granted.Outcome, FtueNotice.SpliceStock, granted.Error));
@@ -400,7 +417,7 @@ namespace Broodline.Game
                 // the splice both read this cache - so re-read it rather than
                 // splicing against a roster that predates the creatures being
                 // spliced.
-                if (!await LoadRosterAsync().ConfigureAwait(false)) return false;
+                if (!await LoadRosterAsync()) return false;
             }
 
             var pair = TutorialPair(stock, _roster.Known);
@@ -434,7 +451,7 @@ namespace Broodline.Game
             try
             {
                 preview = await SpliceScreen.PreviewAsync(
-                    _api, parentA.CreatureId, parentB.CreatureId, locked).ConfigureAwait(false);
+                    _api, parentA.CreatureId, parentB.CreatureId, locked);
             }
             catch (Exception error)
             {
@@ -445,8 +462,7 @@ namespace Broodline.Game
             var model = SpliceScreen.Build(parentA, parentB, preview);
 
             var chamber = new SpliceChamberView();
-            await _flow.ShowAsync(chamber, resume => chamber.Bind(model, lockedOut, onSplice: resume))
-                .ConfigureAwait(false);
+            await _flow.ShowAsync(chamber, resume => chamber.Bind(model, lockedOut, onSplice: resume));
 
             // splice_confirm_spec section 4's ordering, and the reason
             // `SpliceChamberView.Bind` carries one callback and no per-dialog
@@ -458,7 +474,7 @@ namespace Broodline.Game
             // run the same code.
             foreach (var dialog in model.Dialogs)
             {
-                var confirmed = await ConfirmAsync(model, dialog).ConfigureAwait(false);
+                var confirmed = await ConfirmAsync(model, dialog);
                 if (!confirmed) return true;    // Cancel is a real answer; the walk re-derives.
             }
 
@@ -469,7 +485,7 @@ namespace Broodline.Game
             // species. THAT IS AN OWED CONTROL, not a design choice - the
             // task report books it.
             var committed = await _outbox.SpliceCommitAsync(
-                parentA.CreatureId, parentB.CreatureId, locked, parentA.Species).ConfigureAwait(false);
+                parentA.CreatureId, parentB.CreatureId, locked, parentA.Species);
             if (committed.Outcome != OutboxOutcome.Sent)
             {
                 _notice(FtueNotice.For(committed.Outcome, FtueNotice.SpliceCommit, committed.Error));
@@ -486,7 +502,7 @@ namespace Broodline.Game
             LineageResponse lineage = null;
             try
             {
-                lineage = await _api.LineageAsync().ConfigureAwait(false);
+                lineage = await _api.LineageAsync();
             }
             catch (Exception error)
             {
@@ -502,15 +518,14 @@ namespace Broodline.Game
 
             var reveal = new SpliceRevealView();
             await _flow.ShowAsync(reveal, resume =>
-                reveal.Bind(committed.Response, parentA, parentB, mutated, next: resume))
-                .ConfigureAwait(false);
+                reveal.Bind(committed.Response, parentA, parentB, mutated, next: resume));
 
             // splice_confirm_spec section 5: "Then show the lineage." Shown
             // from the response already in hand rather than re-fetched, so
             // the tree the player sees is the tree the mutation flag came
             // from.
-            await LineageAsync(lineage).ConfigureAwait(false);
-            await CampaignAsync().ConfigureAwait(false);
+            await LineageAsync(lineage);
+            await CampaignAsync();
             return false;    // the walk is over; session one ended on the tree.
         }
 
@@ -546,7 +561,7 @@ namespace Broodline.Game
             {
                 try
                 {
-                    lineage = await _api.LineageAsync().ConfigureAwait(false);
+                    lineage = await _api.LineageAsync();
                 }
                 catch (Exception error)
                 {
@@ -559,8 +574,7 @@ namespace Broodline.Game
             var highlight = founder == null ? Guid.Empty : founder.CreatureId;
 
             var view = new LineageView();
-            await _flow.ShowAsync(view, resume => view.Bind(lineage, highlight, next: resume))
-                .ConfigureAwait(false);
+            await _flow.ShowAsync(view, resume => view.Bind(lineage, highlight, next: resume));
         }
 
         // ---------------------------------------------------------------
@@ -583,11 +597,11 @@ namespace Broodline.Game
 
                 var view = new CampaignSelectView();
                 var picked = await _flow.ShowAsync<int>(view, resume =>
-                    view.Bind(waves, snapshot.HighestWaveCleared, onPick: resume)).ConfigureAwait(false);
+                    view.Bind(waves, snapshot.HighestWaveCleared, onPick: resume));
 
-                if (!await LoadRosterAsync().ConfigureAwait(false)) return;
-                if (!await FightAsync(picked).ConfigureAwait(false)) return;
-                if (!await ResyncAsync().ConfigureAwait(false)) return;
+                if (!await LoadRosterAsync()) return;
+                if (!await FightAsync(picked)) return;
+                if (!await ResyncAsync()) return;
             }
         }
 
@@ -597,7 +611,7 @@ namespace Broodline.Game
 
         async Task<bool> LoadRosterAsync()
         {
-            var error = await _roster.LoadAsync(_api).ConfigureAwait(false);
+            var error = await _roster.LoadAsync(_api);
             if (error == null) return true;
             _notice(error.PlayerMessage);
             return false;
@@ -607,7 +621,7 @@ namespace Broodline.Game
         {
             try
             {
-                await _resync().ConfigureAwait(false);
+                await _resync();
                 return true;
             }
             catch (Exception error)

@@ -57,7 +57,7 @@ namespace Broodline.Game.Shell
                 _onSnapshot(cached);   // render first - never a spinner over a cached roster
             }
 
-            var tokens = _auth.Load() ?? await CreateGuestAsync().ConfigureAwait(false);
+            var tokens = _auth.Load() ?? await CreateGuestAsync();
             SetBearer(tokens.AccessToken);
 
             // BroodlineClient does its own mapping from SyncResponse - built
@@ -66,13 +66,13 @@ namespace Broodline.Game.Shell
             var client = new BroodlineClient(Api.BaseUrl, _http);
             try
             {
-                Snapshot = await client.ColdStartAsync(tokens.AccessToken, Application.version).ConfigureAwait(false);
+                Snapshot = await client.ColdStartAsync(tokens.AccessToken, Application.version);
             }
             catch (BroodlineApiException e) when (e.StatusCode == 401)
             {
-                tokens = await RefreshAsync(tokens).ConfigureAwait(false);
+                tokens = await RefreshAsync(tokens);
                 SetBearer(tokens.AccessToken);
-                Snapshot = await client.ColdStartAsync(tokens.AccessToken, Application.version).ConfigureAwait(false);
+                Snapshot = await client.ColdStartAsync(tokens.AccessToken, Application.version);
             }
 
             _snapshots.Save(Snapshot);
@@ -88,7 +88,7 @@ namespace Broodline.Game.Shell
             // account this creates is sent with that band rather than one
             // asked for on a screen that does not exist yet.
             var res = await Api.CreateAccountAsync(Guid.NewGuid().ToString(),
-                new CreateAccountRequest { BirthdateBand = "adult", StorefrontRegion = "us-central1" }).ConfigureAwait(false);
+                new CreateAccountRequest { BirthdateBand = "adult", StorefrontRegion = "us-central1" });
             var tokens = new Tokens { AccessToken = res.AccessToken, RefreshToken = res.RefreshToken };
             _auth.Save(tokens);
             return tokens;
@@ -96,7 +96,7 @@ namespace Broodline.Game.Shell
 
         async Task<Tokens> RefreshAsync(Tokens expired)
         {
-            var res = await Api.RefreshSessionAsync(new RefreshRequest { RefreshToken = expired.RefreshToken }).ConfigureAwait(false);
+            var res = await Api.RefreshSessionAsync(new RefreshRequest { RefreshToken = expired.RefreshToken });
             var tokens = new Tokens { AccessToken = res.AccessToken, RefreshToken = res.RefreshToken };
             _auth.Save(tokens);
             return tokens;

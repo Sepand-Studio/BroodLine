@@ -113,7 +113,7 @@ namespace Broodline.UI
                 ParentA = parentA,
                 ParentB = parentB,
                 Locked = locked,
-            }).ConfigureAwait(false);
+            });
         }
 
         /// Build the screen from the two parents and the server's preview.
@@ -340,7 +340,7 @@ namespace Broodline.UI
                 ParentB = parentB,
                 Locked = locked,
                 BodyFrom = bodyFrom,
-            }).ConfigureAwait(false);
+            });
         }
 
         /// /v1/splice/preview and /v1/splice/commit both refuse

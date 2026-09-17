@@ -152,7 +152,7 @@ namespace Broodline.UI
             RosterResponse response;
             try
             {
-                response = await api.RosterAsync().ConfigureAwait(false);
+                response = await api.RosterAsync();
             }
             catch (Exception error)
             {
