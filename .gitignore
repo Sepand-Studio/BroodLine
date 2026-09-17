@@ -140,3 +140,6 @@ config/out/
 # The local dev stack (services/api/src/dev.ts) publishes its bundle and
 # replay objects here. Scratch: delete it and the next start republishes.
 .local-stack/
+
+# Brainstorming companion mockups (superpowers). Scratch, like .superpowers/sdd/.
+.superpowers/
