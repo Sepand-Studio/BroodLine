@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Broodline.Api;
 using Newtonsoft.Json;
@@ -141,6 +142,25 @@ namespace Broodline.Net
         private readonly OutboxStore _store;
         private readonly Func<bool> _isOffline;
 
+        /// SERIALISES EVERY PATH THAT TOUCHES `_box` OR `_store`.
+        ///
+        /// There are two of them and they overlap in ordinary use: a player
+        /// action (`SubmitWaveAsync` and friends, awaited by `FtueDirector`)
+        /// and a background drain (`OutboxPump` on foreground or on
+        /// reachability returning). Nothing in Unity serialises them for us,
+        /// because every await on this path uses `ConfigureAwait(false)` and
+        /// so resumes on a threadpool thread rather than the main one.
+        ///
+        /// Unsynchronised, two drains can take the same head from
+        /// `_box.Next`, and `List<OutboxEntry>`'s `Insert`/`RemoveAt`/
+        /// `FindIndex` run concurrently on the same instance. Worse,
+        /// `OutboxStore.Save` opens `_path + ".tmp"` with `FileMode.Create`
+        /// from both threads and interleaves binary writes into one file
+        /// before `File.Replace` - which `Load`'s `BinaryReader` then fails
+        /// on at next launch, discarding every pending mutation the player
+        /// had queued.
+        private readonly SemaphoreSlim _gate = new SemaphoreSlim(1, 1);
+
         /// Production constructor - wires the real connectivity signal
         /// (`Application.internetReachability`). Delegates to the overload
         /// below rather than duplicating the offline logic.
@@ -226,16 +246,46 @@ namespace Broodline.Net
         /// instead of waiting for the next pump tick.
         public async Task<OutboxFlushResult> FlushAsync()
         {
-            var now = DateTime.UtcNow;
-            var expired = _box.Expire(now);
-            var notices = new List<string>(expired.Count);
-            foreach (var entry in expired) notices.Add(entry.Notice);
-            if (expired.Count > 0) _store.Save(_box);
+            await _gate.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                return await FlushHeldAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                _gate.Release();
+            }
+        }
 
+        /// The drain itself. The caller must already hold `_gate` - this is
+        /// what lets `EnqueueAndAttemptAsync` enqueue and then drain without
+        /// releasing in between, and without deadlocking on its own lock.
+        private async Task<OutboxFlushResult> FlushHeldAsync()
+        {
+            var notices = new List<string>();
             var attempts = new List<OutboxAttemptRecord>();
+
             while (true)
             {
-                var next = _box.Next(DateTime.UtcNow);
+                // ONE CLOCK READ PER ITERATION, AND EXPIRY RE-RUN AGAINST IT.
+                // A flush is not instantaneous: each attempt is a network
+                // round trip, and a 5xx on an entry ahead adds a backoff. An
+                // entry that was inside the 24-hour idempotency window when
+                // the flush started can therefore fall outside it before the
+                // loop reaches it - and expiring only once, before the loop,
+                // would send it anyway. That is the exact replay `Expire`
+                // exists to prevent, because the server's dedupe window has
+                // closed and it may already have applied and forgotten the
+                // mutation.
+                var tick = DateTime.UtcNow;
+                var expired = _box.Expire(tick);
+                if (expired.Count > 0)
+                {
+                    foreach (var entry in expired) notices.Add(entry.Notice);
+                    _store.Save(_box);
+                }
+
+                var next = _box.Next(tick);
                 if (next == null) break;
 
                 var record = await AttemptOnceAsync(next).ConfigureAwait(false);
@@ -259,22 +309,30 @@ namespace Broodline.Net
                 return OutboxResult<T>.Unavailable();
             }
 
-            // The key is generated now, when the action is taken - never
-            // regenerated on a later retry.
-            var entry = OutboxEntry.For(op, body, DateTime.UtcNow);
-            _box.Enqueue(entry);
-            _store.Save(_box);
-
-            if (offline)
+            await _gate.WaitAsync().ConfigureAwait(false);
+            try
             {
-                // queueWhileOffline must be true here (the branch above
-                // returns otherwise). No server to reach - leave it due-now
-                // rather than spend a doomed attempt on it.
-                return OutboxResult<T>.Queued(entry.Key);
-            }
+                // The key is generated now, when the action is taken - never
+                // regenerated on a later retry.
+                var entry = OutboxEntry.For(op, body, DateTime.UtcNow);
+                _box.Enqueue(entry);
+                _store.Save(_box);
 
-            var flush = await FlushAsync().ConfigureAwait(false);
-            return ResultFor<T>(entry.Key, flush.Attempts);
+                if (offline)
+                {
+                    // queueWhileOffline must be true here (the branch above
+                    // returns otherwise). No server to reach - leave it due-now
+                    // rather than spend a doomed attempt on it.
+                    return OutboxResult<T>.Queued(entry.Key);
+                }
+
+                var flush = await FlushHeldAsync().ConfigureAwait(false);
+                return ResultFor<T>(entry.Key, flush.Attempts);
+            }
+            finally
+            {
+                _gate.Release();
+            }
         }
 
         private static OutboxResult<T> ResultFor<T>(string key, IReadOnlyList<OutboxAttemptRecord> attempts)
@@ -311,6 +369,24 @@ namespace Broodline.Net
                 _store.Save(_box);
                 return OutboxAttemptRecord.Rejected(entry.Key, ex);
             }
+            catch (Exception ex) when (IsPermanent(ex))
+            {
+                // NOT TRANSIENT, SO NOT RETRIED. An unknown `Op` or a body
+                // this build cannot deserialize fails the same way on every
+                // attempt, forever. Treated as a 5xx it would back off
+                // 2/4/8/16/32/60s for a full 24 hours, block every entry
+                // behind it the whole time (head-of-line), and then expire
+                // with `Outbox`'s notice telling the player it "could not be
+                // sent within 24 hours" - which is false, and hides the real
+                // cause. Ack it, surface it as refused, and log what actually
+                // happened.
+                Debug.LogError(
+                    "[OutboxClient] dropping entry '" + entry.Key + "' (" + entry.Op +
+                    "): it can never be sent by this build. " + ex);
+                _box.Ack(entry.Key);
+                _store.Save(_box);
+                return OutboxAttemptRecord.Rejected(entry.Key, null);
+            }
             catch
             {
                 // 5xx (BroodlineApiException with StatusCode >= 500) or a
@@ -322,6 +398,18 @@ namespace Broodline.Net
                 return OutboxAttemptRecord.Queued(entry.Key);
             }
         }
+
+        /// A failure that this build will reproduce on every future attempt,
+        /// so retrying it is not patience - it is a 24-hour stall ending in a
+        /// notice that misdescribes what happened.
+        ///
+        /// `InvalidOperationException` is `SendAsync`'s `default:` branch: an
+        /// `Op` this build has no case for, which a persisted queue written
+        /// by a newer client (or a renamed route) can hand back. `JsonException`
+        /// is `Deserialize` on a `Body` that no longer parses. Neither is a
+        /// server verdict and neither becomes one by waiting.
+        private static bool IsPermanent(Exception ex)
+            => ex is InvalidOperationException || ex is JsonException;
 
         private Task<object> SendAsync(OutboxEntry entry)
         {

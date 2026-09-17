@@ -74,15 +74,34 @@ namespace Broodline.Game.Shell
         ///
         /// Empty when the bundle names no answer. `WaveDefeatScreen.Headline`
         /// drops the trait half rather than inventing one.
+        /// EVERY answering trait, not the first one found. `Counters` is a
+        /// plain string on `TraitSummary` and nothing in `/v1/sync`'s schema
+        /// makes it unique, so a bundle may publish two traits that answer
+        /// the same raider. Returning the first meant the defeat screen named
+        /// one and silently dropped the other - and which one it named would
+        /// change with the server's array order between publishes, on the one
+        /// screen (bible 4.11) whose entire job is to name the trait that
+        /// would have answered.
         static string CounterFor(IReadOnlyList<TraitSummary> traits, string raider)
         {
             if (traits == null) return string.Empty;
+
+            string first = null;
+            List<string> all = null;
             for (var i = 0; i < traits.Count; i++)
             {
                 var trait = traits[i];
-                if (trait != null && trait.Counters == raider) return trait.Id;
+                if (trait == null || trait.Counters != raider) continue;
+
+                if (first == null) { first = trait.Id; continue; }
+                if (all == null) all = new List<string> { first };
+                all.Add(trait.Id);
             }
-            return string.Empty;
+
+            if (first == null) return string.Empty;
+            // "Chill or Ward would have answered it." - reads as the headline
+            // at `WaveScreens.WaveDefeatScreen` already builds it.
+            return all == null ? first : string.Join(" or ", all);
         }
     }
 }

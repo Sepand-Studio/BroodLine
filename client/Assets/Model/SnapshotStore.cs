@@ -51,15 +51,48 @@ namespace Broodline.Model
             }
         }
 
+        /// Writes via a temp file and an atomic replace, and never throws -
+        /// the same two properties `Net/OutboxStore.Save` spells out, for the
+        /// same reasons.
+        ///
+        /// `File.WriteAllText` TRUNCATES `_path` before it writes. A kill in
+        /// that window - iOS suspending the app, a crash, a flat battery -
+        /// leaves a half-written file that `Load` can only discard, so the
+        /// cold start that is supposed to "render the cached snapshot
+        /// immediately" shows nothing until `/v1/sync` returns. Replacing
+        /// means there is no instant at which `_path` is not a whole
+        /// snapshot: either the old one or the new one.
+        ///
+        /// And a cache write is never worth taking the caller down for.
+        /// `Load` already swallows its own I/O failures; an unguarded `Save`
+        /// left the two halves of this class disagreeing about whether
+        /// snapshot persistence is allowed to fail. It is: the next sync
+        /// rebuilds it.
         public void Save(PlayerSnapshot snapshot)
         {
             if (snapshot == null) return;
 
-            var directory = Path.GetDirectoryName(_path);
-            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-                Directory.CreateDirectory(directory);
+            try
+            {
+                var directory = Path.GetDirectoryName(_path);
+                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                    Directory.CreateDirectory(directory);
 
-            File.WriteAllText(_path, JsonUtility.ToJson(ToDto(snapshot)));
+                var tempPath = _path + ".tmp";
+                File.WriteAllText(tempPath, JsonUtility.ToJson(ToDto(snapshot)));
+
+                // File.Move's 3-arg overwrite overload is .NET Standard 2.1+
+                // and this project's api compatibility level rejects it, so
+                // File.Replace does the swap where a destination already
+                // exists; the first save has nothing to replace and a plain
+                // Move is already atomic there.
+                if (File.Exists(_path)) File.Replace(tempPath, _path, destinationBackupFileName: null);
+                else File.Move(tempPath, _path);
+            }
+            catch (Exception error)
+            {
+                Debug.LogWarning("[SnapshotStore] could not cache the snapshot: " + error);
+            }
         }
 
         [Serializable]

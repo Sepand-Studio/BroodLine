@@ -61,8 +61,25 @@ namespace Broodline.Game.Shell
         /// unload that ran only on success left the additive 3D battlefield,
         /// and its per-frame budget, sitting over the shell for the rest of
         /// the process, with a log line as the only trace.
+        /// Zero or one. `WaveRunner.Hosted` is a process-wide latch and this
+        /// is what keeps a second host from clearing it out from under the
+        /// first: whichever run finished first would clear the latch while
+        /// the other's scene was still resident, and `StandaloneCapture` is
+        /// `standaloneCapture && !Hosted` read live every frame - so the
+        /// survivor would get exactly the frame the `finally` below exists to
+        /// prevent. Refused rather than counted: two waves cannot share one
+        /// additive scene, so a second concurrent run is a caller bug and
+        /// should say so at the call site rather than corrupt a capture.
+        static int _active;
+
         public async Task<WaveReport> RunAsync(int waveId, CreatureSpec[] deployment, ulong seed, bool inputEnabled)
         {
+            if (Interlocked.CompareExchange(ref _active, 1, 0) != 0)
+                throw new InvalidOperationException(
+                    "[WaveHost] a wave is already hosted. " + SceneName + " is loaded additively and " +
+                    "there is one of it - a second concurrent RunAsync would clear WaveRunner.Hosted " +
+                    "while the first wave is still resident.");
+
             // BEFORE the load, not after. The scene's components run `Awake`
             // as part of the additive integration, so this is the last moment
             // at which "before play" is still true - see `WaveRunner.Hosted`.
@@ -96,6 +113,7 @@ namespace Broodline.Game.Shell
                 // with a wave nobody asked to record.
                 await UnloadAsync();
                 WaveRunner.Hosted = false;
+                Interlocked.Exchange(ref _active, 0);
             }
         }
 

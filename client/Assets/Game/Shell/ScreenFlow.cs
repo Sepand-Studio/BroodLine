@@ -133,7 +133,27 @@ namespace Broodline.Game.Shell
                 // `after` runs BEFORE the result is published, so a
                 // continuation that shows the next screen cannot race a
                 // sheet that is still up.
-                if (!turn.Task.IsCompleted) after?.Invoke();
+                //
+                // GUARDED, because the turn must complete even if it does
+                // not. `after` is `ScreenHost.HideSheet`, which touches a
+                // `VisualElement` that a teardown may already have disposed;
+                // unguarded, a throw there escapes into the `Button.clicked`
+                // handler that Unity logs and moves on from, and
+                // `TrySetResult` below never runs. The director awaiting this
+                // turn then stops forever on a screen whose button visibly
+                // worked - no beat advance, no notice, and no bound of the
+                // kind `WaveHost.Completion` has.
+                if (!turn.Task.IsCompleted)
+                {
+                    try
+                    {
+                        after?.Invoke();
+                    }
+                    catch (Exception error)
+                    {
+                        UnityEngine.Debug.LogException(error);
+                    }
+                }
                 turn.TrySetResult(answer);
             });
             if (screen == null) throw new InvalidOperationException("A screen flow was given nothing to show.");

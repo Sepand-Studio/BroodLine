@@ -24,15 +24,31 @@ namespace Broodline.Game.Shell
     {
         private const float PollIntervalSeconds = 2f;
 
+        /// The notice list is a buffer, not a log. Nothing reads it yet (the
+        /// notice/toast UI is owed), so left unbounded it would grow one
+        /// string per expired entry for the life of a process that is meant
+        /// to stay resident for days - monotonic, unread, and the only record
+        /// that the notices happened at all. Oldest are dropped first: a
+        /// player who has just come back to a stalled queue cares about what
+        /// expired most recently.
+        private const int MaxNotices = 32;
+
         private OutboxClient _client;
         private NetworkReachability _lastReachability;
         private float _pollTimer;
+
+        /// One flush at a time. `OnApplicationFocus` and the reachability
+        /// poll can both fire while a flush is still awaiting the network,
+        /// and `FlushNow` is `async void`, so nothing would otherwise stop
+        /// them stacking up on `OutboxClient`'s lock.
+        private bool _flushing;
 
         private readonly List<string> _notices = new List<string>();
 
         /// Player-facing notices accumulated from expired outbox entries -
         /// the shell's notice list. A future notice/toast UI binds to this;
-        /// until then it is at least not silently dropped.
+        /// until then it is at least not silently dropped. Capped at
+        /// `MaxNotices`, oldest evicted first.
         public IReadOnlyList<string> Notices => _notices;
 
         /// Wires this pump to the outbox it should drive. Called once by
@@ -71,19 +87,30 @@ namespace Broodline.Game.Shell
         // and logged instead of allowed to propagate.
         private async void FlushNow()
         {
-            if (_client == null) return;
+            if (_client == null || _flushing) return;
 
+            _flushing = true;
             try
             {
                 var result = await _client.FlushAsync();
                 if (result?.Notices == null) return;
 
-                foreach (var notice in result.Notices) _notices.Add(notice);
+                foreach (var notice in result.Notices) AddNotice(notice);
             }
             catch (System.Exception ex)
             {
                 Debug.LogException(ex);
             }
+            finally
+            {
+                _flushing = false;
+            }
+        }
+
+        private void AddNotice(string notice)
+        {
+            _notices.Add(notice);
+            if (_notices.Count > MaxNotices) _notices.RemoveRange(0, _notices.Count - MaxNotices);
         }
     }
 }

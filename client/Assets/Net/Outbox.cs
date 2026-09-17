@@ -165,7 +165,16 @@ namespace Broodline.Net
                 var entry = _entries[i];
                 if (entry.CreatedAt.AddHours(24) < now)
                 {
-                    entry.Notice = $"{entry.Op} from {entry.CreatedAt:t} could not be sent within 24 hours and did not happen.";
+                    // LOCAL, AND DATE-BEARING. `CreatedAt` is always a
+                    // `DateTime.UtcNow` value (and `OutboxStore` restores it
+                    // as `Utc`), so a bare `:t` printed a UTC clock time to a
+                    // player reading it in their own zone - nine hours wrong
+                    // in Tokyo, in the one sentence whose whole job is to let
+                    // them recognise which action was lost. `:t` also drops
+                    // the date, and an entry only reaches here after 24 hours,
+                    // so the time it named was always from a previous day
+                    // with nothing saying so.
+                    entry.Notice = $"{entry.Op} from {entry.CreatedAt.ToLocalTime():g} could not be sent within 24 hours and did not happen.";
                     expired.Add(entry);
                     _entries.RemoveAt(i);
                 }

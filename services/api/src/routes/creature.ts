@@ -44,7 +44,14 @@ function parseName(raw: unknown): NameBody | null {
   const creatureId = normalizeUuid(b.creatureId)
   if (creatureId === null || typeof b.name !== 'string') return null
   const name = b.name.trim()
-  if (name.length < 1 || name.length > NAME_MAX) return null
+  // COUNTED IN CODE POINTS, not UTF-16 code units. `name.length` counts the
+  // latter, so every astral-plane character - an emoji, most of them - costs
+  // two against a cap this route's own message calls "characters". Nine emoji
+  // measured 18 and were refused for violating a rule the player had not
+  // broken. The `\p{Cc}\p{Cf}` test below already works in code points, via
+  // the `u` flag; this was the one check in `parseName` that did not.
+  const length = [...name].length
+  if (length < 1 || length > NAME_MAX) return null
   // Printable only. \p{Cc} is control characters (a bare BEL, a newline);
   // \p{Cf} is format characters (a zero-width joiner) - neither renders as
   // anything a player typed on purpose.
