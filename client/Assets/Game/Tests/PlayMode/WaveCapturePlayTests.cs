@@ -302,6 +302,40 @@ public class WaveCapturePlayTests
         Assert.IsFalse(WaveRunner.Hosted, "the hosted latch must be cleared when the run ends");
     }
 
+    /// THE ERROR PATH, which is the one that stranded the player.
+    ///
+    /// `RunAsync`'s unload used to sit on the happy path, so every throw
+    /// between the additive load and the report - a missing runner, an
+    /// unauthored wave id, a `Configure` that rejects its arguments, the
+    /// completion give-up - left `Wave.unity` resident on top of the shell
+    /// permanently. `FtueDirector.FightAsync` catches, shows a notice and
+    /// ends the walk, so nothing downstream ever unloads it either.
+    ///
+    /// Wave id 999 is the cheapest way in: `WaveDef.ForId` throws for it, and
+    /// it throws as an ARGUMENT to `Configure`, which is after the scene has
+    /// loaded and inside the `try`. That is the shape of all four.
+    [UnityTest]
+    public IEnumerator AHostedWaveThatThrows_StillUnloadsTheBattlefield()
+    {
+        var host = new WaveHost(() => Bundle);
+        var run = host.RunAsync(999, WaveRunner.Deployment(), WaveRunner.Seed, inputEnabled: false);
+
+        yield return Until(() => run.IsCompleted, "WaveHost.RunAsync never completed");
+
+        // Read, not merely present: an unload that swallowed the real failure
+        // and reported its own would pass an IsNotNull and tell the player
+        // the wrong thing.
+        Assert.IsNotNull(run.Exception, "an unauthored wave id must surface as a fault");
+        Assert.IsInstanceOf<WaveCompositionException>(
+            run.Exception.InnerException,
+            "the ORIGINAL failure must reach the caller - the finally's unload must not replace it");
+
+        Assert.IsFalse(SceneManager.GetSceneByName(SceneName).isLoaded,
+            "a wave that threw must not leave the 3D battlefield loaded over the shell");
+        Assert.IsFalse(WaveRunner.Hosted,
+            "the hosted latch must be cleared on the error path too");
+    }
+
     /// `config.traits` from `/v1/sync`, as the shell would hand it over. The
     /// answering trait is deliberately not first - see `WaveReportTests`.
     static IReadOnlyList<TraitSummary> Bundle => new[]

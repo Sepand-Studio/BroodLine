@@ -145,11 +145,22 @@ namespace Broodline.Game.Shell
             _tabBar.Render(tabs, active, OnTabSelected);
         }
 
+        /// DELIBERATELY EMPTY, and it is the largest limitation of this build.
+        ///
+        /// PHASE 7 SHIPS FTUE-ONLY NAVIGATION. The tab bar above renders real
+        /// progression data and every tab is tappable; a tap does nothing,
+        /// because nothing routes a tab to a screen. `FtueDirector` is the
+        /// ONLY production file in the client that constructs a screen, so
+        /// `RosterView` and `RegionView` are never built outside tests, and
+        /// after `Beat.Done` the walk ends with no screen taking the shell.
+        ///
+        /// An earlier version of this comment read "no screens exist yet for
+        /// any tab (they arrive in later tasks)". They arrived, in Tasks
+        /// 15-17; the comment did not notice. Wiring the tabs is new feature
+        /// work and is named as inherited in
+        /// `implementation/2026-09-15-phase7-followups.md`, section 13.
         void OnTabSelected(string tab)
         {
-            // No screens exist yet for any tab (they arrive in later tasks).
-            // The shell's job here is only to prove the tab bar is wired to
-            // real progression data, not to render a destination per tab.
         }
 
         static string LoadApiBaseUrl()

@@ -13,11 +13,17 @@ write*
 >
 > **State at the time of writing:** seventeen implementation tasks are through
 > their review gates on `phase_7` — **1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14,
-> 15, 16, 17, 18, 21** — plus this one, **35 commits** from the branch point at
-> `92b7a70` (36 counting the commit that carries this file, which did not exist
-> when the number was written; `git rev-list --count 92b7a70..HEAD` is the
-> authority, and the parenthetical is here because a record whose thesis is
-> that prose counts go stale silently should not leave one ambiguous). **Tasks 2, 12, 19 and 20 have not been started**, and each of them
+> 15, 16, 17, 18, 21** — plus this one, plus a whole-branch review and the fix
+> round that closed it (§14).
+>
+> **There is no commit count in this paragraph, and that is the fix.** It said
+> **35** when this file was first committed, with a parenthetical making it 36,
+> and by the time the next session opened the file `git rev-list --count
+> 92b7a70..HEAD` returned **39** — the record's own thesis happening to it a
+> second time, in the sentence written to prevent it. A parenthetical that
+> explains why a number is stale is still a stale number. The command is the
+> whole answer, it is right at every moment, and the task list above is what
+> actually identifies the work. **Tasks 2, 12, 19 and 20 have not been started**, and each of them
 > is a human at a keyboard with hardware, a runner registration, a billing
 > decision or an App Store Connect account — not an engineering task that was
 > skipped. They are §1.
@@ -418,11 +424,19 @@ it."*
 
 ---
 
-## 5. Two components shipped with no production caller
+## 5. FIVE components shipped with no production caller, and three still have none
 
-Both were **built, reviewed, tested and merged** while nothing in the app
-constructed them, and in both cases **no test could have noticed**, because
-every test constructs the thing itself.
+Each was **built, reviewed, tested and merged** while nothing in the app
+constructed it, and in every case **no test could have noticed**, because every
+test constructs the thing itself.
+
+The heading said "two" until the whole-branch review counted. Two is the number
+that were later wired; five is the number that shipped unwired, and the
+generalisation at the bottom of this section is stronger at five than it was at
+two. **Three of the five are still unwired at merge**, and §5.1 is the reason
+that matters more than any of them individually.
+
+**The two that were caught and wired:**
 
 - **`WaveHost` (Task 16).** The whole hosted-wave mechanism — additive scene
   load, the `Hosted` latch, `RunAsync`, the report builder — had no caller
@@ -433,6 +447,46 @@ every test constructs the thing itself.
   and **nothing had ever constructed one**. Neither the foreground trigger nor
   the reachability trigger had run in a build. Task 17 found it and added
   `gameObject.AddComponent<OutboxPump>()` at `BootController.cs:96`.
+
+**The three that are still unwired, disclosed rather than wired:**
+
+- **`CodexSheet` (Task 15).** Already named in §11. Trait-pip deep links are
+  unbuilt and the implementer declined to invent a beat for it.
+- **`CurrencyHeader` (Task 14).** Referenced only by
+  `client/Assets/UI/Tests/ComponentTests.cs`. `Shell.uxml`'s `#top-bar` slot,
+  which is where it belongs, is created and never populated by anything.
+- **`TimerChip` (Task 14).** Referenced only by `ComponentTests.cs` as well.
+  The whole-branch review recorded it as transitively dead through
+  `CurrencyHeader`, and **that is not quite right, which makes it worse**:
+  `CurrencyHeader` names `TimerChip` in a DOC COMMENT and nowhere in code, and
+  that comment says the chip is composed *beside* the header "by the screen
+  that owns both". No screen owns either. So `TimerChip` is dead outright, and
+  wiring the header would not revive it.
+
+**The choice this fix round made, and why.** `#top-bar` is four characters of
+UXML away from a live `CurrencyHeader`, and `BootController.OnSnapshot` is
+already a per-sync rebind point, so wiring it is mechanically trivial. It was
+**deliberately not done**, for three reasons that compound:
+
+1. **It would make a latent copy defect live.** `CurrencyHeader.cs:45` builds
+   player-facing text as `balance.Key + ": " + value`. The keys come off wallet
+   rows — `sync.ts` writes `balances[w.currency] = w.balance` — and the two that
+   exist are `splice_charges` and `shards`. A wired header renders
+   **`splice_charges: 5`** across the top of every screen: a database column
+   name, shown to a player, which is exactly the rule every `*View.cs` on this
+   branch keeps. Fixing it means authoring display names, and `balances` is
+   `z.record(z.string(), ...)` — an open key set — so any client-side map is a
+   partial map with a raw-key fallback, i.e. the same violation on the next
+   currency the server adds. That is content design, not a wiring task.
+2. **It would not close the finding.** `TimerChip` stays dead either way, per
+   above.
+3. **It is chrome for navigation that does not exist.** §5.1. A persistent top
+   bar over a shell whose tabs do nothing is a surface for a build that has no
+   surface to put it on, and the same reasoning that says do not wire the tabs
+   says do not wire the bar above them.
+
+Inherited as §13 item 16, with the copy problem named there so the next session
+does not discover it after the wiring is done.
 
 **The generalisation worth carrying:** a component's test suite proves the
 component works; it says nothing about whether the app reaches it. The two
@@ -445,6 +499,38 @@ undetected today, per the reviewer: swapping `onName`/`onSkip` at
 `FtueDirector.cs:313-314`, omitting `next:` at `:517` (which compiles and
 yields a permanent hang), and the whole `CampaignSelectView` row-click path.
 **A PlayMode test is owed, and so is the eyes-on walk in §1.**
+
+### 5.1 Phase 7 ships FTUE-ONLY NAVIGATION, and it is the build's largest limitation
+
+Stated plainly here because a reader previously had to assemble it from §5, §11
+and a stale source comment, and it is the one thing about this build most
+likely to surprise someone who installs it.
+
+**`FtueDirector.cs` is the only production file in the client that constructs a
+screen.** `RosterView` and `RegionView` are built nowhere but
+`UI/Tests/ScreenBindingTests.cs`; `CodexSheet` nowhere but
+`UI/Tests/FirstHourScreensTests.cs`. Everything else — `DeployView`,
+`PostWaveView`, `WaveDefeatView`, `SpliceChamberView`, `SpliceRevealView`,
+`LineageView`, `CampaignSelectView`, `FounderNamingView` — is constructed by
+the director and by no other production caller.
+
+So in a build:
+
+- the tab bar renders **real** progression data (`Progression.TabsFor` over the
+  server's `config.tabs`), and every tab is tappable;
+- **tapping one does nothing.** `BootController.OnTabSelected` is an empty
+  method;
+- after `Beat.Done`, the first hour ends and **no screen takes the shell.**
+
+Until this fix round, that empty method's comment read *"No screens exist yet
+for any tab (they arrive in later tasks)."* They arrived, in Tasks 15–17, and
+the comment did not notice — §4's shape in a comment rather than a test. The
+comment now says what is actually true, and says it is deliberate.
+
+**Not wired here, deliberately.** Routing tabs to screens is new feature work:
+it needs a back stack, a per-tab data load, and an answer to what the shell
+shows when the FTUE is over. This phase's mandate was to close a review, not to
+open the second hour. It is §13's new item 15.
 
 ---
 
@@ -509,6 +595,29 @@ agrees with Postgres's `uuid` btree order and with `releaseCreatures`' SQL
 (`routes/creature.ts`) that neither the implementer nor the controller had
 listed, verified safe for a different and stronger reason — it locks exactly
 one row.
+
+**"Exhaustive" was true of the grep and false of the enumeration, and §11 was
+right.** The whole-branch review caught the two sentences contradicting each
+other: this section called the enumeration exhaustive while §11 recorded
+`sweepRetention` as absent from it. The grep did run repo-wide and did see the
+sweep; what it did not do is put it in the list, because the sweep is the one
+caller the invariant as written does not describe. Both clauses are about a
+transaction that locks **one player's** rows: the first is conditional on
+taking `lockRoster` (the sweep takes none, so it is vacuously satisfied), and
+the second is a **per-statement** rule, which `releaseCreatures` satisfies by
+construction. `sweepRetention` runs that statement **once per player, in a
+loop**, and a per-statement rule says nothing about the order of the loop. That
+is a fifth path, and it is the only one where the rule does not reach.
+
+Closed as far as it goes in the fix round: the sweep's driving `SELECT` now
+carries `ORDER BY player_id, issuance_id`, so two concurrent sweeps visit
+players in the same order and cannot invert against each other. It still takes
+no advisory lock, and it is still safe against single-player transactions for
+the `wave_issuances_one_live` reason §11 gives. **The rule's own text is not
+rewritten**, because widening it to cover a multi-player CLI would make the
+statement the routes have to satisfy harder to read for the benefit of one
+hand-run script; the honest form is the rule plus this paragraph naming its one
+exception.
 
 **Still owed:** nothing pins `commitSplice` against `wave/start`'s
 `loadOwnedCreatures`, or against `creature/name`'s row lock. Given that two
@@ -697,9 +806,16 @@ recorded because the alternative is rediscovering them.
 
 **Test coverage and fixtures**
 
-- `founder.test.ts`'s non-founder case asserts status 409 only, not
+- ~~`founder.test.ts`'s non-founder case asserts status 409 only, not
   `code === 'not_a_founder'`. No test covers the missing-`Idempotency-Key` 400
-  branch on `POST /v1/creature/name`.
+  branch on `POST /v1/creature/name`.~~ **Both closed in the fix round** (§14,
+  F-06 and F-07), and promoted out of Minor for one reason: Task 18 made the
+  naming route something the **client drives through the outbox**, so the
+  header gate is now on a retry path rather than a hand-written call. The
+  non-founder case reads the `code`, because six refusals in `errors.ts` share
+  409; the keyless case asserts the 400 **and** that the creature's name did not
+  change, because a gate that refuses after mutating is the same status with
+  none of the protection.
 - The wave-6 Pale's once-per-player gate is exercised only Loss→Loss; there is
   no Win→Win or cross-path repeat.
 - No test asserts that a brand-new player with zero creatures gets
@@ -722,21 +838,37 @@ recorded because the alternative is rediscovering them.
 
 **Comments and documents that are now false or overclaim**
 
-- `WaveHudView.cs:255-258`'s "should never fire" clamp comment is **false on
-  notched devices**: `WaveSceneBuilder`'s ~3.7% framing headroom (~31 of 844
-  units) is smaller than `SafeAreaBinder`'s ~59 top / ~34 bottom insets, so
-  bars **will** clamp in routine play and detach from their body by up to ~55
-  units near the Ark. Invisible in the Editor. The clamp does what it promises;
-  the comment is what is wrong. Root cause if ever worth fixing: the safe-area
-  padding insets the world-tracking `_bars` layer, which overlays a full-bleed
-  camera and does not want to be inset — only the chrome does.
-- `WaveHudView.uss:3-4` overclaims: `SafeAreaBinder` sets only
-  `paddingTop`/`paddingBottom`, never left/right, so `margin-left: 12px` still
-  measures from the display edge. Latent while the project stays
-  portrait-locked.
-- `grantTutorialStock`'s doc comment credits `lockRoster` with the once-only
+- ~~`WaveHudView.cs:255-258`'s "should never fire" clamp comment~~ and
+  ~~`WaveHudView.uss:3-4`'s safe-area claim~~ — **both rewritten in the fix
+  round** (§14, F-04 and F-05). They were the two comments this record itself
+  called false, which made leaving them a second kind of defect: a record that
+  documents a lie and a source file that keeps telling it. The behaviour is
+  unchanged and both remain true of the code:
+  - The clamp **does** fire in routine play on a notched device.
+    `WaveSceneBuilder`'s ~3.7% framing headroom (~31 of 844 units) is smaller
+    than `SafeAreaBinder`'s ~59 top / ~34 bottom insets, so bars near the Ark
+    clamp and detach from their body by up to ~55 units. Invisible in the
+    Editor. The clamp is not the defect; the root cause, if it is ever worth
+    fixing, is that the safe-area padding insets the world-tracking `_bars`
+    layer, which overlays a full-bleed camera and does not want to be inset.
+    **The owed hardware capture session runs on exactly such a device**, which
+    is why this one was worth correcting before that session rather than after.
+  - `SafeAreaBinder` sets `paddingTop`/`paddingBottom` and nothing else, so
+    `margin-top` measures from the safe area and `margin-left: 12px` measures
+    from the display edge. Latent while the project stays portrait-locked.
+- ~~`grantTutorialStock`'s doc comment credits `lockRoster` with the once-only
   protection that `setMarker`'s `UPDATE ... WHERE marker IS NULL` already
-  provides on its own.
+  provides on its own.~~ **STRUCK, NOT FIXED — it was already correct.**
+  Checked at HEAD with `git show HEAD:services/api/src/ftue/stock.ts` rather
+  than inherited: the comment credits `lockRoster` with the **`isFirstSplice`
+  race** (the second gate, where the count is a bare unlocked `count(*)` and
+  the lock genuinely is what closes it), and routes the once-only property to
+  *"`setMarker`'s own return, not ... a caller-side read of the marker"* (the
+  third gate). That is the correct division. Task 7's fix round 1 fixed it and
+  the finding was carried forward stale into three later documents. **Recorded
+  as struck rather than deleted**, because "this was fixed and the note
+  outlived it" is the thing a later reader needs; a silently removed bullet
+  reads as an oversight.
 - `Replay.cs`'s `BuildLane` error message prints `(int)Terrain` where its two
   sibling cross-check messages print the enum name.
 
@@ -758,11 +890,18 @@ recorded because the alternative is rediscovering them.
   reviewer explicitly declined to call it a defect.
 - `sweepRetention` does a single settle/`releaseCreatures` phase per player
   without `lockRoster` and is absent from the lock rule's enumeration. Safe by
-  the `wave_issuances_one_live` argument, but it is a hand-run CLI that can run
-  against live traffic.
+  the `wave_issuances_one_live` argument against single-player transactions,
+  but it is a hand-run CLI that can run against live traffic. **Partly closed
+  in the fix round:** its driving `SELECT` had no `ORDER BY` at all, so two
+  concurrent sweeps could visit players in different plan orders and invert on
+  creature row locks. It now orders by `player_id, issuance_id`. It still takes
+  no advisory lock, which is the part that remains as written, and §7 now says
+  why the rule does not reach it.
 - `CodexSheet` has **no production caller** — trait-pip deep links are unbuilt,
   and the implementer declined to invent a beat for it. There is still no
-  notice surface.
+  notice surface. **It is one of five, not one of one**: §5 now carries the
+  full count, and `CurrencyHeader` and `TimerChip` are the other two that are
+  still unwired at merge.
 - There is no `bodyFrom` picker: the tutorial splice sends parent A's species.
 - Three of `ScreenFlow`'s six entry points are test-only.
 - `Session`, `AuthStore` and `SnapshotStore` do synchronous file I/O on the
@@ -801,9 +940,13 @@ distinct controller errors, one root cause.
 **Construct the interleaving; do not reason about it.** §7. Two reproduced
 deadlocks, two prior conclusions reached by reading code, both wrong.
 
-**A test whose expected value is a type's default is not a test.** §4. Ten
-instances — and a companion rule from Task 18's re-review: asserting a default
-**is** legitimate when something in the same test makes it contrastive.
+**A test whose expected value is a type's default is not a test.** §4.
+**Eleven** instances. This line said *ten* until the whole-branch review caught
+it disagreeing with §4's own heading two pages up — not another instance of
+that shape, but a stale prose count of it, which is §6's lesson and the reason
+the preamble no longer carries one either. Companion rule from Task 18's
+re-review: asserting a default **is** legitimate when something in the same
+test makes it contrastive.
 
 **Task ordering can be a correctness property, not a preference.** The plan
 numbered the FTUE director 17 and the outbox 18, but every mutation the
@@ -987,6 +1130,38 @@ it does not make the queue shorter.
 > again, and the right answer then is probably a shared build rather than a
 > larger timeout.
 
+**And the final fix round hit the same shape on a DIFFERENT project, which the
+lock does not cover.** The first full run at that tree was red: `splice-commit`
+and `sweep` both failed in `beforeAll` with
+
+```
+BundleInvalidError: Bundle failed validation:
+  wave validator could not run: Error: Command failed:
+  dotnet run --project tools/config-validate -- .../config/bundles/0.1.2
+The build failed. Fix the build errors and run again.
+```
+
+reporting **`2 failed | 41 passed (43)`, `423 passed | 32 skipped (455)`** — the
+32 being both suites' tests, none of which ran. The second run of the identical
+tree was **`43 passed (43)`, `455 passed (455)`**.
+
+`publishBundle` → `validateBundle` shells out to `dotnet run --project
+tools/config-validate`, and **three** test files do it concurrently
+(`config.test.ts`, `splice-commit.test.ts`, `sweep.test.ts`). They share
+`tools/config-validate/obj/` for the same MSBuild reason `services/sim` does,
+and nothing serialises them: `withDotnetBuildLock` guards the **sim** build
+only. So this is §12's finding one project over, and it presents worse — not as
+a timeout that names the lock, but as *"The build failed"*, which reads like a
+compile error in the tree rather than two MSBuilds in one directory.
+
+**Not fixed here, deliberately.** The fix is to put `config-validate` behind
+the same lock, or to build it once in a global setup; both are changes to test
+infrastructure that nothing in this fix round's scope touches, and doing it
+blind at the end of a review round is how a green suite becomes an
+intermittently green one. **Recorded with both transcripts** so the next
+session does not spend the hour re-deriving it from *"The build failed"*, and
+inherited as §13 item 17.
+
 ---
 
 ## 13. What the next session inherits
@@ -1019,16 +1194,137 @@ it does not make the queue shorter.
     `wave/start`'s `loadOwnedCreatures`, or vs `creature/name`), and a rewrite
     of `wave.ts:386-397`'s justification. §7.
 12. **`ref readonly SimState`** — six times deferred.
-13. **Nineteen load-bearing-ish citations from tracked files into gitignored
-    scratch.** §12. A durable claim resting on a `task-N-report.md` that one
-    `git clean` removes. Triage with
-    `git grep -nE "task-[0-9]+-(report|brief)\.md" -- . | grep -v superpowers`,
-    and transcribe the ones where the citation IS the evidence rather than
-    context. §1.2 is the worked example.
+13. **Three to five citations where the scratch file IS the evidence — inside
+    a field of nineteen that are mostly provenance.** §12, which names the
+    three known ones: `weakenings.md:202`, `sweep.test.ts:316`,
+    `adversarial.test.ts:607`. The headline said *"nineteen load-bearing-ish
+    citations"* and the body said most of the nineteen are context; a reader
+    sizing this off the headline books a nineteen-item job and defers it again,
+    which is what happened once already. **It is a small job with a wide
+    search.** Run
+    `git grep -nE "task-[0-9]+-(report|brief)\.md" -- . | grep -v superpowers`
+    over all nineteen, keep the ones where the durable file asserts a
+    measurement and delegates the proof, transcribe those, and leave the rest
+    alone. §1.2 is the worked example and §14 is the second.
 14. **Waves 8–10 and the raiders they require**; Brood, Drift, Bulwark and
     Delver. Explicitly out of this phase's scope.
-15. **`Diagnosis.PreWaveCheck` cannot clear wave 7** — it counts all six
+15. **Wire the tab bar to the screens that now exist**, and decide what the
+    shell shows after `Beat.Done`. §5.1. Phase 7 ships FTUE-only navigation:
+    `FtueDirector` is the only production caller of any screen, `RosterView`
+    and `RegionView` are test-only, and `BootController.OnTabSelected` is
+    deliberately empty. This is the limitation a first installer notices first.
+16. **Wire `CurrencyHeader` into `Shell.uxml`'s `#top-bar`, and `TimerChip`
+    beside it — and author currency copy first.** §5. `CurrencyHeader.cs:45`
+    renders `balance.Key + ": " + value`, so wiring it today puts
+    `splice_charges: 5` in front of a player. The key set is open
+    (`balances` is a `z.record(z.string(), ...)` off wallet rows), so the
+    answer is authored display names with a defined fallback, not a lookup
+    table that silently regresses on the next currency. Pairs naturally with
+    item 15 — a top bar belongs to a shell that has somewhere to go.
+17. **Put `tools/config-validate` behind the dotnet build lock** (or build it
+    once in a global setup). §12. Three api test files shell out to
+    `dotnet run --project tools/config-validate` concurrently and share one
+    `obj/`; the collision surfaces as *"The build failed"* in two unrelated
+    suites, reproduced in the final fix round. Second run green.
+18. **`Diagnosis.PreWaveCheck` cannot clear wave 7** — it counts all six
     Skirmishers as simultaneous while Splash III caps at five. Resolved this
     phase by not shipping a caller: the threat board is dropped with it. **The
     two move together or neither moves**, because the board is the surface that
     would make the defect visible to a player.
+
+---
+
+## 14. The whole-branch review's parked-findings triage, transcribed
+
+**Why this is here rather than cited.** The whole-branch review's verdict —
+*merge after fixes*, 0 Critical, 3 Important — rested on a triage of **34
+findings that per-task review had deliberately NOT fixed**, sorted into
+must-fix, fix-soon and accept. That triage existed in one session's context and
+in `.superpowers/sdd/2026-09-15-phase7-slice-polish/parked-findings.md`, under a
+directory whose own `.gitignore` is a single `*` and which holds **zero tracked
+files**. It is precisely what §13 item 13 says must be transcribed rather than
+pointed at: a durable decision — *these twenty-two were looked at and accepted* — whose
+only evidence was one `git clean` from gone. §1.2 was the first worked example
+of that rule; this is the second, and it is the larger one.
+
+**Provenance, stated because this section is about provenance.** The verdicts
+for the seven items in the first two tables are the review's own, relayed
+verbatim in this fix round's dispatch. The **accept** table's reasoning was
+**reconstructed here** from `parked-findings.md`, from the full finding text in
+`progress.md`, and from judgement — it is not a transcript of the reviewer's
+sentences. It is labelled so because a reconstruction presented as a transcript
+is the same defect this section exists to close.
+
+Line numbers below are into that session's `progress.md`, which is scratch.
+They are kept as provenance, not as evidence: every row states its own
+substance, which is the distinction §12 draws.
+
+### 14.1 Must-fix — one, from the parked list
+
+| # | Finding | Verdict |
+|---|---|---|
+| **F-01** | *(Task 16, L606)* `WaveHost.RunAsync` leaves `Wave.unity` resident if `FindRunner` or `Configure` throws, and there is **no timeout** on `await runner.Completed`. Flagged at Task 16, routed into Task 17's dispatch, and **closing it was missed** | **MUST FIX.** The one parked finding with a player-visible failure mode. `FtueDirector.FightAsync` catches, shows a notice and ends the walk, so the additive 3D battlefield — and its per-frame budget — sits over the shell for the rest of the process with a log line as the only trace. **Closed:** the unload moved into the `finally` (ordered so `Hosted` clears *after* it, or the resident scene deploys wave 6 over the player's roster), `Completed` bounded at 120s of wall clock, and a PlayMode test added for the error path |
+
+**The review's other two Importants did not come from this list.** Both were
+found by reading the branch as a whole, which is the thing per-task review
+structurally cannot do: `CurrencyHeader`/`TimerChip` unwired and undisclosed
+(§5), and navigation dead outside the FTUE (§5.1). That is worth recording as a
+property of the process — *the whole-branch review's value was in what no task
+brief had scope to see*, not in re-grading what every task brief already had.
+
+### 14.2 Fix-soon — six, triaged in and closed in this round
+
+| # | Finding | Why it was triaged in |
+|---|---|---|
+| **F-02** | *(Task 11, L335)* `sweepRetention` selects stale issuances across **all players** with **no `ORDER BY`** and calls `settle` → `releaseCreatures` per row — creature row locks across many statements, no advisory lock | Safe against single-player transactions by `wave_issuances_one_live`, but **two concurrent sweeps** can invert on row order, and it is a hand-run CLI with nothing serialising two operators. The fix is one clause. **Closed:** `ORDER BY player_id, issuance_id`; §7 now states the exception rather than calling the enumeration exhaustive |
+| **F-03** | *(Task 7, L151)* `grantTutorialStock`'s doc comment miscredits `lockRoster` with the once-only property that `setMarker` provides alone | **Verify before inheriting.** Checked at HEAD with `git show`: it was fixed by Task 7's own fix round and the note was carried forward stale into three documents. **STRUCK, not fixed** — §11 |
+| **F-04** | *(Task 16, L670)* `WaveHudView.cs:255-258`'s clamp comment still says it "should never fire" | This record establishes that it **does** fire in routine play on notched devices, and the owed hardware capture session runs on exactly such a device. A record that documents a lie beside a file that keeps telling it is worse than either alone. **Closed** |
+| **F-05** | *(Task 16, L678)* `WaveHudView.uss:1-7` says the margins "measure from the safe area's edge, not the display's" | `SafeAreaBinder` sets `paddingTop`/`paddingBottom` only. Same reason as F-04, same round. **Closed** |
+| **F-06** | *(Task 6, L118)* `founder.test.ts` asserts 409 without checking `code === 'not_a_founder'` | Worth more since Task 18 made this a route the **client drives through the outbox**. Six refusals in `errors.ts` share 409, so a status-only assertion survives the route refusing for a different reason. **Closed** |
+| **F-07** | *(Task 6, L120)* nothing covers the missing-`Idempotency-Key` 400 on `POST /v1/creature/name` | Same reason: the header gate is now on a retry path, and a build that stopped sending it would be accepted once per retry instead of once per action. **Closed**, asserting the 400, the `code`, **and** that nothing was mutated |
+
+### 14.3 Accept — twenty-two, looked at and left
+
+**"Accept" is a decision, not an omission.** The value of writing them down is
+that the next reviewer does not re-raise them and the next controller does not
+re-triage them. Reasoning reconstructed, per the provenance note above.
+
+| Finding | Why it is accepted |
+|---|---|
+| *(T1, L21)* `Replay.cs` `BuildLane` prints `(int)Terrain` where two sibling messages print the enum name | Cosmetic, inside an error message on a path that is already throwing. One-line fix available whenever that file is next open. §11 |
+| *(T1, L24)* plan listed `ReplayTests.cs` as a Modify target; left untouched | Reviewer verified no functional gap — `ValidateRejectsAnUnknownWaveAsAReplayFault` already pins it. A plan-accounting slip, which is §8's subject |
+| *(T4, L72)* `readMarkers` never called for a player with **no** `campaign_progress` row | Correct by inspection (`row?.x ?? null`), and test 2 checks that pre-state with a raw `tx.select`. Asserting it directly would restate the null-coalesce |
+| *(T4, L75)* `markers` write-once tested **sequentially**, not under a real two-transaction race | Correct on Postgres semantics. Closing it needs a two-transaction harness — test infrastructure, not a fix. §11 |
+| *(T5, L89)* the two new sync ftue tests exercise only the zero/falsy state | Superseded rather than accepted: `ftue.test.ts` now drives the true states over the real routes end to end (§2) |
+| *(T7, L154)* commit-side coverage of "reverts to `MUTATION_RATE` on the second splice" is narrower than preview-side | **Deliberate, to avoid a 9% flake.** Widening it buys a gate that fails once a fortnight, which §12 records as how a suite acquires a muted test |
+| *(T7, L156)* report claimed 2 new tests in `splice-commit.test.ts`; the diff shows 1 new + 1 modified | A defect in a scratch report, not in the tree. The diff is the deliverable (§6) and the diff was right |
+| *(T8, L232)* the wave-6 Pale's once-per-player gate is exercised only Loss→Loss | Real gap, but the marker is what gates it and the marker is tested both ways. §11 |
+| *(T8, L234)* the renamed losing-submission test verifies by total-count delta, not composition | Composition is covered in `wave6-pale.test.ts`. Duplicating it here buys a second assertion of the same fact |
+| *(T9, L265)* no test asserts a zero-creature player gets `{ nodes: [] }` at 200 | Real gap, cheap, no failure mode behind it. §11 |
+| *(T9, L280)* the `lineage` plan-forcing test's untied half compares an **unforced** default plan against a forced seq scan | Holds only while the planner keeps choosing an index scan for a tiny table — **test-infra flake risk, not a production bug**. §11 |
+| *(T10, L290)* transparent `2>/dev/null` deviation from the brief's literal snippet | Disclosed, justified, matches an existing idiom in the same script, no outcome change. This is what a good deviation looks like |
+| *(T13, L368)* `SnapshotStore`/`AuthStore` JSON round-trip has no direct unit test | Exercised through `Session`'s tests. §11 |
+| *(T13, L369)* click dispatch trusted rather than fired (the API is internal) | The adjudicated Unity-substitution ceiling — §12, *"do not re-litigate"* |
+| *(T13, L370)* `Session`/`AuthStore`/`SnapshotStore` do synchronous file I/O on the main thread | Negligible at today's payload sizes; recorded so it is not rediscovered as a surprise. §11 |
+| *(T13, L383)* `BootController.cs:49`'s `RegisterCallback<GeometryChangedEvent>` is **genuinely unverified** | The constraint is real and was confirmed by disassembly: `FindOrCreateRuntimePanel`'s delegate type is inaccessible outside the UIElements module. Disclosed in the test file itself, which is the right place for it. §11 |
+| *(T14, L412)* `CreatureCard.Bind` reimplements generation formatting instead of extending `CreatureLabel`, whose docstring says centralising it prevents drift | A drift **risk**, not a drift. Worth folding in when either file next changes |
+| *(T14, L414)* `CreatureCard`'s `committed` class and silhouette tooltip untested | §11 |
+| *(T14, L415)* `ConfirmDialog.Standard`/`.Named` duplicate two `clicked +=` wiring lines | Already adjudicated in Task 14's fix round: `InternalsVisibleTo` is assembly-scoped, so the route that would remove the duplication reopens more than it closes |
+| *(T16, L609)* `Snapshot()`'s ~45 lines of per-frame logic untested; `Place()` uncovered because it returns early without a panel; `Draw()` does per-body UQuery lookups against its own no-allocation standard | §11. Partly closed by Task 22's race-free integrity assertion; the rest needs PlayMode coverage, which is §13 item 5's job |
+| *(T18, L787)* five related types in one 333-line `OutboxClient.cs` | Cohesive now; worth splitting as more mutations are added. §11 |
+| *(T17, L1031)* a verbatim `AreEqual(model constant, view text)` test cannot structurally distinguish "reads from the model" from "hardcoded but coincidentally identical" | **Known ceiling, adjudicated twice (Tasks 15 and 17), consistently.** §12 says do not re-litigate it, and this triage did not |
+
+**Three of the parked entries were not findings to triage, and are listed
+separately so the count reconciles:**
+
+| Entry | Where it actually went |
+|---|---|
+| *(T16, L665)* add the one race-free `StringAssert.StartsWith` integrity assertion | **Closed by Task 22.** §11 |
+| *(T18, L825)* `OutboxClientTests` leaks one `outbox-client-tests-*.bin` per test because `NewClient()` ignores `_tempPath` | **Closed by Task 22.** §11 |
+| *(T16, L550 and L666; T17, L963)* the committed round-trip proof is dark; do not trust the HUD tick readout when timing the tap; the Step 6 eyes-on play-through | **Carried to a human session, not triaged.** These are §1's gates and §13 items 1 and 5 — a person at a keyboard with hardware, which no fix round closes |
+
+**34 findings: 1 must-fix, 6 fix-soon, 22 accept, 2 already closed by Task 22,
+3 carried to a human session.** Two of the four Definition-of-Done blockers and
+every Important in this phase's final review are things a per-task gate could
+not have seen, which is the argument for the whole-branch review existing at
+all.

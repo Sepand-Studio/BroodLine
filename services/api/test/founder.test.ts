@@ -216,7 +216,15 @@ describe('the Founder', () => {
     expect(ok.status).toBe(200)
     expect(((await ok.json()) as { name: string }).name).toBe('Ash') // trimmed
 
-    expect((await nameCreature(arcToken, vetchId, 'Ash')).status).toBe(409) // not_a_founder
+    // THE CODE, NOT JUST THE STATUS. 409 is shared by six refusals in
+    // `errors.ts` - generation_ceiling, insufficient_charges,
+    // ftue_stock_unavailable and the rest - so a status-only assertion holds
+    // if this route starts refusing a non-Founder for an entirely different
+    // reason, which is the regression worth catching on the route the client
+    // now drives through the outbox.
+    const notFounder = await nameCreature(arcToken, vetchId, 'Ash')
+    expect(notFounder.status).toBe(409)
+    expect((await notFounder.json() as { code: string }).code).toBe('not_a_founder')
     expect((await nameCreature(arcToken, founderId, '')).status).toBe(400)
     expect((await nameCreature(arcToken, founderId, 'x'.repeat(17))).status).toBe(400)
     expect((await nameCreature(arcToken, founderId, `Ash${String.fromCharCode(7)}`)).status).toBe(400) // a control character
@@ -225,6 +233,28 @@ describe('the Founder', () => {
     const renamed = await nameCreature(arcToken, founderId, 'Ember Ash')
     expect(renamed.status).toBe(200)
     expect(((await renamed.json()) as { name: string }).name).toBe('Ember Ash')
+  })
+
+  it('refuses a name with no Idempotency-Key, before it reads the body', async () => {
+    // The header gate is the FIRST statement in the handler, ahead of the
+    // body parse, and nothing covered it. It matters more since Task 18: the
+    // client reaches this route through `OutboxClient`, whose whole design is
+    // a key persisted at action time and replayed - so a build that stopped
+    // sending the header would queue mutations this service silently accepted
+    // once per retry rather than once per action.
+    const res = await app.request('/v1/creature/name', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${arcToken}` },
+      body: JSON.stringify({ creatureId: founderId, name: 'Keyless' }),
+    })
+
+    expect(res.status).toBe(400)
+    expect((await res.json() as { code: string }).code).toBe('invalid_request')
+
+    // AND IT REFUSED BEFORE MUTATING. A gate that 400s after the update is
+    // the same status with none of the protection.
+    const unchanged = await roster(arcToken)
+    expect(unchanged.find((r) => r.creatureId === founderId)?.name).toBe('Ember Ash')
   })
 
   it('base stock never mints a Pale before the wave-6 grant has fired', () => {

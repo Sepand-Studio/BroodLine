@@ -117,13 +117,15 @@
 # ---------------------------------------------------------------------------
 # WHAT MOVED SINCE PHASE 6 (71e1ea1 -> this tree)
 #
-#   api.tests 409 -> 454    api.files 36 -> 43
+#   api.tests 409 -> 455    api.files 36 -> 43
 #
 # SEVEN files added: founder (4), ftue (3), ftue-markers (3), ftue-stock (6),
 # lineage-route (8), sweep (5), wave6-pale (3) = 32. Seven existing files moved
 # and ALL SEVEN MOVED UP: account +1, config-validate +4, splice-commit +1,
 # splice-distribution +1, splice-preview +1, sync +2, and dotnet-build-lock +3
-# in Task 22's fix round = 13. 409 + 32 + 13 = 454.
+# in Task 22's fix round = 13. 409 + 32 + 13 = 454, and the whole-branch
+# review's fix round added ONE more - founder 4 -> 5, the missing-Idempotency-Key
+# refusal - for 455.
 # NO PER-FILE COUNT FELL, which is the only question these rows exist to answer.
 #
 # The dotnet-build-lock +3 are the cross-implementation pin the fix round added:
@@ -203,6 +205,18 @@
 # and the THIRD run - the one recorded below - was green. Two greens after a red
 # do not prove the race is closed; they prove it is not deterministic. See
 # implementation/2026-09-15-phase7-followups.md §12.
+#
+# AND IT HAPPENED AGAIN IN THE FINAL FIX ROUND, on a project the lock does NOT
+# cover. The first run at that tree was red with 2 failed | 41 passed (43) and
+# 423 passed | 32 skipped (455): splice-commit.test.ts and sweep.test.ts both
+# died in beforeAll with "wave validator could not run ... The build failed",
+# from `dotnet run --project tools/config-validate`. THREE test files shell out
+# to that project concurrently (config.test.ts is the third) and share its
+# obj/; withDotnetBuildLock guards services/sim only. The second run of the
+# identical tree was 43 passed (43), 455 passed (455) - the numbers below. It
+# presents as a compile error rather than as a lock timeout, which is why it is
+# written here rather than left to be re-derived. Inherited as the record's
+# §13 item 17.
 
 gate.dotnet.total	231
 gate.dotnet.passed	230
@@ -215,16 +229,16 @@ gate.dotnet.sim-service.total	17
 gate.dotnet.sim-service.passed	17
 gate.cross-runtime.scenarios	500	PASS: 500 scenarios agree
 gate.api.files	43
-gate.api.total	454
-gate.api.failed	0
+gate.api.total	455
+gate.api.failed	0	see NOTE ON gate.api - the FIRST run of this tree was red again, on a different project
 gate.typecheck.errors	0
 gate.contract.diff.files	0	git status --porcelain over the three generated paths: empty
 gate.unity.editmode.total	267
 gate.unity.editmode.passed	267
 gate.unity.editmode.failed	0
 gate.unity.editmode.skipped	0
-gate.unity.playmode.total	3
-gate.unity.playmode.passed	3
+gate.unity.playmode.total	4
+gate.unity.playmode.passed	4
 gate.unity.playmode.failed	0
 gate.unity.playmode.skipped	0
 gate.unity.settings.checks	12
@@ -244,7 +258,7 @@ api.file.config-validate.test.ts	13
 api.file.config.test.ts	15
 api.file.contract.test.ts	4
 api.file.dotnet-build-lock.test.ts	9
-api.file.founder.test.ts	4
+api.file.founder.test.ts	5
 api.file.ftue-markers.test.ts	3
 api.file.ftue-stock.test.ts	6
 api.file.ftue.test.ts	3

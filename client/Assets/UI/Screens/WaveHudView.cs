@@ -252,14 +252,25 @@ namespace Broodline.UI.Screens
         /// Keeps a bar - and the tag hanging under it - inside the frame and
         /// clear of the integrity readout.
         ///
-        /// A LAST RESORT, NOT A LAYOUT STRATEGY, which is what `WaveHud` said
-        /// about its own version: with the lift taken from the camera this
-        /// should never fire, because `WaveSceneBuilder` leaves 3.7% of the
-        /// vertical extent above the Ark at every aspect. It exists for the
-        /// cases the framing cannot promise, and it reserves the header band
-        /// so that a bar which DOES get clamped lands below the integrity
-        /// line rather than on top of the one element the safe area work was
-        /// done to make readable.
+        /// IT FIRES IN ROUTINE PLAY ON A NOTCHED DEVICE, and the comment that
+        /// used to sit here said the opposite - "with the lift taken from the
+        /// camera this should never fire, because `WaveSceneBuilder` leaves
+        /// 3.7% of the vertical extent above the Ark at every aspect". The
+        /// framing headroom is real and it is ~31 of 844 units; `SafeAreaBinder`
+        /// insets this root by ~59 at the top and ~34 at the bottom, which is
+        /// larger. So bars near the Ark clamp, and a clamped bar detaches from
+        /// the body it labels by up to ~55 units. Invisible in the Editor,
+        /// which is why it read as unreachable for a phase.
+        ///
+        /// The clamp still does what it promises; it is not the defect. The
+        /// root cause, if it is ever worth fixing, is that the safe-area
+        /// padding insets the world-tracking `_bars` layer, which overlays a
+        /// full-bleed camera and does not want to be inset - only the chrome
+        /// does.
+        ///
+        /// It reserves the header band so that a bar which does get clamped
+        /// lands below the integrity line rather than on top of the one
+        /// element the safe area work was done to make readable.
         ///
         /// Static and public because it is the only arithmetic in this file a
         /// test can reach: `Place` returns early without a panel and a camera,

@@ -1,10 +1,18 @@
 /* client_architecture 11: "Layout is safe-area driven with no fixed pixel
    positions." Nothing here is positioned at a screen coordinate. The margins
    below are GUTTERS inside a root that WaveRunner pads with SafeAreaBinder -
-   the same binder BootController applies to the shell - so they measure from
-   the safe area's edge, not the display's. The bars ARE absolutely
-   positioned, because they track world bodies; that position comes from the
-   camera and is clamped into the frame, never taken from a constant. */
+   the same binder BootController applies to the shell.
+
+   VERTICALLY ONLY. SafeAreaBinder sets paddingTop and paddingBottom and
+   NOTHING ELSE, so margin-top does measure from the safe area's edge and
+   margin-left still measures from the DISPLAY's. An earlier version of this
+   comment claimed both. Latent while the project stays portrait-locked, where
+   the horizontal inset is zero; the first landscape build on a notched device
+   is where it stops being latent.
+
+   The bars ARE absolutely positioned, because they track world bodies; that
+   position comes from the camera and is clamped into the frame, never taken
+   from a constant. */
 .wave-hud-view {
     flex-grow: 1;
     flex-direction: column;
