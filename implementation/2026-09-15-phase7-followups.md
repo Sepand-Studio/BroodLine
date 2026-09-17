@@ -930,9 +930,11 @@ recorded because the alternative is rediscovering them.
 
 The transferable ones. Each cost real time.
 
-**A component's tests say nothing about whether the app reaches it.** §5. Two
-components shipped unwired; neither had a test that could have noticed, because
-every test constructs the component itself.
+**A component's tests say nothing about whether the app reaches it.** §5.
+**Five** components shipped unwired — this line said *two*, which is the number
+later *wired*, and §5's heading three pages up was corrected in the same commit
+that left this standing. Not one of the five had a test that could have
+noticed, because every test constructs the component itself.
 
 **Verify the deliverable, through the deliverable's own channel.** §6. Three
 distinct controller errors, one root cause.
@@ -1145,14 +1147,41 @@ reporting **`2 failed | 41 passed (43)`, `423 passed | 32 skipped (455)`** — t
 32 being both suites' tests, none of which ran. The second run of the identical
 tree was **`43 passed (43)`, `455 passed (455)`**.
 
-`publishBundle` → `validateBundle` shells out to `dotnet run --project
-tools/config-validate`, and **three** test files do it concurrently
-(`config.test.ts`, `splice-commit.test.ts`, `sweep.test.ts`). They share
+**TWENTY-TWO test files are contenders, not three.** The count written here
+first was **three**: the two suites that failed, plus `config.test.ts` because
+it was obviously adjacent. That is an answer to *which files were involved in
+this failure*, and the question is *which files can collide* — the code answers
+it and the failure does not. The path is
+`publishBundle` → `validateBundle` → `validateWaves`, and
+`publishBundle` calls `validateBundle` **unconditionally** (`config/publish.ts:39`)
+while `validateBundle` calls `validateWaves` **first and always**
+(`config/validate.ts:86-88`), which is the `execFile` of `dotnet run --project
+tools/config-validate` at `validate.ts:109-111`. So every file that publishes a
+bundle is a contender:
+
+```
+$ git grep -ln "publishBundle" -- "services/api/test/*"   # 20
+$ git grep -ln "validateBundle" -- "services/api/test/*"  # 3, one of them config.test.ts
+$ # union: 22
+```
+
+The two that are not in the first list — `config-validate.test.ts` and
+`validate-rewards.test.ts` — import `validateBundle` directly. They share
 `tools/config-validate/obj/` for the same MSBuild reason `services/sim` does,
-and nothing serialises them: `withDotnetBuildLock` guards the **sim** build
-only. So this is §12's finding one project over, and it presents worse — not as
-a timeout that names the lock, but as *"The build failed"*, which reads like a
-compile error in the tree rather than two MSBuilds in one directory.
+and **nothing serialises them**: `withDotnetBuildLock` guards the **sim** build
+only, and `services/api/vitest.config.ts` sets no pool limit and no
+`globalSetup`. So this is §12's finding one project over, and it presents worse
+— not as a timeout that names the lock, but as *"The build failed"*, which
+reads like a compile error in the tree rather than two MSBuilds in one
+directory.
+
+**The number is the whole argument, which is why getting it wrong mattered.**
+§12's sim-lock arithmetic is *"at N=8 and a 12s build that is 84s"* — reasoning
+driven entirely by N. A deferral argued at three contenders and a deferral
+argued at twenty-two are different arguments, and the next owner sizes the job
+off whichever one is written down. It is also §4's shape again: the first count
+was the number that *showed up in the failure*, not the number the code admits,
+and nothing would ever have contradicted it.
 
 **Not fixed here, deliberately.** The fix is to put `config-validate` behind
 the same lock, or to build it once in a global setup; both are changes to test
@@ -1222,10 +1251,13 @@ inherited as §13 item 17.
     table that silently regresses on the next currency. Pairs naturally with
     item 15 — a top bar belongs to a shell that has somewhere to go.
 17. **Put `tools/config-validate` behind the dotnet build lock** (or build it
-    once in a global setup). §12. Three api test files shell out to
-    `dotnet run --project tools/config-validate` concurrently and share one
-    `obj/`; the collision surfaces as *"The build failed"* in two unrelated
-    suites, reproduced in the final fix round. Second run green.
+    once in a global setup). §12. **Twenty-two** api test files can shell out
+    to `dotnet run --project tools/config-validate` concurrently — every file
+    that publishes a bundle, since `publishBundle` validates
+    unconditionally — and they share one `obj/` with nothing serialising them.
+    The collision surfaces as *"The build failed"* in unrelated suites,
+    reproduced in the final fix round; the second run was green. **Size it off
+    22, not off the two that happened to fail.**
 18. **`Diagnosis.PreWaveCheck` cannot clear wave 7** — it counts all six
     Skirmishers as simultaneous while Splash III caps at five. Resolved this
     phase by not shipping a caller: the threat board is dropped with it. **The
@@ -1314,8 +1346,10 @@ re-triage them. Reasoning reconstructed, per the provenance note above.
 | *(T18, L787)* five related types in one 333-line `OutboxClient.cs` | Cohesive now; worth splitting as more mutations are added. §11 |
 | *(T17, L1031)* a verbatim `AreEqual(model constant, view text)` test cannot structurally distinguish "reads from the model" from "hardcoded but coincidentally identical" | **Known ceiling, adjudicated twice (Tasks 15 and 17), consistently.** §12 says do not re-litigate it, and this triage did not |
 
-**Three of the parked entries were not findings to triage, and are listed
-separately so the count reconciles:**
+**Five of the parked entries were not findings to triage, in three rows below,
+and are listed separately so the count reconciles** — the third row bundles
+three entries, which is why the tally at the bottom counts five here and not
+three:
 
 | Entry | Where it actually went |
 |---|---|

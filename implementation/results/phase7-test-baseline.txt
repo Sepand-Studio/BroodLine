@@ -210,9 +210,14 @@
 # cover. The first run at that tree was red with 2 failed | 41 passed (43) and
 # 423 passed | 32 skipped (455): splice-commit.test.ts and sweep.test.ts both
 # died in beforeAll with "wave validator could not run ... The build failed",
-# from `dotnet run --project tools/config-validate`. THREE test files shell out
-# to that project concurrently (config.test.ts is the third) and share its
-# obj/; withDotnetBuildLock guards services/sim only. The second run of the
+# from `dotnet run --project tools/config-validate`. TWENTY-TWO test files can
+# shell out to that project concurrently - every file that publishes a bundle,
+# since publishBundle validates unconditionally, plus the two that import
+# validateBundle directly - and they share its obj/; withDotnetBuildLock guards
+# services/sim only, and vitest.config.ts sets no pool limit and no
+# globalSetup. (An earlier note here said THREE - the two suites that failed
+# plus the obvious neighbour, which answers which files were involved in that
+# failure rather than which files can collide.) The second run of the
 # identical tree was 43 passed (43), 455 passed (455) - the numbers below. It
 # presents as a compile error rather than as a lock timeout, which is why it is
 # written here rather than left to be re-derived. Inherited as the record's

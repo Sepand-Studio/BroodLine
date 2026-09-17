@@ -253,6 +253,15 @@ describe('the Founder', () => {
 
     // AND IT REFUSED BEFORE MUTATING. A gate that 400s after the update is
     // the same status with none of the protection.
+    //
+    // 'Ember Ash' IS STATE FROM THE PRECEDING `it`, which renamed the Founder.
+    // This file has a `beforeAll` and no per-test reset, so its tests are
+    // ordered by construction - the same reason `founderId` itself is set by
+    // an earlier one. That makes the assertion STRONGER than a null check
+    // would be (a non-default value that something already wrote is exactly
+    // what §4 of the phase record says a fixture should be), and it means
+    // this test cannot be run in isolation. Said here rather than worked
+    // around, because the coupling is the file's existing shape.
     const unchanged = await roster(arcToken)
     expect(unchanged.find((r) => r.creatureId === founderId)?.name).toBe('Ember Ash')
   })
