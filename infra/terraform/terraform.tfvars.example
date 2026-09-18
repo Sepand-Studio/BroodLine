@@ -1,7 +1,19 @@
 project_id = "your-gcp-project"
 region     = "us-central1"
-image      = "us-central1-docker.pkg.dev/your-gcp-project/broodline/api:latest"
-sim_image  = "us-central1-docker.pkg.dev/your-gcp-project/broodline/sim:latest"
+# TAGGED BY COMMIT, NEVER :latest. deploy.sh builds and pushes a commit tag
+# and passes it with -var, stating the rule in its own comment: "a revision
+# that cannot be named cannot be rolled back to". No build produces :latest,
+# so a placeholder naming it points at an image the registry does not have.
+#
+# THAT MATTERS BECAUSE A BARE `terraform apply` FALLS BACK TO YOUR tfvars.
+# It happened in Phase 8: an apply run without -var rewrote both Cloud Run
+# services to :latest, Cloud Run refused the pull, and sim was left not-ready.
+# api survived only because its update came second and was never reached.
+# Cloud Run failing safe is the only reason that was recoverable.
+#
+# Put the tag you actually built - `git rev-parse --short HEAD` at build time.
+image      = "us-central1-docker.pkg.dev/your-gcp-project/broodline/api:REPLACE-WITH-COMMIT-TAG"
+sim_image  = "us-central1-docker.pkg.dev/your-gcp-project/broodline/sim:REPLACE-WITH-COMMIT-TAG"
 
 # db_password is REQUIRED and is deliberately absent from this file.
 #
