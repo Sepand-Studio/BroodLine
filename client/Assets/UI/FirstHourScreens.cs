@@ -79,6 +79,29 @@ namespace Broodline.UI
     /// Beat 7 - `broodline_splice_confirm_spec` section 5.
     public static class SpliceRevealScreen
     {
+        /// The scaffold's header - the handoff's own name for this screen
+        /// (README section 7), which its push table reaches from the Splice
+        /// Chamber "(after splice)". So this screen is `pushed: true`.
+        ///
+        /// A DIFFERENT SENTENCE FROM `Headline`, and the pair is
+        /// `FounderNamingScreen.Title`/`Prompt` again: the header names the
+        /// screen and never changes, the headline says which of two things
+        /// just happened. One string doing both jobs would either put "A
+        /// mutation fired." in a header that outlives the moment or flatten
+        /// the payoff into a label.
+        public const string Title = "Splice Reveal";
+
+        /// What the parents row says when it was handed neither parent.
+        ///
+        /// THE ROW IS THE SCREEN'S WHOLE LESSON, so its empty case cannot be
+        /// nothing. bible 2.1 makes "the parents are still drawn on the
+        /// screen that says they are gone" the FTUE's teaching moment, and a
+        /// caller that passed nulls would otherwise produce a reveal that
+        /// silently taught the opposite - the parents simply absent, with no
+        /// sentence saying whether they were consumed or never arrived.
+        public const string NoParentsMessage =
+            "The parents for this splice were not loaded.";
+
         /// section 7: "No 'SPLICE FAILED' state ... there is no failure
         /// outcome - the worst result is rolling traits the player already
         /// had." So the non-mutated arm states what happened and does not
@@ -98,8 +121,17 @@ namespace Broodline.UI
         /// between a warning and a confirmation. The vocabulary is otherwise
         /// the same on purpose - splice_confirm_spec section 3: "three
         /// different phrasings of the same fact reads as evasion."
+        ///
+        /// EMPTY WHEN EITHER PARENT IS MISSING, rather than a sentence with a
+        /// hole in it. `CreatureLabel.WithGeneration(null)` is the empty
+        /// string, so the unguarded version wrote " and  are consumed. Their
+        /// traits live on in the pedigree." - a claim about two creatures it
+        /// cannot name, on the screen whose whole job is naming them.
+        /// `NoParentsMessage` is what the reveal says in that case, and it
+        /// says the honest thing: the parents were not loaded.
         public static string Consumption(CreatureDto parentA, CreatureDto parentB)
         {
+            if (parentA == null || parentB == null) return string.Empty;
             return CreatureLabel.WithGeneration(parentA) + " and "
                 + CreatureLabel.WithGeneration(parentB)
                 + " are consumed. Their traits live on in the pedigree.";

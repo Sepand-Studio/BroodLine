@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading.Tasks;
 using Broodline.Api;
 
@@ -73,6 +74,76 @@ namespace Broodline.UI
 
         /// The Start button's label, in one place - see `CtaLabel`.
         public const string Cta = "Start";
+
+        /// The scaffold's header.
+        ///
+        /// NOT FROM THE HANDOFF, AND THAT IS STATED RATHER THAN PAPERED
+        /// OVER. The handoff has no deploy screen: its README folds pocket
+        /// assignment into "Wave Defense" as `phase: 'placing'`, with a
+        /// defender tray on the combat screen itself. Broodline splits the
+        /// two - `DeployView` places, `WaveHudView` fights - so this title is
+        /// the one word the model already uses for the thing being assembled
+        /// ("This deployment cannot be sent", "A deployment is at most 5
+        /// creatures") rather than copy invented for the header.
+        ///
+        /// IT DOES NOT NAME THE WAVE, though `WaveId` is right there. The
+        /// scaffold's title is set at CONSTRUCTION and the wave arrives at
+        /// `Bind`, and `FounderNamingScreen.Title`'s comment already settled
+        /// which of those the header is: it names the SCREEN and never
+        /// changes. The wave id is a fact about this deployment, so it is a
+        /// stat cell instead.
+        public const string Title = "Deployment";
+
+        /// What the pocket list says when it holds nothing.
+        ///
+        /// IT STATES THE LIST'S STATE AND GIVES NO INSTRUCTION, because the
+        /// instruction is already on screen: an empty deployment sets
+        /// `Blocker` to "Send at least one creature...", which `DeployView`
+        /// renders in coral directly above the CTA. splice_confirm_spec 3's
+        /// "three different phrasings of the same fact reads as evasion"
+        /// applies to a refusal and its empty state as much as to a
+        /// destruction notice, so these two say different things: one names
+        /// the emptiness, one says what to do about it.
+        public const string EmptyMessage = "No creatures deployed.";
+
+        /// The two facts the stat row states. `Cap` is in the second because
+        /// a count with no ceiling is not a decision - "3" does not tell a
+        /// player whether there is room for a fourth and "3 / 5" does.
+        public const string WaveStatLabel = "Wave";
+        public const string DeployedStatLabel = "Deployed";
+
+        /// "3 / 5". The cap is `Cap`, which is mirrored from
+        /// services/api/src/wave/issuance.ts - the view never writes either
+        /// number itself.
+        public static string DeployedStatValue(int count)
+        {
+            return count.ToString(CultureInfo.InvariantCulture)
+                + " / " + Cap.ToString(CultureInfo.InvariantCulture);
+        }
+
+        /// The wave id as the stat cell prints it. InvariantCulture for the
+        /// reason every other number in this assembly is - `CreatureLabel`'s
+        /// `Generation` and `CampaignSelectScreen.RowLabel` both take it, so a
+        /// device locale that groups digits cannot make one screen's wave 1000
+        /// read differently from another's.
+        public static string WaveStatValue(int waveId)
+        {
+            return waveId.ToString(CultureInfo.InvariantCulture);
+        }
+
+        /// A slot's row, in the list's detail line.
+        ///
+        /// POCKETS ARE 1-INDEXED HERE AND 0-INDEXED ON THE WIRE. `Build`
+        /// assigns `Pocket = i` because "Index == deployment order" is what
+        /// the engine's parallel arrays and `deploymentMatches` compare
+        /// against, and that is a protocol fact. "Pocket 0" is not a sentence
+        /// a player reads, so the display adds one - in this method, once,
+        /// rather than at a call site that would be the only place the two
+        /// numbering schemes were known to differ.
+        public static string PocketLabel(int pocket)
+        {
+            return "Pocket " + (pocket + 1).ToString(CultureInfo.InvariantCulture);
+        }
 
         /// Build from the ids the player selected, in selection order.
         ///

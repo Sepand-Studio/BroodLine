@@ -1,5 +1,4 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
     <ui:Style src="RosterView.uss" />
-    <ui:Label name="notice" class="roster-view__notice" />
     <ui:VisualElement name="cards" class="roster-view__cards" />
 </ui:UXML>

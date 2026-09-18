@@ -262,6 +262,41 @@ namespace Broodline.UI.Tests
             Assert.IsNotNull(view.Q(C.ToString()), "the child is missing from the reveal");
         }
 
+        /// A REVEAL HANDED NEITHER PARENT SAYS SO. `AddParent` skips a null,
+        /// so before Phase 8 Task 10 two nulls rendered as the same screen
+        /// minus its whole lesson - the parents simply absent, with no
+        /// sentence saying whether they were consumed or never arrived.
+        /// bible 2.1 makes that row the FTUE's teaching moment.
+        [Test]
+        public void SpliceReveal_WithNoParents_SaysSoInsteadOfDroppingTheLesson()
+        {
+            var view = BoundReveal(mutated: false, null, null);
+
+            var empty = view.Q<EmptyState>();
+            Assert.IsNotNull(empty, "a reveal with no parents rendered the row as nothing at all");
+            Assert.AreEqual(SpliceRevealScreen.NoParentsMessage, empty.Q<Label>("message").text);
+        }
+
+        /// THE HERO CARD IS THE ONE PLACE IN THE APP THAT EARNS `.elev-2`,
+        /// and the one consumer `reveal-flare` was written for - Motion.uss
+        /// lists it among four classes that "match nothing today", which is
+        /// a rule that goes stale silently: nothing renders differently when
+        /// a transition class stops being applied, and a screenshot of a
+        /// 220ms transition is one frame either way. So it is asserted here
+        /// rather than left to the eye.
+        [Test]
+        public void SpliceReveal_TheHeroCardWearsTheRaisedElevationAndTheRevealTransition()
+        {
+            var view = BoundReveal(mutated: true, Creature("Vetch", id: A), Creature("Ember", id: B));
+            var hero = view.Q<VisualElement>("child");
+
+            Assert.IsNotNull(hero);
+            Assert.IsTrue(hero.ClassListContains("elev-2"),
+                "the reveal's hero card sits at the same elevation as an ordinary section card");
+            Assert.IsTrue(hero.ClassListContains("reveal-flare"),
+                "Motion.uss's reveal transition is applied to nothing, so the payoff snaps in");
+        }
+
         // ---------------------------------------------------------------
         // Lineage - beat 8
         // ---------------------------------------------------------------

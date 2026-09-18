@@ -98,6 +98,27 @@ namespace Broodline.UI
         /// thing they tap."
         public const string Cta = "Splice — consumes both parents.";
 
+        /// The scaffold's header. The handoff's own name for this screen
+        /// (README section 6) and the destination its `Splice` tab points at,
+        /// so it is a top-level screen and carries no back chevron.
+        public const string Title = "Splice Chamber";
+
+        /// The forecast card's heading. Section 2's own word for what the
+        /// table is: the odds shown BEFORE the charge is spent.
+        public const string ForecastHeading = "Trait forecast";
+
+        /// What the forecast card says when the server named no outcomes.
+        ///
+        /// REACHABLE, THOUGH `Build` REQUIRES A PREVIEW. `preview` being
+        /// mandatory means the forecast OBJECT is always there; it does not
+        /// mean `Combat2` has anything in it. A card that rendered an empty
+        /// table would look like a screen that failed to load on the one
+        /// screen section 2 makes the odds non-negotiable for, so it says so
+        /// instead - and says that the charge is still unspent, because that
+        /// is the fact that decides whether a player should tap anyway.
+        public const string ForecastEmptyMessage =
+            "The server named no trait outcomes for this pairing. Nothing has been spent.";
+
         /// Fetch the forecast. POST /v1/splice/preview writes nothing and
         /// spends nothing, which is what makes it safe to call as the player
         /// changes the lock.

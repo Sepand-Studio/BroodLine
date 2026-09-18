@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using Broodline.Api;
 using Broodline.UI.Components;
@@ -106,6 +107,13 @@ namespace Broodline.UI.Tests
             Assert.AreEqual(m.CoverageWarning ?? string.Empty, v.Q<Label>("coverage-warning").text);
             Assert.AreEqual(SpliceScreen.MutationLine(m.Forecast), v.Q<Label>("mutation").text);
 
+            // Phase 8 Task 10: the mutation line carries `t-num`, which is
+            // the marker bible 10.6's tabular figures and 11px floor are both
+            // enforced through - and this label states two percentages.
+            Assert.IsTrue(v.Q<Label>("mutation").ClassListContains("t-num"),
+                "the mutation percentages are not marked as numerals, so nothing holds them "
+                + "to the tabular face or to the 11px floor");
+
             // The forecast table renders the server's numbers and computes
             // none - client_architecture 9.1. Row count, not just presence:
             // a view that rendered a single static row would pass a
@@ -118,9 +126,76 @@ namespace Broodline.UI.Tests
             // not a view-local ToString("P1"). The two are not the same
             // string ("55%" vs "55.0 %"), which is exactly why this is
             // pinned rather than left to look equivalent.
+            //
+            // THE LABEL IS `value` AND NOT `probability` AS OF PHASE 8 TASK
+            // 10, because a forecast outcome is now a `StatCell` and those
+            // are that component's element names - the same rename
+            // `CampaignSelectView`'s rows took when they became `OptionRow`s.
+            // Same fact, same formatter, through the name the cell carries.
             Assert.AreEqual(
                 SpliceScreen.Percent(m.Forecast.Combat2.First().P),
-                rows[0].Q<Label>("probability").text);
+                rows[0].Q<Label>("value").text);
+
+            // And the trait is the cell's label, by the same shared formatter
+            // the confirm dialog and the reveal use - splice_confirm_spec 3's
+            // "three different phrasings of the same fact reads as evasion"
+            // applies to "Guard I" as much as to a destruction notice.
+            Assert.AreEqual(
+                CreatureLabel.TraitWithTier(
+                    m.Forecast.Combat2.First().Trait, m.Forecast.Combat2.First().Tier),
+                rows[0].Q<Label>("label").text);
+
+            // The percentage wears `t-num`. It comes from StatCell's own
+            // UXML, which is the point of routing the forecast through the
+            // component: the old `.forecast-row` set a font-size on the ROW
+            // and marked no numeral at all, so the one set of numbers section
+            // 2 makes non-negotiable was the one set rendered in proportional
+            // figures.
+            Assert.IsTrue(rows[0].Q<Label>("value").ClassListContains("t-num"));
+        }
+
+        [Test]
+        public void SpliceChamberView_AnEmptyCoverageWarning_HidesItsRowRatherThanDrawingABlankPanel()
+        {
+            // The ordinary case: the server named no coverage loss, so
+            // `CoverageWarningFor` returns empty. The label sits in a
+            // --amber-tint panel with --space-3 of padding, so before Phase 8
+            // Task 10 this drew a blank amber strip across the screen on
+            // every splice where nothing was being lost - visible in every
+            // capture of this screen up to that commit.
+            var m = SpliceScreen.Build(Named("Ash"), B(), Preview());
+            Assert.AreEqual(string.Empty, m.CoverageWarning,
+                "sanity: this fixture's preview names no coverage loss");
+
+            var v = new SpliceChamberView();
+            v.Bind(m, lockedOut: new HashSet<Guid>(), onSplice: () => { });
+
+            var warning = v.Q<Label>("coverage-warning");
+            Assert.AreEqual(string.Empty, warning.text);
+            Assert.AreEqual(DisplayStyle.None, warning.resolvedStyle.display,
+                "an empty coverage warning still occupies a tinted row");
+        }
+
+        [Test]
+        public void SpliceChamberView_ACoverageWarning_ShowsItsRow()
+        {
+            // The complement: without it, a view that hid the panel
+            // unconditionally would pass the test above and silently drop
+            // sample_economy 7's whole screen requirement.
+            var lost = new List<CoverageLost> { new CoverageLost { Trait = "Chill", Tier = 2 } };
+            var warning = SpliceScreen.CoverageWarningFor(lost);
+            Assert.IsNotEmpty(warning, "sanity: a named coverage loss produces a sentence");
+
+            var preview = Preview();
+            preview.CoverageLost = lost;
+            var m = SpliceScreen.Build(Named("Ash"), B(), preview);
+
+            var v = new SpliceChamberView();
+            v.Bind(m, lockedOut: new HashSet<Guid>(), onSplice: () => { });
+
+            var label = v.Q<Label>("coverage-warning");
+            Assert.AreEqual(warning, label.text);
+            Assert.AreEqual(DisplayStyle.Flex, label.resolvedStyle.display);
         }
 
         [Test]
@@ -259,7 +334,96 @@ namespace Broodline.UI.Tests
             var v = new DeployView();
             v.Bind(model, () => { });
 
-            Assert.AreEqual(string.Empty, v.Q<Label>("blocker").text);
+            var blocker = v.Q<Label>("blocker");
+            Assert.AreEqual(string.Empty, blocker.text);
+
+            // AND THE ROW GOES WITH THE TEXT, as of Phase 8 Task 10. The
+            // label sits in a --coral-tint panel with --space-3 of padding,
+            // so an empty one is a blank coral strip between the pocket list
+            // and the Start button - drawn on the ORDINARY case, the one a
+            // player sees every wave. It is in every capture of this screen
+            // before that commit. Same rule as FounderNamingView.Blocker and
+            // ScreenScaffold.FooterNote.
+            Assert.AreEqual(DisplayStyle.None, blocker.resolvedStyle.display,
+                "a legal deployment still drew the refusal row, blank");
+        }
+
+        [Test]
+        public void DeployView_ABlockedDeployment_ShowsItsRow()
+        {
+            // The complement: a view that hid the panel unconditionally would
+            // pass the test above and silently drop the one sentence that
+            // says why Start is off.
+            var model = DeployModelWith(0);
+            Assert.IsNotEmpty(model.Blocker);
+
+            var v = new DeployView();
+            v.Bind(model, () => { });
+
+            Assert.AreEqual(DisplayStyle.Flex, v.Q<Label>("blocker").resolvedStyle.display);
+        }
+
+        /// POCKET ORDER IS PROTOCOL, AND THE SCREEN NOW SAYS IT.
+        /// `DeployScreen.Build` assigns `Pocket = i` because "Index ==
+        /// deployment order" and `deploymentMatches` compares the replay's
+        /// deployment against the stored one IN ORDER - so two deployments
+        /// that agree as multisets and differ in order are different
+        /// deployments. Before Phase 8 Task 10 this screen drew a grid of
+        /// identical `CreatureCard`s and printed the pocket nowhere at all.
+        [Test]
+        public void DeployView_NamesEachSlotsPocketInOrder()
+        {
+            var v = BindWith(slots: 3);
+
+            var rows = v.Query<OptionRow>().ToList();
+            Assert.AreEqual(3, rows.Count, "one row per deployed creature");
+            for (var i = 0; i < rows.Count; i++)
+            {
+                Assert.AreEqual(DeployScreen.PocketLabel(i), rows[i].Q<Label>("detail").text,
+                    "slot " + i + " is not labelled with its own pocket, in order");
+            }
+
+            // 1-INDEXED FOR THE PLAYER, 0-INDEXED ON THE WIRE. Asserted
+            // explicitly because the two numbering schemes are a real trap:
+            // a test that only compared the view against PocketLabel would
+            // pass if both sides quietly agreed on "Pocket 0".
+            Assert.AreEqual("Pocket 1", rows[0].Q<Label>("detail").text);
+        }
+
+        [Test]
+        public void DeployView_StatesTheDeploymentCountAgainstTheCap()
+        {
+            // A count with no ceiling is not a decision: "3" does not say
+            // whether there is room for a fourth. Both numbers are the
+            // model's - Cap is mirrored from wave/issuance.ts.
+            var v = BindWith(slots: 3);
+
+            var cells = v.Query<StatCell>().ToList();
+            Assert.AreEqual(2, cells.Count, "the stat row states the wave and the count");
+            Assert.AreEqual(DeployScreen.DeployedStatValue(3), cells[1].Q<Label>("value").text);
+            StringAssert.Contains(
+                DeployScreen.Cap.ToString(CultureInfo.InvariantCulture),
+                cells[1].Q<Label>("value").text);
+
+            // And the numbers wear `t-num` - StatCell's own UXML, which is
+            // why routing them through the component is worth doing.
+            Assert.IsTrue(cells[1].Q<Label>("value").ClassListContains("t-num"));
+        }
+
+        [Test]
+        public void DeployView_AnEmptyDeployment_SaysSoInsteadOfRenderingBlankPaper()
+        {
+            var v = BindWith(slots: 0);
+
+            var empty = v.Q<EmptyState>();
+            Assert.IsNotNull(empty, "an empty deployment rendered as a screen with nothing on it");
+            Assert.AreEqual(DeployScreen.EmptyMessage, empty.Q<Label>("message").text);
+
+            // TWO SENTENCES, NOT ONE, and they must not be the same one -
+            // splice_confirm_spec 3's "three different phrasings of the same
+            // fact reads as evasion". The empty state names the list's state;
+            // the blocker says what to do about it.
+            Assert.AreNotEqual(DeployScreen.EmptyMessage, v.Q<Label>("blocker").text);
         }
 
         [Test]
@@ -280,6 +444,14 @@ namespace Broodline.UI.Tests
         // RosterView
         // ---------------------------------------------------------------
 
+        /// THE NOTICE IS THE SCAFFOLD'S FOOTER NOTE AS OF PHASE 8 TASK 10,
+        /// not this screen's own `notice` Label, so these two read it by the
+        /// element name the row now carries. The FACT asserted is unchanged:
+        /// the model's sentence reaches the screen, and a complete roster
+        /// shows none of it. The element gained one property in the move -
+        /// an empty footer note collapses its row
+        /// (`ScaffoldTests.AnEmptyFooterNoteHidesItsRow`), where the old
+        /// Label drew a blank strip above the grid on every complete roster.
         [Test]
         public void RosterView_ANeverLoadedRoster_ShowsTheIncompleteNoticeNotAnEmptyList()
         {
@@ -289,7 +461,7 @@ namespace Broodline.UI.Tests
             var v = new RosterView();
             v.Bind(r, _ => { });
 
-            StringAssert.Contains(r.IncompleteNotice, v.Q<Label>("notice").text);
+            StringAssert.Contains(r.IncompleteNotice, v.Q<Label>("footer-note").text);
         }
 
         [Test]
@@ -305,8 +477,49 @@ namespace Broodline.UI.Tests
             var v = new RosterView();
             v.Bind(r, _ => { });
 
-            Assert.AreEqual(string.Empty, v.Q<Label>("notice").text);
+            var note = v.Q<Label>("footer-note");
+            Assert.AreEqual(string.Empty, note.text);
+            Assert.AreEqual(DisplayStyle.None, note.resolvedStyle.display,
+                "a complete roster still drew the caveat row, blank");
             Assert.AreEqual(2, v.Query<CreatureCard>().ToList().Count);
+        }
+
+        /// "YOU OWN NOTHING" AND "WE COULD NOT FIND OUT WHAT YOU OWN" MUST
+        /// NEVER READ THE SAME - `RosterScreen.IncompleteNotice`'s own rule,
+        /// asserted from the view's side. An empty grid gets the first
+        /// sentence only when the cache is entitled to make that claim.
+        [Test]
+        public void RosterView_AnEmptyButCompleteRoster_SaysSoInsteadOfRenderingBlankPaper()
+        {
+            var r = new RosterScreen();
+            r.ApplyRoster(new RosterResponse { Cap = 20 });
+            Assert.IsTrue(r.IsComplete, "sanity: a successful load of nothing is a complete roster");
+
+            var v = new RosterView();
+            v.Bind(r, _ => { });
+
+            var empty = v.Q<EmptyState>();
+            Assert.IsNotNull(empty, "an empty roster rendered as a screen with nothing on it");
+            Assert.AreEqual(RosterScreen.EmptyMessage, empty.Q<Label>("message").text);
+        }
+
+        [Test]
+        public void RosterView_AnEmptyRosterThatNeverLoaded_DoesNotClaimThePlayerOwnsNothing()
+        {
+            // The sharp case, and the reason the empty state is conditional:
+            // this cache holds no creatures for the same reason it holds no
+            // knowledge. The footer note says which; the grid must not say
+            // the other thing.
+            var r = new RosterScreen();
+            Assert.IsFalse(r.IsComplete, "sanity: a cache nobody wrote to is not complete");
+
+            var v = new RosterView();
+            v.Bind(r, _ => { });
+
+            Assert.IsNull(v.Q<EmptyState>(),
+                "a never-loaded roster told the player they own nothing, which is the exact "
+                + "false claim RosterLoadState exists to prevent");
+            StringAssert.Contains(r.IncompleteNotice, v.Q<Label>("footer-note").text);
         }
 
         [Test]

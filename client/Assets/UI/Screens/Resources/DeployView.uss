@@ -1,25 +1,36 @@
-/* Placement, before a wave. */
-.deploy-view { flex-direction: column; padding: var(--gutter); }
+/* Placement, before a wave, composed onto ScreenScaffold. What is left here
+ * is the two things neither the frame nor a component can know: that the stat
+ * cells sit in a row, and that the refusal wraps.
+ *
+ * FOUR RULES LEFT THIS FILE IN PHASE 8 TASK 10 AND NONE WAS REPLACED BY A
+ * COPY HERE, which is the test of whether a screen composes the layer or
+ * re-derives it:
+ *   - the root's `padding: var(--gutter)` is the scaffold's content region.
+ *   - `__slot`'s sunk fill, hairline border, row radius, padding and bottom
+ *     margin were a line-by-line re-derivation of `.option-row`, which now
+ *     draws the row. Every one of the six declarations matched the
+ *     component's exactly.
+ *   - `__blocker`'s fill, radius and padding are Theme's `.panel-coral`, and
+ *     its ink is `.t-danger`.
+ *   - `__start`'s top margin is the CTA row's own padding, and the button's
+ *     whole treatment is Theme's `.btn-primary` - which is also what makes it
+ *     the violet CTA rather than Unity's default grey.
+ *
+ * THE STAT ROW IS THIS FILE'S AND NOT StatCell.uss's. A cell carries half the
+ * handoff's 8px gap on each of its own sides; the `flex-direction: row` that
+ * puts three of them side by side belongs to whatever holds them, and a
+ * component's stylesheet reaches its descendants and never its parent.
+ * StatCell.uss's closing note records how that was found out.
+ */
+.deploy-view { flex-grow: 1; }
 
-.deploy-view__slots { flex-direction: row; flex-wrap: wrap; justify-content: space-between; }
+.deploy-view__stats { flex-direction: row; }
 
-.deploy-view__slot {
-    background-color: var(--surface-sunk);
-    border-radius: var(--radius-row);
-    border-width: 1px;
-    border-color: var(--hairline);
-    padding: var(--space-2);
-    margin-bottom: var(--space-2);
-}
+.deploy-view__slots { flex-direction: column; }
 
+/* A sentence, not a label, so it wraps. Shown only when it says something -
+ * DeployView.Blocker has the measurement. */
 .deploy-view__blocker {
-    color: var(--coral-text);
-    background-color: var(--coral-tint);
-    border-radius: var(--radius-row);
-    padding: var(--space-2);
     white-space: normal;
     margin-top: var(--space-2);
-    font-size: var(--text-body);
 }
-
-.deploy-view__start { margin-top: var(--space-4); }
