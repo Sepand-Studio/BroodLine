@@ -98,6 +98,39 @@ public static class ScreenFixtures
         "Components",
     };
 
+    /// Whether the shell holds this fixture in `#screen-host`, which is the
+    /// slot `ScreenHost.Show` and `ScreenHost.Push` add a screen to.
+    ///
+    /// BY NAME, AND FOR THE SAME REASON `ScaffoldTests`' exemption list is by
+    /// name: a fixture that is not a pushed-or-shown screen must not be
+    /// rendered inside a slot the shell would never put it in, and an
+    /// accident of ordering in `Names` is not a reason. The three that answer
+    /// false:
+    ///   CodexSheet  - ScreenHost.ShowSheet puts it in `#sheet-layer`, which
+    ///                 is `position: absolute` and `display: none` until that
+    ///                 method sets it Flex inline. It carries no padding, so
+    ///                 the sheet renders the same either way and this harness
+    ///                 does not reproduce the overlay layer.
+    ///   WaveHudView - never reaches ScreenHost at all. `WaveRunner` adds it
+    ///                 straight to the wave scene's own panel root.
+    ///   the four catalogues - Primitives, Icons, Scaffold and Components are
+    ///                 not screens and have no place in the shell.
+    public static bool GoesInTheScreenHost(string name)
+    {
+        switch (name)
+        {
+            case "CodexSheet":
+            case "WaveHudView":
+            case "Primitives":
+            case "Icons":
+            case "Scaffold":
+            case "Components":
+                return false;
+            default:
+                return true;
+        }
+    }
+
     public static VisualElement Build(string name)
     {
         switch (name)

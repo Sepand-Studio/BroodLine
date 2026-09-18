@@ -75,10 +75,33 @@
     align-items: center;
 }
 
-.screen-host {
-    padding-left: var(--gutter);
-    padding-right: var(--gutter);
-}
+/* NO PADDING ON THE SLOT, AND THAT IS A DECISION MADE ONCE FOR ALL TEN
+ * SCREENS. This rule used to carry `padding-left`/`padding-right:
+ * var(--gutter)`, and every screen the slot has ever held ALSO carries a
+ * 12px gutter of its own - the seven that still pad their own root, and the
+ * three that hand it to `.screen-scaffold__content`. So the shipped app drew
+ * a 24px gutter everywhere the handoff asks for 12, and it drew a screen
+ * header meant to sit flush at the frame's edge 12px in from it.
+ *
+ * MEASURED IN A PICTURE, NOT READ OUT OF TWO STYLESHEETS. It survived this
+ * long because `ScreenshotCapture` hosted every fixture in a bare
+ * VisualElement, so no rule of this file reached the corpus at all; that
+ * harness now builds the slot, and the capture immediately before this
+ * commit has RosterView's grid and CampaignSelectView's first row both
+ * starting at x=24. After it, both start at x=12.
+ *
+ * THE FRAME KEEPS THE GUTTER, NOT THE SLOT. A frame that carries its own
+ * works in any container; a slot that pads its contents works only for
+ * things that do not pad themselves, which is not what any of the ten are.
+ * Nothing else is affected: `WaveHudView` never reaches `ScreenHost` at all
+ * (`WaveRunner` adds it to the wave scene's own panel root) and `CodexSheet`
+ * goes to `#sheet-layer` through `ScreenHost.ShowSheet`. Checked, not
+ * assumed - `ScreenHost.SetScreen` is the only `Add` into this element.
+ *
+ * So there is no `.screen-host` rule in the chrome section of this file, and
+ * the layout one above the chrome line - `flex-grow: 1` - is the whole of
+ * what the slot does. StatCell.uss's closing note is the same shape of
+ * record: the absence is the decision. */
 
 .tab-bar {
     background-color: var(--surface);

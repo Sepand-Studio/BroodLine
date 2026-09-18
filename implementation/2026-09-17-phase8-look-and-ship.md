@@ -2753,6 +2753,31 @@ species* today. **After Step 3, look at the captured `LineageView.png` and
 `RosterView.png` with a Skitter and a Hollow in them, and decide: either the two
 species colours move, or the two UI roles do.** Record the outcome for Task 19.
 
+**SEEN IN A RENDERED `LineageView` IN TASK 9 — this is the case that should decide
+it, and it is sharper than the hex table above.** Task 9 scaffolded the screen and
+captured it. Measured off the pixel: the founder rail is `rgb(232,179,74)` =
+`--amber` exactly, the mutated rail `rgb(123,106,192)` = `--violet`. So the first
+finding is a *negative* one, and it matters: **the two rails are not confusable with
+each other.** Warm gold against cool purple, both plainly legible at 3px. Do not
+spend the decision on that.
+
+The two things that *are* wrong are both visible in the single frame:
+
+1. **Violet does two jobs in one frame.** The founder tile (Ash) is *filled*
+   `--violet-tint` because it is the highlighted creature, while `--violet` is the
+   *mutation* rail on a different tile 300px below it. One hue, two meanings, in one
+   picture, before any species colour has been rendered at all.
+
+2. **An Ember Skitter with no amber on it sits next to a Vetch Crawler wearing
+   amber.** In the capture's generation-1 row, the Skitter is a consumed parent, so
+   it is grey-railed and dimmed; the Vetch Crawler beside it is the founder, so it
+   wears the rail that *is* Skitter's colour. Once Step 1's proxies are tinted, the
+   amber rail will mean "founder" on one tile and "Skitter" on the tile immediately
+   beside it, in the same row of the same card.
+
+Look at `implementation/results/screens/LineageView.png` as it stands after Task 9
+before deciding — the fixture already contains one of each.
+
 - [ ] **Step 1: Draw the six from bible §1.2's silhouette column**
 
 Flat black on transparent, 192×192 (3× of the 64px card slot), each a literal reading of its row:

@@ -81,6 +81,57 @@ namespace Broodline.UI.Tests
             Assert.AreEqual(1, called, "the back button is not wired to onBack");
         }
 
+        /// A VISIBLE AFFORDANCE THAT DOES NOTHING MUST NOT SHIP, and this is
+        /// the half of the rule `pushed` alone cannot express.
+        ///
+        /// `Broodline.UI` does not reference `Broodline.Game`, so no screen in
+        /// this assembly can name `ScreenHost.Pop`; a pushed screen is
+        /// constructed before its caller has handed over the action, and
+        /// `LineageView` is constructed that way today. `Pop` is a documented
+        /// no-op at depth zero, so a chevron wired to it there would also do
+        /// nothing - which is what makes "harmless" the wrong test. A player
+        /// taps it, gets no error, no transition and no feedback, and reads
+        /// the app as broken.
+        [Test]
+        public void APushedScreenDrawsNoChevronUntilItIsGivenSomewhereToGo()
+        {
+            var s = new ScreenScaffold("Lineage", pushed: true);
+            Assert.IsNull(s.Q<Button>("back"),
+                "a pushed screen with no back action drew a chevron anyway; tapping it does nothing at all");
+
+            var called = 0;
+            s.OnBack = () => called++;
+            var back = s.Q<Button>("back");
+            Assert.IsNotNull(back, "giving a pushed scaffold an action did not restore its chevron");
+            Assert.IsNotNull(back.Q<VisualElement>(className: "icon--back"),
+                "the restored chevron has no glyph");
+
+            RaiseClicked(back);
+            Assert.AreEqual(1, called, "the restored chevron is not wired to the action that restored it");
+
+            // And it goes again when the action does - a screen re-bound as a
+            // tab destination must not keep the chevron its pushed bind gave
+            // it. RaiseClicked here would prove the handler is gone too, but
+            // the button is no longer in the tree to raise it on, which is
+            // the stronger statement.
+            s.OnBack = null;
+            Assert.IsNull(s.Q<Button>("back"), "clearing the action left the chevron behind");
+        }
+
+        /// A TOP-LEVEL SCREEN NEVER GETS ONE, action or not. `pushed` is the
+        /// handoff's push table and it still governs; the callback can only
+        /// take a chevron away, never add one to a screen that has no parent.
+        [Test]
+        public void ATopLevelScreenHasNoChevronEvenWithABackAction()
+        {
+            var s = new ScreenScaffold("Roster", pushed: false, onBack: () => { });
+            Assert.IsNull(s.Q<Button>("back"),
+                "a top-level screen grew a back chevron because it was handed an action");
+
+            s.OnBack = () => { };
+            Assert.IsNull(s.Q<Button>("back"));
+        }
+
         [Test]
         public void AnEmptyFooterNoteHidesItsRow()
         {

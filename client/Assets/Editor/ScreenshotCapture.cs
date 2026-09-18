@@ -106,7 +106,7 @@ public static class ScreenshotCapture
             byte[] png;
             try
             {
-                png = Capture(ScreenFixtures.Build(name));
+                png = Capture(ScreenFixtures.Build(name), ScreenFixtures.GoesInTheScreenHost(name));
             }
             catch (Exception e)
             {
@@ -123,7 +123,7 @@ public static class ScreenshotCapture
         Debug.Log($"captured {captured} of {ScreenFixtures.Names.Count} screens to {dir}");
     }
 
-    static byte[] Capture(VisualElement screen)
+    static byte[] Capture(VisualElement screen, bool inScreenHost)
     {
         // ARGB32 + sRGB read/write: PanelSettings.targetTexture's own doc
         // asks for an sRGB-formatted target when the project's color space
@@ -155,7 +155,40 @@ public static class ScreenshotCapture
             document.rootVisualElement.AddToClassList("shell-root");
 
             var host = new VisualElement { style = { width = Width, height = Height } };
-            host.Add(screen);
+
+            // A SCREEN GOES IN A `screen-host` SLOT, NOT STRAIGHT INTO THE
+            // FRAME, AND THAT IS THE WHOLE POINT OF THIS ELEMENT.
+            //
+            // Shell.uxml puts every pushed and shown screen inside
+            // `#screen-host`. This harness used to add every fixture to a
+            // bare VisualElement, so no rule of Shell.uss's reached any
+            // capture - which meant the corpus could see what a SCREEN does
+            // to itself and nothing of what the SHELL does to a screen. It
+            // cost Phase 8 Task 9 a finding that had to be read out of two
+            // stylesheets rather than looked at: `.screen-host` carried 12px
+            // of side padding and `.screen-scaffold__content` another 12,
+            // for a 24px gutter where the handoff says 12, in the shipped
+            // app, invisible here. `.screen-host`'s padding is gone as of
+            // that fix; this slot is what would have shown it.
+            //
+            // NOT EVERY FIXTURE, and `ScreenFixtures.GoesInTheScreenHost` has
+            // the list - a sheet, a HUD and four component catalogues are not
+            // things the shell ever puts in that slot, and rendering them
+            // there would be a second lie in place of the first.
+            //
+            // Named as well as classed, so it is the same element a reader
+            // finds in Shell.uxml.
+            if (inScreenHost)
+            {
+                var slot = new VisualElement { name = "screen-host" };
+                slot.AddToClassList("screen-host");
+                slot.Add(screen);
+                host.Add(slot);
+            }
+            else
+            {
+                host.Add(screen);
+            }
             document.rootVisualElement.Add(host);
             document.rootVisualElement.MarkDirtyRepaint();
             host.MarkDirtyRepaint();

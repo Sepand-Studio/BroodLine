@@ -38,8 +38,12 @@ namespace Broodline.UI.Screens
     /// `Pop` is the director's. Optional rather than required because every
     /// caller in the tree today presents this screen with
     /// `ScreenFlow.ShowAsync`, which is `ScreenHost.Show` and clears the back
-    /// stack - and `Pop` at depth zero is a documented no-op, so an unwired
-    /// chevron and a wired one do the same nothing until a caller pushes.
+    /// stack - so today nobody passes one, AND NO CHEVRON IS DRAWN. That is
+    /// the honest rendering rather than a gap: `Pop` at depth zero is a
+    /// documented no-op, so a chevron wired to it there would be a control a
+    /// player taps to no effect, which reads as a broken app rather than as a
+    /// screen with no parent. The affordance appears the moment a caller
+    /// pushes this screen and hands over somewhere to go.
     [UxmlElement]
     public partial class LineageView : VisualElement
     {
@@ -51,11 +55,11 @@ namespace Broodline.UI.Screens
         public const string MutatedUssClassName = "mutated";
         public const string HighlightUssClassName = "highlight";
 
+        readonly ScreenScaffold _scaffold;
         readonly VisualElement _generations;
         readonly Button _next;
 
         Action _onNext;
-        Action _onBack;
 
         public LineageView()
         {
@@ -69,13 +73,17 @@ namespace Broodline.UI.Screens
 
             // Composed, not inherited - ScreenScaffold's class comment has
             // the reason and ScaffoldTests' sweep is what depends on it.
-            // pushed: true per the handoff's push table; the action behind
-            // the chevron is the caller's, per this class's comment.
-            var scaffold = new ScreenScaffold(
-                LineageScreen.Title, pushed: true, onBack: () => _onBack?.Invoke());
-            scaffold.Content.Add(_generations);
-            scaffold.CtaRow.Add(_next);
-            Add(scaffold);
+            //
+            // pushed: true per the handoff's push table, and NO ACTION YET -
+            // so no chevron is drawn until Render is handed one. A closure
+            // over a field here would defeat that: it is never null, so the
+            // scaffold would draw a chevron on a screen with nowhere to go
+            // and a player would tap it to no effect at all. ScreenScaffold's
+            // `OnBack` carries the whole argument.
+            _scaffold = new ScreenScaffold(LineageScreen.Title, pushed: true);
+            _scaffold.Content.Add(_generations);
+            _scaffold.CtaRow.Add(_next);
+            Add(_scaffold);
 
             _next.clicked += () => _onNext?.Invoke();
         }
@@ -107,8 +115,8 @@ namespace Broodline.UI.Screens
         /// the failure it names is worse than none.)
         ///
         /// `onBack` IS optional for the opposite reason and the difference is
-        /// worth stating: an unwired `next` strands the walk, and an unwired
-        /// chevron does what `ScreenHost.Pop` would have done at depth zero.
+        /// worth stating: a missing `next` strands the walk, and a missing
+        /// `onBack` draws no chevron at all - so it cannot strand anything.
         public void Bind(LineageResponse lineage, Guid highlight, Action next, Action onBack = null)
         {
             if (next == null) throw new ArgumentNullException(nameof(next),
@@ -132,7 +140,7 @@ namespace Broodline.UI.Screens
             _next.text = LineageScreen.NextLabel;
             _next.style.display = next == null ? DisplayStyle.None : DisplayStyle.Flex;
             _onNext = next;
-            _onBack = onBack;
+            _scaffold.OnBack = onBack;
 
             var nodes = lineage.Nodes;
             var generations = LineageScreen.Generations(nodes);

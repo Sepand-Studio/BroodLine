@@ -10,6 +10,45 @@
 # buffers it until the process exits, which makes a slow run and a hung one
 # look identical - documented the hard way earlier this phase. Tail the file
 # below, or `tail -f` it from another shell while this runs.
+#
+# ==========================================================================
+# BYTE-IDENTICAL IS THE WRONG TEST FOR AN UNCHANGED SCREEN. READ THIS BEFORE
+# REPORTING A DRIFT, because it costs a cycle to rediscover.
+#
+# The right assertion is: NO PIXEL DIFFERS BY MORE THAN ONE CHANNEL LEVEL.
+# Anything above that is a real change; 1/255 on a handful of pixels is not.
+#
+# Measured in Phase 8 Task 9, which rebuilt four screens and found the other
+# twelve captures had each moved by 1 to 19 pixels, every one of them a
+# partial-coverage pixel on a glyph edge, none by more than one level. Three
+# facts, taken together, say what that is:
+#   - three consecutive runs of the same source agree byte for byte, so this
+#     script is deterministic;
+#   - a re-capture with the task's changes stashed reproduced the previous
+#     corpus 16 of 16, so the drift is caused by the change;
+#   - every drifted pixel is antialiasing on text.
+# The mechanism is the shared dynamic SDF font atlas: new or resized strings
+# on ANY fixture repack it, and because the fixtures are captured in one
+# process in ScreenFixtures.Names order, a screen drawn later samples a
+# differently packed atlas. INFERRED, not instrumented - the atlas itself was
+# never read - but the three measurements above are what it is acted on.
+#
+# So a change that touches text will move every capture slightly, and that is
+# not a regression. Compare rasters, not bytes. The one-liner:
+#
+#   python3 - <<'PY'
+#   from PIL import Image, ImageChops
+#   a=Image.open(NEW).convert('RGB'); b=Image.open(OLD).convert('RGB')
+#   d=ImageChops.difference(a,b)
+#   print(max(max(p) for p in d.getdata()))   # >1 is a real change
+#   PY
+#
+# NOT `Image.getbbox()` ON AN RGBA IMAGE. Pillow 10 gave getbbox an
+# `alpha_only` parameter that defaults to True, so on a difference image -
+# whose alpha channel is all zero when both inputs are opaque - it returns
+# None and every pair reads as identical. That answer was believed for one
+# round in Task 9. Convert to RGB first, as above.
+# ==========================================================================
 set -uo pipefail
 cd "$(dirname "$0")/../.."
 
