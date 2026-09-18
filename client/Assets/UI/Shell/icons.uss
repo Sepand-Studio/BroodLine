@@ -1,5 +1,17 @@
-/* Glyphs. Lucide at 24/2.0, rescaled to the handoff's 19px / no fill;
+/* Glyphs. Lucide's 24px set, rescaled to the handoff's 19px / 1.9 / no fill;
  * `splice` is drawn to match because no general set carries it.
+ *
+ * THE STROKE IS RE-CUT, NOT JUST RESCALED, AND THAT IS ARITHMETIC. The plan
+ * said Lucide's 24/2.0 "rescales to the handoff's 19px / 1.9 without
+ * redrawing". It does not: 19/24 x 2.0 = 1.58, which is 17% under spec.
+ * Lucide's native stroke-to-size ratio is 0.0833 and the handoff's is 0.1, so
+ * the rasteriser substitutes stroke-width 2.4 into the 24 viewBox and 19px
+ * lands on 1.90 exactly. Checked by eye at both weights before choosing: at
+ * 2.0 the marks read thin beside their bold 10px nav labels, and at 2.4
+ * nothing muddies - the gem's facets and the stopwatch's dial, the two
+ * densest here, keep their interior white at 19px. The SOURCES stay at
+ * Lucide's 2.0 so all thirteen are one homogeneous set; the re-cut is a
+ * rasteriser transform, applied uniformly, like the colour below.
  *
  * LICENCE IS ISC, NOT MIT - the plan said MIT and the file it tells you to
  * fetch says "ISC License" on line 1. Three of these thirteen (`check`,
@@ -39,6 +51,25 @@
 .icon--check   { background-image: url("project:///Assets/UI/Art/icons/check.png"); }
 .icon--warning { background-image: url("project:///Assets/UI/Art/icons/warning.png"); }
 
-/* The tab bar's two states, per the handoff's nav model. */
-.tab-bar__tab .icon            { -unity-background-image-tint-color: var(--mute-soft); }
+/* The tab bar's two states, per the handoff's nav model - plus the one rule
+ * that keeps the glyph off the word.
+ *
+ * OUT OF FLOW, DELIBERATELY. A Button draws its `text` itself, centred in
+ * its own content box, and an inserted child is not a flex sibling of that
+ * text - in flow the two share the same space and the mark sits on the
+ * label's first letters. Taking the glyph out of flow leaves the content box
+ * holding nothing but the text, so the band Shell.uss reserves with
+ * `padding-top: 31px` is the text's floor and this `top` is the glyph's
+ * home inside it: 8px down, 19px tall, 4px of air, then the 10px label.
+ *
+ * `align-self` rather than left/right: the mark is a fixed 19px, so
+ * stretching it is not available and `left: 0` would pin it to the padding
+ * edge. Centre on the cross axis instead and it sits over the middle of the
+ * word whatever the tab's width. */
+.tab-bar__tab .icon {
+    position: absolute;
+    top: var(--space-2);
+    align-self: center;
+    -unity-background-image-tint-color: var(--mute-soft);
+}
 .tab-bar__tab--active .icon    { -unity-background-image-tint-color: var(--violet-text); }

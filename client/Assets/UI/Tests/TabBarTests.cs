@@ -81,6 +81,17 @@ namespace Broodline.UI.Tests
         /// than read off `TabBar.IconUssClassName`, deliberately: `icons.uss`
         /// hardcodes them too, and a test that renames itself in step with the
         /// code it guards would not have noticed the sheet going stale.
+        ///
+        /// IF YOU WEAKEN-TEST THIS, READ THE FAILURE LIST, NOT THE EXIT CODE.
+        /// `run-unity-tests.sh EditMode` exits 2 in its HEALTHY state, because
+        /// `MainThreadAffinityTests.NoConfigureAwaitFalse_InCodeThatTouchesTheUi`
+        /// is a correct, known failure against three deliberate
+        /// `.ConfigureAwait(false)` sites in SessionTests.cs. So the exit code
+        /// is 2 whether or not this test passes and cannot tell you anything.
+        /// Measured, by deleting the `icon--` line in TabBar.cs and putting it
+        /// back: weakened gives 272/270/2 with "Map's glyph is not its own",
+        /// restored gives 272/271/1. The COUNTS and the named failures are the
+        /// discriminator.
         [Test]
         public void EveryTabCarriesItsOwnGlyph()
         {

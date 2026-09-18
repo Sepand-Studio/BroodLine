@@ -99,7 +99,23 @@
     font-size: var(--text-nav);
     border-bottom-width: 0;
     border-radius: var(--radius-pill);
-    padding-top: var(--space-2);
+
+    /* THE GLYPH'S BAND, AND THE ONLY REASON THIS IS NOT var(--space-2).
+     * A Button is a TextElement: it draws `text` ITSELF, centred in its own
+     * content box, and a child element is not a flex sibling of that text -
+     * so the icon Phase 8 Task 4 inserts lands ON TOP of the first letters
+     * of the word unless something moves the text out from under it. The
+     * text centres in the content box, which is what is left after this
+     * padding, so reserving the top 31px pushes the label below the band and
+     * `icons.uss` pins the mark absolutely into it. 8 + 19 + 4: the
+     * handoff's nav padding, its 19px glyph, its 4px gap.
+     *
+     * NOT SOLVED BY MOVING THE LABEL INTO A CHILD `Label`, which would make
+     * glyph and label real flex siblings and is how the handoff's own HTML
+     * does it - `TabBarTests.Render_DrawsOneButtonPerTabInOrder` asserts on
+     * `((Button)c).text`, and emptying it to satisfy the layout would delete
+     * a gate to make a picture nicer. */
+    padding-top: 31px;
     padding-bottom: var(--space-2);
     padding-left: var(--space-4);
     padding-right: var(--space-4);
