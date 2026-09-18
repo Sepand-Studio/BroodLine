@@ -41,16 +41,20 @@ last one — what it found wrong in its own plan and its own design*
 
 ---
 
-## 1. The three gates this phase cannot close
+## 1. The three gates this phase could not close — and how each ended
 
-**The Definition of Done names eleven clauses. Eight are green. Three are not,
-and none of the three is blocked on anything an agent could write.**
+**The Definition of Done names eleven clauses. Ten are met. The eleventh — the
+TestFlight build in a stranger's hands — is not, and on 2026-09-18 it moved to
+Phase 9 by decision rather than being carried as a debt. §1e has the decision
+and its reason.** The table below is kept as written on 2026-09-17, with a
+final column added, because the state it describes is the state Task 16 and
+Task 17 were run from.
 
-| Gate | Blocked on | State today |
-|---|---|---|
-| **`phase8-visual-review.md`, written by a human, no blank sections** | **Task 16** — a person looking at sixteen captures, and walking beats 1–8 in the running app | Not started. The file does not exist. **One defect is already known and measured** — see §2.1 — and the motion from Task 5 has never been looked at by anyone, because a screenshot of a 220ms transition is pixel-identical to no transition at all |
-| **`smoke-loop.sh` PASS against Cloud Run** | **Task 17** — `terraform apply`, a migration, a seeded `servers` row, a published bundle, two deploys, and a human who has decided the Cloud SQL instance stays up and billing | No deployed stack. `implementation/scripts/smoke-loop.sh` **does not exist**; the directory holds `smoke-wave.sh` only. **Unchanged from Phase 7, where it was Task 19** — this is the second phase it has carried |
-| **A TestFlight build installed by someone who is not the developer, and their report in this file verbatim** | **Task 18** | No build, no upload, no tester. **The section of this file that would carry that report is absent rather than empty**, which is the same choice Phase 7 made and for the same reason: a heading with nothing under it reads like a thing that was tried |
+| Gate | Blocked on | State on 2026-09-17 | How it ended, 2026-09-18 |
+|---|---|---|---|
+| **`phase8-visual-review.md`, written by a human, no blank sections** | **Task 16** — a person looking at sixteen captures, and walking beats 1–8 in the running app | Not started. The file does not exist. **One defect is already known and measured** — see §2.1 — and the motion from Task 5 has never been looked at by anyone, because a screenshot of a 220ms transition is pixel-identical to no transition at all | **Met.** A human walked the first hour in `Boot.unity` against the deployed stack. The walk found §1c and §1d and stopped at the second; the verdict on everything it reached is quoted verbatim in the file. Motion was **not** assessed and the file says so |
+| **`smoke-loop.sh` PASS against Cloud Run** | **Task 17** — `terraform apply`, a migration, a seeded `servers` row, a published bundle, two deploys, and a human who has decided the Cloud SQL instance stays up and billing | No deployed stack. `implementation/scripts/smoke-loop.sh` **does not exist**; the directory holds `smoke-wave.sh` only. **Unchanged from Phase 7, where it was Task 19** — this is the second phase it has carried | **Met.** PASS against the deployed stack, with one caveat (the first submission after `sim` goes idle returns 503 — `phase8-test-baseline.txt`, `gate.smoke-loop.caveat`). The stack is up and billing |
+| **A TestFlight build installed by someone who is not the developer, and their report in this file verbatim** | **Task 18** | No build, no upload, no tester. **The section of this file that would carry that report is absent rather than empty**, which is the same choice Phase 7 made and for the same reason: a heading with nothing under it reads like a thing that was tried | **Moved to Phase 9.** `BootBuilder.cs` and `ExportOptions.plist` are written and committed; no archive was built. §1e |
 
 **Task 18 is not only a ship gate.** It is the first time a colour-blind person
 could look at this palette, and the first time anyone at all holds the app at
@@ -130,6 +134,99 @@ correctly. What it could not do alone is give the player a way out.
 wave to completion. `smoke-loop.sh` does too. Nothing anywhere exercises
 "started and never finished", because the state is only reachable by stopping —
 which a test never does and a human does immediately.
+
+---
+
+## 1d. FOUND BY THE EYES-ON PASS: the shell renders over the battlefield
+
+**Severity: the wave is unplayable by eye.** The human's words: *"the game
+screen was collapsing on top of the menu screen."* Found in the same walk as
+§1c, immediately after §1c was worked around.
+
+**What happens.** `WaveHost.RunAsync` loads `Wave.unity` with
+`LoadSceneMode.Additive`. The wave scene's `UIDocument` shares the shell's
+`PanelSettings`, so `WaveHudView` becomes a **sibling root in the same panel**
+as `#shell-root`, and nothing in `WaveHost`, `BootController` or `WaveRunner`
+hides the shell while the wave is resident. The shell — its scaffold, its
+`--paper` background, whatever screen was last pushed — is drawn over the 3D
+battlefield and over the HUD.
+
+**Why nobody saw it for seven phases.** `Theme.uss:101` sets
+`.shell-root { background-color: var(--paper) }`. Until Phase 8 Task 0 found
+that `Tokens.uss` compiled to zero rules (§7.1), `var(--paper)` resolved to
+nothing and the shell painted **transparent**. The wave showed through a shell
+that was, in fact, still on top. Fixing the token layer made the shell opaque,
+which made a pre-existing layering defect visible. **This is not a regression
+introduced by Phase 8; it is a defect Phase 8 uncovered by fixing the thing
+that was hiding it** — the same silent-failure family as §4.
+
+**An attempted fix, and why it was reverted.** A `setShellResident` callback
+was added to `WaveHost` and wired from `BootController` to toggle
+`shellRoot.style.display` around the additive load and unload. It was made
+while the user's Editor held the single-instance lock, so
+`run-unity-tests.sh EditMode` could not run, and it went into the user's
+session unverified. The next report was *"the screen is white again"*. The
+change was reverted at the user's request the same hour; both files are
+byte-identical to their previous commit. The diagnosis above stands; the
+repair does not, and it is not known whether the repair was wrong or merely
+incomplete (hiding the shell is right; *when* it comes back may not have
+been).
+
+**Booked to Phase 9**, first item after §1c, with two conditions: the EditMode
+suite runs before it lands, and it is verified in a running wave, not by
+construction. The two-minute version of what to try next: hide the shell
+**after** the wave scene's `UIDocument` is attached rather than before the
+load begins, and restore it on `WaveHost`'s completion path *and* on its
+exception path — the white screen is consistent with the restore never
+running.
+
+---
+
+## 1e. The decision that closed the phase: TestFlight moves to Phase 9
+
+**Taken by the user on 2026-09-18, after the walk:**
+
+> "I think we should close phase 8, create a PR. then move on the testflight
+> to phase 9 and start polishing and creating better game designs. once we are
+> in a good point to have something nice to test then we can test in
+> testflight. It won't make any sense to testflight right now with something
+> ugly and completely broken"
+
+**Why this is the right call and not a slip.** Task 18 Step 5's deliverable is
+a stranger's report on *where they were confused*. Handed the build as it
+stands, that report would say: the first screen dead-ends (§1c), the wave is
+drawn behind the menu (§1d), the creatures are cubes, and the screens are
+plainer than the design. Every line of it is already known. A playtest that
+returns only known defects has spent the tester — and a first impression —
+for nothing. The gate is worth more later than it is now.
+
+**What it changes.**
+
+- **DoD item 10 is moved, not waived.** It becomes Phase 9's exit gate, in the
+  same words. `BootBuilder.cs`, `ExportOptions.plist` and the file-sharing
+  post-process guard are done and committed; what is owed is the archive, the
+  upload, the tester and the report.
+- **Phase 9 is re-scoped.** It was "production creature art against
+  `rig_proof.md`". It is now *the look*: (1) §1c and §1d fixed first, because
+  nothing can be judged through them; (2) screens brought from the handoff's
+  skeleton to the handoff's fidelity — `phase8-visual-review.md` names the gap
+  screen by screen; (3) creatures in 3D — the bible's resolved direction,
+  brought forward, with the tone question ("cartoon" against §10.7's
+  natural-history register) settled before anything is modelled; (4) TestFlight
+  when there is something worth a stranger's hour. Design and plan for it are
+  the next documents to write.
+- **The record is honest about what Phase 8 delivered.** A token layer that
+  works for the first time, fonts, elevation, icons, a scaffold, a component
+  vocabulary, ten screens composed from it, six proxies that passed a human's
+  eye on shape, a deployed stack, a green smoke loop, and a release builder.
+  Not: a game that looks finished. The phase's name promised the look and
+  delivered the foundation for it, and the user's verdict says so more
+  plainly than this paragraph does.
+
+**What it does not change.** The deployed stack stays up and keeps billing
+(~$25–50/month at `min_instance_count = 0`), because Phase 9's smoke loop and
+its eventual TestFlight build both need it. Tearing it down and standing it up
+again costs the Task 17 dance twice.
 
 ---
 
@@ -527,19 +624,25 @@ Phase 7's record saying its last runs were red is now stale.
 
 ## 9. What the next session inherits
 
-In priority order.
+In priority order. **Rewritten 2026-09-18 at close;** the 2026-09-17 list had
+Tasks 16, 17 and the push at the top, and all three are done.
 
-1. **Task 16**, and with it §2.1's `OptionRow` decision and §2.2's `Label`
-   margin. Both want a human looking at a device, and §2.2's fix wants doing in
-   the same pass because it moves all sixteen captures.
-2. **Task 17**, then **Task 18** promptly after it — billing starts at
-   `terraform apply`. Task 18 is also the first colour-blind check of the
-   palette (§2.7) and the first time anyone holds the app.
-3. **Push the branch.** Nothing here has been through CI (§8), and the
-   determinism gate's CI failure will not diagnose itself.
-4. **Phase 9** inherits §2.3's constraint on Pale, and the whole of
-   `bible §10.4`'s new subsection, before it draws anything.
-5. **Phase 10** inherits `RegionView` and §2.4's thirty-versus-eight
+1. **Phase 9's design and plan**, scoped per §1e. The two blocking defects
+   first — §1c (abandoned wave) and §1d (shell over battlefield) — because no
+   screen and no creature can be judged through them.
+2. **Screens to handoff fidelity.** `phase8-visual-review.md` has the gap per
+   screen; `SpliceChamberView` and `DeployView` are the widest. §2.1's
+   `OptionRow` decision and §2.2's `Label` margin ride along.
+3. **Creatures in 3D**, the bible's resolved direction brought forward. It
+   inherits §2.3's constraint on Pale and `bible §10.4`'s measured subsection
+   before it draws anything, and it needs the tone question settled first.
+4. **TestFlight (Phase 8 DoD item 10, moved)** as Phase 9's exit gate — also
+   the first colour-blind check of the palette (§2.7) and the first time anyone
+   holds the app.
+5. **The determinism gate's CI failure** — red on `develop` and red on
+   `phase_8` (run 35364459009, 2m03s), green locally every time. Unowned since
+   Phase 7; it will not diagnose itself.
+6. **Phase 10** inherits `RegionView` and §2.4's thirty-versus-eight
    reconciliation.
 
 ---
@@ -548,4 +651,4 @@ In priority order.
 its own plan and design, and what measuring the gates found. Does not own: the
 numbers, which are `implementation/results/phase8-test-baseline.txt`'s; the
 palette reasoning, which is `implementation/results/palette-decision.md`'s and
-`species-collision.md`'s; or the tester's report, which does not exist yet.*
+`species-collision.md`'s; or the tester's report, which is Phase 9's to earn.*

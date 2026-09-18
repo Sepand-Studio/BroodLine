@@ -236,6 +236,24 @@ USS comment — paths and globs are the way it happens.
 
 ---
 
+## CLOSED 2026-09-18 — ten of eleven; TestFlight moves to Phase 9
+
+The phase closes on the eyes-on pass (Task 16), not on the ship (Task 18).
+The human who walked the first hour found two defects that stop the walk —
+an abandoned wave bricks the account; the shell renders over the battlefield —
+and gave a verdict on what they reached: *"the screens are too simple… I like
+the shapes… but the design is very poor"*. Their decision, verbatim, is in
+`implementation/2026-09-17-phase8-followups.md` §1e: close, PR, and move
+TestFlight to Phase 9, because *"It won't make any sense to testflight right
+now with something ugly and completely broken."*
+
+DoD item 10 is therefore **moved, in the same words, to Phase 9's exit gate**
+— not waived. Task 18 Steps 1–3 and 6 are done and committed; Steps 4 and 5
+go with the gate. Phase 9 is re-scoped from production creature art to *the
+look*: the two defects, screens to handoff fidelity, creatures in 3D, then
+TestFlight. Every gate that can be measured at this tree was re-measured at
+close; `phase8-test-baseline.txt` has the numbers.
+
 ## RE-GATED 2026-09-17 — the visual work does not wait on the test runner
 
 **Why this section exists.** As first written, all thirteen visual tasks gated on
@@ -3569,9 +3587,9 @@ BODY
 5. `cross-runtime-diff.sh` — `PASS: 500 scenarios agree`.
 6. `EveryScreenComposesTheScaffold` — green.
 7. `capture-screens.sh` — twelve screens, none blank.
-8. `phase8-visual-review.md` — written by a human, no blank sections.
-9. `smoke-loop.sh` — PASS against Cloud Run.
-10. A TestFlight build installed by someone who is not the developer, **and their report in the Phase 8 record verbatim.**
+8. `phase8-visual-review.md` — written by a human, no blank sections. **Met 2026-09-18** — see the CLOSED block at the top.
+9. `smoke-loop.sh` — PASS against Cloud Run. **Met 2026-09-18**, one caveat recorded.
+10. A TestFlight build installed by someone who is not the developer, **and their report in the Phase 8 record verbatim.** **MOVED to Phase 9 as its exit gate, 2026-09-18**, by the decision in the record's §1e. Not waived.
 11. `phase8-test-baseline.txt` written; `phase7-test-baseline.txt` corrected; both errata recorded.
 
 ---
