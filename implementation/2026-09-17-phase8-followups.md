@@ -81,6 +81,58 @@ than claimed as closed.
 
 ---
 
+## 1c. FOUND BY THE EYES-ON PASS: a wave abandoned mid-flight bricks the account
+
+**Severity: this ends the session with no way back, and the player sees a blank
+screen.** Found within minutes of the first human pressing Play — by a human,
+on the first screen, after 323 passing tests, a green CI run and sixteen
+screenshots had all said nothing was wrong.
+
+**What happens.** `POST /v1/wave/start` sets `committed_to` on every deployed
+creature and opens a `wave_issuances` row. If the player never submits — quits,
+backgrounds the app, loses the connection — the issuance stays live and the
+creatures stay committed. `FtueDirector.FightAsync` skips any creature with
+`CommittedTo != null` (`FtueDirector.cs:255`), so it finds none, `CanDeploy` is
+false, `_notice` fires, `FightAsync` returns false, and `RunAsync` returns.
+
+The director exiting is the end of the session. Nothing further is presented,
+so the shell renders empty: **a blank screen and a warning in a console no
+player has.**
+
+**Measured**, on the local stack after one abandoned wave:
+
+```
+player cd297a75...   creatures: 3   committed: 3      every one locked
+live wave_issuances: 2
+```
+
+**It is unrecoverable from inside the game.** Nothing releases `committed_to`
+except submitting the issuance it belongs to, and the only route to that
+issuance is a deploy screen the block prevents from opening. There is no
+expiry, no reconcile-on-cold-start, and no player-visible state at all.
+
+**The code already knew.** `FightAsync`'s own comment names this exact case —
+*"It is reachable: an empty roster, or every creature `committed_to` a live
+issuance"* — and chooses the notice over a screen with a dead Start button,
+correctly. What it could not do alone is give the player a way out.
+
+**What this needs, and none of it is a UI fix:**
+
+1. **An expiry or reconcile.** A live issuance older than some bound should
+   release its creatures, or cold start should reconcile them. `wave_issuances`
+   already carries what an expiry would need.
+2. **Somewhere to see it.** A player whose roster is locked should be told, not
+   shown nothing. The notice reaches `BootController.OnNotice` and stops there.
+3. **A resumable issuance.** The honest answer may be to let the player return
+   to the wave they abandoned rather than release it.
+
+**Why no test caught it:** every suite starts from a fresh account and drives a
+wave to completion. `smoke-loop.sh` does too. Nothing anywhere exercises
+"started and never finished", because the state is only reachable by stopping —
+which a test never does and a human does immediately.
+
+---
+
 ## 2. The punch list — what is owed, with its evidence
 
 Seven items. Each carries the measurement it rests on, so a later session can
