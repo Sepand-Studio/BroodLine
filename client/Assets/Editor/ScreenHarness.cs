@@ -23,9 +23,18 @@ public class ScreenHarness : EditorWindow
     {
         var names = ScreenFixtures.Names;
         var picker = new PopupField<string>("Screen", new List<string>(names), 0);
+
+        // ON THE WINDOW'S ACTUAL ROOT, NOT ON `host` BELOW - fix round 1,
+        // matching how Shell.uxml applies Tokens/Theme/Shell at the true
+        // UXML root rather than on its inner "shell-root"-classed element.
+        // Structurally correct regardless of the next paragraph: see
+        // AddShellStyles for why this specific move was tested (in
+        // ScreenshotCapture, where resolvedStyle can actually be checked
+        // headlessly) and did NOT fix the thing it was suspected of fixing.
+        AddShellStyles(rootVisualElement);
+        rootVisualElement.AddToClassList("shell-root");
+
         var host = new VisualElement { style = { flexGrow = 1, width = 430, height = 932 } };
-        AddShellStyles(host);
-        host.AddToClassList("shell-root");
 
         void Show()
         {
@@ -44,27 +53,37 @@ public class ScreenHarness : EditorWindow
     /// properties), Theme (element defaults), then the icon and motion
     /// sheets Phase 8's later tasks add.
     ///
-    /// NULL-GUARDED, AND THAT GUARD IS THE POINT RIGHT NOW.
-    /// `AssetDatabase.LoadAssetAtPath` returns null for a path that does not
-    /// exist rather than throwing, and `VisualElement.styleSheets.Add`
-    /// throws `ArgumentNullException` on that null - so loading a sheet
-    /// Phase 8 has not written yet would take down every screen in the
-    /// picker, not just the one that wanted it. `icons.uss` and `Motion.uss`
-    /// do not exist on this branch as of Task 14/15 (grep confirms it - see
-    /// task-14-15-report.md): building the icon set and the motion sheet are
-    /// later Phase 8 tasks. Once either lands at the path below, this picks
-    /// it up with no further change here.
-    internal static void AddShellStyles(VisualElement host)
+    /// CALLED WITH THE PANEL'S ACTUAL ROOT ELEMENT - fix round 1, matching
+    /// `Shell.uxml`'s own structure. `ScreenshotCapture.Capture` calls this
+    /// the same way, on `document.rootVisualElement`, where it was possible
+    /// to check with `resolvedStyle` whether moving the attachment point
+    /// here (off the 430x932 `host` this used to sit on) actually changed
+    /// which custom properties resolve. It did not: `ScreenshotCapture.cs`'s
+    /// own class comment has the full account, including the theory this
+    /// disproved, because "it did not visibly change anything" is worth
+    /// exactly as much record-keeping as a fix that worked.
+    ///
+    /// NULL-GUARDED, SEPARATELY. `AssetDatabase.LoadAssetAtPath` returns
+    /// null for a path that does not exist rather than throwing, and
+    /// `VisualElement.styleSheets.Add` throws `ArgumentNullException` on
+    /// that null - so loading a sheet Phase 8 has not written yet would take
+    /// down every screen in the picker, not just the one that wanted it.
+    /// `icons.uss` and `Motion.uss` do not exist on this branch as of
+    /// Task 14/15 (grep confirms it - see task-14-15-report.md): building
+    /// the icon set and the motion sheet are later Phase 8 tasks. Once
+    /// either lands at the path below, this picks it up with no further
+    /// change here.
+    internal static void AddShellStyles(VisualElement panelRoot)
     {
-        AddStyleIfPresent(host, "Assets/UI/Shell/Tokens.uss");
-        AddStyleIfPresent(host, "Assets/UI/Shell/Theme.uss");
-        AddStyleIfPresent(host, "Assets/UI/Shell/icons.uss");
-        AddStyleIfPresent(host, "Assets/UI/Shell/Motion.uss");
+        AddStyleIfPresent(panelRoot, "Assets/UI/Shell/Tokens.uss");
+        AddStyleIfPresent(panelRoot, "Assets/UI/Shell/Theme.uss");
+        AddStyleIfPresent(panelRoot, "Assets/UI/Shell/icons.uss");
+        AddStyleIfPresent(panelRoot, "Assets/UI/Shell/Motion.uss");
     }
 
-    static void AddStyleIfPresent(VisualElement host, string path)
+    static void AddStyleIfPresent(VisualElement panelRoot, string path)
     {
         var sheet = AssetDatabase.LoadAssetAtPath<StyleSheet>(path);
-        if (sheet != null) host.styleSheets.Add(sheet);
+        if (sheet != null) panelRoot.styleSheets.Add(sheet);
     }
 }

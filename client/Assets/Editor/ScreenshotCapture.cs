@@ -49,23 +49,43 @@ using UnityEngine.UIElements;
 /// (`UIElementsRuntimeUtility`, native-hooked into the player loop this
 /// script has none of) actually calls and in what order.
 ///
-/// KNOWN GAP: TOKENS.USS/THEME.USS'S CUSTOM PROPERTIES DO NOT VISIBLY
-/// RESOLVE IN THESE CAPTURES. `host.resolvedStyle.backgroundColor` measures
-/// fully transparent rather than `--paper`'s `#f7f4fb`, and text measures as
-/// Unity's own default runtime theme's grey rather than `--ink`'s `#3f3a52`
-/// - checked directly, not inferred from the picture. Explicitly driving the
-/// internal `Styles`/`Layout`/`TransformClip`/`Authoring`
-/// `VisualTreeUpdatePhase` updaters (`BaseVisualElementPanel.GetUpdater`,
-/// one reflection layer past everything else here) made no measurable
-/// difference, so whatever gates the custom-property cascade is deeper than
-/// this file reaches without more internal archaeology than a screenshot
-/// script justifies. Inline C# styles (this file's own `width`/`height`,
-/// every screen's own layout) and Unity's built-in default runtime theme
-/// both render correctly regardless - only Broodline's OWN token layer is
-/// affected. Given how close `--paper`/`--surface-sunk`/`--hairline` already
-/// sit to white by design, these captures likely read close to accurate
-/// anyway; task-14-15-report.md says so explicitly rather than leaving it to
-/// be rediscovered.
+/// KNOWN GAP, STILL OPEN AFTER A SECOND ROUND: TOKENS.USS/THEME.USS'S
+/// CUSTOM PROPERTIES DO NOT VISIBLY RESOLVE IN THESE CAPTURES.
+/// `resolvedStyle.backgroundColor` on the panel's own root measures fully
+/// transparent rather than `--paper`'s `#f7f4fb`, and text measures as
+/// Unity's default runtime theme's grey rather than `--ink`'s `#3f3a52` -
+/// checked directly with `resolvedStyle` each round, not inferred from the
+/// picture. TWO DISTINCT THEORIES HAVE BEEN TESTED AND BOTH FALSIFIED:
+///
+/// 1. Driving the internal `Styles`/`Layout`/`TransformClip`/`Authoring`
+///    `VisualTreeUpdatePhase` updaters directly (`BaseVisualElementPanel.
+///    GetUpdater(phase).Update()`, one reflection layer past everything
+///    else `ForceRender` does) - no measurable difference.
+/// 2. `:root` needing the stylesheet on the PANEL'S ACTUAL root rather than
+///    on a child - a plausible-sounding second theory, since `host` used to
+///    be where these attached and is a child of `document.rootVisualElement`
+///    (this is also why the styles now attach to the root regardless: it is
+///    structurally correct either way, matching how `Shell.uxml` applies
+///    Tokens/Theme/Shell at the true UXML root). Moving them produced
+///    BYTE-IDENTICAL PNGs and BYTE-IDENTICAL `resolvedStyle` readings to
+///    before the move. Adding `MarkDirtyRepaint()` on the root, `host` and
+///    the screen on top of that changed nothing either.
+///
+/// So the cascade is not gated by attachment point or by a missing dirty
+/// flag this file can set through public API. Whatever gates it is deeper
+/// than two rounds of reflection have reached, and a third round did not
+/// have a new, specific hypothesis to test rather than another guess - see
+/// task-14-15-report.md's fix-round-1 section for the full account, written
+/// for whoever picks this up with a concrete next theory. Inline C# styles
+/// (this file's own `width`/`height`, every screen's own layout) and
+/// Unity's built-in default runtime theme both render correctly regardless
+/// - only Broodline's OWN token layer is affected. Given how close
+/// `--paper`/`--surface-sunk`/`--hairline` already sit to white by design,
+/// these captures likely still read close to accurate on colour - but
+/// unresolved custom properties also take out padding, radius and
+/// font-size wherever a screen's own USS reaches for one, which is a larger
+/// effect than colour alone and should not be waved through as "probably
+/// fine" a second time.
 public static class ScreenshotCapture
 {
     // The handoff's reference frame - the same 430x932 ScreenHarness hosts a
@@ -127,14 +147,21 @@ public static class ScreenshotCapture
             var document = go.AddComponent<UIDocument>();
             document.panelSettings = settings;
 
-            // Same 430x932, shell-styled host ScreenHarness wraps a screen
-            // in - see ScreenHarness.AddShellStyles for why the four
-            // AssetDatabase loads there are each null-guarded.
+            // ON document.rootVisualElement, THE PANEL'S ACTUAL ROOT, matching
+            // how Shell.uxml applies Tokens/Theme/Shell at the true UXML root
+            // rather than on the inner "shell-root"-classed element. This is
+            // structurally the right place regardless of the paragraph below -
+            // MarkDirtyRepaint on the elements right after is the same idea:
+            // ordinary, correct, well-known API.
+            ScreenHarness.AddShellStyles(document.rootVisualElement);
+            document.rootVisualElement.AddToClassList("shell-root");
+
             var host = new VisualElement { style = { width = Width, height = Height } };
-            ScreenHarness.AddShellStyles(host);
-            host.AddToClassList("shell-root");
             host.Add(screen);
             document.rootVisualElement.Add(host);
+            document.rootVisualElement.MarkDirtyRepaint();
+            host.MarkDirtyRepaint();
+            screen.MarkDirtyRepaint();
 
             ForceRender(host);
 
