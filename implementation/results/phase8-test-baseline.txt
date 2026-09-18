@@ -1,0 +1,363 @@
+# Phase 8 recorded test baseline — DATA, NOT PROSE.
+#
+# Same contract as implementation/results/phase7-test-baseline.txt and the
+# phase6/phase5 files before it, whose headers carry the full rationale and is
+# not repeated here: a count written into a sentence goes stale silently.
+# THE NUMBERS HERE SUPERSEDE ANY COUNT WRITTEN INTO A SENTENCE ANYWHERE IN
+# implementation/ OR specs/, including the Phase 8 plan, the Phase 8 design and
+# the Phase 8 record beside this file.
+#
+# ---------------------------------------------------------------------------
+# EVERY ROW BELOW WAS MEASURED AT THIS TREE. NOTHING IS CARRIED.
+#
+# This is the whole point of the file, and it is stated first because the
+# previous instance of it failed exactly here. phase7-test-baseline.txt spent
+# its final weeks asserting a deliberate red (gate.dotnet.failed 1) against a
+# tree that was green, and carrying gate.unity.* rows its own header admitted
+# were "CARRIED from 2026-09-16, NOT RE-VERIFIED". Phase 8 Task 0 existed to
+# correct that. This file does not inherit a single number from it.
+#
+# Two rows that Phase 7 could not verify ARE verified here, and one of them
+# came back different from what the tooling itself predicts — see
+# gate.unity.playmode below. A baseline is only worth what its last
+# measurement was worth.
+#
+# ---------------------------------------------------------------------------
+# HOW TO REGENERATE, from the repo root, IN THIS ORDER
+#
+#   export PATH="$HOME/.nvm/versions/node/v22.22.2/bin:$PATH"
+#       # the pnpm that resolves first on a default PATH here is 3.7.5 under an
+#       # nvm node 10; it prints usage and exits 0 rather than failing.
+#
+#   dotnet test Broodline.sln --nologo
+#   ./implementation/scripts/run-unity-tests.sh EditMode      # exits 2 — see below
+#   ./implementation/scripts/run-unity-tests.sh PlayMode
+#   ./implementation/scripts/cross-runtime-diff.sh
+#   pnpm --filter @broodline/api test
+#   pnpm --filter @broodline/api typecheck
+#   ./implementation/scripts/generate-contract.sh && \
+#     git status --porcelain -- openapi/ client/Assets/Generated/ services/api/src/generated/
+#   bash implementation/scripts/verify-unity-settings.sh      # AFTER the Unity gates
+#   bash implementation/scripts/verify-uss-tokens.sh
+#
+# THE ORDER MATTERS AND IT IS NOT THE DEFINITION-OF-DONE ORDER. Phase 7's file
+# records that run-unity-tests.sh reintroduces the drift verify-unity-settings.sh
+# exists to catch, so the settings check must run AFTER the Unity gates or it is
+# a green about a different tree. That ordering is kept. What it found this time
+# is in the next section.
+#
+# The api.file.* rows come from vitest's own per-file summary lines:
+#
+#   grep -E "^ ✓ test/" <api-log> \
+#     | sed -E 's/^ ✓ test\/([^ ]+) \(([0-9]+) tests?\).*/api.file.\1\t\2/' \
+#     | sort
+#
+# The unity.fixture.* rows come from the results XML, by fixture rather than by
+# assembly — the assembly-level test-suite nodes carry no usable totals in this
+# runner's output, which is why the earlier grouping is not used:
+#
+#   python3 -c 'import xml.etree.ElementTree as ET;from collections import Counter;
+#   r=ET.parse("implementation/results/test-results-EditMode.xml").getroot();
+#   c=Counter();
+#   [c.update([(tc.get("fullname") or "").split("(")[0].split(".")[-2]]) for tc in r.iter("test-case")];
+#   [print(f"unity.fixture.{k}\t{v}") for k,v in sorted(c.items())]'
+#
+# HOW TO DIFF. Strip the comments; the data block is sorted and stable:
+#
+#   diff <(grep -v '^#' implementation/results/phase7-test-baseline.txt) \
+#        <(grep -v '^#' implementation/results/phase8-test-baseline.txt)
+#
+# ---------------------------------------------------------------------------
+# THE ONE RED ROW IS DELIBERATE AND IT IS CORRECT. WHY IT IS CORRECT MATTERS
+# MORE THAN THAT IT IS EXPECTED.
+#
+# gate.unity.editmode.failed is 1, and run-unity-tests.sh EditMode exits 2.
+# The failure is
+#
+#   Broodline.Game.Tests.MainThreadAffinityTests.NoConfigureAwaitFalse_InCodeThatTouchesTheUi
+#
+# It reports three real .ConfigureAwait(false) sites, all in
+# client/Assets/Game/Tests/SessionTests.cs, at lines 140, 155 and 179 —
+# confirmed by reading the file at this tree, not by trusting the message.
+#
+# THIS IS A CORRECT FAILURE, NOT A TOLERATED ONE. ConfigureAwait(false) resumes
+# an await off Unity's main thread, and the next VisualElement built after it
+# throws. The three sites are inside a test's fake HTTP handler, which touches
+# no UI — so the code is fine and the gate is also right to say so, because the
+# gate is text analysis over source and cannot know which await reaches a
+# VisualElement. The suite ships red rather than exempting the file, because an
+# exemption is the thing that would let a real fourth site in.
+#
+# RECORDING IT AS "failing" WITHOUT THIS PARAGRAPH IS HOW PHASE 7'S RECORD WENT
+# WRONG. A red row with no explanation is indistinguishable from a regression
+# nobody looked at, and the next session either "fixes" it — by deleting the
+# assertion or widening the exemption, both of which destroy the gate — or
+# learns to ignore a red, which is worse. Do not silently re-baseline it, skip
+# it, or make it disappear. If it ever reports a count other than 3, or a file
+# other than SessionTests.cs, that is a real finding.
+#
+# gate.unity.editmode.skipped is 0 and must stay 0. gate.dotnet.skipped is 0
+# and must stay 0 — there is no Skip anywhere in the solution.
+#
+# ---------------------------------------------------------------------------
+# PLAYMODE DOES NOT DEADLOCK, AND run-unity-tests.sh SAYS IT DOES.
+#
+# This is the finding of the measurement pass, and it is the same shape of
+# defect as a stale count — a documented expectation that outlived the thing it
+# described.
+#
+# The script's own PlayMode branch carries the comment "PlayMode still uses
+# -runTests and is EXPECTED TO DEADLOCK on this Editor". Phase 7's baseline
+# carried gate.unity.playmode as "CARRIED from 2026-09-16, NOT RE-VERIFIED —
+# not attempted", on the strength of that comment.
+#
+# It was attempted here, on a clean tree with no Editor open, as a bounded
+# probe expecting to have to kill it. It COMPLETED IN 29 SECONDS: total=4
+# passed=4 failed=0 skipped=0, exit 0, results XML written. Two fixtures —
+# WaveCapturePlayTests (3) and SweepRunnerSmokeTests (1).
+#
+# ONE RUN IS NOT A PROOF THAT THE DEADLOCK IS GONE. It is a proof that the
+# comment is not reliably true, which is enough to stop it being a reason not
+# to measure. The comment is left in place and not edited here: this file is
+# the measurement, and rewriting the script on one green run would be the
+# same over-confidence in the other direction. If a later session sees it hang,
+# that is the second data point and the script is right to warn.
+#
+# ---------------------------------------------------------------------------
+# PHASE 7'S SETTINGS-DRIFT FINDING DID NOT REPRODUCE, AND THE CHECK STILL RAN
+# LAST.
+#
+# Phase 7 recorded that the Unity runs put SENTIS_ANALYTICS_ENABLED back on
+# iPhone and rewrote two URP assets. Measured here across THREE separate Unity
+# batchmode invocations at this tree — EditMode, the IL2CPP player build inside
+# cross-runtime-diff.sh, and PlayMode — `git status --porcelain` was EMPTY
+# after each one, and ProjectSettings.asset read
+#
+#     Standalone: APP_UI_EDITOR_ONLY
+#     iPhone:     APP_UI_EDITOR_ONLY
+#
+# i.e. matched, with no SENTIS define on either platform. No URP asset was
+# rewritten and no Performance Testing JSON appeared under client/Assets/Resources/.
+#
+# THIS IS NOT "PHASE 7 WAS WRONG." It is one tree, three runs, on one machine.
+# The drift Phase 7 observed was real and captured in detail. What this says is
+# that it is not unconditional, so a session that sees a clean tree after a
+# Unity run has not proven the guard unnecessary. The ordering above is kept
+# for exactly that reason, and gate.unity.settings.* below was still taken
+# AFTER all three Unity invocations rather than before.
+#
+# ---------------------------------------------------------------------------
+# WHAT COULD NOT BE MEASURED HERE, AND WHY. READ THIS BEFORE READING THE ROWS.
+#
+# A gate left out of a table reads as a gate nobody thought of. A blank reads
+# as a pass. Each of these is rowed with an explicit non-value so that A ROW
+# THAT PROVES NOTHING DOES NOT LOOK LIKE A ROW THAT PROVES SOMETHING.
+#
+#   gate.ci.*  — NOTHING ON THIS BRANCH HAS BEEN THROUGH CI, because the
+#     branch has never been pushed: `git ls-remote --heads origin phase_8`
+#     returns nothing. Every gate row below was measured on one developer
+#     machine (darwin/arm64) and NONE of them has been reproduced by CI on
+#     this tree. That is the single largest caveat on this file.
+#
+#     A CORRECTION TO A CLAIM MADE WHILE COMMISSIONING THIS TASK: the reason
+#     is NOT that the self-hosted macOS runner is unregistered. It IS
+#     registered. Measured: `gh api repos/:owner/:repo/actions/runners` returns
+#     total_count 1 — sd-sassadi-m1, macOS/ARM64, runner version 2.337.0,
+#     status "online", busy false. The gates have not run on Phase 8 because
+#     Phase 8 has not been pushed, which is a different problem with a
+#     different fix.
+#
+#   gate.determinism-ci.* — THE GATE RAN ON develop AND FAILED. Measured with
+#     `gh run list --workflow=determinism.yml`: run 35252288421, triggered by
+#     the push of "Merge pull request #7 from Sepand-Studio/phase_7" to
+#     develop, conclusion FAILURE after 4h45m56s. The only green execution this
+#     workflow has ever had remains run 35238465972 (workflow_dispatch, manual,
+#     8m3s) on phase_7. Every push/pull_request/schedule-triggered run measured
+#     since has been cancelled or failed, several after multi-hour durations
+#     that look like queue-starvation rather than a real disagreement.
+#     THE LOCAL GATE IS GREEN AT THIS TREE — see gate.cross-runtime below,
+#     PASS: 500 scenarios agree — so this is a CI-execution problem, not a
+#     determinism problem, as far as anything here can tell. Nobody owns the
+#     gap and no task number is assigned to it.
+#
+#   gate.tests-ci.* — tests.yml IS green, and Phase 7's record saying its last
+#     runs were red is now stale. Measured: run 35252288632 on develop,
+#     conclusion success, 43s. Recorded because the previous record's claim
+#     would otherwise be inherited unchallenged.
+#
+#   gate.smoke-loop.*  — CANNOT RUN. There is no deployed stack and
+#     implementation/scripts/smoke-loop.sh DOES NOT EXIST — the directory holds
+#     smoke-wave.sh only. Phase 8 Task 17 owns both. This is unchanged from
+#     Phase 7, where it was Task 19.
+#
+#   gate.testflight.*  — CANNOT RUN. No build has been made and no tester has
+#     installed one. Phase 8 Task 18. The Phase 8 record has no tester's report
+#     section because there is no report, rather than an empty one.
+#
+#   gate.visual-review.* — CANNOT RUN BY AN AGENT. Task 16 is a human looking
+#     at sixteen captures. implementation/results/phase8-visual-review.md does
+#     not exist. The one thing already known to be objectively out of spec and
+#     shipped anyway is OptionRow's contrast; it is measured, it is in the
+#     Phase 8 record's punch list, and it is not counted as a pass here.
+#
+# Also not run, and not a gate row because it has no automated form: Task 16
+# Step 2's eyes-on walk of beats 1-8 in the running app, which is the only
+# thing that can check Task 5's motion — a screenshot of a 220ms transition is
+# pixel-identical to no transition at all.
+#
+# ---------------------------------------------------------------------------
+# WHAT MOVED SINCE PHASE 7 (the phase7 file's rows -> this tree)
+#
+#   dotnet        231 -> 231   UNCHANGED. engine 214, sim-service 17.
+#   api files      43 ->  43   api tests 455 -> 455. NO PER-FILE COUNT FELL,
+#                              and none rose: Phase 8 touched no API code.
+#                              That is the correct outcome for a phase whose
+#                              subject is the client's appearance, and the
+#                              rows are kept so the next phase can see it.
+#   unity EditMode 267 -> 322  +55. Phase 8's four new suites are
+#                              TypographyTests (3), PaletteContrastTests (3),
+#                              ScaffoldTests (8) and SilhouetteTests (2); the
+#                              rest is screens and components.
+#   unity PlayMode   4 ->   4  and VERIFIED this time rather than carried.
+#
+# The phase7 EditMode figure of 267 is itself a carried number its own file
+# flagged as unverified, so "267 -> 322" is a comparison against an unconfirmed
+# baseline and should not be read as a precise delta.
+#
+# NO api.file.* COUNT FELL, which is the only question those rows exist to
+# answer.
+#
+# ---------------------------------------------------------------------------
+# PROVENANCE (comments, so they never pollute a diff)
+#
+#   measured   2026-09-17, Phase 8 Task 19, every runnable gate at the tree
+#              being committed
+#   branch     phase_8 (NEVER PUSHED — there is no origin/phase_8, so no CI has
+#              run on any of this)
+#   host       darwin/arm64, dotnet 10.0.401, node v22.22.2, pnpm 9.12.0,
+#              Unity 6000.6.0f1, Docker server 29.8.0 (testcontainers)
+#   api run    ONE run, green first time. Phase 7 recorded this suite going red
+#              under load twice (a dotnet build-lock timeout, and a
+#              config-validate obj/ collision across 22 files). Neither
+#              reproduced here. Two greens do not prove a race closed and one
+#              does not either; see phase7-followups.md §12.
+#   unity      EditMode and PlayMode each run once; the IL2CPP player build was
+#              COLD and took ~3 minutes of codegen inside a longer run.
+
+gate.dotnet.total	231
+gate.dotnet.passed	231
+gate.dotnet.failed	0
+gate.dotnet.skipped	0
+gate.dotnet.engine.total	214
+gate.dotnet.engine.passed	214
+gate.dotnet.engine.failed	0
+gate.dotnet.sim-service.total	17
+gate.dotnet.sim-service.passed	17
+gate.cross-runtime.scenarios	500	PASS: 500 scenarios agree — local, IL2CPP player built cold and run
+gate.api.files	43
+gate.api.total	455
+gate.api.failed	0	one run, green first time
+gate.typecheck.errors	0
+gate.contract.diff.files	0	git status --porcelain over the three generated paths: empty
+gate.unity.editmode.total	322	MEASURED at this tree, not carried
+gate.unity.editmode.passed	321
+gate.unity.editmode.failed	1	DELIBERATE AND CORRECT — MainThreadAffinityTests, 3 real sites in SessionTests.cs 140/155/179. Read the header before touching it
+gate.unity.editmode.skipped	0
+gate.unity.playmode.total	4	MEASURED — did NOT deadlock, 29s, contradicting run-unity-tests.sh's own comment. See header
+gate.unity.playmode.passed	4
+gate.unity.playmode.failed	0
+gate.unity.playmode.skipped	0
+gate.unity.settings.checks	12
+gate.unity.settings.failed	0	taken AFTER all three Unity invocations
+gate.uss-tokens.checks	5
+gate.uss-tokens.failed	0	27 stylesheets; no raw hex outside Tokens.uss; every var() resolves; no .t-num at 10px; each elevation wrapper cancels its own spread
+gate.palette.pairs	45	all 15 pairs x 3 deficiencies, pinned in palette-cvd-baseline.txt
+gate.palette.worst-pair-de76	10.5	Vetch/Loam under tritanopia — a tritan number, the least trustworthy matrix (det 0.236)
+gate.silhouette.collisions	0	six proxies rendered 40x40 flat black, pairwise — bible 10.2 rule 1
+gate.screens.scaffolded	10	EveryScreenComposesTheScaffold; 12 types in Broodline.UI.Screens, 2 exempt by name
+gate.screens.captures	16	PNGs in implementation/results/screens/, not committed — one command rebuilds them
+gate.device-capture.simversion	0.4.0	matches engine/Runtime/SimVersion.cs
+gate.ci.runs-on-this-branch	0	NEVER PUSHED — git ls-remote --heads origin phase_8 is empty
+gate.determinism-ci.runners	1	sd-sassadi-m1, macOS/ARM64, online — REGISTERED, contrary to the brief for this task
+gate.determinism-ci.runs-green	1	ONLY EVER ONCE — run 35238465972, workflow_dispatch, 8m3s, on phase_7
+gate.determinism-ci.last-run	FAILURE	run 35252288421 on develop, 4h45m56s. Local equivalent is green; treat as a CI-execution failure
+gate.tests-ci.last-run	success	run 35252288632 on develop, 43s — Phase 7's "last runs are red" is now stale
+gate.smoke-loop.runs	0	CANNOT RUN — no deployed stack, and smoke-loop.sh does not exist (Task 17)
+gate.testflight.builds	0	NEVER BUILT (Task 18)
+gate.visual-review.written	0	CANNOT RUN BY AN AGENT — phase8-visual-review.md does not exist (Task 16)
+
+unity.fixture.ComponentTests	27
+unity.fixture.FirstHourScreensTests	26
+unity.fixture.FtueDirectorTests	23
+unity.fixture.FtueTests	13
+unity.fixture.LoopGuardTests	34
+unity.fixture.MainThreadAffinityTests	1
+unity.fixture.OutboxClientTests	6
+unity.fixture.OutboxTests	5
+unity.fixture.PaletteContrastTests	3
+unity.fixture.PlistTests	7
+unity.fixture.ProgressionTests	6
+unity.fixture.SafeAreaBinderTests	5
+unity.fixture.ScaffoldTests	8
+unity.fixture.ScreenBindingTests	31
+unity.fixture.ScreenFlowTests	11
+unity.fixture.ScreenHostTests	5
+unity.fixture.SessionTests	3
+unity.fixture.SilhouetteTests	2
+unity.fixture.SpliceConfirmTests	18
+unity.fixture.SyntheticCreatureTests	3
+unity.fixture.TabBarTests	6
+unity.fixture.TypographyTests	3
+unity.fixture.WaveBenchmarkTests	11
+unity.fixture.WaveClockTests	9
+unity.fixture.WaveReportTests	8
+unity.fixture.WaveRunnerTests	7
+unity.fixture.WaveScreensTests	36
+unity.fixture.WaveSnapshotTests	5
+
+unity.playmode.fixture.SweepRunnerSmokeTests	1
+unity.playmode.fixture.WaveCapturePlayTests	3
+
+api.file.account.test.ts	9
+api.file.accrual.test.ts	14
+api.file.adversarial.test.ts	18
+api.file.base-stock.test.ts	9
+api.file.child-reaper.test.ts	8
+api.file.config-validate.test.ts	13
+api.file.config.test.ts	15
+api.file.contract.test.ts	4
+api.file.dotnet-build-lock.test.ts	9
+api.file.founder.test.ts	5
+api.file.ftue-markers.test.ts	3
+api.file.ftue-stock.test.ts	6
+api.file.ftue.test.ts	3
+api.file.hash.test.ts	4
+api.file.health.test.ts	2
+api.file.idempotency.test.ts	4
+api.file.identity.test.ts	22
+api.file.isolation.test.ts	12
+api.file.issuance-schema.test.ts	9
+api.file.ledger.test.ts	8
+api.file.lineage-route.test.ts	8
+api.file.lineage.test.ts	9
+api.file.loop-schema.test.ts	33
+api.file.loop.test.ts	3
+api.file.masked-teardown.test.ts	2
+api.file.node-claim.test.ts	17
+api.file.pool-teardown.test.ts	3
+api.file.preflight.test.ts	11
+api.file.replays.test.ts	7
+api.file.roster.test.ts	9
+api.file.rotation.test.ts	5
+api.file.session.test.ts	6
+api.file.sim-auth.test.ts	13
+api.file.sim-client.test.ts	7
+api.file.splice-commit.test.ts	27
+api.file.splice-distribution.test.ts	30
+api.file.splice-preview.test.ts	14
+api.file.sweep.test.ts	5
+api.file.sync.test.ts	7
+api.file.validate-rewards.test.ts	2
+api.file.wave-start.test.ts	32
+api.file.wave-submit.test.ts	25
+api.file.wave6-pale.test.ts	3

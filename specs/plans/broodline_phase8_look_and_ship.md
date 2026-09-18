@@ -520,3 +520,70 @@ render-side justification intact.
 | **Deploy the Terraform as written**, at the cost `solo_execution` §3 costed | 2026-09-17. §6.1 |
 | **`RegionView` is deferred, not descoped** | §5.3 |
 | The screenshot corpus is tracked only if capture stays manual | §7.2 |
+
+---
+
+## 11. Errata, found in execution
+
+*Recorded 2026-09-17 by Phase 8 Task 19, against the tree at the end of the
+phase. These are defects in **this design document**, found by implementing it.
+They are written here, where they were written, rather than quietly
+reimplemented somewhere else.*
+
+**§4.6's palette gate was not implementable as specified** and would have
+passed while the palette got worse. It asks the gate to "compute CIE L\*, and
+assert a minimum separation". There is no minimum available to assert: 45
+pair/deficiency constraints against 6 free colours, and the worst pair —
+Vetch/Loam at ΔE 10.5 under tritanopia — is one that deleting Pale outright
+would not improve, because Pale is not in it. Roughly ΔE 10–12 is the floor for
+six saturated hues in this family however they are arranged, so any threshold
+low enough to pass today is low enough to pass a materially worse palette.
+Task 6 replaced it with a **tracked baseline over all 45 measurements**, which
+fails when any number gets worse on either channel — the question a change can
+actually answer. See that task and `implementation/results/palette-decision.md`.
+
+**§4.6 also ranked the palette by the wrong quantity, and so did
+`accessibility.md` §4.** Both ranked by lightness (ΔL\*), which does not rank
+confusability — here it inverts it. §4 scored **one for three**: Ember/Loam is
+real (ΔE 11.0 deutan), Vetch/Hollow does not collapse (26.9), and Skitter/Loam
+under tritanopia is 63.0, among the best-separated pairs there is. This design's
+own nominated worst pair, Skitter/Pale, was ΔE 71.4. **The real worst pair was
+Vetch/Pale at ΔE 7.2** — unnamed by both documents, and the closest pair at
+normal vision too. `accessibility.md` §4 is corrected; §4.1 there carries the
+scorecard.
+
+**Two corrections to Task 6's drafted maths, both measured.** The Machado
+matrices are applied to **linear** RGB, not gamma-encoded sRGB — the draft did
+the latter, which is a known, named defect with a history (fixed in R
+`colorspace` 2.1-0 after Matthew Petroff reported it). And the draft's
+"Ember/Skitter 15.2" was 12.8; its other option-B numbers reproduce exactly.
+
+**Pale moved: `#a9b0c4` → `#c6cede`.** The only species colour this phase
+changed. `bible §1.2`, `accessibility.md §4` and the design handoff README were
+all stale on that one row and are corrected as of this task, along with §4's
+final paragraph, whose prescription was costed as option B and retired.
+
+**The palette decision §4.6 deferred is now closed, and no colour moved.**
+Hollow is exactly `--violet` (every CTA) and Skitter exactly `--amber` (every
+warning and Founder marker), at ΔE 0.0 for every viewer. No simulation can see
+it, because it is not a confusion between two species. Task 13 decided it
+against a rendered card rather than a hex table, and the render changed the
+answer: the defect was `LineageView` carrying **Founder** and **Mutated** on
+colour and nothing else — a bible §10.4 violation that existed before any
+species had a colour. That screen now says both in words. See
+`implementation/results/species-collision.md`.
+
+**§7.1's "resolved font-size ≥ 11px" gate was not implementable in
+`Broodline.UI.Tests`**, which has no attached `Panel` — nothing resolves, so
+there is no resolved font-size to read. Implemented in `verify-uss-tokens.sh` as
+text analysis against the `.t-num` marker, which catches the violation in the
+stylesheet rather than in one instantiated tree.
+
+**§5.3's map deferral note says "there is no geometry anywhere", and that is
+wrong.** `specs/broodline_region_graph.md` authors **thirty regions across three
+rings with full adjacency** and forty-three edges. What does not exist is
+**coordinate** geometry — no region has an x/y or a polygon, which is what a
+drawn map needs. Worth stating precisely, because "no geometry" invites someone
+to author the graph that already exists. A second mismatch sits beside it: the
+handoff's Splice World Map v2 draws **eight** polygon regions where the roster
+authors **thirty**, so Phase 10 owes a reconciliation, not just a renderer.
