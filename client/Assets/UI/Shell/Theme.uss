@@ -217,13 +217,75 @@ Label {
     -unity-slice-left: 20; -unity-slice-right: 20;
     -unity-slice-top: 20; -unity-slice-bottom: 20;
 }
+/* THE NEGATIVE MARGIN IS THE OTHER HALF OF THE ARRANGEMENT, AND IT WAS
+ * MISSING FOR TWO TASKS. Task 3's own brief asked for the shadow as "a
+ * sibling element, not a style ... with a negative margin". The sibling was
+ * correctly rejected - UI Toolkit clips a background image to the element's
+ * own box, so a shadow has to be drawn by something LARGER than the surface,
+ * which is this wrapper - but the negative margin went with it, and that was
+ * the half that kept the surface on the gutter.
+ *
+ * Without it the padding insets the SURFACE rather than expanding the shadow
+ * outward, so an elevated card sits --elev-1-spread in from wherever an
+ * unelevated sibling sits. Measured on the Task 9 corpus: on
+ * FounderNamingView, the SectionCard's white edge was at x=18 and the CTA
+ * button directly beneath it at x=12 - 6px out of line, on the same screen,
+ * visible. .elev-2 would have been 12px out.
+ *
+ * HORIZONTAL ONLY, AND THAT IS A DECISION RATHER THAN A HALF-FIX. Three
+ * reasons, in order of weight:
+ *
+ *   1. THE SHADOW IS ASYMMETRIC VERTICALLY, BY DESIGN. Measured on
+ *      LineageView between two stacked SectionCards, column x=215: the ink
+ *      below a card's bottom edge runs 6px deep and reaches 4/255, and above
+ *      the next card's top edge it runs 2px and reaches 1/255. That fall is
+ *      the whole point of a drop shadow and it is drawn INSIDE this padding.
+ *      Cancelling the padding vertically would put the next card's white edge
+ *      inside the previous card's shadow.
+ *   2. NOTHING IS WRONG VERTICALLY. Two stacked cards measure 20px white edge
+ *      to white edge - 6 + --space-2 + 6 - which is what SectionCard.uss says
+ *      it tuned for. A negative top and bottom margin makes that 8px.
+ *   3. HOLDING 20px WITH A VERTICAL NEGATIVE MARGIN would mean re-tuning
+ *      `.section-card`'s margin-bottom from 8px to 20px, and 20 is not on the
+ *      spacing scale - 12 and 24 sit either side. That is a one-use value
+ *      invented to keep a gap that is already right.
+ *
+ * Horizontally the shadow is symmetric and 5-6px wide, and moving it off the
+ * surface and into the gutter is exactly what a drop shadow should do. It
+ * now draws OUTSIDE the wrapper's layout box; verified against the leftmost
+ * card on every capture that has one, which is inside the scaffold's
+ * ScrollView and is not clipped by it.
+ *
+ * A LITERAL, BECAUSE USS HAS NO calc() HERE - TRIED, MEASURED, REVERTED.
+ * `calc(var(--elev-1-spread) * -1)` is what this wants to say, and on
+ * 6000.6.0f1 it imports as
+ *
+ *     warning: Unknown function 'calc' in declaration 'margin-left: calc'
+ *     warning: Expected (<length-percentage> | auto) but found 'calc(...)'
+ *
+ * and the declaration is DROPPED. Nothing else happens: the sheet still
+ * compiles, check-stylesheets.sh stays green, every test passes, and the
+ * capture came back byte-identical to the run before it - sixteen of
+ * sixteen. That is this file's own history repeating (Tokens.uss's four
+ * unread LineBreakUnexpected warnings), so it is recorded rather than
+ * silently worked around.
+ *
+ * SO THE TWO NUMBERS BELOW MUST EQUAL --elev-1-spread AND --elev-2-spread
+ * NEGATED, AND NOTHING IN USS CAN ENFORCE THAT. verify-uss-tokens.sh check 4
+ * does: it reads both spreads out of Tokens.uss and reddens if either margin
+ * here stops being the negation. Change a spread, change these, or the gate
+ * says so. */
 .elev-1 {
     padding: var(--elev-1-spread);
+    margin-left: -6px;
+    margin-right: -6px;
     -unity-slice-scale: 0.6px;
     -unity-background-image-tint-color: var(--elev-1-tint);
 }
 .elev-2 {
     padding: var(--elev-2-spread);
+    margin-left: -12px;
+    margin-right: -12px;
     -unity-slice-scale: 1.2px;
     -unity-background-image-tint-color: var(--elev-2-tint);
 }

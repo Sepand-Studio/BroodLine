@@ -22,7 +22,15 @@
     /* One step below Theme.uss's `.card` (12px), because the wrapper already
      * contributes 6px of its own below the surface and 6px above the next
      * one - so two stacked cards sit ~20px apart at their white edges, which
-     * is the gap `.card` gives without a shadow. */
+     * is the gap `.card` gives without a shadow.
+     *
+     * STILL TRUE AFTER TASK 9 GAVE `.elev-1` A NEGATIVE MARGIN, because that
+     * margin is HORIZONTAL ONLY. Vertically the wrapper's padding is exactly
+     * where the drop falls - measured between two of these cards, 6px of ink
+     * reaching 4/255 below a surface against 2px at 1/255 above the next -
+     * and cancelling it would put one card's white edge inside the other's
+     * shadow and close this 20px to 8px. Theme.uss's elevation block carries
+     * the full argument. Measured again after that change: 20px, unmoved. */
     margin-bottom: var(--space-2);
 }
 

@@ -115,6 +115,47 @@ else
       "USS resolves an unknown custom property to nothing and renders the element untinted; it does not warn"
 fi
 
+# --- 4. An elevation wrapper's negative margin matches its own spread. ------
+# .elev-1 / .elev-2 pad by --elev-N-spread to give the nine-sliced shadow
+# somewhere to fall, and cancel that padding with an equal NEGATIVE horizontal
+# margin so the surface inside lands on the gutter rather than 6px (or 12px)
+# in from it. The two numbers have to agree or an elevated card silently stops
+# lining up with the unelevated rows and CTAs beside it - which is exactly the
+# state Phase 8 Task 9 measured, at x=18 against x=12 on one screen.
+#
+# THE MARGIN CANNOT BE WRITTEN AS THE TOKEN. USS on 6000.6.0f1 has no calc():
+# `calc(var(--elev-1-spread) * -1)` imports as "Unknown function 'calc'", the
+# declaration is dropped, and NOTHING FAILS - the sheet still compiles, the
+# tests still pass and the capture comes back byte-identical. Tried, measured,
+# reverted to a literal. This check is what stands in for the arithmetic USS
+# cannot do.
+THEME=client/Assets/UI/Shell/Theme.uss
+if [ ! -f "$THEME" ]; then
+  bad "no $THEME" "check 4 cannot run"
+else
+  elev=""
+  for n in 1 2; do
+    spread=$(grep -E -- "^[[:space:]]*--elev-$n-spread:" "$TOKENS" \
+             | sed 's/.*://' | tr -d ' ;' | sed 's/px$//')
+    # The margin lines inside the `.elev-<n> {` block, comments stripped.
+    margins=$(strip_comments "$THEME" \
+              | sed -n "/^[0-9]*:\.elev-$n {/,/^[0-9]*:}/p" \
+              | grep -E 'margin-(left|right):' | sed 's/.*://' | tr -d ' ;' | sed 's/px$//')
+    [ -n "$spread" ] || { elev="$elev"$'\n'"  --elev-$n-spread is not in $TOKENS"; continue; }
+    count=$(printf '%s\n' "$margins" | grep -c . )
+    [ "$count" = "2" ] || { elev="$elev"$'\n'"  .elev-$n sets $count horizontal margins, expected 2 (left and right)"; continue; }
+    for m in $margins; do
+      [ "$m" = "-$spread" ] || elev="$elev"$'\n'"  .elev-$n has a horizontal margin of ${m}px against a spread of ${spread}px; expected -${spread}px"
+    done
+  done
+  if [ -z "$elev" ]; then
+    ok "each elevation wrapper cancels its own spread horizontally"
+  else
+    bad "an elevation wrapper's negative margin does not match its spread:$elev" \
+        "the card inside it will sit inset from the gutter, level with nothing; USS has no calc() here, so these two numbers are kept in step by this check"
+  fi
+fi
+
 echo
 [ $fail -eq 0 ] && echo "Token layer verified." || echo "Fix what is marked FAIL, then re-run."
 exit $fail

@@ -75,8 +75,36 @@
  * compressing its chrome - the handoff's "content is the only flexible
  * region", made structural rather than left to whatever each screen's content
  * happens to measure. */
+/* THE GUTTER IS ON THE CONTENT CONTAINER, NOT ON THE ScrollView ITSELF, AND
+ * THAT IS ABOUT THE SHADOW RATHER THAN ABOUT THE SPACING. Both put a card's
+ * edge at 12px; only one leaves the drop shadow anywhere to fall.
+ *
+ * A ScrollView clips its content at its VIEWPORT, and padding on the
+ * ScrollView root pushes that viewport inward - so with the gutter here, the
+ * clip edge and the card edge are the same 12px line, and `.elev-1`'s
+ * wrapper (which reaches 6px further out on each side, by negative margin, so
+ * the surface lands on the gutter) is cut off exactly where its ink starts.
+ * Measured on LineageView before this change: the card surface at x=12 with
+ * x=6..11 pure --paper, no ink at all, while the same SectionCard on
+ * CodexSheet - a sheet, no scaffold, no ScrollView - showed its falloff at
+ * x=12..15 at 1-3/255. Same component, same rule, two containers.
+ *
+ * Moving the padding one level down leaves the viewport spanning the full
+ * 430 and clips at the frame edge instead, which is where a phone clips
+ * anyway. The handoff's shadow is `0 2px 8px` - no horizontal offset and an
+ * 8px blur - so it HAS a side falloff by design, and a card against the
+ * gutter is exactly where it shows.
+ *
+ * `unity-scroll-view__content-container` IS UNITY'S OWN CLASS ON THAT
+ * ELEMENT, and it is the documented USS hook for it rather than a name read
+ * off an inspector. Verified by measurement rather than by trust: if the
+ * selector matched nothing, the gutter would be gone entirely and every card
+ * would sit at x=0 - which is a louder failure than a subtly wrong inset. */
 .screen-scaffold__content {
     flex-grow: 1;
+}
+
+.screen-scaffold__content .unity-scroll-view__content-container {
     padding-left: var(--gutter);
     padding-right: var(--gutter);
 }
