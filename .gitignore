@@ -83,6 +83,13 @@ implementation/results/*
 # the truth (74) unnoticed. A few hundred bytes.
 !implementation/results/*-test-baseline.txt
 
+# Task 14/15's screen capture corpus. Already excluded by the results/*
+# wildcard above - named again here so the rule is easy to find. One command
+# (implementation/scripts/capture-screens.sh) regenerates the whole directory,
+# so per the same rule as the line above, these PNGs are the cheap case and
+# stay untracked rather than the expensive one that gets committed.
+implementation/results/screens/
+
 # Xcode / iOS (if used later)
 DerivedData/
 *.xcuserstate
