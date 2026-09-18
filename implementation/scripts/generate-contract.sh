@@ -527,6 +527,15 @@ OPENAPI_TMP="$WORK/broodline.json"
 CLIENT_TMP="$WORK/BroodlineApiClient.cs"
 NSWAG_TMP="$WORK/nswag.generated.json"
 
+# NOT REGENERATED, AND EASY TO ASSUME OTHERWISE: client/Assets/Generated/
+# Api/Generated.Api.asmdef, sitting right beside CLIENT_OUT above in a
+# folder called "Generated". This script only ever writes BroodlineApiClient.
+# cs; the asmdef is hand-maintained, same as any other. It was flipped
+# autoReferenced: false -> true in b9d30fb so the default Editor assembly
+# could use these DTOs directly - a change this script has no opinion on and
+# will never revert, but a future reader diffing "Generated/" against a
+# fresh run of this script should not conclude the asmdef line is drift.
+
 # src/openapi.ts honours this to redirect its write; see that file.
 OPENAPI_OUTPUT_PATH="$OPENAPI_TMP" pnpm openapi
 
