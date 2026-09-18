@@ -3130,6 +3130,29 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ## Task 16: The eyes-on pass
 
+> **MEASURED IN TASK 10 — look at this first, it is the one thing in the phase
+> that is objectively out of spec and still shipped.**
+>
+> `OptionRow`'s fill is `--surface-sunk` `#f8f6fc` on `--paper` `#f7f4fb`:
+> **1.0151 : 1**. The entire row boundary is a 1px `--hairline` at
+> **1.1131 : 1**. Both fail WCAG 1.4.11's 3:1 for non-text UI boundaries, and
+> bible §10.4 ("colour never carries information alone") is arguably breached
+> too, since a row's extent is carried by a faint border and nothing else.
+> Inside a `SectionCard` on white the fill measures 1.0726 : 1 — better, still
+> nothing.
+>
+> It renders *legibly* in `DeployView.png` and `CampaignSelectView.png` — the
+> rounded 1px outline does the work — so this is a judgement about whether a
+> boundary that survives a screenshot survives a phone in daylight, which is
+> exactly what this task is for and what no measurement here can settle.
+>
+> Three things it could be, cheapest first: strengthen `--hairline` for this
+> one use; drop the fill, which currently does nothing, and let the row read
+> as an outline deliberately; or compose `OptionRow`s inside a `SectionCard`
+> so the fill sits on white, which may be the handoff's actual intent for
+> "inset rows, unselected options". Decide it here, against a device.
+
+
 Design §7.3. **A human does this. There is no automated substitute and no step here that an agent completes.**
 
 **Files:**
