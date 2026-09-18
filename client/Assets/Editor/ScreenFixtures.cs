@@ -10,6 +10,12 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 
+// UnityEngine.UIElements HAS ITS OWN `ProgressBar`, so the bare name in a
+// file importing both namespaces binds to Unity's type and the compiler
+// reports it as a missing constructor rather than as an ambiguity. See
+// ProgressBar.cs's class comment - every consumer needs this line.
+using ProgressBar = Broodline.UI.Components.ProgressBar;
+
 // No namespace: Assembly-CSharp-Editor, as with WaveBuilder and ScreenHarness.
 
 /// One populated model per screen, with no server and no session.
@@ -59,11 +65,12 @@ public static class ScreenFixtures
         "WaveDefeatView",
         "WaveHudView",
         // NOT SCREENS, and last for that reason - see Primitives(),
-        // Icons() and Scaffold() below. Each exists because the twelve
-        // screens above it cannot show the thing it shows.
+        // Icons(), Scaffold() and Components() below. Each exists because
+        // the twelve screens above it cannot show the thing it shows.
         "Primitives",
         "Icons",
         "Scaffold",
+        "Components",
     };
 
     public static VisualElement Build(string name)
@@ -85,6 +92,7 @@ public static class ScreenFixtures
             case "Primitives": return Primitives();
             case "Icons": return Icons();
             case "Scaffold": return Scaffold();
+            case "Components": return Components();
             default: throw new ArgumentException("ScreenFixtures has no fixture named '" + name + "'", nameof(name));
         }
     }
@@ -681,6 +689,179 @@ public static class ScreenFixtures
         var label = new Label(text);
         label.AddToClassList("t-micro");
         label.style.paddingLeft = 14;
+        label.style.paddingTop = 10;
+        label.style.paddingBottom = 4;
+        return label;
+    }
+
+    /// NOT A SCREEN. The five shared components of Task 8, each in the states
+    /// that actually differ.
+    ///
+    /// WHY IT EXISTS - the fourth time in this phase, and the same reason
+    /// each time. Nothing composes these five until Task 9, so at the commit
+    /// that adds them all fifteen existing captures come back byte-identical
+    /// and the only other artifact is a green test file. The plan's
+    /// amendment finding 4 names that state exactly: a corpus that cannot
+    /// see a change reads as "no regression" when what it means is "not
+    /// looked at". Primitives, Icons and Scaffold each exist for this, one,
+    /// two and three tasks back.
+    ///
+    /// TWO THINGS HERE ARE WORTH A REVIEWER'S EYE AND NOTHING ELSE CAN
+    /// ANSWER THEM:
+    ///
+    /// 1. WHETHER SectionCard's ELEVATION READS AS LIFTED RATHER THAN DIRTY.
+    ///    `.elev-1` is a nine-sliced sprite, and putting it on the surface
+    ///    instead of on a wrapper stretches the sprite's centre region across
+    ///    the card's interior - a grey smudge, not a shadow. That shipped
+    ///    once this phase and only the Primitives capture caught it. The two
+    ///    cards below sit on clear --paper with un-elevated surfaces in the
+    ///    same frame to be read against - the two option rows above them and
+    ///    the two empty states below. Measured on this capture: the card
+    ///    interior is pure --surface or pure --surface-sunk at every sample,
+    ///    with no gradient, and the falloff is outside the card, reaching 4
+    ///    of 255 directly under its bottom edge and fading over about 3px.
+    ///    That is faint - it is --elev-1-tint's own 6% - and it is a lift
+    ///    rather than a stain.
+    ///
+    /// 2. WHETHER ProgressBar AT 0 AND AT 1 LOOK DELIBERATE. Both are the
+    ///    shapes that break: a 0 fill is a track with nothing in it, which
+    ///    must still read as an empty measure rather than as a stray rule,
+    ///    and a 1 fill must take the track's rounded ends rather than
+    ///    squaring them off - the fill carries no radius of its own and
+    ///    depends entirely on the track's `overflow: hidden` clipping to the
+    ///    border radius. A test can read the width back; only a picture can
+    ///    say whether the corner got clipped. They are rendered adjacent,
+    ///    both in the default violet, so the comparison is geometry and not
+    ///    colour, with a near-empty 0.08 under them as the third hard case.
+    static VisualElement Components()
+    {
+        // .shell-root is --paper, as in the other three - the real screen
+        // background out of the token layer.
+        var root = new VisualElement();
+        root.AddToClassList("shell-root");
+        root.style.flexGrow = 1;
+        root.style.paddingLeft = 32;
+        root.style.paddingRight = 32;
+        root.style.paddingTop = 20;
+
+        // NOTHING IN THIS COLUMN MAY SHRINK, and the first capture of this
+        // fixture is why. A flex container whose children overflow it
+        // shrinks every one of them that will shrink, and a 430x932 frame
+        // this full overflows: the 6px ProgressBar tracks went to zero
+        // height and vanished outright, and the stat cells collapsed and
+        // spilled their values through the bottom of their card. Neither
+        // rendered as an error - both rendered as a component that does not
+        // work. With flex-shrink pinned at 0, content that does not fit
+        // runs off the bottom of the frame instead, which is visible.
+        void Stack(VisualElement child)
+        {
+            child.style.flexShrink = 0;
+            root.Add(child);
+        }
+
+        var title = new Label("Components");
+        title.AddToClassList("t-screen-title");
+        title.style.marginBottom = 8;
+        Stack(title);
+
+        Stack(ComponentCaption("OptionRow  -  selected, then not"));
+        var picked = new OptionRow("Coast road", "4h  -  low risk", () => { });
+        picked.Selected = true;
+        Stack(picked);
+        Stack(new OptionRow("Night corridor", "6h  -  raider sightings", () => { }));
+
+        Stack(ComponentCaption("SectionCard  -  with a heading, then without"));
+
+        // A heading plus the handoff's three-cell stat row, which is what
+        // StatCell is for - "Control / Travel / Arks" under the region detail
+        // card. Three cells, so the flex-basis 0 that makes them equal width
+        // is visible rather than asserted.
+        //
+        // THE ROW DIRECTION IS SET HERE, ON THE CONTAINER, and that is not
+        // laziness: StatCell.uss cannot reach its own parent, so a row of
+        // cells is the caller's to arrange. Its closing note has the full
+        // account. The -4px margins cancel the 4px each cell carries, so the
+        // row sits flush with the card's padding.
+        var stats = new SectionCard("Region R-04");
+        var statRow = new VisualElement();
+        statRow.style.flexDirection = FlexDirection.Row;
+        statRow.style.marginLeft = -4;
+        statRow.style.marginRight = -4;
+        statRow.Add(new StatCell("Control", "62%"));
+        statRow.Add(new StatCell("Travel", "4h 20m"));
+        statRow.Add(new StatCell("Arks", "2"));
+        stats.Body.Add(statRow);
+        Stack(stats);
+
+        // No heading - the card must not reserve a row for one. The bars are
+        // its body, so the unheaded card is also where ProgressBar gets
+        // looked at. 0 and 1 are adjacent and both in the default violet, so
+        // the comparison between them is geometry rather than colour.
+        var bars = new SectionCard();
+        bars.Body.Add(BarRow("fill 0.00  -  empty", 0f, null));
+        bars.Body.Add(BarRow("fill 1.00  -  full", 1f, null));
+        bars.Body.Add(BarRow("fill 0.08  -  nearly empty", 0.08f, null));
+        bars.Body.Add(BarRow("fill 0.50  -  teal", 0.5f, "teal"));
+        bars.Body.Add(BarRow("fill 0.78  -  green", 0.78f, "green"));
+        Stack(bars);
+
+        Stack(ComponentCaption("EmptyState  -  with a glyph, then without"));
+
+        // SIDE BY SIDE, AND ON BARE PAPER. Stacked and carded, the two of
+        // them plus their wrappers ran past the bottom of the 932px frame
+        // and the second one was cut off entirely - measured on the second
+        // capture of this fixture. A row costs the height of one instead of
+        // two, and paper rather than --surface means the two elevated cards
+        // above have an un-elevated surface in the same frame to be read
+        // against, which is the only way "lifted" is legible at all.
+        //
+        // `ark` is one of icons.uss's thirteen. A name outside that set
+        // renders as an empty 19px box with no error anywhere, which is
+        // precisely the kind of thing only a capture catches.
+        var empties = new VisualElement();
+        empties.style.flexDirection = FlexDirection.Row;
+        var withGlyph = new EmptyState("Nothing in the Ark yet.", "ark");
+        withGlyph.style.flexGrow = 1;
+        withGlyph.style.flexBasis = 0;
+        var withoutGlyph = new EmptyState("No creatures yet.");
+        withoutGlyph.style.flexGrow = 1;
+        withoutGlyph.style.flexBasis = 0;
+        empties.Add(withGlyph);
+        empties.Add(withoutGlyph);
+        Stack(empties);
+
+        return root;
+    }
+
+    /// One bar with its fill stated beside it. The number is in the caption
+    /// because a bar cannot say what it is showing, and "does 0 look
+    /// deliberate" is unanswerable without knowing that the bar above it is
+    /// at 1.
+    static VisualElement BarRow(string caption, float fill, string modifier)
+    {
+        var row = new VisualElement();
+        row.style.flexShrink = 0;
+        row.style.marginBottom = 8;
+
+        var label = new Label(caption);
+        label.AddToClassList("t-secondary");
+        label.style.flexShrink = 0;
+        row.Add(label);
+
+        var bar = new ProgressBar(fill, modifier);
+        bar.style.flexShrink = 0;
+        bar.style.marginTop = 4;
+        row.Add(bar);
+
+        return row;
+    }
+
+    /// Fixture chrome, not component chrome - it names the component below
+    /// it. Nothing in a real screen looks like this.
+    static Label ComponentCaption(string text)
+    {
+        var label = new Label(text);
+        label.AddToClassList("t-micro");
         label.style.paddingTop = 10;
         label.style.paddingBottom = 4;
         return label;

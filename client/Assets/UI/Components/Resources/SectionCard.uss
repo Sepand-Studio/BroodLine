@@ -1,0 +1,43 @@
+/* A card surface inside an elevation wrapper - the arrangement Theme.uss's
+ * header note 2 forces and the Primitives fixture demonstrates:
+ *
+ *     <ui:VisualElement class="elev-1">
+ *         <ui:VisualElement class="card"> ... </ui:VisualElement>
+ *     </ui:VisualElement>
+ *
+ * Here the OUTER element is the component root - it carries `section-card`
+ * and `elev-1` - and the inner one is `section-card__surface`. The first
+ * consumer of Task 3 in the app, after one task in which .elev-1 and .elev-2
+ * had zero usages anywhere in client/.
+ *
+ * THIS FILE SETS NO PADDING ON THE ROOT, and that is not an omission.
+ * `.elev-1` IS padding - var(--elev-1-spread), 6px - and that padding is
+ * exactly where the nine-slice's falloff is drawn. A second padding
+ * declaration on the same element at the same specificity would be decided
+ * by stylesheet order, and whichever won would either swallow the shadow or
+ * silently move the card edge off the slice scale the texture was cut for.
+ */
+.section-card {
+    flex-direction: column;
+    /* One step below Theme.uss's `.card` (12px), because the wrapper already
+     * contributes 6px of its own below the surface and 6px above the next
+     * one - so two stacked cards sit ~20px apart at their white edges, which
+     * is the gap `.card` gives without a shadow. */
+    margin-bottom: var(--space-2);
+}
+
+.section-card__surface {
+    flex-direction: column;
+    background-color: var(--surface);
+    border-radius: var(--radius-card);
+    padding: var(--space-4);
+}
+
+/* Layout only - the 19px Baloo 2 face and --ink come from `t-section`. */
+.section-card__heading {
+    margin-bottom: var(--space-2);
+}
+
+.section-card__body {
+    flex-direction: column;
+}

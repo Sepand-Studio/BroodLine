@@ -1,0 +1,5 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="EmptyState.uss" />
+    <ui:VisualElement name="glyph" class="icon" />
+    <ui:Label name="message" class="empty-state__message t-secondary" />
+</ui:UXML>

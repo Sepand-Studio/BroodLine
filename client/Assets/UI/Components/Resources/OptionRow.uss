@@ -1,0 +1,53 @@
+/* The handoff's option row, in its two states, verbatim.
+ *
+ * THE CLASS NAME IS LOAD-BEARING AND IT IS NOT A FREE CHOICE. Motion.uss
+ * carries a `.option-row` rule - transition-property: border-color,
+ * background-color, on --motion-quick - added one task before this component
+ * existed, and its own header lists `option-row` among four selectors that
+ * "match nothing today". Naming this root class anything else returns that
+ * rule to matching nothing, silently, and the only symptom is that the row
+ * snaps between its two treatments instead of easing into them. Pinned by
+ * AnOptionRowsRootClassIsTheOneMotionUssKeysItsTransitionOn.
+ *
+ * TWO NEAR-IDENTICAL COPIES OF THIS TREATMENT NOW EXIST, and the other one
+ * is Theme.uss's `.option` / `.option--selected`. That is deliberate rather
+ * than an oversight, and the alternative was measured against and rejected:
+ * borrowing Theme's pair would mean this component carrying FOUR classes
+ * (option, option-row, option--selected, option-row--selected) with its
+ * state expressed in two of them at once, so the first edit that toggled one
+ * and not the other would leave the tested state and the rendered state
+ * disagreeing with nothing to catch it. Theme's `.option` stays as the
+ * vocabulary a screen reaches for when it wants the treatment without the
+ * component; this file is what the component itself renders. Both quote the
+ * same handoff rule, so if that rule ever changes, both change.
+ *
+ * NO TYPE RULES HERE. The title and detail labels carry `t-card-title` and
+ * `t-secondary` in the UXML, and those already resolve to exactly the
+ * font-size and colour a per-component copy would restate - 13px/--ink and
+ * 11px/--mute. Theme.uss's header is explicit that re-implementing one of
+ * its primitives makes a second source; the type scale is one of them.
+ */
+.option-row {
+    flex-direction: column;
+    background-color: var(--surface-sunk);
+    border-width: 1px;
+    border-color: var(--hairline);
+    border-radius: var(--radius-row);
+    padding: var(--space-3);
+    margin-bottom: var(--space-2);
+}
+
+/* USS has no inset box-shadow, so the handoff's 2px ring is a real border
+ * and the unselected hairline is the same border at 1px - both states carry
+ * one, so the layout cost is the same and only the weight and colour move.
+ * Theme.uss's `.option` comment records the same reasoning. */
+.option-row--selected {
+    background-color: var(--surface);
+    border-width: 2px;
+    border-color: var(--ring);
+}
+
+/* Layout, not type: the gap between the two lines. */
+.option-row__detail {
+    margin-top: var(--space-1);
+}

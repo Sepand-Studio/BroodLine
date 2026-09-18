@@ -1,0 +1,7 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="SectionCard.uss" />
+    <ui:VisualElement name="surface" class="section-card__surface">
+        <ui:Label name="heading" class="section-card__heading t-section" />
+        <ui:VisualElement name="body" class="section-card__body" />
+    </ui:VisualElement>
+</ui:UXML>
