@@ -27,16 +27,27 @@
  *    the element translates 2px down. Same silhouette, same motion, same
  *    feel under a thumb.
  *
- * FONTS ARE NOT SET HERE. The handoff pairs Baloo 2 (display/numerals) with
- * Nunito (body), both Google Fonts, and neither is in the project - there is
- * no .ttf under client/Assets at all. Sizes, weights and letter-spacing
- * below follow the handoff's type table so the scale is right the moment a
- * face is imported; until then everything renders in Unity's default sans.
- * bible 10.6's two hard requirements - tabular figures and an 11px floor on
- * any number a decision depends on - are a FONT choice and a SIZE choice
- * respectively. The size floor is honoured below (`--text-secondary` is the
- * smallest size used on a numeral); the tabular requirement cannot be met
- * until a face lands, and is the reason to import one.
+ * FONTS. Baloo 2 (display) and Nunito (body, and every numeral), both SIL
+ * OFL 1.1, under client/Assets/UI/Fonts with their licence.
+ *
+ * BOUND DIRECTLY, NOT THROUGH A TOKEN, and that is deliberate. Tokens.uss
+ * holds values; a font is an asset reference, and threading one through a
+ * custom property makes the indirection load-bearing for something that has
+ * exactly two values and changes roughly never. The type SCALE is tokenised
+ * because it is arithmetic; the FACE is not because it is an asset.
+ *
+ * BALOO 2 SETS NO NUMBERS, and that is measured rather than preferred. Its
+ * digits advance 0-9 as 54, 34.5625, 46.70313, 46.34375, 53.01563, 47.34375,
+ * 50.04688, 42.84375, 50.57813, 50.125 - ten distinct widths, so any counter
+ * set in it jitters as it ticks. bible 10.6 prescribes the remedy for this
+ * exact case: keep the display face for titles and CTAs, and pair a tabular
+ * face for numerals only. Nunito Bold's ten are identical, so it is the face
+ * every numeral is set in: Baloo 2 is confined to .t-screen-title, .t-section
+ * and .btn-primary, and .t-hero and .t-num take Nunito.
+ *
+ * bible 10.6's two hard requirements are now both gated: tabular figures by
+ * TypographyTests, and the 11px numeral floor by verify-uss-tokens.sh via the
+ * .t-num marker below. Neither was checkable before this phase.
  */
 
 /* ---------------------------------------------------------------- surfaces */
@@ -46,6 +57,24 @@
 }
 
 /* ------------------------------------------------------------------- text */
+
+Label, Button, TextField {
+    -unity-font-definition: url("project:///Assets/UI/Fonts/Nunito-Bold%20SDF.asset");
+}
+
+/* Baloo 2 carries the display voice, and nothing that shows a number. The
+ * header explains the measurement that put .t-hero on the other side of this
+ * line despite it being the largest type in the app. */
+.t-screen-title, .t-section, .btn-primary > Label, .btn-primary {
+    -unity-font-definition: url("project:///Assets/UI/Fonts/Baloo2-Bold%20SDF.asset");
+}
+
+/* The marker verify-uss-tokens.sh enforces the 11px floor against. Any label
+ * showing a number a decision depends on carries it. */
+.t-num {
+    -unity-font-definition: url("project:///Assets/UI/Fonts/Nunito-Bold%20SDF.asset");
+    font-size: var(--text-secondary);
+}
 
 Label {
     color: var(--ink);
