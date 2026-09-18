@@ -1,0 +1,98 @@
+/* The handoff's fixed-height column: header fixed, content the only flexible
+ * region, CTA row and footer note pinned under it.
+ *
+ * THREE RAW LENGTHS HERE ARE DELIBERATE, and they are the handoff's own. The
+ * README's "Spacing, radius, elevation" section prescribes header padding
+ * `8px 14px 10px`, and its navigation model prescribes a `34px` rounded-square
+ * back button. 14, 10 and 34 are not members of the spacing scale Tokens.uss
+ * holds - the steps either side are 12 and 16, and 8 - so tokenising them
+ * would mean either inventing three one-use tokens or rounding the handoff to
+ * the nearest step it did not ask for. Theme.uss already settled this
+ * convention for the same class of value: `Button` carries a raw 12px padding
+ * and a raw 3px drop edge, TextField a raw 10px, `.divider` a raw 1px, and
+ * `icons.uss` the raw 19px glyph box. The token layer holds the SCALE - the
+ * spacing steps, the radii, the colours, the type - and one-off component
+ * geometry quoted from the handoff is written literally, next to the sentence
+ * it came from. Every value below that IS on the scale uses its token.
+ */
+.screen-scaffold { flex-grow: 1; flex-direction: column; }
+
+/* 8px 14px 10px, straight from the handoff. */
+.screen-scaffold__header {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    padding-top: var(--space-2);
+    padding-bottom: 10px;
+    padding-left: 14px;
+    padding-right: 14px;
+}
+
+/* The 34px rounded square at the header's left edge, per the handoff's
+ * navigation model. Radius is --radius-tile (11px), inside the handoff's
+ * 9-14px icon-tile band.
+ *
+ * PADDING AND BLOCK MARGINS ARE ZEROED, and that is not tidying. Theme.uss
+ * gives every Button 12px of vertical and 16px of horizontal padding plus a
+ * 4px top and bottom margin, for the CTA shape. Inherited onto a fixed 34px
+ * square that leaves a 2x10px content box, and the 19px glyph inside it is an
+ * in-flow child laid out in exactly that box - so the chevron would be
+ * crushed to a sliver, and the button would sit 4px low against a title that
+ * has no such margin. The fill, the border and the radius are overridden for
+ * the same reason: a nav affordance is not a CTA and must not read as one. */
+.screen-scaffold__back {
+    width: 34px;
+    height: 34px;
+    margin-top: 0;
+    margin-bottom: 0;
+    margin-left: 0;
+    margin-right: var(--space-2);
+    padding-top: 0;
+    padding-bottom: 0;
+    padding-left: 0;
+    padding-right: 0;
+    border-radius: var(--radius-tile);
+    border-width: 0;
+    background-color: var(--surface-sunk);
+    align-items: center;
+    justify-content: center;
+}
+
+/* --mute-soft is icons.uss's default tint, set for a nav glyph sitting on the
+ * --surface fill of the tab bar. This chevron sits on --surface-sunk, which
+ * is two steps nearer it, so the mark is retinted to the ink the title beside
+ * it is already set in - the back affordance is a primary control on a pushed
+ * screen, not tertiary chrome. */
+.screen-scaffold__back .icon {
+    -unity-background-image-tint-color: var(--ink);
+}
+
+.screen-scaffold__title { flex-grow: 1; }
+.screen-scaffold__header-slot { flex-direction: row; align-items: center; }
+
+/* The one flexible region, and the only one that scrolls. The three rows
+ * around it are flex-shrink: 0 so a tall screen scrolls its body rather than
+ * compressing its chrome - the handoff's "content is the only flexible
+ * region", made structural rather than left to whatever each screen's content
+ * happens to measure. */
+.screen-scaffold__content {
+    flex-grow: 1;
+    padding-left: var(--gutter);
+    padding-right: var(--gutter);
+}
+
+.screen-scaffold__cta-row {
+    flex-direction: column;
+    flex-shrink: 0;
+    padding-left: var(--gutter);
+    padding-right: var(--gutter);
+    padding-top: var(--space-2);
+}
+
+.screen-scaffold__footer-note {
+    -unity-text-align: middle-center;
+    flex-shrink: 0;
+    color: var(--mute);
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+}

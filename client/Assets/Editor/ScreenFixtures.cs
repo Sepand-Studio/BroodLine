@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Broodline.Api;
 using Broodline.Model;
 using Broodline.UI;
+using Broodline.UI.Components;
 using Broodline.UI.Screens;
 using Broodline.UI.Shell;
 using UnityEditor;
@@ -57,11 +58,12 @@ public static class ScreenFixtures
         "SpliceRevealView",
         "WaveDefeatView",
         "WaveHudView",
-        // NOT SCREENS, and last for that reason - see Primitives() and
-        // Icons() below. Each exists because the twelve screens above it
-        // cannot show the thing it shows.
+        // NOT SCREENS, and last for that reason - see Primitives(),
+        // Icons() and Scaffold() below. Each exists because the twelve
+        // screens above it cannot show the thing it shows.
         "Primitives",
         "Icons",
+        "Scaffold",
     };
 
     public static VisualElement Build(string name)
@@ -82,6 +84,7 @@ public static class ScreenFixtures
             case "WaveHudView": return WaveHud();
             case "Primitives": return Primitives();
             case "Icons": return Icons();
+            case "Scaffold": return Scaffold();
             default: throw new ArgumentException("ScreenFixtures has no fixture named '" + name + "'", nameof(name));
         }
     }
@@ -558,5 +561,128 @@ public static class ScreenFixtures
         row.Add(label);
 
         return row;
+    }
+
+    /// NOT A SCREEN. `ScreenScaffold` on its own, in both of the states the
+    /// handoff gives it.
+    ///
+    /// WHY IT EXISTS. Nothing consumes the scaffold until Task 9, so at the
+    /// commit that adds it all twelve screen captures come back
+    /// byte-identical and its only other artifact is a test that is
+    /// DELIBERATELY RED. Without this fixture the task lands as three files
+    /// nobody can look at - the plan's amendment finding 4 for the third
+    /// time, and the same reason `Primitives` and `Icons` exist one and two
+    /// tasks back.
+    ///
+    /// TWO FRAMES, STACKED, AND THE COST IS WORTH NAMING. The capture target
+    /// is a single 430x932, so two frames in it are each shorter than a real
+    /// screen: the one thing this picture CANNOT judge is the vertical
+    /// proportion of a full-height scaffold. That is the trade for what it
+    /// can show - the two frames differ only in `pushed` and in whether
+    /// `FooterNote` is set, so the chevron's presence and the note's row
+    /// collapsing both read as a difference between two pictures rather than
+    /// as a claim in prose.
+    ///
+    /// THE CONTENT IS REAL `CreatureCard`s, not grey blocks. The question a
+    /// reviewer is actually asking here is whether the 12px gutter, the
+    /// header's 8-14-10 padding and the CTA row hold a real screen's
+    /// furniture at the sizes the handoff gives them, and a placeholder
+    /// rectangle cannot answer it.
+    static VisualElement Scaffold()
+    {
+        // .shell-root is --paper, as in Primitives and Icons - the real
+        // screen background out of the token layer.
+        var root = new VisualElement();
+        root.AddToClassList("shell-root");
+        root.style.flexGrow = 1;
+
+        root.Add(ScaffoldCaption("pushed: true   -   chevron, FooterNote set"));
+
+        // No flexGrow set here: .screen-scaffold already carries flex-grow 1,
+        // so this frame takes whatever the fixed one below it leaves.
+        var pushed = new ScreenScaffold("Splice Reveal", pushed: true, onBack: () => { });
+        FillScaffold(pushed);
+        pushed.FooterNote = "Consumes both parents.";
+        root.Add(pushed);
+
+        var divider = new VisualElement();
+        divider.AddToClassList("divider");
+        root.Add(divider);
+
+        root.Add(ScaffoldCaption("pushed: false   -   no chevron, FooterNote null"));
+
+        // Fixed and non-growing, against .screen-scaffold's own flex-grow 1 -
+        // otherwise the two frames split the free space evenly and neither is
+        // tall enough to hold its content.
+        var top = new ScreenScaffold("Gene Ark");
+        FillScaffold(top);
+        top.style.flexGrow = 0;
+        top.style.flexShrink = 0;
+        top.style.height = 300;
+        root.Add(top);
+
+        return root;
+    }
+
+    /// The same furniture in both frames, so the only differences between the
+    /// two are the two the fixture is about. Deliberately more content than
+    /// the short frame can hold: the content region is the only scrolling one
+    /// in the handoff's column, and a frame whose body is clipped at the CTA
+    /// row is what that looks like when it is working.
+    static void FillScaffold(ScreenScaffold scaffold)
+    {
+        var currency = new CurrencyHeader();
+        currency.Bind(new Dictionary<string, int> { { "shards", 1240 } });
+        scaffold.HeaderSlot.Add(currency);
+
+        // A WRAPPING ROW, NOT A COLUMN, and the first capture of this fixture
+        // is what caught it: `.creature-card` is a fixed `width: 160px` tile
+        // authored for the two-column grid `RosterView.uss` lays out
+        // (`flex-direction: row; flex-wrap: wrap; justify-content:
+        // space-between`). Stacked in a column each card kept its 160px and
+        // the content region read as two-fifths full, which says nothing true
+        // about whether the 12px gutter holds a real screen's furniture - the
+        // one question this fixture exists to answer.
+        var cards = new VisualElement();
+        cards.style.flexDirection = FlexDirection.Row;
+        cards.style.flexWrap = Wrap.Wrap;
+        cards.style.justifyContent = Justify.SpaceBetween;
+
+        var a = new CreatureCard();
+        a.Bind(Creature("Vetch Crawler", 4, name: "Ash", founder: true, id: ParentAId), null);
+        cards.Add(a);
+
+        var b = new CreatureCard();
+        b.Bind(Creature("Ember Skitter", 6, name: null, founder: false, id: ParentBId), null);
+        cards.Add(b);
+
+        scaffold.Content.Add(cards);
+
+        var forecast = new VisualElement();
+        forecast.AddToClassList("panel-violet");
+        var line = new Label("Mutation 9%   -   Aberrant 1%");
+        line.AddToClassList("t-secondary");
+        forecast.Add(line);
+        scaffold.Content.Add(forecast);
+
+        var primary = new Button { text = "Splice" };
+        primary.AddToClassList("btn-primary");
+        scaffold.CtaRow.Add(primary);
+
+        var secondary = new Button { text = "Back to the Ark" };
+        secondary.AddToClassList("btn-secondary");
+        scaffold.CtaRow.Add(secondary);
+    }
+
+    /// Fixture chrome, not scaffold chrome - it says which of the two frames
+    /// below it is which, and nothing in a real screen looks like this.
+    static Label ScaffoldCaption(string text)
+    {
+        var label = new Label(text);
+        label.AddToClassList("t-micro");
+        label.style.paddingLeft = 14;
+        label.style.paddingTop = 10;
+        label.style.paddingBottom = 4;
+        return label;
     }
 }
