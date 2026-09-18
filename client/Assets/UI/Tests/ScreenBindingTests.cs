@@ -555,6 +555,11 @@ namespace Broodline.UI.Tests
             var row = v.Query(className: RegionView.NodeRowUssClassName).ToList()[0];
             Assert.AreEqual(m.Nodes[0].Blocker, row.Q<Label>("blocker").text);
             Assert.IsFalse(row.Q<Button>("claim").enabledSelf);
+
+            // AND THE ROW IS DRAWN, as of Phase 8 Task 12. Paired with the
+            // collapse asserted below so a view that hid the panel
+            // unconditionally cannot pass by dropping the sentence.
+            Assert.AreEqual(DisplayStyle.Flex, row.Q<Label>("blocker").resolvedStyle.display);
         }
 
         [Test]
@@ -570,8 +575,18 @@ namespace Broodline.UI.Tests
             v.Bind(m, _ => { });
 
             var row = v.Query(className: RegionView.NodeRowUssClassName).ToList()[0];
-            Assert.AreEqual(string.Empty, row.Q<Label>("blocker").text);
+            var blocker = row.Q<Label>("blocker");
+            Assert.AreEqual(string.Empty, blocker.text);
             Assert.IsTrue(row.Q<Button>("claim").enabledSelf);
+
+            // AND THE ROW GOES WITH THE TEXT, as of Phase 8 Task 12. The
+            // label sits in a --coral-tint panel with --space-3 of padding,
+            // so an empty one is a blank coral strip inside the card of every
+            // node a player CAN claim - the ordinary case, and both of the
+            // two nodes the server actually serves. Same rule as
+            // DeployView.Blocker and ScreenScaffold.FooterNote.
+            Assert.AreEqual(DisplayStyle.None, blocker.resolvedStyle.display,
+                "a claimable node still drew the refusal row, blank");
         }
 
         [Test]
@@ -581,6 +596,17 @@ namespace Broodline.UI.Tests
             // text used to be literals in RegionView.cs. They are now
             // NodeRow.ClaimLabel/.RemainingLabel, populated in
             // RegionScreen.Build exactly as Blocker is.
+            //
+            // THE REMAINING COUNT IS A `StatCell` AS OF PHASE 8 TASK 12, so
+            // it is read through that component's element names rather than
+            // through a `remaining` Label of this screen's own - the same
+            // rename the splice forecast's `probability` took when it became
+            // a cell in Task 10, and RosterView's `notice` took when it
+            // became the scaffold's footer note. The FACT asserted is
+            // unchanged: the model's string reaches the screen, and the view
+            // does not re-derive it. What it gains is a LABEL: the old row
+            // printed this number bare, beside another bare number, with
+            // nothing saying which was which.
             var node = new Nodes { Slot = 4, Type = "Shard", Accrued = 8, Remaining = 3, Grants = 0 };
             var m = RegionScreen.Build(RegionState(new Roster { Count = 5, Cap = 20 }, node));
 
@@ -588,8 +614,115 @@ namespace Broodline.UI.Tests
             v.Bind(m, _ => { });
 
             var row = v.Query(className: RegionView.NodeRowUssClassName).ToList()[0];
-            Assert.AreEqual(m.Nodes[0].RemainingLabel, row.Q<Label>("remaining").text);
+            Assert.AreEqual(m.Nodes[0].RemainingLabel, Remaining(row).Q<Label>("value").text);
+            Assert.AreEqual(RegionScreen.RemainingStatLabel, Remaining(row).Q<Label>("label").text);
             Assert.AreEqual(m.Nodes[0].ClaimLabel, row.Q<Button>("claim").text);
+
+            // The accrual is the first cell, and it is the other half of the
+            // pair the old row left unlabelled.
+            var cells = row.Query<StatCell>().ToList();
+            Assert.AreEqual(RegionScreen.AccruedStatLabel, cells[0].Q<Label>("label").text);
+            Assert.AreEqual(RegionScreen.StatValue(8), cells[0].Q<Label>("value").text);
+
+            // Both values wear `t-num`, which is StatCell's own UXML and the
+            // point of routing these numbers through the component: it is the
+            // marker bible 10.6's tabular figures and 11px floor are enforced
+            // through, and the old `.node-row > Label` rule set neither.
+            Assert.IsTrue(cells[0].Q<Label>("value").ClassListContains("t-num"));
+            Assert.IsTrue(Remaining(row).Q<Label>("value").ClassListContains("t-num"));
+        }
+
+        /// A node card's second stat cell - harvests left. Named here rather
+        /// than indexed at four call sites, because the THIRD cell is
+        /// conditional (see RegionView_AGrantingNode_...) and an index is
+        /// the thing that would quietly start reading the wrong one.
+        static StatCell Remaining(VisualElement row)
+        {
+            return row.Query<StatCell>().ToList()[1];
+        }
+
+        /// THE GRANT WAS ON NO SCREEN AT ALL BEFORE PHASE 8 TASK 12.
+        /// `NodeRow.Grants` is "creatures this claim would grant", and it is
+        /// the entire subject of the roster refusal - "Your roster has no
+        /// room for 1 more" - yet a granting node rendered identically to a
+        /// shard node until that refusal fired. The screen was withholding
+        /// its own premise.
+        [Test]
+        public void RegionView_AGrantingNode_StatesHowManyCreaturesTheClaimWouldGrant()
+        {
+            var node = new Nodes { Slot = 2, Type = "Grant", Accrued = 0, Remaining = null, Grants = 2 };
+            var m = RegionScreen.Build(RegionState(new Roster { Count = 5, Cap = 20 }, node));
+            Assert.IsTrue(m.Nodes[0].CanClaim, "sanity: 5 + 2 fits in a cap of 20");
+
+            var v = new RegionView();
+            v.Bind(m, _ => { });
+
+            var cells = v.Query(className: RegionView.NodeRowUssClassName).ToList()[0]
+                .Query<StatCell>().ToList();
+            Assert.AreEqual(3, cells.Count, "a granting node states accrual, depletion and the grant");
+            Assert.AreEqual(RegionScreen.GrantsStatLabel, cells[2].Q<Label>("label").text);
+            Assert.AreEqual(RegionScreen.StatValue(2), cells[2].Q<Label>("value").text);
+        }
+
+        [Test]
+        public void RegionView_APureShardNode_StatesNoGrantRatherThanZero()
+        {
+            // The complement: `Grants` is 0 on every pure shard node, and a
+            // cell reading "0" on all of them would be noise around the one
+            // that matters. Two cells, not three.
+            var node = new Nodes { Slot = 1, Type = "Shard", Accrued = 12, Remaining = null, Grants = 0 };
+            var m = RegionScreen.Build(RegionState(new Roster { Count = 5, Cap = 20 }, node));
+
+            var v = new RegionView();
+            v.Bind(m, _ => { });
+
+            var cells = v.Query(className: RegionView.NodeRowUssClassName).ToList()[0]
+                .Query<StatCell>().ToList();
+            Assert.AreEqual(2, cells.Count, "a shard node drew an empty grant cell");
+        }
+
+        [Test]
+        public void RegionView_ARegionWithNoNodes_SaysSoInsteadOfRenderingBlankPaper()
+        {
+            // Reachable: `RegionStateResponse` default-initialises `Nodes` to
+            // an empty list, so a response constructed rather than
+            // deserialised builds a model with none. Before Phase 8 Task 12
+            // that rendered as a screen with nothing on it, which reads as a
+            // failed load rather than as a state the game meant.
+            var m = RegionScreen.Build(RegionState(new Roster { Count = 5, Cap = 20 }));
+            Assert.IsEmpty(m.Nodes, "sanity: this fixture carries no nodes");
+
+            var v = new RegionView();
+            v.Bind(m, _ => { });
+
+            var empty = v.Q<EmptyState>();
+            Assert.IsNotNull(empty, "an empty node list rendered as a screen with nothing on it");
+            Assert.AreEqual(RegionScreen.EmptyMessage, empty.Q<Label>("message").text);
+        }
+
+        /// THE EMPTY STATE IS FOR AN EMPTY LIST, NOT AN UNCLAIMABLE ONE, and
+        /// Task 12's own step 2 asks for the other thing - "EmptyState when
+        /// no nodes are claimable". That screen would be worse: a spent node
+        /// carries the sentence saying why its Claim is off, and replacing
+        /// the rows with one centred message deletes the explanation.
+        [Test]
+        public void RegionView_ARegionWhoseNodesAreAllSpent_KeepsTheRowsAndTheirReasons()
+        {
+            var a = new Nodes { Slot = 0, Type = "Shard", Accrued = 40, Remaining = 0, Grants = 0 };
+            var b = new Nodes { Slot = 1, Type = "Shard", Accrued = 9, Remaining = 0, Grants = 0 };
+            var m = RegionScreen.Build(RegionState(new Roster { Count = 5, Cap = 20 }, a, b));
+            Assert.IsFalse(m.Nodes[0].CanClaim);
+            Assert.IsFalse(m.Nodes[1].CanClaim);
+
+            var v = new RegionView();
+            v.Bind(m, _ => { });
+
+            Assert.IsNull(v.Q<EmptyState>(),
+                "a region whose nodes are all spent was emptied of the rows that say why");
+            var rows = v.Query(className: RegionView.NodeRowUssClassName).ToList();
+            Assert.AreEqual(2, rows.Count);
+            Assert.IsNotEmpty(rows[0].Q<Label>("blocker").text);
+            Assert.IsNotEmpty(rows[1].Q<Label>("blocker").text);
         }
 
         [Test]
@@ -607,7 +740,7 @@ namespace Broodline.UI.Tests
             v.Bind(m, _ => { });
 
             var row = v.Query(className: RegionView.NodeRowUssClassName).ToList()[0];
-            Assert.AreEqual(m.Nodes[0].RemainingLabel, row.Q<Label>("remaining").text);
+            Assert.AreEqual(m.Nodes[0].RemainingLabel, Remaining(row).Q<Label>("value").text);
         }
 
         [Test]
@@ -633,6 +766,22 @@ namespace Broodline.UI.Tests
             v.Bind(m, _ => { });
 
             Assert.AreEqual("5/20", v.Q<Label>("roster").text);
+
+            // The model's own formatter now writes it - the string moved out
+            // of the view in Phase 8 Task 12, on the convention
+            // UnlimitedLabel and ClaimCta already follow. The literal above
+            // stays as the stronger assertion: a test that only compared the
+            // view against the formatter would pass if both sides quietly
+            // agreed on the wrong shape.
+            Assert.AreEqual(RegionScreen.RosterHeadline(m), v.Q<Label>("roster").text);
+
+            // And it is drawn. Paired with the collapse below.
+            Assert.AreEqual(DisplayStyle.Flex, v.Q<Label>("roster").resolvedStyle.display);
+
+            // `t-num`: a count against a cap is a number a decision depends
+            // on - it is what the roster refusal on a granting node is about -
+            // so bible 10.6's tabular face and 11px floor apply to it.
+            Assert.IsTrue(v.Q<Label>("roster").ClassListContains("t-num"));
         }
 
         [Test]
@@ -647,7 +796,17 @@ namespace Broodline.UI.Tests
             var v = new RegionView();
             v.Bind(m, _ => { });
 
-            Assert.AreEqual(string.Empty, v.Q<Label>("roster").text);
+            var roster = v.Q<Label>("roster");
+            Assert.AreEqual(string.Empty, roster.text);
+
+            // AND THE LINE GOES WITH THE TEXT, as of Phase 8 Task 12. The
+            // Label was added unconditionally and carried
+            // `margin-bottom: var(--space-3)`, so an unset roster headline
+            // drew 12px of empty strip above the node list - the eighth
+            // instance of the shape this phase has been removing, and the
+            // first that is a bare header line rather than a tinted panel.
+            Assert.AreEqual(DisplayStyle.None, roster.resolvedStyle.display,
+                "an unknown roster headline still occupied a header line");
         }
     }
 }

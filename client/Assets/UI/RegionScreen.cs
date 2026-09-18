@@ -98,6 +98,94 @@ namespace Broodline.UI
         /// the same convention.
         public const string ClaimCta = "Claim";
 
+        /// The header's title, and the handoff's own name for this screen.
+        ///
+        /// FROM THE HANDOFF'S SECTION HEADING, the same source
+        /// `RosterScreen.Title` takes "Creature Roster" from.
+        /// specs/Designs/design_handoff_broodline/README.md section 1 is
+        /// "World Map - `Splice World Map v2.dc.html`", and its navigation
+        /// model's tab table reads "Map -> World Map", which makes this the
+        /// Map tab's destination and top-level.
+        ///
+        /// PHASE 8 TASK 12's PLAN ASKED FOR "Region", AND THAT WORD IS A
+        /// HEADING IN NO DESIGN DOCUMENT - not the handoff README, not the
+        /// .dc.html, not the bible. It describes what the screen currently
+        /// SHOWS, which is one region's harvest nodes, rather than what the
+        /// screen IS; and the two differ for one phase only, because the
+        /// server ships one region (`rotation.ts`: "with one region and no
+        /// relocation"). `RegionView.uss`'s header says in full why the map
+        /// is not drawn yet and who owns drawing it.
+        ///
+        /// THE HANDOFF DRAWS NO HEADER TITLE ON THIS SCREEN AT ALL - its
+        /// layout runs "status bar -> three currency chips in a row -> map
+        /// viewport" - so this is the screen's NAME rather than a string
+        /// quoted off a rendered header. Recorded because the difference
+        /// matters to anyone later comparing the two side by side.
+        public const string Title = "World Map";
+
+        /// What the node list says when it holds nothing.
+        ///
+        /// IT STATES THE LIST'S STATE AND GIVES NO INSTRUCTION, on
+        /// `DeployScreen.EmptyMessage`'s rule but for the opposite reason:
+        /// there the instruction is already on screen in the blocker, and
+        /// here there is no instruction to give, because a player cannot
+        /// make a node appear. `nodesFor` (services/api/src/map/rotation.ts)
+        /// returns slot 0 Common Vein and slot 1 Rich Deposit for every
+        /// region, epoch and seed, so an empty list means a response that
+        /// carried no nodes rather than a region that has none.
+        public const string EmptyMessage = "No harvest nodes in this region.";
+
+        /// The two facts a node's stat row always states - and the two it
+        /// cannot.
+        ///
+        /// RATE AND TOTAL YIELD ARE NOT ON THE WIRE. `nodes.json` authors
+        /// `ratePerHour` and `totalYield`, and `rotation.ts` reads both, but
+        /// `RegionStateResponse`'s node object is slot, type, accrued,
+        /// remaining and grants - it carries neither. So Task 12's "StatCells
+        /// for rate and yield" is not something this screen can do, and a
+        /// cell stating a rate would be a number the client invented.
+        /// Richness is further out still: it is a REGION property in the
+        /// handoff and no region property reaches the client at all.
+        public const string AccruedStatLabel = "Accrued";
+        public const string RemainingStatLabel = "Harvests left";
+
+        /// Stated only when it is non-zero - `RegionView.CardFor` has why.
+        public const string GrantsStatLabel = "Creatures";
+
+        /// A plain count, as a stat cell prints it. InvariantCulture for the
+        /// reason every other number in this assembly takes it - see
+        /// `DeployScreen.WaveStatValue`.
+        public static string StatValue(int value)
+        {
+            return value.ToString(CultureInfo.InvariantCulture);
+        }
+
+        /// The roster headline, "5/20", or empty when the cap is unset.
+        ///
+        /// AUTHORED HERE RATHER THAN IN THE VIEW, the convention
+        /// `UnlimitedLabel` and `ClaimCta` already follow: every
+        /// player-facing string is authored outside the view.
+        /// `HasRosterCounts` gates it for the reason that property's own doc
+        /// gives - an unset cap of 0 must read as "unknown", never as "0 of
+        /// 0" - and an empty return is what `RegionView` collapses the header
+        /// line on.
+        ///
+        /// NO SPACES AROUND THE SLASH, WHERE `DeployScreen.DeployedStatValue`
+        /// WRITES " / ". Two screens print a count against a cap two ways.
+        /// This one is pinned to "5/20" by
+        /// `RegionView_ShowsRosterCountAndCapWhenKnown`, a Phase 6
+        /// assertion, and unifying the two is a copy decision rather than a
+        /// layout one - so it is recorded here and not taken in Task 12.
+        public static string RosterHeadline(RegionScreenModel model)
+        {
+            if (model == null) throw new ArgumentNullException("model");
+
+            return model.HasRosterCounts
+                ? model.RosterCount.ToString(CultureInfo.InvariantCulture)
+                    + "/" + model.RosterCap.ToString(CultureInfo.InvariantCulture)
+                : string.Empty;
+        }
+
         public static async Task<RegionStateResponse> LoadAsync(BroodlineApiClient api)
         {
             if (api == null) throw new ArgumentNullException("api");
