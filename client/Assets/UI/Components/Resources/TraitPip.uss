@@ -16,10 +16,17 @@
     padding-right: 7px;
 }
 
+/* 4px is half of 8, which is the circle this dot has always been. It read
+ * var(--radius-pill) and rendered CORRECTLY anyway, because a square element
+ * clamps both axes to the same number and has no long axis for a lens to
+ * form along - measured, 8x8 at 999px comes back as a true circle. It is
+ * written as a literal here for the same reason as every other one: the
+ * token is gone, and a radius that happens to be safe because the element is
+ * square should say so rather than look like a rule that works generally. */
 .trait-pip__icon {
     width: 8px;
     height: 8px;
-    border-radius: var(--radius-pill);
+    border-radius: 4px;
     background-color: var(--violet);
     margin-right: 5px;
 }

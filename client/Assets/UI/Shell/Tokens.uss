@@ -111,7 +111,34 @@
     --space-6: 24px;
 
     /* ---- Radius ---- */
-    --radius-pill: 999px;
+
+    /* THERE IS NO --radius-pill, AND THE HANDOFF'S `pill 999px` IS THE ONE
+     * ROW OF ITS RADIUS TABLE THAT DOES NOT SURVIVE THE TRANSLATION TO USS.
+     * It was here, every short element in the project read it, and every one
+     * of them rendered as a lens. Theme.uss's header item 4 has the full
+     * account and the measurement; the short version is that UI Toolkit
+     * clamps a corner radius to half the element ON EACH AXIS SEPARATELY,
+     * where CSS scales both radii by one common factor. A 999px radius on a
+     * 99x27 element therefore draws an ellipse quadrant 49.5 wide and 13.5
+     * tall instead of a 13.5 semicircle, and the cap eats 65% of the pill.
+     *
+     * WHAT TO WRITE INSTEAD: half the element's own height, rounded DOWN, as
+     * a literal, next to the measured height it came from. There is no token
+     * for it because a pill radius is a function of one element's height and
+     * no single number serves a 6px track and a 39px nav tab.
+     *
+     * ROUND DOWN, NEVER UP, and that asymmetry is the whole reason a literal
+     * is safe here. Measured: at exactly half the height the cap is a true
+     * semicircle at every height and every width tested. Below half, the
+     * shape degrades gently - a slightly flattened pill. Above half it
+     * degrades catastrophically and without bound, because the overshoot is
+     * not clamped: the taper grows with the radius until it saturates at
+     * half the element's WIDTH, so the wider the element the worse it gets.
+     * A radius that is a little too small looks like a pill. One that is a
+     * little too large looks like a mistake.
+     *
+     * verify-uss-tokens.sh check 3 is the guard: any var(--radius-pill) that
+     * comes back reddens it, because the token it names no longer exists. */
     --radius-chip: 6px;
     --radius-tile: 11px;
     --radius-row: 14px;

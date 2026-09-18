@@ -98,7 +98,11 @@
     color: var(--mute);
     font-size: var(--text-nav);
     border-bottom-width: 0;
-    border-radius: var(--radius-pill);
+    /* Half of a MEASURED 39px, rounded down. Was var(--radius-pill), which
+     * drew each 83x39 tab as an ellipse 41px wide and 19px tall - a lens
+     * where the handoff wants a pill, on the one piece of chrome that is on
+     * screen at all times. Theme.uss header item 4 has the measurement. */
+    border-radius: 19px;
 
     /* THE GLYPH'S BAND, AND THE ONLY REASON THIS IS NOT var(--space-2).
      * A Button is a TextElement: it draws `text` ITSELF, centred in its own

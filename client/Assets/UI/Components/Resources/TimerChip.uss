@@ -6,7 +6,13 @@
     flex-direction: row;
     align-items: center;
     background-color: var(--surface-sunk);
-    border-radius: var(--radius-pill);
+    /* Half of a MEASURED 35px, rounded down - Theme.uss header item 4.
+     * NOT VERIFIED IN THE CORPUS: nothing in client/ composes a TimerChip
+     * yet, so no capture renders one and 35px was measured on a chip built
+     * alone under a real panel. The height and this radius are coupled; a
+     * screen that changes this rule's padding or --text-secondary must
+     * re-measure both. */
+    border-radius: 17px;
     padding-top: 3px;
     padding-bottom: 3px;
     padding-left: 10px;

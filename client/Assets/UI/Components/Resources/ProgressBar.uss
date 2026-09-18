@@ -43,22 +43,17 @@
      * parent's height to already be resolved. */
     flex-direction: row;
     height: 6px;
-    /* 3px, NOT --radius-pill, AND THAT IS MEASURED. The handoff writes
-     * `border-radius: 999px` on every one of these tracks, and in CSS a
-     * radius that large on a 6px-tall box clamps proportionally to a
-     * semicircular end - a pill. UI Toolkit does not clamp it that way.
-     * Captured at 999px on this exact 6px x 325px track, the ends taper as
-     * an ellipse over about 58px each: 2px tall at the end, 4px by 14px in,
-     * and not full height until 58px in. The bar reads as a lens rather
-     * than as a bar, and at fill 0.08 the whole fill lands inside the
-     * taper. 3px is half the track's height, which is the pill the handoff
-     * asked for, written as the literal this renderer needs.
+    /* 3px is half of 6, which is the pill the handoff asked for. It is a
+     * literal because there is no longer a token to reach for: the first
+     * capture of this bar at the handoff's own `border-radius: 999px` is
+     * what found the defect that retired --radius-pill. On this exact 6x325
+     * track the ends tapered as an ellipse over ~58px each - 2px tall at the
+     * end, 4px by 14px in, full height only at 58 - so the bar read as a
+     * lens and a 0.08 fill sat entirely inside the taper.
      *
-     * --radius-pill IS NOT WRONG, it is just not a pill below about 2x its
-     * own value in either axis. Theme.uss's `.pill` and TimerChip.uss both
-     * read it on elements around 21px tall, where the same arithmetic
-     * predicts a visible lens; neither is in this task's scope and neither
-     * has been looked at. */
+     * It was not special to a 6px track. Theme.uss header item 4 has the
+     * 50-bar sweep that followed, the rule it establishes, and why every
+     * pill in the project now carries half its own measured height. */
     border-radius: 3px;
     background-color: var(--hairline);
     overflow: hidden;

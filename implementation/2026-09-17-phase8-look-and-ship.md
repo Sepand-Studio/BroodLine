@@ -2497,6 +2497,28 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 Four tasks covering twelve types: **10 screens that must carry the scaffold**, plus `CodexSheet` and `WaveHudView`, which are overlays and are exempt by name in Task 7. Each task ends with `EveryScreenComposesTheScaffold` naming fewer; Task 12 is where it goes green. Task 9 greens 3, Task 10 greens 4, Task 11 greens 2, Task 12 greens the last 1. Each task below repeats the shared steps in full — do not treat them as a cross-reference.
 
+### FOUND IN TASK 8, APPLIES TO ALL FOUR OF THESE — read before writing a screen
+
+**1. `ProgressBar` collides with `UnityEngine.UIElements.ProgressBar`, and it does not report as a collision.** Any screen file that imports both `UnityEngine.UIElements` and `Broodline.UI.Components` binds Unity's type for the bare name, and the compiler says:
+
+```
+error CS1729: 'ProgressBar' does not contain a constructor that takes 1 arguments
+```
+
+which reads like a broken signature on ours. It is not. Add the alias beside the usings:
+
+```csharp
+using ProgressBar = Broodline.UI.Components.ProgressBar;
+```
+
+`ComponentTests.cs` and `ScreenFixtures.cs` both carry it. The type name is kept because this section consumes Task 8's interface verbatim.
+
+**2. A component's stylesheet cannot style the container you put it in.** A sheet attached through `<ui:Style>` in a component's UXML reaches that component and its **descendants**. A row of `StatCell`s, a grid of `SectionCard`s, the gap between two `OptionRow`s — all of those belong to the parent, so they go in the *screen's* `.uss`, not the component's. A rule written in the wrong file compiles, passes `check-stylesheets.sh` and `verify-uss-tokens.sh`, and styles nothing. `StatCell.uss`'s closing note has the case that found it.
+
+**3. There is no `--radius-pill`.** It was retired in Task 8 after it was measured drawing every short element in the project as a lens. A pill-shaped element carries a literal radius of **half its own measured height, rounded down**; rounding down degrades gently and rounding up degrades without bound. `Theme.uss` header item 4 has the measurement; `verify-uss-tokens.sh` reddens if the token comes back.
+
+**4. Nothing in a screen fixture may shrink.** The capture target is a fixed 430x932 and flexbox answers an overflow by shrinking, not by clipping — so an over-full screen silently squashes its own furniture rather than showing you that it is over-full. `ScreenFixtures`' class comment has the measurement.
+
 ---
 
 ## Task 9: The first-hour screens

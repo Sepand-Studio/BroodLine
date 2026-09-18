@@ -36,6 +36,31 @@ using ProgressBar = Broodline.UI.Components.ProgressBar;
 /// copy of the same DTO shapes, built the same way, and the two are expected
 /// to drift rather than call each other - see task-14-15-report.md for the
 /// concrete asmdef reasoning.
+///
+/// ================================================================
+/// NOTHING IN A FIXTURE MAY SHRINK, AND THIS IS THE CONSTRAINT MOST
+/// LIKELY TO BITE THE NEXT PERSON WHO ADDS ONE.
+///
+/// The capture target is a fixed 430x932. A flex column whose children
+/// overflow it does not clip them - it SHRINKS every one of them that will
+/// shrink, silently and proportionally, because flex-shrink defaults to 1.
+/// Measured on the first `Components` capture: a 6px ProgressBar track went
+/// to zero height and vanished from the picture outright, and three stat
+/// cells collapsed and spilled their values through the bottom of the card
+/// they were in. Neither rendered as an error. Both rendered as a component
+/// that does not work - which is exactly the wrong thing for a corpus whose
+/// whole job is to be the place a broken component is visible.
+///
+/// So: set `flexShrink = 0` on everything a fixture stacks, and let content
+/// that does not fit run off the bottom of the frame, where it can be seen
+/// and trimmed. A too-tall fixture is a layout problem with an obvious
+/// symptom; a shrunk one is a lie about five components at once.
+///
+/// This applies to a SCREEN fixture too, not only to the component ones -
+/// a screen whose content is taller than 932 will shrink its own furniture
+/// before it scrolls, because ScreenScaffold's content region is the only
+/// part of the column that grows.
+/// ================================================================
 public static class ScreenFixtures
 {
     // Fixed ids rather than Guid.NewGuid() wherever a screen's own binding
@@ -744,15 +769,12 @@ public static class ScreenFixtures
         root.style.paddingRight = 32;
         root.style.paddingTop = 20;
 
-        // NOTHING IN THIS COLUMN MAY SHRINK, and the first capture of this
-        // fixture is why. A flex container whose children overflow it
-        // shrinks every one of them that will shrink, and a 430x932 frame
-        // this full overflows: the 6px ProgressBar tracks went to zero
-        // height and vanished outright, and the stat cells collapsed and
-        // spilled their values through the bottom of their card. Neither
-        // rendered as an error - both rendered as a component that does not
-        // work. With flex-shrink pinned at 0, content that does not fit
-        // runs off the bottom of the frame instead, which is visible.
+        // NOTHING IN THIS COLUMN MAY SHRINK - this file's class comment has
+        // the measurement and why it applies to every fixture, not just
+        // this one. The short version: a 430x932 frame this full overflows,
+        // and flexbox answers an overflow by shrinking rather than by
+        // clipping, so the 6px ProgressBar tracks went to zero height and
+        // vanished from the first capture of this fixture altogether.
         void Stack(VisualElement child)
         {
             child.style.flexShrink = 0;

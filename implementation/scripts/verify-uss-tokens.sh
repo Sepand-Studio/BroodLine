@@ -25,16 +25,21 @@ if [ -z "$sheets" ]; then
 fi
 ok "$(printf '%s\n' "$sheets" | wc -l | tr -d ' ') stylesheets to check"
 
-# --- 1. No raw hex outside Tokens.uss. -------------------------------------
-# Two exclusions, both load-bearing:
-#   url(...)  - asset references, no colour.
-#   comments  - Theme.uss DOCUMENTS the handoff's `linear-gradient(180deg,
-#               #8878cf, #6f5fbb)` and `box-shadow: 0 3px 0 #5b4d9e` in its
-#               header, explaining which primitives USS cannot express. A lint
-#               that reddens on that turns the file's honesty into a failure,
-#               which is the opposite of the point.
-# The awk strips /* ... */ (including multi-line) before the grep sees it.
-offenders=$(printf '%s\n' "$sheets" | while read -r f; do
+# Strips /* ... */, including multi-line, and prints "<line number>:<code>".
+#
+# BOTH CHECK 1 AND CHECK 3 READ IT, and check 3 only learned to after it
+# reddened on a stylesheet DOCUMENTING a token that had just been retired -
+# "Was var(--radius-pill), which drew each 83x39 tab as an ellipse". That is
+# the file being honest about why a value is now a literal, and a lint that
+# fails on it makes the honesty the defect. Check 1 already had this exact
+# awk inline for the same reason (Theme.uss quotes the handoff's `#5b4d9e` in
+# its header); this is that pass, extracted, so the two cannot drift apart
+# and a check 4 has one to reach for.
+#
+# IT DOES NOT WEAKEN CHECK 3: a var() inside a comment is not a reference,
+# because USS never resolves it. Verified by adding var(--not-a-token) to a
+# real rule after this change and confirming the check still reddens.
+strip_comments () {
   awk '
     { line = $0
       while (1) {
@@ -46,7 +51,20 @@ offenders=$(printf '%s\n' "$sheets" | while read -r f; do
         line = substr(line, 1, i - 1); inc = 1; break
       }
       printf "%d:%s\n", NR, line }
-  ' "$f" | grep -E ':.*#[0-9a-fA-F]{3,8}\b' | grep -v 'url(' | sed "s#^#$f:#"
+  ' "$1"
+}
+
+# --- 1. No raw hex outside Tokens.uss. -------------------------------------
+# Two exclusions, both load-bearing:
+#   url(...)  - asset references, no colour.
+#   comments  - Theme.uss DOCUMENTS the handoff's `linear-gradient(180deg,
+#               #8878cf, #6f5fbb)` and `box-shadow: 0 3px 0 #5b4d9e` in its
+#               header, explaining which primitives USS cannot express. A lint
+#               that reddens on that turns the file's honesty into a failure,
+#               which is the opposite of the point.
+# strip_comments removes /* ... */ (including multi-line) before the grep.
+offenders=$(printf '%s\n' "$sheets" | while read -r f; do
+  strip_comments "$f" | grep -E ':.*#[0-9a-fA-F]{3,8}\b' | grep -v 'url(' | sed "s#^#$f:#"
 done)
 if [ -z "$offenders" ]; then
   ok "no raw hex outside Tokens.uss"
@@ -78,7 +96,7 @@ fi
 # use them. Anything else added here needs a comment saying who sets it.
 RUNTIME_SET="--safe-top --safe-bottom"
 missing=$(printf '%s\n' "$sheets" | while read -r f; do
-  grep -oE 'var\(--[a-z0-9-]+' "$f" | sed 's/var(//' | sort -u | while read -r t; do
+  strip_comments "$f" | grep -oE 'var\(--[a-z0-9-]+' | sed 's/var(//' | sort -u | while read -r t; do
     # The leading ( on the pattern is not decoration. bash 3.2 - which is what
     # /bin/bash still is on macOS - mis-parses the unbalanced ) of a case
     # pattern inside $( ), and the whole script dies with "syntax error near
