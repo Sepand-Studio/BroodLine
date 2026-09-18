@@ -227,7 +227,7 @@ Button {
     margin-left: 0;
     margin-right: 0;
     transition-property: translate, border-bottom-width, background-color;
-    transition-duration: 60ms;
+    transition-duration: var(--motion-press);
 }
 
 /* bible 10.6's physical press. See note 3 in this file's header. */

@@ -1,0 +1,87 @@
+/* The handoff's animation set as a class vocabulary. bible 10.6 makes the
+ * handoff's named animations authoritative alongside colour and spacing.
+ *
+ * THE CTA PRESS IS NOT HERE. It is in Theme.uss, it is correct, and bible
+ * 10.6 names it specifically. Re-implementing it would be a second source.
+ * What changed with this file is only that its 60ms is now
+ * var(--motion-press) rather than a literal, so all three motion tokens are
+ * read by something.
+ *
+ * WHAT IS CHECKED HERE, AND WHAT IS NOT. The plan's text for this file said
+ * flatly "THIS FILE HAS NO TEST". That was the right instinct and the wrong
+ * amount - some of it is checkable and was checked, and the part that is not
+ * is worth naming precisely, because a vague disclaimer is how a thing ends
+ * up neither tested nor looked at.
+ *
+ * CHECKED:
+ *  - this sheet compiles to a non-zero rule count, so it is not silently
+ *    inert (check-stylesheets.sh - the guard Tokens.uss earned the hard way
+ *    by dying to one stray comment terminator);
+ *  - every var() below names a token that exists in Tokens.uss
+ *    (verify-uss-tokens.sh check 3);
+ *  - the rules BIND and the durations RESOLVE. Measured once, by building
+ *    one probe element per class under a real runtime panel with the shell
+ *    stylesheets attached and reading resolvedStyle.transitionProperty,
+ *    .transitionDuration and .transitionTimingFunction back out. The
+ *    readings are in the commit message that added this file. The probe was
+ *    a throwaway and was deleted - it asserted nothing a standing test could
+ *    keep asserting, since the thing it proves is that these eight rules
+ *    parse and match, which check-stylesheets.sh already fails on if they
+ *    stop parsing - and it counts them: 8 rules out of this file, checked
+ *    against the eight selectors below;
+ *  - that adding this sheet changes NO RESTING FRAME. All fourteen captures
+ *    in implementation/results/screens re-rendered byte-identical with it
+ *    in the cascade, which is the whole of what a still can say about a
+ *    transition, and is worth having as a regression guard.
+ *
+ * NOT CHECKED, and not checkable from this repo:
+ *  - that anything ever MOVES. A transition needs a panel that ticks, and
+ *    Broodline.UI.Tests has no panel. The screenshot corpus cannot stand in:
+ *    a capture is ONE FRAME, and one frame of a 220ms transition is
+ *    pixel-identical to no transition at all. A FIXTURE FOR THIS FILE WAS
+ *    DELIBERATELY NOT ADDED - Tasks 3 and 4 each earned one because their
+ *    output was invisible to the corpus, and copying that here would have
+ *    produced a picture that looked like verification and verified nothing.
+ *  - that the durations FEEL right. 60/120/220ms are the handoff's numbers,
+ *    not measurements. Whether a push at 220ms reads brisk or sluggish under
+ *    a thumb is Task 16's eyes-on pass over the running app, and motion is
+ *    the one part of this phase where that pass has no substitute.
+ *
+ * FOUR OF THESE SIX CLASSES MATCH NOTHING TODAY, by design and not by
+ * oversight: motion-screen-in, sheet-layer--hidden, option-row and
+ * reveal-flare appear in no other file in the project. Tasks 7-12 are what
+ * apply this vocabulary. t-num is a live class in Theme.uss and sheet-layer
+ * is a live element in Shell.uxml, so those two rules bite immediately. The
+ * rest lands inert on purpose - which is exactly why the probe above was the
+ * only evidence available.
+ */
+.motion-screen-in {
+    transition-property: opacity, translate;
+    transition-duration: var(--motion-screen);
+    transition-timing-function: ease-out;
+}
+.motion-screen-in--enter { opacity: 0; translate: 12px 0; }
+
+.sheet-layer > * {
+    transition-property: translate;
+    transition-duration: var(--motion-screen);
+    transition-timing-function: ease-out;
+}
+.sheet-layer--hidden > * { translate: 0 100%; }
+
+.option-row {
+    transition-property: border-color, background-color;
+    transition-duration: var(--motion-quick);
+}
+
+.t-num {
+    transition-property: color;
+    transition-duration: var(--motion-quick);
+}
+
+.reveal-flare {
+    transition-property: opacity, scale;
+    transition-duration: var(--motion-screen);
+    transition-timing-function: ease-out;
+}
+.reveal-flare--hidden { opacity: 0; scale: 0.9 0.9; }

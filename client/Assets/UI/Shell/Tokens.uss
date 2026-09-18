@@ -112,6 +112,23 @@
     --elev-1-spread: 6px;
     --elev-2-spread: 12px;
 
+    /* ---- Motion. The handoff's named animation set. ---- */
+    /* --motion-press IS the CTA press, and Theme.uss's Button rule reads it
+     * as of this commit - it did NOT before. That rule carried a raw `60ms`,
+     * so the plan's "already used by the CTA press" described an intention
+     * rather than the file. Wired here because a token nothing references is
+     * a claim nothing backs, and --elev-1-spread / --elev-2-spread spent one
+     * task in exactly that state while the elevation they described rendered
+     * as a smudge inside the card.
+     *
+     * verify-uss-tokens.sh CANNOT CATCH THE NEXT ONE. Its check 1 greps for
+     * raw hex and a raw duration is not hex; its check 3 only walks var()
+     * calls that already exist. A literal ms left in a rule passes all four
+     * checks silently. Reading the file is the gate. */
+    --motion-press: 60ms;      /* Theme.uss: Button / Button:active */
+    --motion-quick: 120ms;     /* Motion.uss: selection, tint, tick */
+    --motion-screen: 220ms;    /* Motion.uss: push, pop, sheet, reveal */
+
     /* ---- Type scale (bible 10.6: 11px floor on decision-bearing numbers) ---- */
     --text-screen-title: 21px;
     --text-hero: 28px;
