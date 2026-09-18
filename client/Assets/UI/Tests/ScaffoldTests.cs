@@ -39,6 +39,23 @@ namespace Broodline.UI.Tests
             Assert.AreEqual("Gene Ark", s.Q<Label>("title").text);
         }
 
+        /// The scaffold decides the scroller once, for all ten screens, so it
+        /// is pinned once. Without this a Task 9 edit could restore Unity's
+        /// desktop chrome across every screen at the same time and nothing
+        /// would say so - the capture corpus only notices on a screen whose
+        /// content happens to overflow.
+        [Test]
+        public void TheContentRegionCarriesNoDesktopScrollerChrome()
+        {
+            var s = new ScreenScaffold("Gene Ark");
+            var content = s.Content as ScrollView;
+            Assert.IsNotNull(content, "the content region is not a ScrollView, so it does not scroll at all");
+            Assert.AreEqual(ScrollerVisibility.Hidden, content.verticalScrollerVisibility,
+                "the content region would draw Unity's 22px desktop scroller, arrow buttons and all, the "
+                + "moment a screen overflowed it. Measured on the Scaffold fixture: it eats into the 12px "
+                + "gutter and clips the right-hand card.");
+        }
+
         [Test]
         public void ATopLevelScreenHasNoBackChevron()
         {

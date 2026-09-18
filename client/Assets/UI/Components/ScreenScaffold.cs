@@ -49,7 +49,28 @@ namespace Broodline.UI.Components
             Resources.Load<VisualTreeAsset>("ScreenScaffold").CloneTree(this);
 
             this.Q<Label>("title").text = title ?? string.Empty;
-            Content = this.Q<ScrollView>("content");
+
+            // NO SCROLLER CHROME, AND THAT IS A DECISION MADE ONCE HERE FOR
+            // ALL TEN SCREENS. Left at its default of Auto, a ScrollView draws
+            // Unity's desktop scroller - a 22px track with arrow buttons -
+            // whenever content overflows. Measured on the Scaffold fixture's
+            // short frame: it eats into the 12px gutter and clips the
+            // right-hand card, so this is visible damage rather than an
+            // off-theme control. This is a phone game, phones show no
+            // persistent scrollbar, and content clipped at the region's edge
+            // is itself the affordance that says there is more below. UI
+            // Toolkit has no auto-fading overlay scroller to reach for, so
+            // Hidden is the honest choice rather than a compromise.
+            //
+            // IT HIDES THE CHROME, NOT THE SCROLLING. ScrollerVisibility
+            // governs whether the scroller element is shown; the ScrollView
+            // still scrolls to wheel and to touch drag. Verified on
+            // 6000.6.0f1 by the fixture: the short frame still clips its
+            // content at the CTA row rather than growing to fit it, which is
+            // the scroll region doing its job with its chrome switched off.
+            var content = this.Q<ScrollView>("content");
+            content.verticalScrollerVisibility = ScrollerVisibility.Hidden;
+            Content = content;
             CtaRow = this.Q<VisualElement>("cta-row");
             HeaderSlot = this.Q<VisualElement>("header-slot");
             _footer = this.Q<Label>("footer-note");
