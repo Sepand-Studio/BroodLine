@@ -47,6 +47,16 @@ write*
 
 ## 1. The four gates this phase cannot close
 
+> **Amended 2026-09-17.** Two of these four closed after this file was written,
+> and this file did not say so for two days. The preamble above still says
+> "Tasks 2, 12, 19 and 20 have not been started"; **2 and 12 have.** The
+> remaining two are 19 and 20 and they are Phase 8's Tasks 17 and 18.
+>
+> This is the third instance of the pattern `2026-09-11-phase4-followups.md`
+> named — a durable record going stale against the work that followed it — and
+> it is recorded here rather than quietly fixed, because the instance count is
+> the evidence that the habit, not the document, is the problem.
+
 The phase's Definition of Done names eleven clauses. **Four are not green, and
 none of the four is blocked on anything this session could write.** The other
 seven are, and §1.1 names the evidence for each rather than asserting it - an
@@ -55,8 +65,8 @@ not, which is this record's own thesis happening to this record.
 
 | Gate | Blocked on | Verified today |
 |---|---|---|
-| **`TheTrackedCapturesAreCurrent` green under `0.4.0`**, and with it `TheDeviceRunsRallyActuallyChangedTheSimulation` | **Task 2** — a capture taken on physical iOS hardware, after the engine change | `dotnet test` reports it red. §3 |
-| **The determinism gate run in CI**, on the self-hosted runner, on this branch's tip | **Task 12** — a self-hosted macOS runner, registered | `gh api repos/:owner/:repo/actions/runners` → `{"total_count":0,"runners":[]}`. `gh run list --workflow determinism.yml`: the newest run has been **queued for 9h5m** and the four before it were all **cancelled** after 8h34m–24h. A queued run is not a failing run, so nothing ever goes red |
+| **`TheTrackedCapturesAreCurrent` green under `0.4.0`**, and with it `TheDeviceRunsRallyActuallyChangedTheSimulation` | **Task 2** — a capture taken on physical iOS hardware, after the engine change | **CLOSED 2026-09-17.** Taken in e217bea. dotnet test: 0 failed, 0 skipped. Phase 6 is closed. |
+| **The determinism gate run in CI**, on the self-hosted runner, on this branch's tip | **Task 12** — a self-hosted macOS runner, registered | **CLOSED 2026-09-17.** Runner sd-sassadi-m1 registered and online; run 35238465972 green in 7m58s cold, 500 scenarios byte-identical. |
 | **`smoke-loop.sh` PASS against Cloud Run** — the loop on a deployed stack | **Task 19** — `terraform apply`, a migration, a seeded `servers` row, a published bundle, two deploys, and a human who has decided the Cloud SQL instance stays up and billing | `gcloud run services list --project broodline-508416` → `Listed 0 items.` `gcloud sql instances list` → `Listed 0 items.` `implementation/scripts/smoke-loop.sh` **does not exist**; the directory holds `smoke-wave.sh` only |
 | **A TestFlight build installed by someone who is not the developer**, and their report in this file | **Task 20** | Not started. There is no build, no upload, and no tester's report — and the section of this file that would carry it verbatim is therefore absent rather than empty |
 
@@ -1200,10 +1210,18 @@ inherited as §13 item 17.
    regenerate recipe in `phase7-test-baseline.txt` will redden its own last
    line if you run it in the order it lists, which that file now says above the
    recipe rather than leaving as a trap.
-1. **The device capture.** §1, §3. It has blocked Phase 6's close since
-   2026-09-15 and now blocks Phase 7's.
-2. **A self-hosted macOS runner**, and with it the determinism gate — which has
-   still, across four phases that each changed the engine, **never run**. §1.
+1. ~~**The device capture.** §1, §3. It has blocked Phase 6's close since
+   2026-09-15 and now blocks Phase 7's.~~ **CLOSED 2026-09-17.** Taken in
+   `e217bea`, on hardware, under engine `0.4.0`. §1.
+2. ~~**A self-hosted macOS runner**, and with it the determinism gate — which
+   has still, across four phases that each changed the engine, **never
+   run**.~~ **PARTIALLY CLOSED 2026-09-17.** The runner (`sd-sassadi-m1`,
+   macOS/ARM64) is registered and online, and the gate has run green once, on
+   a manual `workflow_dispatch` (run `35238465972`, 8m3s). **Newly inherited
+   in its place:** every push/pull_request/schedule-triggered run measured
+   since has queued rather than executed — three cancelled after 11m–56m, one
+   still queued past 1h40m at measurement time — so the gate running
+   unattended, on its own triggers, is not yet shown. §1.
 3. **A deployed stack, `smoke-loop.sh` written, and the loop driven on it.**
    §1. Inherited unchanged from Phase 5's Task 11 and Phase 6's §12 item 2.
 4. **A TestFlight build in someone else's hands**, and their report added to

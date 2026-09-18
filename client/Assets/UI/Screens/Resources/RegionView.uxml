@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
     <ui:Style src="RegionView.uss" />
-    <ui:Label name="roster" class="region-view__roster" />
-    <ui:VisualElement name="nodes" class="region-view__nodes" />
+    <ui:Label name="roster" class="t-num" />
+    <ui:VisualElement name="nodes" />
 </ui:UXML>

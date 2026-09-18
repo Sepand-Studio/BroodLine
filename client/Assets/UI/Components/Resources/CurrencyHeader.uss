@@ -19,7 +19,11 @@
     flex-direction: row;
     align-items: center;
     background-color: var(--surface);
-    border-radius: var(--radius-pill);
+    /* Half of a MEASURED 27px, rounded down. Was var(--radius-pill): on this
+     * element, 99x27, that drew a 49.5x13.5 ellipse quadrant at each end, so
+     * 65% of the chip's width was taper and none of it read as a pill.
+     * Theme.uss header item 4 has the measurement and the rule. */
+    border-radius: 13px;
     border-width: 1px;
     border-color: var(--divider);
     padding-top: 5px;

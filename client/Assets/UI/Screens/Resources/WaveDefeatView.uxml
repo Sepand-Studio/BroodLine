@@ -1,8 +1,11 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
     <ui:Style src="WaveDefeatView.uss" />
-    <ui:Label name="headline" class="wave-defeat-view__headline" />
-    <ui:Label name="diagnosis" class="wave-defeat-view__diagnosis" />
-    <ui:Label name="granted" class="wave-defeat-view__granted" />
-    <ui:VisualElement name="grants" class="wave-defeat-view__grants" />
-    <ui:Button name="retry" class="wave-defeat-view__retry" />
+    <ui:Label name="headline" class="wave-defeat-view__headline t-hero t-danger" />
+    <ui:Label name="diagnosis" class="wave-defeat-view__diagnosis t-card-title" />
+    <ui:VisualElement name="resupply" class="wave-defeat-view__resupply">
+        <ui:Label name="granted" class="wave-defeat-view__granted t-secondary t-success" />
+        <ui:VisualElement name="grants" class="wave-defeat-view__grants" />
+    </ui:VisualElement>
+    <ui:Button name="retry" class="wave-defeat-view__retry btn-primary" />
+    <ui:Button name="roster" class="wave-defeat-view__roster btn-secondary" />
 </ui:UXML>

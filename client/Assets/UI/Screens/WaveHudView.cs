@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Broodline.Model;
+using Broodline.UI.Components;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -45,11 +46,31 @@ namespace Broodline.UI.Screens
     /// (combat_engine section 8) and it is a tap anywhere on the screen. A
     /// full-screen UI Toolkit panel that accepted pointer events would eat
     /// every one of them, which is a HUD that silently disables the game.
+    ///
+    /// IT TAKES NO `ScreenScaffold`, AND THAT IS NOT AN OVERSIGHT IN PHASE 8.
+    /// This type IS in `Broodline.UI.Screens` and IS therefore reached by
+    /// `ScaffoldTests.EveryScreenComposesTheScaffold`'s reflection sweep; that
+    /// test exempts it BY NAME, because it is an overlay rather than a screen.
+    /// `WaveRunner` adds it straight to the wave scene's own
+    /// `document.rootVisualElement` - it never reaches `ScreenHost`, never
+    /// enters the back stack, and has no header, no CTA row and nothing to
+    /// scroll. Giving it a scaffold to satisfy the sweep, or moving the type
+    /// out of this namespace to dodge the sweep, would each be working around
+    /// that test rather than with it. The exemption list is asserted to be
+    /// exactly two names so a third cannot be quietly added.
+    ///
+    /// WHAT IT DOES ADOPT is the vocabulary: `.elev-1` around each bar's
+    /// track in `SectionCard`'s exact wrapper arrangement, `--hud-scrim`
+    /// behind the readout and the track, `--surface` as the one ink, and
+    /// `t-num` on the numerals. `WaveHudView.uss`'s header has what left the
+    /// file and why, including the wave counter the handoff asks for and
+    /// `HudSnapshot` does not carry.
     [UxmlElement]
     public partial class WaveHudView : VisualElement
     {
         public const string UssClassName = "wave-hud-view";
         public const string BarUssClassName = "wave-hud-view__bar";
+        public const string ElevationWrapperUssClassName = "wave-hud-view__elev";
         public const string TrackUssClassName = "wave-hud-view__track";
         public const string FillUssClassName = "wave-hud-view__fill";
         public const string TagUssClassName = "wave-hud-view__tag";
@@ -181,6 +202,26 @@ namespace Broodline.UI.Screens
             var bar = new VisualElement { name = "bar", pickingMode = PickingMode.Ignore };
             bar.AddToClassList(BarUssClassName);
 
+            // THE ELEVATION WRAPPER, IN SectionCard's EXACT ARRANGEMENT.
+            // Theme.uss header note 2: UI Toolkit clips a background image to
+            // the element's own box, so a nine-sliced drop shadow has to be
+            // drawn by something LARGER than the surface it falls from - the
+            // wrapper is that element, and the track is the surface inside
+            // it. The horizontal negative margin 615229c added is what keeps
+            // the track on the bar's own 52px instead of 6px inside it.
+            //
+            // EVERY ELEMENT IN THIS TREE IS PickingMode.Ignore, INCLUDING
+            // THIS ONE. Rally is the player's only input during a wave and it
+            // is a tap anywhere on the screen; one pickable element in a
+            // full-screen overlay is a HUD that silently disables the game.
+            // `WaveHud_AcceptsNoPointerEventAnywhere` sweeps every descendant
+            // rather than a named list, so a new element that forgets this
+            // fails rather than shipping.
+            var elev = new VisualElement { name = "elev", pickingMode = PickingMode.Ignore };
+            elev.AddToClassList(ElevationWrapperUssClassName);
+            elev.AddToClassList(SectionCard.ElevationUssClassName);
+            bar.Add(elev);
+
             // The track is the dark backing WaveHud drew behind every bar;
             // the fill is the proportion of it that is still alive. Two
             // elements rather than one because the tag hangs BELOW both, and
@@ -190,14 +231,21 @@ namespace Broodline.UI.Screens
             var fill = new VisualElement { name = "fill", pickingMode = PickingMode.Ignore };
             fill.AddToClassList(FillUssClassName);
             track.Add(fill);
-            bar.Add(track);
+            elev.Add(track);
 
             var tag = new Label { name = "tag", pickingMode = PickingMode.Ignore };
             tag.AddToClassList(TagUssClassName);
+            // "RALLY 42" ends in a countdown and combat_engine section 8
+            // makes Rally the player's only input during a wave, so that
+            // remainder is a number a decision depends on - bible 10.6's own
+            // test for this marker. The class carries --text-secondary, the
+            // same 11px `.wave-hud-view__tag` used to write out itself.
+            tag.AddToClassList("t-num");
             bar.Add(tag);
 
             // The names stay on the elements: `Q<T>("fill")` is how the tests
-            // reach them, and nothing about caching the references here
+            // reach them, and nothing about caching the references here - or
+            // about the wrapper now standing between the bar and its track -
             // changes the tree those queries walk.
             return new Bar { Root = bar, Fill = fill, Tag = tag };
         }
@@ -260,6 +308,15 @@ namespace Broodline.UI.Screens
             // called the resulting agreement between two files "an unasserted
             // numeric relationship between two constants in two assemblies".
             // The label knows how tall it is; ask it.
+            //
+            // STILL THE RIGHT ELEMENT TO ASK AFTER TASK 11 MADE THE READOUT A
+            // CHIP, and that is why the chip is the Label itself rather than a
+            // wrapper around it. `layout` is relative to the parent, so the
+            // band is only comparable with `_bars`' own space while the thing
+            // measured is a direct child of the same root - and a wrapper
+            // would have moved the measurement one level down, silently,
+            // while still returning a plausible number. The fill, the padding
+            // and the radius are all on `_integrity`, so its box IS the band.
             var header = _integrity.layout;
             var headerBottom = float.IsNaN(header.yMax) ? 0f : header.yMax;
 

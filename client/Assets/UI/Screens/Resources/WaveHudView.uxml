@@ -1,5 +1,17 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- TOKENS AND THEME ARE ATTACHED HERE, NOT INHERITED. The wave scene's
+         UIDocument has no visualTreeAsset, so Shell.uxml never loads into it,
+         and WaveRunner adds this view to that document's own root - a SIBLING
+         of the shell root in the shared panel. Custom properties inherit
+         downward, not sideways, so nothing the shell attaches reaches here.
+         Without these two lines every var() below resolves to nothing and
+         .elev-1 matches no rule: the bars render untinted and the readout
+         loses its scrim, in the one place a player cannot stop to look.
+         ScreenshotCapture attaches the same sheets to every fixture, so the
+         corpus showed this screen correct while the game did not. -->
+    <ui:Style src="../../Shell/Tokens.uss" />
+    <ui:Style src="../../Shell/Theme.uss" />
     <ui:Style src="WaveHudView.uss" />
-    <ui:Label name="integrity" class="wave-hud-view__integrity" />
+    <ui:Label name="integrity" class="wave-hud-view__integrity t-num" />
     <ui:VisualElement name="bars" class="wave-hud-view__bars" />
 </ui:UXML>

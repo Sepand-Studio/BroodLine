@@ -56,7 +56,7 @@
     margin-left: var(--space-2);
     background-color: var(--violet-tint);
     color: var(--violet-text);
-    border-bottom-color: #ddd3f0;
+    border-bottom-color: var(--violet-edge);
     font-size: var(--text-body);
     padding-top: 10px;
     padding-bottom: 10px;
@@ -73,5 +73,5 @@
 .confirm-dialog__button.primary {
     background-color: var(--coral);
     border-bottom-color: var(--coral-deep);
-    color: #ffffff;
+    color: var(--surface);
 }

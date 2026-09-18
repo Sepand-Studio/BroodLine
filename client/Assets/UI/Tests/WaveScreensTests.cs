@@ -249,6 +249,81 @@ namespace Broodline.UI.Tests
             Assert.IsTrue(view.Q<Button>("retry").enabledSelf);
         }
 
+        /// THE FIFTH BLANK TINTED PANEL THIS PHASE HAS FOUND, and the fourth
+        /// task to find one. `Diagnosis` returns the empty string whenever the
+        /// bundle names no counter for the raider, and the surface around it
+        /// existed unconditionally - so the defeat with nothing to teach still
+        /// drew a padded, bordered white card with nothing inside it. Both
+        /// directions, because a view that hid the card unconditionally would
+        /// pass the first half by dropping the sentence.
+        [Test]
+        public void WaveDefeat_WithNoDiagnosis_CollapsesTheCardRatherThanDrawingItEmpty()
+        {
+            var silent = BoundDefeat(LossWith(Breach("Courser", string.Empty)));
+            Assert.AreEqual(string.Empty, silent.Q<Label>("diagnosis").text);
+            Assert.AreEqual(DisplayStyle.None,
+                silent.Q<SectionCard>("diagnosis-card").resolvedStyle.display,
+                "a defeat the bundle has no counter for drew an empty card");
+
+            var teaching = BoundDefeat(LossWith(Breach("Courser", "Chill")));
+            Assert.IsNotEmpty(teaching.Q<Label>("diagnosis").text);
+            Assert.AreEqual(DisplayStyle.Flex,
+                teaching.Q<SectionCard>("diagnosis-card").resolvedStyle.display,
+                "the screen's whole reason for existing was hidden");
+        }
+
+        /// The same shape one element out: the resupply SENTENCE and the cards
+        /// under it are one announcement, so they appear and disappear
+        /// together. `WaveDefeatScreen.Resupply` is why there is no EmptyState
+        /// here - "an empty grant says nothing rather than promising a
+        /// resupply that is not there" - and a block that stayed on screen
+        /// saying nothing is that promise made in --green-tint.
+        [Test]
+        public void WaveDefeat_WithNoResupply_CollapsesTheWholeBlock()
+        {
+            var bare = BoundDefeat(LossWith(Breach("Courser", "Chill")));
+            Assert.AreEqual(DisplayStyle.None, bare.Q<VisualElement>("resupply").resolvedStyle.display);
+
+            var resupplied = BoundDefeat(LossWith(Breach("Courser", "Chill")), Creature("Pale"));
+            Assert.AreEqual(DisplayStyle.Flex, resupplied.Q<VisualElement>("resupply").resolvedStyle.display);
+        }
+
+        /// THE SECONDARY CTA IS DRAWN ONLY WHEN A CALLER HAS SOMEWHERE FOR IT
+        /// TO GO, which is `ScreenScaffold.OnBack`'s rule applied to a button:
+        /// a player taps a control that does nothing, gets no error and no
+        /// transition, and reads the app as broken rather than as busy.
+        /// Nothing passes `roster` today - `FtueDirector` binds `retry` alone -
+        /// so the screen renders one CTA, which is what it rendered before
+        /// Task 11 added the second.
+        [Test]
+        public void WaveDefeat_TheRosterCtaAppearsOnlyWhenItHasSomewhereToGo()
+        {
+            var alone = BoundDefeat(LossWith(Breach("Courser", "Chill")));
+            Assert.AreEqual(DisplayStyle.None, alone.Q<Button>("roster").resolvedStyle.display);
+
+            var offered = new WaveDefeatView();
+            offered.Bind(LossWith(Breach("Courser", "Chill")), new CreatureDto[0],
+                retry: () => { }, roster: () => { });
+
+            var roster = offered.Q<Button>("roster");
+            Assert.AreEqual(DisplayStyle.Flex, roster.resolvedStyle.display);
+            Assert.AreEqual(WaveDefeatScreen.RosterLabel, roster.text);
+        }
+
+        /// The header names the SCREEN and the headline says what happened -
+        /// `FounderNamingScreen.Title`'s rule, which is why the title is not
+        /// "Wave lost". Asserted against the model rather than a literal, so
+        /// moving the string back into the view still fails.
+        [Test]
+        public void WaveDefeat_ComposesTheScaffoldAndItsHeaderIsNotTheHeadline()
+        {
+            var view = BoundDefeat(LossWith(Breach("Courser", "Chill")));
+
+            Assert.IsNotNull(view.Q(className: ScreenScaffold.UssClassName), "no scaffold");
+            Assert.AreEqual(WaveDefeatScreen.Title, view.Q<Label>("title").text);
+            Assert.AreNotEqual(view.Q<Label>("headline").text, view.Q<Label>("title").text);
+        }
+
         // ---------------------------------------------------------------
         // Post-Wave
         // ---------------------------------------------------------------
@@ -259,7 +334,7 @@ namespace Broodline.UI.Tests
             var hollow = Creature("Hollow", founder: true);
             var view = BoundPostWave(Submitted("Win", "shards", 150), hollow);
 
-            StringAssert.Contains("150", view.Q<Label>("reward").text);
+            StringAssert.Contains("150", RewardOf(view));
             Assert.AreEqual(1, view.Query<CreatureCard>().ToList().Count);
         }
 
@@ -281,7 +356,7 @@ namespace Broodline.UI.Tests
             var response = Submitted("Win", "shards", 150);
             var view = BoundPostWave(response);
 
-            Assert.AreEqual(PostWaveScreen.RewardLine(response.Reward), view.Q<Label>("reward").text);
+            Assert.AreEqual(PostWaveScreen.RewardLine(response.Reward), RewardOf(view));
             Assert.AreEqual(PostWaveScreen.NextLabel, view.Q<Button>("next").text);
             Assert.AreEqual(PostWaveScreen.Headline(response.Result), view.Q<Label>("headline").text);
         }
@@ -308,7 +383,7 @@ namespace Broodline.UI.Tests
             // and a wave can pay nothing. An empty line, never "0 ".
             var view = BoundPostWave(new WaveSubmitResponse { Result = "Win", IntegrityRemaining = 2 });
 
-            Assert.AreEqual(string.Empty, view.Q<Label>("reward").text);
+            Assert.AreEqual(string.Empty, RewardOf(view));
             Assert.AreEqual(0, view.Query<CreatureCard>().ToList().Count);
         }
 
@@ -323,6 +398,70 @@ namespace Broodline.UI.Tests
 
             Assert.AreNotEqual(won, lost);
             Assert.IsNotEmpty(won);
+        }
+
+        /// THE REWARD IS A StatCell AS OF PHASE 8 TASK 11, and this is the
+        /// half `RewardOf` cannot see: the value Label carries `t-num`. bible
+        /// 10.6's two hard requirements - tabular figures and an 11px floor -
+        /// are both enforced through that marker (TypographyTests reads the
+        /// face off the FontAsset, verify-uss-tokens.sh check 2 reads the
+        /// size), and neither can fire on a numeral that never wears it.
+        [Test]
+        public void PostWave_TheRewardAndIntegrityValuesCarryTheNumeralMarker()
+        {
+            var view = BoundPostWave(Submitted("Win", "shards", 150));
+
+            foreach (var name in new[] { "reward", "integrity" })
+                Assert.IsTrue(view.Q<StatCell>(name).Q<Label>("value").ClassListContains("t-num"),
+                    name + "'s value is a number a decision depends on and is not marked as one");
+        }
+
+        /// INTEGRITY WAS ON THIS SCREEN'S `Bind` AND ON NO SCREEN AT ALL until
+        /// Task 11. It is `Required.Always` on the wire and combat_engine
+        /// section 8 makes it the loss condition, so a player who cleared at 1
+        /// and a player who cleared untouched were reading the identical
+        /// screen. Both directions, because a cell hardcoded to the fixture's
+        /// number passes the first.
+        [Test]
+        public void PostWave_StatesTheIntegrityTheServerReturned()
+        {
+            var scraped = new WaveSubmitResponse { Result = "Win", IntegrityRemaining = 1 };
+            var untouched = new WaveSubmitResponse { Result = "Win", IntegrityRemaining = 8 };
+
+            Assert.AreEqual(PostWaveScreen.IntegrityStatValue(1),
+                ValueOf(BoundPostWave(scraped).Q<StatCell>("integrity")));
+            Assert.AreEqual(PostWaveScreen.IntegrityStatValue(8),
+                ValueOf(BoundPostWave(untouched).Q<StatCell>("integrity")));
+        }
+
+        /// The grant row carried --green-tint and --space-3 of padding at
+        /// width 100%, so a wave that granted nothing drew a blank green block
+        /// between the reward and the CTA. The tint is gone from the
+        /// stylesheet; the row collapses. Both directions, so a view that hid
+        /// the row unconditionally cannot pass by dropping the cards.
+        [Test]
+        public void PostWave_WithNoArrivals_CollapsesTheGrantRowRatherThanDrawingItEmpty()
+        {
+            var bare = BoundPostWave(new WaveSubmitResponse { Result = "Win", IntegrityRemaining = 2 });
+            Assert.AreEqual(DisplayStyle.None, bare.Q<VisualElement>("granted").resolvedStyle.display);
+
+            var dropped = BoundPostWave(Submitted("Win", "shards", 150), Creature("Pale"));
+            Assert.AreEqual(DisplayStyle.Flex, dropped.Q<VisualElement>("granted").resolvedStyle.display);
+        }
+
+        /// THE HEADER MUST NOT ASSERT THE VERDICT, which is the whole reason
+        /// the title is not "Wave cleared": it is set at construction and the
+        /// verdict arrives at `Bind`, from the server. A constant header over
+        /// a server headline reading "Wave not cleared." is the client
+        /// contradicting the server in its own chrome.
+        [Test]
+        public void PostWave_ComposesTheScaffoldAndItsHeaderDoesNotStateTheVerdict()
+        {
+            var lost = BoundPostWave(Submitted("Loss", "shards", 150));
+
+            Assert.IsNotNull(lost.Q(className: ScreenScaffold.UssClassName), "no scaffold");
+            Assert.AreEqual(PostWaveScreen.Title, lost.Q<Label>("title").text);
+            StringAssert.DoesNotContain("cleared", lost.Q<Label>("title").text);
         }
 
         // ---------------------------------------------------------------
@@ -587,6 +726,87 @@ namespace Broodline.UI.Tests
             Assert.AreSame(first, BarsOf(view)[0]);
         }
 
-        static string RewardOf(PostWaveView view) => view.Q<Label>("reward").text;
+        /// 3b49931 CACHED `fill` AND `tag` AT CONSTRUCTION and Task 11 put an
+        /// elevation wrapper between the bar and its track. The cache is a
+        /// pair of references held in the pool, so a wrapper cannot invalidate
+        /// it - but the QUERIES the rest of this file uses walk the tree, and
+        /// this is the assertion that says they still arrive. It is the
+        /// structural half of `ReusesItsBarElements...`, which proves the
+        /// elements are reused and says nothing about where they are.
+        [Test]
+        public void WaveHud_TheTrackSitsInsideAnElevationWrapperAndTheCachedChildrenStillResolve()
+        {
+            var view = new WaveHudView();
+            view.Bind(() => Hud(2, 10, Raider(1f, 60, 100)));
+
+            var bar = BarsOf(view)[0];
+            var elev = bar.Q<VisualElement>("elev");
+            Assert.IsNotNull(elev, "the bar has no elevation wrapper");
+            Assert.IsTrue(elev.ClassListContains(SectionCard.ElevationUssClassName),
+                "the wrapper carries no elevation, so it is padding with nothing in it");
+
+            var track = bar.Q<VisualElement>("track");
+            Assert.AreSame(elev, track.parent, "the track is not the wrapper's surface");
+            Assert.IsNotNull(bar.Q<VisualElement>("fill"));
+            Assert.IsNotNull(bar.Q<Label>("tag"));
+
+            // The cached references are what `Draw` writes, so the proof they
+            // still point at the elements in the tree is that a redraw reaches
+            // them - not that they are non-null.
+            Assert.AreEqual(60f, bar.Q<VisualElement>("fill").style.width.value.value, 0.001f);
+        }
+
+        /// bible 10.6's marker on both numerals the HUD prints. The readout is
+        /// integrity and the live tick; the tag's is Rally's countdown, which
+        /// combat_engine section 8 makes the player's only feedback that their
+        /// only input was taken.
+        [Test]
+        public void WaveHud_BothNumeralsCarryTheTabularMarker()
+        {
+            var view = new WaveHudView();
+            view.Bind(() => Hud(2, 10,
+                new BodyBar
+                {
+                    Kind = BodyKind.Creature,
+                    World = new UnityEngine.Vector3(1f, 0f, 0f),
+                    Hp = 60, MaxHp = 100,
+                    State = BodyState.Rallied, RallyRemaining = 42,
+                }));
+
+            Assert.IsTrue(view.Q<Label>("integrity").ClassListContains("t-num"));
+            Assert.IsTrue(BarsOf(view)[0].Q<Label>("tag").ClassListContains("t-num"));
+        }
+
+        /// THE HUD TAKES NO SCAFFOLD, ASSERTED FROM THIS SIDE TOO.
+        /// `ScaffoldTests` exempts it by name, which records that the sweep
+        /// must not FAIL on it; this records that it must not GAIN one. The
+        /// two together are what stop a later task satisfying the sweep by
+        /// wrapping an overlay in a header, a CTA row and a ScrollView it can
+        /// never use - `WaveRunner` adds this straight to the wave scene's own
+        /// `document.rootVisualElement`, so there is no host to pop back to.
+        [Test]
+        public void WaveHud_ComposesNoScaffold_BecauseItOverlaysTheSceneRatherThanBeingAScreen()
+        {
+            var view = new WaveHudView();
+            view.Bind(() => Hud(2, 10, Raider(1f, 100, 100)));
+
+            Assert.IsNull(view.Q(className: ScreenScaffold.UssClassName),
+                "the HUD grew a scaffold; it is an overlay and ScaffoldTests exempts it by name");
+        }
+
+        /// The reward line, read back through the StatCell that now states it.
+        ///
+        /// IT WAS A Label NAMED `reward` UNTIL PHASE 8 TASK 11 AND THE FACT
+        /// ASSERTED IS UNCHANGED - this reaches the same sentence through the
+        /// same handle, because the cell keeps the name the Label had.
+        /// `StatCell`'s whole reason for existing is that its value Label
+        /// carries `t-num` without the screen having to remember to ask for
+        /// it ("nothing makes a screen remember to put the class on"), and
+        /// the reward is a number a decision depends on, which is bible
+        /// 10.6's own test. `PostWave_TheRewardStatCarriesTheNumeralMarker`
+        /// pins the marker itself so this helper does not have to.
+        static string ValueOf(VisualElement cell) => cell.Q<Label>("value").text;
+
+        static string RewardOf(PostWaveView view) => ValueOf(view.Q<StatCell>("reward"));
     }
 }

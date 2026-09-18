@@ -1,0 +1,6 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="ProgressBar.uss" />
+    <ui:VisualElement name="track" class="progress-bar__track">
+        <ui:VisualElement name="fill" class="progress-bar__fill" />
+    </ui:VisualElement>
+</ui:UXML>

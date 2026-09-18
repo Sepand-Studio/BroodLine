@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Broodline.Api;
 using Broodline.Model;
+using Broodline.UI.Components;
 using Broodline.UI.Screens;
 using NUnit.Framework;
 using UnityEngine.UIElements;
@@ -261,6 +262,43 @@ namespace Broodline.UI.Tests
             Assert.IsNotNull(view.Q(C.ToString()), "the child is missing from the reveal");
         }
 
+        /// A REVEAL HANDED NEITHER PARENT SAYS SO. `AddParent` skips a null,
+        /// so before Phase 8 Task 10 two nulls rendered as the same screen
+        /// minus its whole lesson - the parents simply absent, with no
+        /// sentence saying whether they were consumed or never arrived.
+        /// bible 2.1 makes that row the FTUE's teaching moment.
+        [Test]
+        public void SpliceReveal_WithNoParents_SaysSoInsteadOfDroppingTheLesson()
+        {
+            var view = BoundReveal(mutated: false, null, null);
+
+            var empty = view.Q<EmptyState>();
+            Assert.IsNotNull(empty, "a reveal with no parents rendered the row as nothing at all");
+            Assert.AreEqual(SpliceRevealScreen.NoParentsMessage, empty.Q<Label>("message").text);
+        }
+
+        /// THE HERO CARD IS THE ONE PLACE IN THE APP THAT EARNS `.elev-2`,
+        /// and the one consumer `reveal-flare` was written for. A transition
+        /// class goes stale silently in both directions: nothing renders
+        /// differently when it stops being applied, and a screenshot of a
+        /// 220ms transition is one frame either way. This assertion caught
+        /// the second direction - the class was applied and pinned here while
+        /// Motion.uss carried no state change to run it against, so the flare
+        /// existed on paper and never played. `Bind` now toggles
+        /// `reveal-flare--hidden`, which is what actually drives it.
+        [Test]
+        public void SpliceReveal_TheHeroCardWearsTheRaisedElevationAndTheRevealTransition()
+        {
+            var view = BoundReveal(mutated: true, Creature("Vetch", id: A), Creature("Ember", id: B));
+            var hero = view.Q<VisualElement>("child");
+
+            Assert.IsNotNull(hero);
+            Assert.IsTrue(hero.ClassListContains("elev-2"),
+                "the reveal's hero card sits at the same elevation as an ordinary section card");
+            Assert.IsTrue(hero.ClassListContains("reveal-flare"),
+                "Motion.uss's reveal transition is applied to nothing, so the payoff snaps in");
+        }
+
         // ---------------------------------------------------------------
         // Lineage - beat 8
         // ---------------------------------------------------------------
@@ -306,6 +344,67 @@ namespace Broodline.UI.Tests
             Assert.IsFalse(view.Q(C.ToString()).ClassListContains(LineageView.ConsumedUssClassName));
             Assert.IsFalse(view.Q(A.ToString()).ClassListContains(LineageView.FounderUssClassName));
             Assert.IsFalse(view.Q(A.ToString()).ClassListContains(LineageView.MutatedUssClassName));
+        }
+
+        /// bible 10.4: "Colour never carries information alone."
+        ///
+        /// THIS SCREEN WAS THE ONE PLACE IN THE APP THAT BROKE IT, and it
+        /// broke it silently: a lineage node draws no creature, so Founder
+        /// and Mutated were each carried by a 3px coloured border and by
+        /// nothing at all besides. Every assertion in
+        /// `Lineage_ShowsConsumedParentsUnderTheChild_AndMarksTheFounder`
+        /// passes on that version, because a USS class IS the colour - the
+        /// class list cannot tell you whether a second channel exists.
+        ///
+        /// It is also what closed Task 6's deferred palette collision. Amber
+        /// IS Skitter and violet IS Hollow at dE 0.0, so while colour was the
+        /// only channel here the rails read as species marks; no colour
+        /// moved, the words were added instead. If this test is ever deleted
+        /// to make a redesign pass, that decision comes back open - see
+        /// implementation/results/species-collision.md.
+        [Test]
+        public void Lineage_StatesEveryFactInWordsAndNotOnlyInColour()
+        {
+            var view = BoundLineage(F,
+                Node("Hollow", F, founder: true, name: "Ash"),
+                Node("Vetch", A, consumedAt: "2026-09-16T00:00:00Z"),
+                Node("Ember", B),
+                Node("Hollow", C, generation: 2, mutated: true, parentA: A, parentB: B));
+
+            // Each coloured class has a word beside it. Read off the TEXT,
+            // not off a class name, because a class name is the colour.
+            AssertMarked(view, F, LineageScreen.FounderLabel);
+            AssertMarked(view, C, LineageScreen.MutatedLabel);
+            AssertMarked(view, A, LineageScreen.ConsumedLabel);
+
+            // The contrast: a node with nothing true about it says nothing.
+            // B is an ordinary living non-founder, and it gets NO marks row
+            // at all rather than an empty one - the blank-banner shape this
+            // phase found eight times, once on this very screen.
+            var plain = view.Q(B.ToString());
+            Assert.IsNull(plain.Q<VisualElement>(className: LineageView.MarksUssClassName),
+                "a node with nothing to say built a marks row anyway - that is the ninth blank banner");
+            Assert.AreEqual(0, plain.Query<Label>(className: LineageView.MarkUssClassName).ToList().Count);
+
+            // And a marker is not stamped on everybody: the founder did not
+            // mutate and was not consumed.
+            var founderWords = Words(view, F);
+            CollectionAssert.DoesNotContain(founderWords, LineageScreen.MutatedLabel);
+            CollectionAssert.DoesNotContain(founderWords, LineageScreen.ConsumedLabel);
+        }
+
+        static List<string> Words(LineageView view, Guid id)
+        {
+            return view.Q(id.ToString())
+                       .Query<Label>(className: LineageView.MarkUssClassName)
+                       .ToList()
+                       .ConvertAll(l => l.text);
+        }
+
+        static void AssertMarked(LineageView view, Guid id, string word)
+        {
+            CollectionAssert.Contains(Words(view, id), word,
+                $"{word} is carried by the rail's colour and by nothing else - bible 10.4");
         }
 
         [Test]
@@ -371,15 +470,23 @@ namespace Broodline.UI.Tests
         [Test]
         public void Lineage_AnEmptyTreeSaysSoRatherThanRenderingBlank()
         {
+            // An `EmptyState` as of Phase 8 Task 9, where it was a `notice`
+            // Label before. The assertion is STRONGER for it: the old notice
+            // was an amber-tinted, padded banner that existed on every tree
+            // and merely emptied its text, so it drew a blank amber strip
+            // under the title of every populated capture. Absence is now the
+            // absence of an element.
             var empty = BoundLineage(Guid.Empty);
-            Assert.AreEqual(LineageScreen.EmptyNotice, empty.Q<Label>("notice").text);
+            var state = empty.Q<VisualElement>(className: EmptyState.UssClassName);
+            Assert.IsNotNull(state, "an empty tree rendered blank");
+            Assert.AreEqual(LineageScreen.EmptyNotice, state.Q<Label>("message").text);
             Assert.AreEqual(0, empty.Query(className: LineageView.GenerationRowUssClassName).ToList().Count);
 
-            // And the notice is GONE once there is a tree - a permanent
+            // And the empty state is GONE once there is a tree - a permanent
             // "no lineage yet" beside four nodes is the same defect pointed
             // the other way.
             var full = BoundLineage(Guid.Empty, Node("Hollow", F, founder: true));
-            Assert.AreEqual(string.Empty, full.Q<Label>("notice").text);
+            Assert.IsNull(full.Q<VisualElement>(className: EmptyState.UssClassName));
         }
 
         [Test]
@@ -452,15 +559,28 @@ namespace Broodline.UI.Tests
         {
             // "Cleared", "Next" and "Locked" must never read the same - the
             // rule `RosterScreen.IncompleteNotice` is written to.
+            // `title` and `detail`, not this screen's old `label` and
+            // `state`: Phase 8 Task 9 made a wave row an `OptionRow`, and
+            // those are that component's two label names. The row's own
+            // element name is still CampaignSelectScreen.RowName(id), which
+            // is what every assertion below reaches it by, and every fact
+            // asserted here is the same fact.
             var view = BoundCampaign(highestWaveCleared: 2);
             var states = new[] { "wave-1", "wave-2", "wave-6", "wave-7" }
-                .Select(n => view.Q(n).Q<Label>("state").text)
+                .Select(n => view.Q(n).Q<Label>("detail").text)
                 .ToList();
 
             Assert.AreEqual(CampaignSelectScreen.StateLabel(1, Authored, 2), states[0]);
             Assert.AreEqual(CampaignSelectScreen.StateLabel(6, Authored, 2), states[2]);
             Assert.AreEqual(3, states.Distinct().Count(), "cleared / next / locked collapsed into fewer words");
-            Assert.AreEqual(CampaignSelectScreen.RowLabel(6), view.Q("wave-6").Q<Label>("label").text);
+            Assert.AreEqual(CampaignSelectScreen.RowLabel(6), view.Q("wave-6").Q<Label>("title").text);
+
+            // A locked wave carries the padlock and a playable one does not -
+            // the glyph is the state at a glance, beside the word.
+            Assert.IsNotNull(view.Q("wave-7").Q<VisualElement>(className: "icon--lock"),
+                "a locked wave has no padlock");
+            Assert.IsNull(view.Q("wave-6").Q<VisualElement>(className: "icon--lock"),
+                "the next playable wave is wearing a padlock");
         }
 
         // ---------------------------------------------------------------

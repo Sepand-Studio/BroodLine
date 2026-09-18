@@ -1,0 +1,83 @@
+/* The handoff draws this bar 29 times across 10 of its 23 screens and always
+ * the same way: a pill track with a plain fill inside it, clipped by the
+ * track's own overflow.
+ *
+ *     <div style="height: 6px; border-radius: 999px; background: #f0ecf7;
+ *                 overflow: hidden;">
+ *       <div style="width: 78%; height: 100%; background: #6ba7c0;"></div>
+ *     </div>
+ *
+ * HEIGHT IS 6px, and that is a choice among the handoff's own rather than a
+ * value it states once. Counted over the 26 of those 29 that give a height
+ * inline: 6px ten times, 5px six, 7px six, and one each at 8, 9, 11 and 12.
+ * 6 is the mode, it is what the Splice Chamber forecast rows use - the bars
+ * this game's screens need first - and the README prescribes no bar height
+ * at all, so there is nothing more authoritative to defer to.
+ *
+ * THE TRACK FILL IS --hairline AND IT IS NOT AN EXACT QUOTE. The handoff's
+ * #f0ecf7 is in no token; measured in summed channel distance it is 10 from
+ * --hairline (#ece7f6), 12 from --divider (#f4f1fa) and 23 from
+ * --surface-sunk (#f8f6fc). --hairline is nearest, and 10 is inside the
+ * range Tokens.uss's own --violet-edge note treats as indistinguishable
+ * (it calls 14 "would flatten the edge into the fill"). Adding an
+ * eighteenth near-miss violet to the token layer for a 10-step difference
+ * on a 6px track would be the drift that verify-uss-tokens.sh exists to
+ * stop, so this reads the token.
+ *
+ * THE FILL HAS NO RADIUS OF ITS OWN, exactly as the handoff's does not. The
+ * track clips it, so the bar's two ends are the track's pill ends at every
+ * fill, and a full bar is a solid pill rather than a pill with square
+ * corners poking out of it. That is the half of this component a still frame
+ * CAN check, and the Components fixture renders 0 and 1 adjacent for it.
+ * Confirmed there: `overflow: hidden` in UI Toolkit clips to the border
+ * radius and not merely to the box, so a fill of 1 comes back with the
+ * track's rounded ends rather than square corners.
+ */
+.progress-bar {
+    flex-direction: column;
+}
+
+.progress-bar__track {
+    /* A row, so the fill takes the track's full 6px height from the default
+     * cross-axis stretch rather than from a percentage that would need the
+     * parent's height to already be resolved. */
+    flex-direction: row;
+    height: 6px;
+    /* 3px is half of 6, which is the pill the handoff asked for. It is a
+     * literal because there is no longer a token to reach for: the first
+     * capture of this bar at the handoff's own `border-radius: 999px` is
+     * what found the defect that retired --radius-pill. On this exact 6x325
+     * track the ends tapered as an ellipse over ~58px each - 2px tall at the
+     * end, 4px by 14px in, full height only at 58 - so the bar read as a
+     * lens and a 0.08 fill sat entirely inside the taper.
+     *
+     * It was not special to a 6px track. Theme.uss header item 4 has the
+     * 50-bar sweep that followed, the rule it establishes, and why every
+     * pill in the project now carries half its own measured height. */
+    border-radius: 3px;
+    background-color: var(--hairline);
+    overflow: hidden;
+}
+
+/* Width is set inline, in percent, by ProgressBar.Fill. */
+.progress-bar__fill {
+    flex-shrink: 0;
+    background-color: var(--violet);
+}
+
+/* The other five families the handoff fills these bars with. Counted over
+ * the 19 of the 29 whose fill this reading could resolve: green 4, teal 3,
+ * coral 3, violet 3, amber 2, mute 1 - so every one of them is here, and
+ * none of them is here because it looked like a nice set.
+ *
+ * VIOLET IS THE DEFAULT ABOVE AND IT IS --violet, NOT --violet-light, even
+ * though the handoff's own bars fill with #8878cf (--violet-light) twice
+ * against #7a6ac0 (--violet) once. Three samples decide nothing, and the
+ * token table calls --violet the primary brand and --violet-light "CTA
+ * gradient start, selection ring" - so the bar takes the brand colour and
+ * --violet-light stays where the table put it. */
+.progress-bar--teal  .progress-bar__fill { background-color: var(--teal); }
+.progress-bar--green .progress-bar__fill { background-color: var(--green); }
+.progress-bar--coral .progress-bar__fill { background-color: var(--coral); }
+.progress-bar--amber .progress-bar__fill { background-color: var(--amber); }
+.progress-bar--mute  .progress-bar__fill { background-color: var(--mute-soft); }

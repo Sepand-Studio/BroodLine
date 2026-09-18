@@ -75,10 +75,33 @@
     align-items: center;
 }
 
-.screen-host {
-    padding-left: var(--gutter);
-    padding-right: var(--gutter);
-}
+/* NO PADDING ON THE SLOT, AND THAT IS A DECISION MADE ONCE FOR ALL TEN
+ * SCREENS. This rule used to carry `padding-left`/`padding-right:
+ * var(--gutter)`, and every screen the slot has ever held ALSO carries a
+ * 12px gutter of its own - the seven that still pad their own root, and the
+ * three that hand it to `.screen-scaffold__content`. So the shipped app drew
+ * a 24px gutter everywhere the handoff asks for 12, and it drew a screen
+ * header meant to sit flush at the frame's edge 12px in from it.
+ *
+ * MEASURED IN A PICTURE, NOT READ OUT OF TWO STYLESHEETS. It survived this
+ * long because `ScreenshotCapture` hosted every fixture in a bare
+ * VisualElement, so no rule of this file reached the corpus at all; that
+ * harness now builds the slot, and the capture immediately before this
+ * commit has RosterView's grid and CampaignSelectView's first row both
+ * starting at x=24. After it, both start at x=12.
+ *
+ * THE FRAME KEEPS THE GUTTER, NOT THE SLOT. A frame that carries its own
+ * works in any container; a slot that pads its contents works only for
+ * things that do not pad themselves, which is not what any of the ten are.
+ * Nothing else is affected: `WaveHudView` never reaches `ScreenHost` at all
+ * (`WaveRunner` adds it to the wave scene's own panel root) and `CodexSheet`
+ * goes to `#sheet-layer` through `ScreenHost.ShowSheet`. Checked, not
+ * assumed - `ScreenHost.SetScreen` is the only `Add` into this element.
+ *
+ * So there is no `.screen-host` rule in the chrome section of this file, and
+ * the layout one above the chrome line - `flex-grow: 1` - is the whole of
+ * what the slot does. StatCell.uss's closing note is the same shape of
+ * record: the absence is the decision. */
 
 .tab-bar {
     background-color: var(--surface);
@@ -98,8 +121,28 @@
     color: var(--mute);
     font-size: var(--text-nav);
     border-bottom-width: 0;
-    border-radius: var(--radius-pill);
-    padding-top: var(--space-2);
+    /* Half of a MEASURED 39px, rounded down. Was var(--radius-pill), which
+     * drew each 83x39 tab as an ellipse 41px wide and 19px tall - a lens
+     * where the handoff wants a pill, on the one piece of chrome that is on
+     * screen at all times. Theme.uss header item 4 has the measurement. */
+    border-radius: 19px;
+
+    /* THE GLYPH'S BAND, AND THE ONLY REASON THIS IS NOT var(--space-2).
+     * A Button is a TextElement: it draws `text` ITSELF, centred in its own
+     * content box, and a child element is not a flex sibling of that text -
+     * so the icon Phase 8 Task 4 inserts lands ON TOP of the first letters
+     * of the word unless something moves the text out from under it. The
+     * text centres in the content box, which is what is left after this
+     * padding, so reserving the top 31px pushes the label below the band and
+     * `icons.uss` pins the mark absolutely into it. 8 + 19 + 4: the
+     * handoff's nav padding, its 19px glyph, its 4px gap.
+     *
+     * NOT SOLVED BY MOVING THE LABEL INTO A CHILD `Label`, which would make
+     * glyph and label real flex siblings and is how the handoff's own HTML
+     * does it - `TabBarTests.Render_DrawsOneButtonPerTabInOrder` asserts on
+     * `((Button)c).text`, and emptying it to satisfy the layout would delete
+     * a gate to make a picture nicer. */
+    padding-top: 31px;
     padding-bottom: var(--space-2);
     padding-left: var(--space-4);
     padding-right: var(--space-4);

@@ -1,0 +1,80 @@
+/* The handoff's stat cell, quoted from the region detail card's three-cell
+ * row - "flex: 1; background: #f8f6fc; border-radius: 12px; padding: 9px
+ * 10px", with a 9px uppercase micro label over a 12px bold value.
+ *
+ * WHAT IS TOKENISED AND WHAT IS QUOTED, on ScreenScaffold.uss's convention:
+ * the token layer holds the SCALE, and one-off component geometry taken from
+ * the handoff is written literally next to the sentence it came from.
+ *   - `#f8f6fc` IS --surface-sunk exactly, so it is the token.
+ *   - the handoff's per-screen radii range over the 12-16px band it declares
+ *     for rows; --radius-row (14px) is the token layer's single answer for
+ *     that band, so this is the scale rather than one-off geometry.
+ *   - 9px and 10px padding are not on the spacing scale (8 and 12 sit either
+ *     side) and 3px is the gap under the label. Rounding them to steps the
+ *     handoff did not ask for would change the cell's proportion for the
+ *     sake of tidiness, so they are literal, as the scaffold's own 14/10/34
+ *     are.
+ *
+ * THE VALUE'S SIZE IS NOT SET HERE, AND THAT IS A DECISION. `t-num` in
+ * Theme.uss sets --text-secondary (11px); the handoff's inline style for
+ * this cell says 12px. Overriding it from this file would put the 11px
+ * numeral floor - one of bible 10.6's two hard requirements - at the mercy
+ * of which single-class rule the cascade happened to apply last, for one
+ * pixel. The floor wins; the 1px is recorded here rather than argued with
+ * silently.
+ */
+.stat-cell {
+    /* The handoff's `flex: 1`. flex-basis 0 rather than the default auto, so
+     * three cells come out equal width instead of sized by their content. */
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 0;
+    flex-direction: column;
+    background-color: var(--surface-sunk);
+    border-radius: var(--radius-row);
+    padding-top: 9px;
+    padding-bottom: 9px;
+    padding-left: 10px;
+    padding-right: 10px;
+    /* HALF THE HANDOFF'S 8px GAP ON EACH SIDE, because a cell cannot own a
+     * gap any other way. USS has no `gap` and no `:last-child`, so a single
+     * right margin would leak past the last cell in the row - and styling
+     * the ROW from this file is not available either: see the note at the
+     * foot of this sheet. The cost is 4px of dead space at each end of a
+     * row; a caller that wants it flush cancels it with a -4px margin on the
+     * container, which is one line at the call site rather than a rule that
+     * looks like it works and does not. */
+    margin-left: var(--space-1);
+    margin-right: var(--space-1);
+}
+
+/* No rule for `.stat-cell__label`: `t-micro` already carries all four of the
+ * handoff's values for it - 10px, --mute, bold, and the uppercase tracking.
+ *
+ * The value's own rule is layout plus the handoff's ink; its size and its
+ * tabular face come from `t-num`, per the note at the head of this file. */
+.stat-cell__value {
+    margin-top: 3px;
+    color: var(--ink);
+}
+
+/* THERE IS NO `.stat-cell-row` RULE IN THIS FILE, AND THERE CANNOT BE ONE.
+ *
+ * The first version of this component had one - `flex-direction: row` plus
+ * a -4px margin on each side to cancel the cells' own - and it compiled, it
+ * passed every gate, and it styled nothing at all. A stylesheet attached
+ * through `<ui:Style>` in a component's UXML lands on the element the tree
+ * is cloned into and applies to THAT ELEMENT AND ITS DESCENDANTS. The
+ * container holding a row of cells is the cells' PARENT, so it is outside
+ * every sheet the cells carry, and the rule sat inert with nothing to say
+ * so. The Components capture is what caught it: the three cells rendered
+ * stacked and full width, at zero height, with their values spilling out
+ * of the card below them - a flex-basis of 0 in a container that was still
+ * a column because the rule that would have made it a row never arrived.
+ *
+ * WORTH KNOWING BEFORE TASKS 9-12 WRITE ANOTHER ONE. A component's own
+ * stylesheet can describe the component and everything inside it, and can
+ * describe NOTHING about where it is placed. Layout that belongs to the
+ * container - a row of cells, a grid of cards, a gap between siblings - is
+ * the container's to own, in the stylesheet of whatever owns the container.
+ */

@@ -63,7 +63,7 @@ Two exceptions, both intentional:
 | `coral-deep` | `#d4776a` | Danger CTA |
 | `coral-tint` | `#fbeae7` | Danger panels |
 | `coral-text` | `#b3564a` / `#96463c` | Danger text |
-| `slate` | `#a9b0c4` | Pale species, neutral |
+| `slate` | `#c6cede` | Pale species, neutral — **moved from `#a9b0c4`**, Phase 8 Task 6 |
 | `mute` | `#a29bb5` | Secondary text, inactive nav |
 | `mute-soft` | `#b3adc2` | Tertiary text, placeholders |
 | `divider` | `#f4f1fa` | Hairline dividers |
@@ -472,7 +472,17 @@ Each is distinguishable in **pure silhouette at 40px**. Shape carries role befor
 | **Skitter** | Swarm | Sprint, Litter | `#e8b34a` | Small body, six long thin legs, tiny head |
 | **Hollow** | Sniper | Reach, Pierce | `#7a6ac0` | Tiny body, stilt legs, long forward neck |
 | **Loam** | Support | Regrow, Burrow | `#7cc492` | Segmented ground-hugger, blunt snout, no legs |
-| **Pale** | Control | Screen, Chill | `#a9b0c4` | Broad wing arc, small hanging body |
+| **Pale** | Control | Screen, Chill | `#c6cede` | Broad wing arc, small hanging body |
+
+> **Pale moved, 2026-09-17:** `#a9b0c4` → `#c6cede` (also the `slate` token
+> above), in Phase 8 Task 6 — the palette's worst colour-blind pair, Vetch/Pale,
+> went from ΔE 7.2 to 17.3. `Tokens.uss` is the live value.
+> **Two notes for whoever draws these:** at `#c6cede` a Pale reads **1.47 : 1**
+> against the card's `#f8f6fc` silhouette slot and is effectively invisible as a
+> flat fill, so it needs value, outline or a darker slot (bible §10.4); and
+> Hollow `#7a6ac0` and Skitter `#e8b34a` are *exactly* the `violet` and `amber`
+> UI tokens, which is intended and recorded in
+> `implementation/results/species-collision.md`.
 
 ### Eight raiders and their counters
 

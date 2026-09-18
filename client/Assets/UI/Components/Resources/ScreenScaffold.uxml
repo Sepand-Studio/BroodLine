@@ -1,0 +1,11 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="ScreenScaffold.uss" />
+    <ui:VisualElement name="header" class="screen-scaffold__header">
+        <ui:Button name="back" class="screen-scaffold__back" />
+        <ui:Label name="title" class="screen-scaffold__title t-screen-title" />
+        <ui:VisualElement name="header-slot" class="screen-scaffold__header-slot" />
+    </ui:VisualElement>
+    <ui:ScrollView name="content" class="screen-scaffold__content" />
+    <ui:VisualElement name="cta-row" class="screen-scaffold__cta-row" />
+    <ui:Label name="footer-note" class="screen-scaffold__footer-note t-secondary" />
+</ui:UXML>

@@ -16,6 +16,19 @@ namespace Broodline.UI
     /// Beat 4 - bible 3.3's "optional naming prompt and a sensible default".
     public static class FounderNamingScreen
     {
+        /// The scaffold's header, which is a different sentence from
+        /// `Prompt`: the header names the SCREEN and never changes, while the
+        /// prompt addresses THIS creature and is rebuilt on every Bind. One
+        /// string doing both jobs would either put a creature's name in a
+        /// header that outlives it or flatten the prompt into a label.
+        public const string Title = "Name your Founder";
+
+        /// The scaffold's footer note. bible 3.3 makes the prompt optional
+        /// and the Roster rename the fallback, so this is the caveat that
+        /// makes `SkipLabel` a real answer rather than a discard: the name is
+        /// permanent for the Founder, which is why the screen exists at all.
+        public const string FooterNote = "Founders keep their names for life.";
+
         /// bible 3.3's "sensible default": the species. It is the only name
         /// the client has that is about THIS creature, and a default the
         /// player keeps is still a name they chose to keep.
@@ -66,6 +79,29 @@ namespace Broodline.UI
     /// Beat 7 - `broodline_splice_confirm_spec` section 5.
     public static class SpliceRevealScreen
     {
+        /// The scaffold's header - the handoff's own name for this screen
+        /// (README section 7), which its push table reaches from the Splice
+        /// Chamber "(after splice)". So this screen is `pushed: true`.
+        ///
+        /// A DIFFERENT SENTENCE FROM `Headline`, and the pair is
+        /// `FounderNamingScreen.Title`/`Prompt` again: the header names the
+        /// screen and never changes, the headline says which of two things
+        /// just happened. One string doing both jobs would either put "A
+        /// mutation fired." in a header that outlives the moment or flatten
+        /// the payoff into a label.
+        public const string Title = "Splice Reveal";
+
+        /// What the parents row says when it was handed neither parent.
+        ///
+        /// THE ROW IS THE SCREEN'S WHOLE LESSON, so its empty case cannot be
+        /// nothing. bible 2.1 makes "the parents are still drawn on the
+        /// screen that says they are gone" the FTUE's teaching moment, and a
+        /// caller that passed nulls would otherwise produce a reveal that
+        /// silently taught the opposite - the parents simply absent, with no
+        /// sentence saying whether they were consumed or never arrived.
+        public const string NoParentsMessage =
+            "The parents for this splice were not loaded.";
+
         /// section 7: "No 'SPLICE FAILED' state ... there is no failure
         /// outcome - the worst result is rolling traits the player already
         /// had." So the non-mutated arm states what happened and does not
@@ -85,8 +121,17 @@ namespace Broodline.UI
         /// between a warning and a confirmation. The vocabulary is otherwise
         /// the same on purpose - splice_confirm_spec section 3: "three
         /// different phrasings of the same fact reads as evasion."
+        ///
+        /// EMPTY WHEN EITHER PARENT IS MISSING, rather than a sentence with a
+        /// hole in it. `CreatureLabel.WithGeneration(null)` is the empty
+        /// string, so the unguarded version wrote " and  are consumed. Their
+        /// traits live on in the pedigree." - a claim about two creatures it
+        /// cannot name, on the screen whose whole job is naming them.
+        /// `NoParentsMessage` is what the reveal says in that case, and it
+        /// says the honest thing: the parents were not loaded.
         public static string Consumption(CreatureDto parentA, CreatureDto parentB)
         {
+            if (parentA == null || parentB == null) return string.Empty;
             return CreatureLabel.WithGeneration(parentA) + " and "
                 + CreatureLabel.WithGeneration(parentB)
                 + " are consumed. Their traits live on in the pedigree.";
@@ -117,7 +162,36 @@ namespace Broodline.UI
         /// Shown when the server returned a tree with nothing in it. Not a
         /// blank screen: an empty tree after a splice would be the one
         /// failure this screen exists to make impossible to miss.
-        public const string EmptyNotice = "No lineage yet.";
+        ///
+        /// IT GAINED A SECOND SENTENCE IN PHASE 8 TASK 9, and the sentence is
+        /// the point. "No lineage yet." alone states the absence and stops;
+        /// read before a first splice - which is when a player actually sees
+        /// it - that is indistinguishable from a screen that failed to load.
+        /// The second half says what fills it, which is the one thing an
+        /// empty state owes the player.
+        public const string EmptyNotice = "No lineage yet. Your first splice starts it.";
+
+        /// A generation's card heading. Spelled out rather than
+        /// `CreatureLabel.Generation`'s "G1" badge: the badge is a marker
+        /// beside a creature's name, where the word has to carry a heading on
+        /// its own.
+        public static string GenerationHeading(int generation)
+        {
+            return "Generation " + generation.ToString(CultureInfo.InvariantCulture);
+        }
+
+        /// The two facts a generation's stat row states.
+        ///
+        /// NOT "COVERAGE", WHICH IS WHAT THE PHASE 8 PLAN ASKED FOR. Coverage
+        /// is a trait-tier fact and `LineageResponse` carries no coverage of
+        /// any kind - `splice_confirm_spec`'s `coverageLost` reaches
+        /// `SpliceScreen` and never this route. What the tree does know about
+        /// a generation is how many of it the record holds and how many are
+        /// still alive, and `splice_confirm_spec` section 5 makes exactly
+        /// that contrast the lesson: "individuals are consumed, the record
+        /// survives."
+        public const string RecordedStatLabel = "In the record";
+        public const string LivingStatLabel = "Living";
 
         /// "Ash (G1)" for a lineage node. A separate function from
         /// `CreatureLabel.WithGeneration` because `LineageNode` is a
@@ -162,6 +236,31 @@ namespace Broodline.UI
         /// parents are STILL HERE, and the screen says so in words as well as
         /// in a class name. "Individuals are consumed; the record survives."
         public const string ConsumedLabel = "Consumed";
+
+        /// THE OTHER TWO FACTS A NODE CARRIES, IN WORDS. Phase 8 Task 13.
+        ///
+        /// bible 10.4: "Colour never carries information alone." Until this
+        /// commit `Consumed` was the only one of the three that obeyed it -
+        /// Founder was an amber rail and Mutated a violet rail and NOTHING
+        /// else, on a screen that draws no creature at all, so there was no
+        /// silhouette to reinforce either. A node is two labels and a 3px
+        /// coloured border; colour was the whole channel.
+        ///
+        /// That was a 10.4 violation on its own terms, before any species
+        /// colour existed. It also happened to be the reason Task 6's
+        /// deferred palette collision mattered: amber IS Skitter and violet
+        /// IS Hollow at dE 0.0, so the tree's rails read as species marks to
+        /// a player who learned the species colours anywhere else. Adding the
+        /// words fixes the violation, and the collision stops mattering as a
+        /// consequence - which is why no colour moved.
+        /// implementation/results/species-collision.md has the rendered
+        /// evidence and the three rejected alternatives.
+        ///
+        /// NEUTRAL INK, DELIBERATELY. LineageView.uss draws all three marks
+        /// in --mute. Colouring "Founder" amber would put the fact straight
+        /// back onto the colour it was just taken off.
+        public const string FounderLabel = "Founder";
+        public const string MutatedLabel = "Mutated";
     }
 
     /// Campaign Select - design section 5.2's second added screen: "how a
@@ -169,6 +268,14 @@ namespace Broodline.UI
     public static class CampaignSelectScreen
     {
         public const string Title = "Campaign";
+
+        /// What the list says when the bundle authored no waves at all.
+        /// `FtueDirector.CampaignAsync` returns early on an empty set today,
+        /// so this is reachable only through a direct `Bind` - but a list
+        /// that CAN come back empty and renders as blank paper is the exact
+        /// defect `EmptyState` was built for, and "unreachable today" is a
+        /// property of one caller rather than of the view.
+        public const string EmptyMessage = "No waves to play yet.";
 
         /// The smallest AUTHORED wave id past what has been cleared, or null
         /// when the bundle authors nothing beyond it.
@@ -250,6 +357,12 @@ namespace Broodline.UI
         /// nothing asserted it, which is exactly how the Task 15 review's
         /// three strings survived a 382-line suite.
         public const string DismissLabel = "Close";
+
+        /// What the index says when `config.traits` is empty. bible 10.5
+        /// makes recognition the counter system's teaching surface, so the
+        /// sheet must not open on nothing and leave the player to guess
+        /// whether the codex is empty or the sheet is broken.
+        public const string EmptyMessage = "No traits recorded yet.";
 
         /// What this trait answers, from the BUNDLE's own `config.traits`
         /// table. `Broodline.UI` references no engine assembly, so the

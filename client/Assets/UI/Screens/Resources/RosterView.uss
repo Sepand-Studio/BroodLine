@@ -1,13 +1,31 @@
-/* The roster. Cards do their own styling; this is the grid around them. */
-.roster-view { flex-direction: column; padding: var(--gutter); }
+/* The roster, composed onto ScreenScaffold. Cards do their own styling; this
+ * is the grid around them, which is the one thing neither the frame nor
+ * CreatureCard can own - a component's stylesheet reaches the component and
+ * its descendants, never the container it was put in (StatCell.uss's closing
+ * note has the case that found it).
+ *
+ * TWO RULES LEFT THIS FILE IN PHASE 8 TASK 10 AND NEITHER WAS REPLACED BY A
+ * COPY HERE:
+ *   - the root's `padding: var(--gutter)` is the scaffold's content region,
+ *     which puts the gutter on `unity-scroll-view__content-container` so an
+ *     elevated card's shadow is not clipped at the viewport edge.
+ *   - `__notice`'s colour, size, wrap and margin are the scaffold's footer
+ *     note, which also collapses when the sentence is empty. The old Label
+ *     did not: a complete roster drew a blank 20px strip above the grid, and
+ *     it is visible in every capture of this screen before this task.
+ */
+.roster-view { flex-grow: 1; }
 
-.roster-view__notice {
-    color: var(--mute);
-    white-space: normal;
-    font-size: var(--text-body);
-    margin-bottom: var(--space-2);
-}
-
+/* Two 160px CreatureCards on a 430 frame with a 12px gutter: 406 of space for
+ * 320 of card, so `space-between` is what puts the pair against both edges
+ * and an odd third card at the left where the next row starts. */
 .roster-view__cards { flex-direction: row; flex-wrap: wrap; justify-content: space-between; }
 
 .roster-view__card { margin-bottom: var(--space-3); }
+
+/* The empty case is one element in a row that lays out tiles, so it has to be
+ * told to take the whole line - a CreatureCard is a fixed 160px and an
+ * EmptyState has no width of its own. Without this, `space-between` would
+ * park a centred sentence against the left edge at whatever width its text
+ * happened to measure. */
+.roster-view__cards > .empty-state { flex-grow: 1; }

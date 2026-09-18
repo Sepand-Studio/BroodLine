@@ -4,10 +4,14 @@
  * bundle are authoritative: colour, spacing, radius, elevation, the physical
  * button-press state on primary CTAs, and the named animation set. They are
  * complete and should be implemented as specified rather than reinterpreted."
- * Every hex below is copied from that README's table. If one looks wrong,
- * the README is the thing to argue with, not this file.
+ * Every hex below is copied from that README's table, EXCEPT the five marked
+ * "not in the handoff" - added by Phase 8 Task 2, when verify-uss-tokens.sh
+ * found colours living raw in screen stylesheets that no token covered. Each
+ * one states what it is for and why the nearest existing token would not do.
+ * If a README hex looks wrong, the README is the thing to argue with, not
+ * this file.
  *
- * NOT specs/Designs/_ds/modernist-*/styles.css. That is a generic design
+ * NOT specs/Designs/_ds/modernist-<variant>/styles.css. That is a generic design
  * system that happens to sit in the same folder - red accent, Archivo, zero
  * radius. It is not Broodline's and matches neither the bible nor the
  * handoff. Do not merge the two.
@@ -33,6 +37,7 @@
     --paper: #f7f4fb;             /* screen background */
     --surface: #ffffff;           /* cards */
     --surface-sunk: #f8f6fc;      /* inset rows, unselected options */
+    --surface-raised: #fdfcff;    /* CreatureCard's selected fill, above --surface */
 
     /* ---- Brand ---- */
     --violet: #7a6ac0;            /* primary brand, CTAs */
@@ -41,6 +46,24 @@
     --violet-tint: #f1ecfa;       /* secondary button, violet panels */
     --violet-text: #6b5fa8;       /* violet-on-light text */
     --violet-light: #8878cf;      /* CTA gradient start, selection ring */
+    --violet-pressed: #e7e0f6;    /* secondary button :active, under --violet-tint */
+
+    /* Not in the handoff. The secondary button's drop edge - the 3px bottom
+     * border that stands in for the press state USS cannot express (see
+     * Theme.uss header item 3). It is NOT --hairline: against the
+     * --violet-tint fill this reads 55 in summed channel distance, in the
+     * same family as --violet to --violet-shadow (94) and --coral to
+     * --coral-deep (48), while --hairline reads 14 and would flatten the
+     * edge into the fill. Task 2 was told to collapse it as drift; it is
+     * not drift, and the arithmetic is recorded here so the call can be
+     * argued with. */
+    --violet-edge: #ddd3f0;       /* not in the handoff - secondary drop edge */
+
+    /* Not in the handoff. The icon inside an aberrant trait pip. Nothing in
+     * the table is near it - --hairline, the closest, is 46 away and far
+     * lighter - so it is a real sixth violet rather than a near-miss of an
+     * existing one. Task 2's own step list omitted this colour entirely. */
+    --violet-pale: #d9cdf5;       /* not in the handoff - aberrant pip icon */
 
     /* ---- Species / semantic ---- */
     --teal: #6ba7c0;              /* Vetch, info */
@@ -57,7 +80,36 @@
     --coral-deep: #d4776a;
     --coral-tint: #fbeae7;
     --coral-text: #b3564a;
-    --slate: #a9b0c4;             /* Pale, neutral */
+    --coral-alert: #ff6b5c;       /* breach state - hotter than --coral, HUD only */
+    /* MOVED from the handoff's #a9b0c4 by Phase 8 Task 6, which is the only
+     * value on this page that does not match the handoff table. Measured,
+     * Vetch and Pale were the palette's worst pair under every viewer -
+     * dE76 7.2 under protanopia, and 17.7 at NORMAL vision where no other
+     * pair was under 43, so they were too close for everyone rather than
+     * for colour-blind players specifically. Lightening Pale one step takes
+     * that pair to 17.3 and 23.9 and moves the worst-pair position off it
+     * entirely, at the cost of 0.2 to 2.3 dE on four Pale pairs that were
+     * already above 26. One colour, and it reaches the same floor a
+     * five-colour repaint would. The measurement, the four costed options
+     * and the trade are in implementation/results/palette-decision.md and
+     * pinned by PaletteContrastTests. */
+    --slate: #c6cede;             /* Pale, neutral */
+
+    /* ---- The HUD's own backing ---- */
+
+    /* --ink-deep AT 55%, AND IT HAS TO BE A TOKEN BECAUSE USS CANNOT DERIVE
+     * IT AT THE POINT OF USE. There is no alpha function and no color-mix on
+     * 6000.6.0f1, so `--ink-deep at 55%` can only be written out.
+     *
+     * The HUD is the one surface in the app that does not render over
+     * --paper: WaveRunner adds it straight to the wave scene's panel root, so
+     * whatever is behind a bar or a readout is the battlefield and changes
+     * every frame. A light-on-dark scrim is what makes a number legible over
+     * that, and it is the same fill the bar track already used - it was
+     * written as a raw rgba() in WaveHudView.uss, in the one file
+     * verify-uss-tokens.sh's own header names as the reason that gate
+     * exists. rgba() is not hex, so check 1 never saw it. */
+    --hud-scrim: rgba(46, 42, 61, 0.55);
 
     /* ---- Secondary ink ---- */
     --mute: #a29bb5;              /* secondary text, inactive nav */
@@ -75,12 +127,62 @@
     --space-6: 24px;
 
     /* ---- Radius ---- */
-    --radius-pill: 999px;
+
+    /* THERE IS NO --radius-pill, AND THE HANDOFF'S `pill 999px` IS THE ONE
+     * ROW OF ITS RADIUS TABLE THAT DOES NOT SURVIVE THE TRANSLATION TO USS.
+     * It was here, every short element in the project read it, and every one
+     * of them rendered as a lens. Theme.uss's header item 4 has the full
+     * account and the measurement; the short version is that UI Toolkit
+     * clamps a corner radius to half the element ON EACH AXIS SEPARATELY,
+     * where CSS scales both radii by one common factor. A 999px radius on a
+     * 99x27 element therefore draws an ellipse quadrant 49.5 wide and 13.5
+     * tall instead of a 13.5 semicircle, and the cap eats 65% of the pill.
+     *
+     * WHAT TO WRITE INSTEAD: half the element's own height, rounded DOWN, as
+     * a literal, next to the measured height it came from. There is no token
+     * for it because a pill radius is a function of one element's height and
+     * no single number serves a 6px track and a 39px nav tab.
+     *
+     * ROUND DOWN, NEVER UP, and that asymmetry is the whole reason a literal
+     * is safe here. Measured: at exactly half the height the cap is a true
+     * semicircle at every height and every width tested. Below half, the
+     * shape degrades gently - a slightly flattened pill. Above half it
+     * degrades catastrophically and without bound, because the overshoot is
+     * not clamped: the taper grows with the radius until it saturates at
+     * half the element's WIDTH, so the wider the element the worse it gets.
+     * A radius that is a little too small looks like a pill. One that is a
+     * little too large looks like a mistake.
+     *
+     * verify-uss-tokens.sh check 3 is the guard: any var(--radius-pill) that
+     * comes back reddens it, because the token it names no longer exists. */
     --radius-chip: 6px;
     --radius-tile: 11px;
     --radius-row: 14px;
     --radius-card: 20px;
     --radius-cta: 15px;
+
+    /* ---- Elevation. USS has no box-shadow; these tint a nine-slice. ---- */
+    --elev-1-tint: rgba(63, 58, 82, 0.06);   /* handoff: 0 2px 8px  */
+    --elev-2-tint: rgba(63, 58, 82, 0.09);   /* handoff: 0 4px 16px */
+    --elev-1-spread: 6px;
+    --elev-2-spread: 12px;
+
+    /* ---- Motion. The handoff's named animation set. ---- */
+    /* --motion-press IS the CTA press, and Theme.uss's Button rule reads it
+     * as of this commit - it did NOT before. That rule carried a raw `60ms`,
+     * so the plan's "already used by the CTA press" described an intention
+     * rather than the file. Wired here because a token nothing references is
+     * a claim nothing backs, and --elev-1-spread / --elev-2-spread spent one
+     * task in exactly that state while the elevation they described rendered
+     * as a smudge inside the card.
+     *
+     * verify-uss-tokens.sh CANNOT CATCH THE NEXT ONE. Its check 1 greps for
+     * raw hex and a raw duration is not hex; its check 3 only walks var()
+     * calls that already exist. A literal ms left in a rule passes all four
+     * checks silently. Reading the file is the gate. */
+    --motion-press: 60ms;      /* Theme.uss: Button / Button:active */
+    --motion-quick: 120ms;     /* Motion.uss: selection, tint, tick */
+    --motion-screen: 220ms;    /* Motion.uss: push, pop, sheet, reveal */
 
     /* ---- Type scale (bible 10.6: 11px floor on decision-bearing numbers) ---- */
     --text-screen-title: 21px;
@@ -91,6 +193,6 @@
     --text-secondary: 11px;
     --text-micro: 10px;
     --text-cta: 17px;
-    --text-tab: 12px;
+    --text-tab: 11.5px;
     --text-nav: 10px;
 }

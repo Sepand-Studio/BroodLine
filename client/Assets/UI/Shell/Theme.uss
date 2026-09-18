@@ -5,20 +5,38 @@
  * the opposite of the previous arrangement, where 18 stylesheets each
  * re-specified nothing and the app rendered as untinted boxes on black.
  *
- * THREE THINGS THE HANDOFF ASKS FOR THAT USS CANNOT EXPRESS, and what is
+ * FOUR THINGS THE HANDOFF ASKS FOR THAT USS CANNOT EXPRESS, and what is
  * done instead. These are deliberate translations, not omissions - read
  * before "fixing" one of them back to the README's literal value.
  *
- * 1. `linear-gradient(180deg, #8878cf, #6f5fbb)` on the primary CTA. UI
- *    Toolkit has no gradient background; `background-image` takes a texture,
- *    not a function. A solid `--violet` sits between the two stops and is
- *    what is used. A gradient would mean shipping a 1xN texture per CTA
- *    colour, which is real art for a difference of six hex steps.
+ * 1. `linear-gradient(180deg, #8878cf, #6f5fbb)` on the primary CTA. SOLVED
+ *    in Phase 8 with a 2x64 ramp texture at Assets/UI/Art/cta-ramp.png. The
+ *    Phase 7 note said a gradient "would mean shipping a 1xN texture per CTA
+ *    colour, which is real art for a difference of six hex steps" - true when
+ *    it would have been the only texture in the build, and false once the
+ *    icon sheet ships. One ramp, one CTA colour, no art.
  *
- * 2. `box-shadow`. USS has no box-shadow at all - not on cards, not on the
- *    CTA. Card elevation is therefore carried by the surface/paper contrast
- *    and radius alone, which is why `--surface` is pure white against
- *    `--paper`: on a light theme that contrast IS the elevation.
+ * 2. `box-shadow`. USS still has none. SOLVED as a nine-sliced sprite at
+ *    Assets/UI/Art/shadow-card.png, tinted by --elev-1-tint / --elev-2-tint
+ *    to the handoff's two elevations. On a light theme with white on
+ *    near-white, this is most of what separates a card from a rectangle.
+ *
+ *    .elev-1 / .elev-2 GO ON A WRAPPER, NOT ON THE CARD, and that is forced
+ *    rather than chosen: UI Toolkit clips background-image to the element's
+ *    own box, so a drop shadow cannot be drawn on the card it belongs to -
+ *    it has to be drawn by something larger. Each class is padding plus the
+ *    sprite; the card goes inside as a child and its own opaque --surface
+ *    covers the middle, leaving the falloff in the padding. Measured on the
+ *    Primitives fixture, putting .elev-1 on the card itself instead paints a
+ *    grey smudge across its interior, because a nine-slice stretches its
+ *    centre region over the whole element.
+ *
+ *    --elev-1-spread / --elev-2-spread ARE that padding, which is also why
+ *    -unity-slice-scale differs between the two classes. Nine-slice maps
+ *    texture offset p to p*scale screen px in from the element edge, and the
+ *    card edge sits at exactly the padding, so scale is padding/10 - the
+ *    texture carries its ink in a 10px frame. One scale cannot serve both
+ *    spreads. generate-textures.py has the arithmetic.
  *
  * 3. The physical button press, `box-shadow: 0 3px 0 #5b4d9e` collapsing to
  *    `0 1px 0` with `translateY(2px)`. bible 10.6 names this specifically and
@@ -27,16 +45,54 @@
  *    the element translates 2px down. Same silhouette, same motion, same
  *    feel under a thumb.
  *
- * FONTS ARE NOT SET HERE. The handoff pairs Baloo 2 (display/numerals) with
- * Nunito (body), both Google Fonts, and neither is in the project - there is
- * no .ttf under client/Assets at all. Sizes, weights and letter-spacing
- * below follow the handoff's type table so the scale is right the moment a
- * face is imported; until then everything renders in Unity's default sans.
- * bible 10.6's two hard requirements - tabular figures and an 11px floor on
- * any number a decision depends on - are a FONT choice and a SIZE choice
- * respectively. The size floor is honoured below (`--text-secondary` is the
- * smallest size used on a numeral); the tabular requirement cannot be met
- * until a face lands, and is the reason to import one.
+ * 4. `border-radius: 999px` FOR A PILL. The handoff's radius table says
+ *    `pill 999px` and its own markup writes it on every chip, every nav tab
+ *    and all 29 of its progress tracks. In CSS that is the standard idiom
+ *    for "cap the ends", because the spec scales an over-large radius down
+ *    by ONE COMMON FACTOR until the corners fit - so 999px on a 99x27 box
+ *    becomes a 13.5px semicircle. UI TOOLKIT CLAMPS EACH AXIS SEPARATELY
+ *    INSTEAD, to half the width and half the height, and draws the ellipse
+ *    quadrant that results: 49.5 wide by 13.5 tall on that same box. The
+ *    end is a long shallow lens and the "pill" loses most of its straight
+ *    run.
+ *
+ *    MEASURED, 50 rendered bars, not inferred from two examples. At a
+ *    radius of exactly half the height the cap is a true semicircle at
+ *    every height tested (6, 8, 21, 27, 54) and at every width tested (40
+ *    to 300) - the cap length does not move with width at all. Above half
+ *    the height it is a lens whose taper grows with the radius and is
+ *    bounded only by half the element's WIDTH: at 999px on a 200px-wide
+ *    bar the cap runs 78-86px whatever the height. A square element is the
+ *    one exception and is immune, because its two axes clamp to the same
+ *    number - which is why the 8x8 trait-pip dot was always a correct
+ *    circle and hid the defect on every screen that shows a creature card.
+ *
+ *    SO THERE IS NO PILL TOKEN. Each pill-shaped element carries a literal
+ *    radius of half its own measured height, rounded down, written beside
+ *    that measurement. Tokens.uss's radius block says why, and why rounding
+ *    DOWN is the safe direction.
+ *
+ * FONTS. Baloo 2 (display) and Nunito (body, and every numeral), both SIL
+ * OFL 1.1, under client/Assets/UI/Fonts with their licence.
+ *
+ * BOUND DIRECTLY, NOT THROUGH A TOKEN, and that is deliberate. Tokens.uss
+ * holds values; a font is an asset reference, and threading one through a
+ * custom property makes the indirection load-bearing for something that has
+ * exactly two values and changes roughly never. The type SCALE is tokenised
+ * because it is arithmetic; the FACE is not because it is an asset.
+ *
+ * BALOO 2 SETS NO NUMBERS, and that is measured rather than preferred. Its
+ * digits advance 0-9 as 54, 34.5625, 46.70313, 46.34375, 53.01563, 47.34375,
+ * 50.04688, 42.84375, 50.57813, 50.125 - ten distinct widths, so any counter
+ * set in it jitters as it ticks. bible 10.6 prescribes the remedy for this
+ * exact case: keep the display face for titles and CTAs, and pair a tabular
+ * face for numerals only. Nunito Bold's ten are identical, so it is the face
+ * every numeral is set in: Baloo 2 is confined to .t-screen-title, .t-section
+ * and .btn-primary, and .t-hero and .t-num take Nunito.
+ *
+ * bible 10.6's two hard requirements are now both gated: tabular figures by
+ * TypographyTests, and the 11px numeral floor by verify-uss-tokens.sh via the
+ * .t-num marker below. Neither was checkable before this phase.
  */
 
 /* ---------------------------------------------------------------- surfaces */
@@ -47,10 +103,36 @@
 
 /* ------------------------------------------------------------------- text */
 
+Label, Button, TextField {
+    -unity-font-definition: url("project:///Assets/UI/Fonts/Nunito-Bold%20SDF.asset");
+}
+
+/* Baloo 2 carries the display voice, and nothing that shows a number. The
+ * header explains the measurement that put .t-hero on the other side of this
+ * line despite it being the largest type in the app. */
+.t-screen-title, .t-section, .btn-primary > Label, .btn-primary {
+    -unity-font-definition: url("project:///Assets/UI/Fonts/Baloo2-Bold%20SDF.asset");
+}
+
+/* The marker verify-uss-tokens.sh enforces the 11px floor against. Any label
+ * showing a number a decision depends on carries it. */
+.t-num {
+    -unity-font-definition: url("project:///Assets/UI/Fonts/Nunito-Bold%20SDF.asset");
+    font-size: var(--text-secondary);
+}
+
+/* NO -unity-font-style: bold HERE, DELIBERATELY. The rule above binds every
+ * Label to Nunito-Bold SDF, which IS the bold face. Asking for bold on top of
+ * it does not select a heavier typeface - the asset's m_FontWeightTable is
+ * empty, so TextCore has nothing to swap to and falls back to synthetic
+ * emboldening, a 0.75 weight dilation over a face that is already 700. That
+ * thickens strokes and closes counters worst at --text-secondary (11px) and
+ * --text-micro (10px), which are exactly the sizes bible 10.6's "1/l/I and
+ * 0/O must be unambiguous" is about. Weight comes from the face, not from a
+ * style flag. */
 Label {
     color: var(--ink);
     font-size: var(--text-body);
-    -unity-font-style: bold;
 }
 
 .t-screen-title {
@@ -124,6 +206,98 @@ Label {
     margin-bottom: var(--space-2);
 }
 
+/* ------------------------------------------------------------- elevation */
+
+/* WRAP a surface in one of these; do not put them ON the surface. See note 2
+ * in this file's header for why UI Toolkit leaves no other option, and
+ * ScreenFixtures' Primitives fixture for the arrangement Tasks 8-12 copy:
+ *
+ *     <ui:VisualElement class="elev-1">
+ *         <ui:VisualElement class="card"> ... </ui:VisualElement>
+ *     </ui:VisualElement>
+ *
+ * The slice scale is padding/10 and so differs per class - one value cannot
+ * serve both spreads. It carries a unit because a bare 0.5 imports as
+ * "warning: Expected (<length>) but found '0.5'", and this phase exists
+ * partly because a USS diagnostic went unread for seven phases. */
+.elev-1, .elev-2 {
+    background-image: url("project:///Assets/UI/Art/shadow-card.png");
+    -unity-slice-left: 20; -unity-slice-right: 20;
+    -unity-slice-top: 20; -unity-slice-bottom: 20;
+}
+/* THE NEGATIVE MARGIN IS THE OTHER HALF OF THE ARRANGEMENT, AND IT WAS
+ * MISSING FOR TWO TASKS. Task 3's own brief asked for the shadow as "a
+ * sibling element, not a style ... with a negative margin". The sibling was
+ * correctly rejected - UI Toolkit clips a background image to the element's
+ * own box, so a shadow has to be drawn by something LARGER than the surface,
+ * which is this wrapper - but the negative margin went with it, and that was
+ * the half that kept the surface on the gutter.
+ *
+ * Without it the padding insets the SURFACE rather than expanding the shadow
+ * outward, so an elevated card sits --elev-1-spread in from wherever an
+ * unelevated sibling sits. Measured on the Task 9 corpus: on
+ * FounderNamingView, the SectionCard's white edge was at x=18 and the CTA
+ * button directly beneath it at x=12 - 6px out of line, on the same screen,
+ * visible. .elev-2 would have been 12px out.
+ *
+ * HORIZONTAL ONLY, AND THAT IS A DECISION RATHER THAN A HALF-FIX. Three
+ * reasons, in order of weight:
+ *
+ *   1. THE SHADOW IS ASYMMETRIC VERTICALLY, BY DESIGN. Measured on
+ *      LineageView between two stacked SectionCards, column x=215: the ink
+ *      below a card's bottom edge runs 6px deep and reaches 4/255, and above
+ *      the next card's top edge it runs 2px and reaches 1/255. That fall is
+ *      the whole point of a drop shadow and it is drawn INSIDE this padding.
+ *      Cancelling the padding vertically would put the next card's white edge
+ *      inside the previous card's shadow.
+ *   2. NOTHING IS WRONG VERTICALLY. Two stacked cards measure 20px white edge
+ *      to white edge - 6 + --space-2 + 6 - which is what SectionCard.uss says
+ *      it tuned for. A negative top and bottom margin makes that 8px.
+ *   3. HOLDING 20px WITH A VERTICAL NEGATIVE MARGIN would mean re-tuning
+ *      `.section-card`'s margin-bottom from 8px to 20px, and 20 is not on the
+ *      spacing scale - 12 and 24 sit either side. That is a one-use value
+ *      invented to keep a gap that is already right.
+ *
+ * Horizontally the shadow is symmetric and 5-6px wide, and moving it off the
+ * surface and into the gutter is exactly what a drop shadow should do. It
+ * now draws OUTSIDE the wrapper's layout box; verified against the leftmost
+ * card on every capture that has one, which is inside the scaffold's
+ * ScrollView and is not clipped by it.
+ *
+ * A LITERAL, BECAUSE USS HAS NO calc() HERE - TRIED, MEASURED, REVERTED.
+ * `calc(var(--elev-1-spread) * -1)` is what this wants to say, and on
+ * 6000.6.0f1 it imports as
+ *
+ *     warning: Unknown function 'calc' in declaration 'margin-left: calc'
+ *     warning: Expected (<length-percentage> | auto) but found 'calc(...)'
+ *
+ * and the declaration is DROPPED. Nothing else happens: the sheet still
+ * compiles, check-stylesheets.sh stays green, every test passes, and the
+ * capture came back byte-identical to the run before it - sixteen of
+ * sixteen. That is this file's own history repeating (Tokens.uss's four
+ * unread LineBreakUnexpected warnings), so it is recorded rather than
+ * silently worked around.
+ *
+ * SO THE TWO NUMBERS BELOW MUST EQUAL --elev-1-spread AND --elev-2-spread
+ * NEGATED, AND NOTHING IN USS CAN ENFORCE THAT. verify-uss-tokens.sh check 4
+ * does: it reads both spreads out of Tokens.uss and reddens if either margin
+ * here stops being the negation. Change a spread, change these, or the gate
+ * says so. */
+.elev-1 {
+    padding: var(--elev-1-spread);
+    margin-left: -6px;
+    margin-right: -6px;
+    -unity-slice-scale: 0.6px;
+    -unity-background-image-tint-color: var(--elev-1-tint);
+}
+.elev-2 {
+    padding: var(--elev-2-spread);
+    margin-left: -12px;
+    margin-right: -12px;
+    -unity-slice-scale: 1.2px;
+    -unity-background-image-tint-color: var(--elev-2-tint);
+}
+
 /* --------------------------------------------------------------- buttons */
 
 /* Unity's runtime theme gives Button its own border, margin and tinted
@@ -132,7 +306,7 @@ Label {
 Button {
     -unity-font-style: bold;
     font-size: var(--text-cta);
-    color: #ffffff;
+    color: var(--surface);
     background-color: var(--violet);
     background-image: none;
     border-left-width: 0;
@@ -150,7 +324,7 @@ Button {
     margin-left: 0;
     margin-right: 0;
     transition-property: translate, border-bottom-width, background-color;
-    transition-duration: 60ms;
+    transition-duration: var(--motion-press);
 }
 
 /* bible 10.6's physical press. See note 3 in this file's header. */
@@ -166,13 +340,23 @@ Button:disabled {
     border-bottom-color: var(--hairline);
 }
 
+/* Primary: the handoff's CTA gradient, as the ramp texture. See note 1 in
+ * this file's header. `background-color` goes transparent because a colour
+ * under a `background-image` is what the image is composited over, and
+ * leaving `--violet` there tints the ramp. */
+.btn-primary {
+    background-image: url("project:///Assets/UI/Art/cta-ramp.png");
+    -unity-background-scale-mode: stretch-to-fill;
+    background-color: rgba(0, 0, 0, 0);
+}
+
 /* Secondary: violet on tint, per the handoff's secondary button. */
 .btn-secondary {
     background-color: var(--violet-tint);
     color: var(--violet-text);
-    border-bottom-color: #ddd3f0;
+    border-bottom-color: var(--violet-edge);
 }
-.btn-secondary:active { background-color: #e7e0f6; }
+.btn-secondary:active { background-color: var(--violet-pressed); }
 
 /* Success and danger CTAs - green-deep and coral-deep per the token table. */
 .btn-success { background-color: var(--green); border-bottom-color: var(--green-deep); }
@@ -223,8 +407,16 @@ TextField:focus > * {
     -unity-font-style: bold;
 }
 
+/* Half of a MEASURED 25px, rounded down - see Theme.uss header item 4 and
+ * Tokens.uss's radius block for why this is a literal and not a token, and
+ * why down is the safe direction to round. Measured under a real panel on a
+ * `Label.pill` at --text-body with this rule's own 4px vertical padding.
+ * NOT VERIFIED IN THE CORPUS: nothing in client/ carries `.pill` today, so
+ * no capture renders it and this number is a forward commitment. If a screen
+ * gives it a different font-size or padding, re-measure - the height and
+ * this radius are coupled. */
 .pill {
-    border-radius: var(--radius-pill);
+    border-radius: 12px;
     padding-top: var(--space-1);
     padding-bottom: var(--space-1);
     padding-left: var(--space-3);
@@ -236,7 +428,7 @@ TextField:focus > * {
  * the same border at 1px - the layout cost is identical because both states
  * carry a border, which is why the unselected one is specified at all. */
 .option {
-    background-color: #f7f5fb;
+    background-color: var(--surface-sunk);
     border-width: 1px;
     border-color: var(--hairline);
     border-radius: var(--radius-row);

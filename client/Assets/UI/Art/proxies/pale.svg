@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192" fill="#ffffff">
+  <!-- Pale, bible 1.2: "Broad wing arc, small hanging body". Control. -->
+  <path d="M8 112 Q96 8 184 112 Q96 62 8 112 Z"/>
+  <ellipse cx="96" cy="104" rx="16" ry="26"/>
+  <circle cx="96" cy="136" r="12"/>
+</svg>

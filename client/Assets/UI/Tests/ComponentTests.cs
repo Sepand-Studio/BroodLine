@@ -6,6 +6,15 @@ using Broodline.UI.Components;
 using NUnit.Framework;
 using UnityEngine.UIElements;
 
+// UnityEngine.UIElements HAS ITS OWN `ProgressBar` (base
+// `AbstractProgressBar`), so in a file importing both namespaces the bare
+// name binds to Unity's type. It does not report as an ambiguity: the
+// compiler says "'ProgressBar' does not contain a constructor that takes 1
+// arguments", which reads like a broken signature on ours. Measured - that
+// is the exact error this task's first red run produced. Every consumer in
+// Tasks 9-12 will need this line too; ProgressBar.cs's class comment says so.
+using ProgressBar = Broodline.UI.Components.ProgressBar;
+
 namespace Broodline.UI.Tests
 {
     /// The five shared components - screen_inventory_v2 11: "build once,
@@ -329,6 +338,173 @@ namespace Broodline.UI.Tests
 
             Assert.IsTrue(d.Q<Button>("confirm").ClassListContains("primary"));
             Assert.AreEqual(PickingMode.Position, d.Q("scrim").pickingMode);
+        }
+
+        // ---------------------------------------------------------------
+        // The five shared components - design 5.2 / screen_inventory_v2 11
+        //
+        // No panel here either, and for the same reason the rest of this
+        // file has none. `OptionRow`'s selection is read as a class change,
+        // not as a dispatched click: the ctor's `onSelect` registers a
+        // `ClickEvent` callback exactly the way `ConfirmDialog.Standard`
+        // does, and it is trusted exactly the same way, for the reason
+        // point 3 of this class's comment gives - "a handler is registered
+        // and would fire" has no positive form this assembly can read back.
+        // ---------------------------------------------------------------
+
+        [Test]
+        public void AnUnselectedOptionRowCarriesNeitherTheRingNorTheFill()
+        {
+            var row = new OptionRow("Coast road", "4h · low risk", () => { });
+            Assert.IsFalse(row.ClassListContains("option-row--selected"));
+            Assert.AreEqual("Coast road", row.Q<Label>("title").text);
+            Assert.AreEqual("4h · low risk", row.Q<Label>("detail").text);
+        }
+
+        [Test]
+        public void SelectingAnOptionRowIsAClassChangeAndNothingElse()
+        {
+            var row = new OptionRow("Coast road", "4h · low risk", () => { });
+            row.Selected = true;
+            Assert.IsTrue(row.ClassListContains("option-row--selected"),
+                "the handoff's selected treatment is a 2px ring and a white fill; both hang off this class");
+            row.Selected = false;
+            Assert.IsFalse(row.ClassListContains("option-row--selected"));
+        }
+
+        /// The class name is not a free choice, and this is the assertion
+        /// that says so. `Motion.uss` carries a `.option-row` rule -
+        /// `transition-property: border-color, background-color` on
+        /// `--motion-quick` - written one task before this component
+        /// existed, and its own header names `option-row` as one of the four
+        /// selectors that "match nothing today". Renaming this component's
+        /// root class silently returns that rule to matching nothing, and
+        /// the only visible symptom is that a row snaps between its two
+        /// treatments instead of easing. A still frame cannot see it and
+        /// this assembly has no panel to tick one, so the name is what gets
+        /// pinned.
+        [Test]
+        public void AnOptionRowsRootClassIsTheOneMotionUssKeysItsTransitionOn()
+        {
+            Assert.AreEqual("option-row", OptionRow.UssClassName);
+            Assert.IsTrue(new OptionRow("Coast road", "4h", () => { }).ClassListContains("option-row"));
+        }
+
+        [Test]
+        public void AStatCellsValueIsANumeralAndCarriesTheNumeralClass()
+        {
+            var cell = new StatCell("Travel", "4h 20m");
+            Assert.AreEqual("Travel", cell.Q<Label>("label").text);
+            var value = cell.Q<Label>("value");
+            Assert.AreEqual("4h 20m", value.text);
+            Assert.IsTrue(value.ClassListContains("t-num"),
+                "a stat value without .t-num escapes bible 10.6's 11px floor and the tabular face");
+        }
+
+        /// `Value` is the setter the three-cell row in the handoff's region
+        /// detail card re-binds on every selection change - the whole card
+        /// swaps when a region is picked. A cell that only reads its ctor
+        /// argument would look right in a screenshot and be wrong in use.
+        [Test]
+        public void AStatCellsValueCanBeReboundWithoutRebuildingTheCell()
+        {
+            var cell = new StatCell("Travel", "4h 20m");
+            cell.Value = "1h 05m";
+            Assert.AreEqual("1h 05m", cell.Q<Label>("value").text);
+            Assert.AreEqual("Travel", cell.Q<Label>("label").text);
+            Assert.IsTrue(cell.Q<Label>("value").ClassListContains("t-num"));
+        }
+
+        [Test]
+        public void AProgressBarClampsRatherThanOverflowing()
+        {
+            foreach (var (input, expected) in new[] { (0.5f, 50f), (-1f, 0f), (3f, 100f) })
+            {
+                var bar = new ProgressBar(input);
+                Assert.AreEqual(expected, bar.Q<VisualElement>("fill").style.width.value.value, 0.01f,
+                    $"fill {input} should clamp to {expected}%");
+            }
+        }
+
+        /// The handoff draws this bar in five different fills depending on
+        /// what it measures - teal for coverage, coral for risk, violet for
+        /// growth, amber for a warning, mute for a locked row - and the
+        /// modifier is how a caller picks one. No modifier means the default
+        /// violet and NO extra class, so a bar that was never given one
+        /// cannot be mistaken for one that was.
+        [Test]
+        public void AProgressBarsModifierIsAClassOnItsRootOrIsAbsent()
+        {
+            Assert.IsTrue(new ProgressBar(0.4f, "coral").ClassListContains("progress-bar--coral"));
+            var plain = new ProgressBar(0.4f);
+            Assert.IsFalse(plain.GetClasses().Any(c => c.StartsWith("progress-bar--", StringComparison.Ordinal)),
+                "a bar with no modifier must carry no modifier class");
+            Assert.IsTrue(plain.ClassListContains("progress-bar"));
+        }
+
+        [Test]
+        public void ASectionCardWithNoHeadingDoesNotReserveOne()
+        {
+            Assert.IsNull(new SectionCard().Q<Label>("heading"),
+                "an unheaded card reserved a heading row");
+            Assert.AreEqual("Lineage", new SectionCard("Lineage").Q<Label>("heading").text);
+        }
+
+        /// THE GREY SMUDGE, MADE STRUCTURAL. `Theme.uss`'s header note 2 and
+        /// the `Primitives` fixture both record the same measurement: UI
+        /// Toolkit clips `background-image` to the element's own box, so a
+        /// nine-sliced drop shadow put on the card it belongs to stretches
+        /// its centre region across the card's interior - card centre 248/245
+        /// against an unelevated 255, densest in the middle, nothing outside.
+        /// It shipped once this phase and only a capture caught it.
+        ///
+        /// So the two halves are asserted separately: the ROOT is the
+        /// wrapper and carries the elevation, and the element carrying the
+        /// `--surface` fill is a DESCENDANT of it and carries no elevation
+        /// class at all. Putting `elev-1` back on the surface reddens the
+        /// second assertion without needing a panel, a render or an eye.
+        [Test]
+        public void ASectionCardWearsItsElevationOnTheWrapperAndNotOnTheSurface()
+        {
+            var card = new SectionCard("Lineage");
+
+            Assert.IsTrue(card.ClassListContains("elev-1"),
+                "the section card's root is the elevation wrapper - Theme.uss header note 2");
+
+            var surface = card.Q<VisualElement>("surface");
+            Assert.IsNotNull(surface, "the card's --surface fill lives on a child of the wrapper, named 'surface'");
+            Assert.IsFalse(surface.ClassListContains("elev-1"),
+                "elevation on the surface itself paints a grey smudge across the card - UI Toolkit clips "
+                + "background-image to the element's own box, so the shadow has to be drawn by something larger");
+            Assert.IsFalse(surface.ClassListContains("elev-2"));
+            Assert.IsNotNull(surface.Q<VisualElement>("body"),
+                "the body sits inside the surface, not beside it in the shadow's padding");
+        }
+
+        [Test]
+        public void AnEmptyStateSaysSomethingRatherThanRenderingNothing()
+        {
+            var e = new EmptyState("No creatures yet.");
+            Assert.AreEqual("No creatures yet.", e.Q<Label>("message").text);
+        }
+
+        /// The glyph is `icons.uss`'s vocabulary, not a second one:
+        /// `icon` supplies the 19px box, the scale mode and the `--mute-soft`
+        /// tint, and `icon--<name>` supplies the raster. An empty state given
+        /// no glyph drops the element rather than reserving an empty 19px
+        /// square above the message - the same removed-not-hidden rule
+        /// `ScreenScaffold` applies to its back chevron.
+        [Test]
+        public void AnEmptyStatesGlyphIsAnIconsUssMarkOrIsNotThereAtAll()
+        {
+            var withGlyph = new EmptyState("Nothing in the Ark yet.", "ark");
+            var glyph = withGlyph.Q<VisualElement>("glyph");
+            Assert.IsNotNull(glyph);
+            Assert.IsTrue(glyph.ClassListContains("icon"), "the 19px box and the tint come from icons.uss");
+            Assert.IsTrue(glyph.ClassListContains("icon--ark"), "the raster comes from icons.uss");
+
+            Assert.IsNull(new EmptyState("Nothing in the Ark yet.").Q<VisualElement>("glyph"),
+                "a glyphless empty state reserved an empty icon box");
         }
     }
 }

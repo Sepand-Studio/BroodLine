@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using Broodline.Api;
+using Broodline.UI.Components;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -16,7 +18,8 @@ namespace Broodline.UI.Screens
     /// record survives" - so this view renders every node the server sent and
     /// filters none. A consumed parent is marked, not dropped; a tree that
     /// quietly omitted them would teach the opposite of what the confirm
-    /// dialog just promised.
+    /// dialog just promised. The generation card's two stat cells state that
+    /// same contrast as a number: how many the record holds, how many live.
     ///
     /// The server decides who is in the tree, who is consumed and what
     /// mutated. `LineageNode.pruned` exists on the wire and is NOT read here:
@@ -24,6 +27,23 @@ namespace Broodline.UI.Screens
     /// so a pruned ancestor is already absent from the response and a client
     /// filtering on the flag would be a second copy of a rule it cannot see
     /// the inputs to.
+    ///
+    /// `onBack` IS A CALLER'S ACTION AND CANNOT BE `ScreenHost.Pop` FROM
+    /// HERE. The phase 8 plan writes the chevron as "onBack -> ScreenHost.Pop";
+    /// `ScreenHost` is `Broodline.Game.Shell` and `Broodline.UI.asmdef`
+    /// references `Broodline.Model`, `Broodline.Net` and `Generated.Api` and
+    /// not `Broodline.Game`, so this assembly cannot name that type - the
+    /// same one-way dependency `ScreenScaffold`'s "it does NOT own
+    /// navigation" is written to. The view takes the action; wiring it to
+    /// `Pop` is the director's. Optional rather than required because every
+    /// caller in the tree today presents this screen with
+    /// `ScreenFlow.ShowAsync`, which is `ScreenHost.Show` and clears the back
+    /// stack - so today nobody passes one, AND NO CHEVRON IS DRAWN. That is
+    /// the honest rendering rather than a gap: `Pop` at depth zero is a
+    /// documented no-op, so a chevron wired to it there would be a control a
+    /// player taps to no effect, which reads as a broken app rather than as a
+    /// screen with no parent. The affordance appears the moment a caller
+    /// pushes this screen and hands over somewhere to go.
     [UxmlElement]
     public partial class LineageView : VisualElement
     {
@@ -35,8 +55,12 @@ namespace Broodline.UI.Screens
         public const string MutatedUssClassName = "mutated";
         public const string HighlightUssClassName = "highlight";
 
-        readonly Label _title;
-        readonly Label _notice;
+        /// The words that keep Founder, Mutated and Consumed off colour
+        /// alone - bible 10.4. `MarksFor` has the whole account.
+        public const string MarksUssClassName = "node__marks";
+        public const string MarkUssClassName = "node__mark";
+
+        readonly ScreenScaffold _scaffold;
         readonly VisualElement _generations;
         readonly Button _next;
 
@@ -49,10 +73,22 @@ namespace Broodline.UI.Screens
             var tree = Resources.Load<VisualTreeAsset>("LineageView");
             tree.CloneTree(this);
 
-            _title = this.Q<Label>("title");
-            _notice = this.Q<Label>("notice");
             _generations = this.Q<VisualElement>("generations");
             _next = this.Q<Button>("next");
+
+            // Composed, not inherited - ScreenScaffold's class comment has
+            // the reason and ScaffoldTests' sweep is what depends on it.
+            //
+            // pushed: true per the handoff's push table, and NO ACTION YET -
+            // so no chevron is drawn until Render is handed one. A closure
+            // over a field here would defeat that: it is never null, so the
+            // scaffold would draw a chevron on a screen with nowhere to go
+            // and a player would tap it to no effect at all. ScreenScaffold's
+            // `OnBack` carries the whole argument.
+            _scaffold = new ScreenScaffold(LineageScreen.Title, pushed: true);
+            _scaffold.Content.Add(_generations);
+            _scaffold.CtaRow.Add(_next);
+            Add(_scaffold);
 
             _next.clicked += () => _onNext?.Invoke();
         }
@@ -82,54 +118,103 @@ namespace Broodline.UI.Screens
         /// no way to see whether the view kept it. All it could check is
         /// that `bind` ran, which it always does. A guard that cannot fire on
         /// the failure it names is worse than none.)
-        public void Bind(LineageResponse lineage, Guid highlight, Action next)
+        ///
+        /// `onBack` IS optional for the opposite reason and the difference is
+        /// worth stating: a missing `next` strands the walk, and a missing
+        /// `onBack` draws no chevron at all - so it cannot strand anything.
+        public void Bind(LineageResponse lineage, Guid highlight, Action next, Action onBack = null)
         {
             if (next == null) throw new ArgumentNullException(nameof(next),
                 "A directed lineage turn needs somewhere to go. Use BindStandalone for a tab destination.");
-            Render(lineage, highlight, next);
+            Render(lineage, highlight, next, onBack);
         }
 
         /// The tree as a plain destination, with nothing waiting on it - a
         /// tab or a deep link rather than a beat. The continue button is
         /// hidden rather than dead, and choosing that is what calling this
         /// method means.
-        public void BindStandalone(LineageResponse lineage, Guid highlight)
+        public void BindStandalone(LineageResponse lineage, Guid highlight, Action onBack = null)
         {
-            Render(lineage, highlight, next: null);
+            Render(lineage, highlight, next: null, onBack: onBack);
         }
 
-        void Render(LineageResponse lineage, Guid highlight, Action next)
+        void Render(LineageResponse lineage, Guid highlight, Action next, Action onBack)
         {
             if (lineage == null) throw new ArgumentNullException(nameof(lineage));
 
-            _title.text = LineageScreen.Title;
             _next.text = LineageScreen.NextLabel;
             _next.style.display = next == null ? DisplayStyle.None : DisplayStyle.Flex;
             _onNext = next;
+            _scaffold.OnBack = onBack;
 
             var nodes = lineage.Nodes;
             var generations = LineageScreen.Generations(nodes);
 
-            _notice.text = generations.Count == 0 ? LineageScreen.EmptyNotice : string.Empty;
-
             _generations.Clear();
+
+            // The empty tree, as a state the game meant rather than as a
+            // screen that failed to load. It REPLACED a `notice` Label that
+            // carried an --amber-tint fill and --space-2 of padding
+            // unconditionally, so every populated capture of this screen
+            // before Phase 8 Task 9 shows an empty amber strip under the
+            // title - the banner rendering its own absence of text.
+            if (generations.Count == 0)
+            {
+                _generations.Add(new EmptyState(LineageScreen.EmptyNotice, "splice"));
+                return;
+            }
+
             for (var i = 0; i < generations.Count; i++)
             {
-                var generation = generations[i];
-                var row = new VisualElement
-                {
-                    name = "generation-" + CreatureLabel.Generation(generation),
-                };
-                row.AddToClassList(GenerationRowUssClassName);
-
-                foreach (var node in nodes)
-                {
-                    if (node == null || node.Generation != generation) continue;
-                    row.Add(NodeFor(node, highlight));
-                }
-
-                _generations.Add(row);
+                _generations.Add(CardFor(generations[i], nodes, highlight));
             }
+        }
+
+        /// One generation, as a card: the heading, the two counts, then the
+        /// creatures.
+        ///
+        /// THE CARD CARRIES `generation-row` AND IS STILL NAMED
+        /// `generation-&lt;badge&gt;`. Both are handles the tests and a deep link
+        /// reach a generation by, and neither belongs to `SectionCard` - the
+        /// component supplies the surface and the elevation and knows nothing
+        /// about lineage.
+        static VisualElement CardFor(int generation, ICollection<LineageNode> nodes, Guid highlight)
+        {
+            var card = new SectionCard(LineageScreen.GenerationHeading(generation))
+            {
+                name = "generation-" + CreatureLabel.Generation(generation),
+            };
+            card.AddToClassList(GenerationRowUssClassName);
+
+            var creatures = new VisualElement { name = "creatures" };
+            creatures.AddToClassList("generation-row__creatures");
+
+            // Counted in the loop that renders, rather than in two more
+            // passes over the same list: the filter is already here.
+            var recorded = 0;
+            var living = 0;
+            foreach (var node in nodes)
+            {
+                if (node == null || node.Generation != generation) continue;
+                recorded++;
+                if (string.IsNullOrEmpty(node.ConsumedAt)) living++;
+                creatures.Add(NodeFor(node, highlight));
+            }
+
+            // A ROW OF CELLS IS THE CONTAINER'S JOB. StatCell.uss's closing
+            // note has the measurement: a component's stylesheet reaches the
+            // component and its descendants and never its parent, so
+            // `flex-direction: row` for this strip lives in LineageView.uss.
+            var stats = new VisualElement { name = "stats" };
+            stats.AddToClassList("generation-row__stats");
+            stats.Add(new StatCell(LineageScreen.RecordedStatLabel,
+                recorded.ToString(CultureInfo.InvariantCulture)));
+            stats.Add(new StatCell(LineageScreen.LivingStatLabel,
+                living.ToString(CultureInfo.InvariantCulture)));
+
+            card.Body.Add(stats);
+            card.Body.Add(creatures);
+            return card;
         }
 
         static VisualElement NodeFor(LineageNode node, Guid highlight)
@@ -152,11 +237,10 @@ namespace Broodline.UI.Screens
                 highlight != Guid.Empty && node.CreatureId == highlight);
 
             element.Add(new Label { name = "label", text = LineageScreen.NodeLabel(node) });
-            element.Add(new Label
-            {
-                name = "state",
-                text = string.IsNullOrEmpty(node.ConsumedAt) ? string.Empty : LineageScreen.ConsumedLabel,
-            });
+
+            // THE SECOND CHANNEL, AND IT IS NOT DECORATION. See MarksFor.
+            var marks = MarksFor(node);
+            if (marks != null) element.Add(marks);
 
             var traits = new VisualElement { name = "traits" };
             AddTrait(traits, node.Trait1, node.Tier1);
@@ -166,13 +250,73 @@ namespace Broodline.UI.Screens
             return element;
         }
 
+        /// What is true about this creature, in words - or nothing at all.
+        ///
+        /// bible 10.4: "Colour never carries information alone." This screen
+        /// was the one place in the app that broke it. A lineage node draws
+        /// NO CREATURE - it is a label, a state line and two pips - so there
+        /// is no silhouette here to reinforce anything, and Founder and
+        /// Mutated were each carried by a 3px coloured border and by nothing
+        /// else. `Consumed` was already a word, which is the pattern the
+        /// other two now follow; `LineageScreen.ConsumedLabel`'s own comment
+        /// had said so all along - "the screen says so in words as well as in
+        /// a class name".
+        ///
+        /// It is also what closes Task 6's deferred palette collision without
+        /// moving a colour. The amber rail IS Skitter and the violet rail IS
+        /// Hollow, at dE 0.0, so on a screen where colour was the only
+        /// channel the rails read as species marks. With the words present,
+        /// amber can go on meaning Founder. Rendered evidence, and the three
+        /// costed alternatives that were rejected, are in
+        /// implementation/results/species-collision.md.
+        ///
+        /// RETURNS NULL RATHER THAN AN EMPTY ROW, AND THAT IS THE POINT OF
+        /// THE SIGNATURE. Phase 8 found eight banners drawn unconditionally
+        /// that merely emptied their text - a blank amber strip on this very
+        /// screen was one of them, removed in Task 9. The `state` Label this
+        /// replaces was the same shape: constructed for every node and given
+        /// `string.Empty` for the living ones. Measured, it collapsed to zero
+        /// height and was not a defect, but building the ninth one next to
+        /// where the eighth was diagnosed is not a thing to do. A node with
+        /// nothing to say gets no element.
+        static VisualElement MarksFor(LineageNode node)
+        {
+            var marks = new VisualElement { name = "marks" };
+            marks.AddToClassList(MarksUssClassName);
+
+            // Ordered as the creature's own history reads: what it was born
+            // as, what happened at its splice, what happened to it in the
+            // end. A node can carry more than one - a consumed founder is an
+            // ordinary thing - so the row wraps rather than choosing.
+            AddMark(marks, node.IsFounder, FounderUssClassName, LineageScreen.FounderLabel);
+            AddMark(marks, node.Mutated, MutatedUssClassName, LineageScreen.MutatedLabel);
+            // `consumedAt` is a TIMESTAMP, nullable on the wire - its
+            // presence is the fact, and the client never parses it.
+            AddMark(marks, !string.IsNullOrEmpty(node.ConsumedAt),
+                    ConsumedUssClassName, LineageScreen.ConsumedLabel);
+
+            return marks.childCount == 0 ? null : marks;
+        }
+
+        /// One word, or nothing. Named after itself so a test and a deep link
+        /// can reach a single mark, the same way every node is named after
+        /// its creature id.
+        static void AddMark(VisualElement into, bool applies, string modifier, string text)
+        {
+            if (!applies) return;
+            var mark = new Label { name = modifier, text = text };
+            mark.AddToClassList(MarkUssClassName);
+            mark.AddToClassList(MarkUssClassName + "--" + modifier);
+            into.Add(mark);
+        }
+
         /// A lineage node's traits are nullable on the wire (a pruned or very
         /// old record can carry none), so an absent trait adds no pip rather
         /// than an empty one.
         static void AddTrait(VisualElement into, string trait, int? tier)
         {
             if (string.IsNullOrEmpty(trait)) return;
-            var pip = new Components.TraitPip { name = trait };
+            var pip = new TraitPip { name = trait };
             // No `counters` reaches this Bind: the lineage response carries
             // no trait table, and `Broodline.UI` cannot derive one. The Codex
             // sheet is where a player reads what a trait answers.

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192" fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round">
+  <!-- Skitter, bible 1.2: "Small body, six long thin legs, tiny head". Swarm. -->
+  <path d="M84 92 C56 80 36 84 20 62"/>
+  <path d="M82 102 C52 100 30 108 16 110"/>
+  <path d="M84 114 C58 122 40 136 30 158"/>
+  <path d="M108 92 C136 80 156 84 172 62"/>
+  <path d="M110 102 C140 100 162 108 176 110"/>
+  <path d="M108 114 C134 122 152 136 162 158"/>
+  <g stroke="none" fill="#ffffff">
+    <ellipse cx="96" cy="104" rx="24" ry="18"/>
+    <circle cx="96" cy="78" r="11"/>
+  </g>
+</svg>

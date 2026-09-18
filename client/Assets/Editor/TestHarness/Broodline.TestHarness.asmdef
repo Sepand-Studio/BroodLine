@@ -1,0 +1,16 @@
+{
+  "name": "Broodline.TestHarness",
+  "rootNamespace": "Broodline.TestHarness",
+  "references": [
+    "Broodline.UI.Tests", "Broodline.Game.Tests", "Broodline.View.Tests",
+    "Broodline.Net.Tests", "Broodline.Benchmark.Tests", "Broodline.EditorBuild.Tests"
+  ],
+  "includePlatforms": ["Editor"],
+  "excludePlatforms": [],
+  "overrideReferences": true,
+  "precompiledReferences": ["nunit.framework.dll"],
+  "autoReferenced": false,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

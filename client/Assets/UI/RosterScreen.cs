@@ -40,6 +40,33 @@ namespace Broodline.UI
     /// a different thing from deciding liveness locally.
     public sealed class RosterScreen
     {
+        /// The scaffold's header. The handoff's own name for this screen
+        /// (README section 9, "Creature Roster"), not "Roster": the tab
+        /// vocabulary is Map/Ark/Splice/Lab/Allies and none of them is this
+        /// screen, which the handoff's push table reaches from the Splice
+        /// Chamber instead.
+        ///
+        /// HERE RATHER THAN IN `RosterView` for the reason `WaveScreens.cs`
+        /// states and the Task 15 review paid for: "a test that asserts a
+        /// view renders 'Start' cannot tell a view reading its model from a
+        /// view holding a literal." This class already authors
+        /// `IncompleteNotice`, so it is where the screen's words live.
+        public const string Title = "Creature Roster";
+
+        /// What the grid says when it holds nothing AND the cache knows that
+        /// is the whole truth.
+        ///
+        /// SHOWN ONLY WHEN `IsComplete`, AND THAT CONDITION IS THE WHOLE
+        /// POINT OF THE SENTENCE. `IncompleteNotice`'s own comment is that
+        /// "you own nothing" and "we could not find out what you own" must
+        /// never read the same; this is the first half, so a view that
+        /// rendered it over a never-loaded cache would be telling the exact
+        /// lie `RosterLoadState` exists to prevent. The second half is
+        /// `IncompleteNotice`, and `RosterView` puts it in the scaffold's
+        /// footer where it is on screen at the same time.
+        public const string EmptyMessage =
+            "No creatures yet. Claim a resource node and your first arrivals land here.";
+
         private readonly Dictionary<Guid, CreatureDto> _known = new Dictionary<Guid, CreatureDto>();
         private readonly List<CreatureDto> _order = new List<CreatureDto>();
 

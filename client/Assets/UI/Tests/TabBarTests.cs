@@ -71,6 +71,45 @@ namespace Broodline.UI.Tests
             Assert.IsTrue(bar.Children().Cast<Button>().All(b => !b.ClassListContains(TabBar.ActiveTabUssClassName)));
         }
 
+        /// The plan wrote this against a `Tab` ENUM that does not exist -
+        /// `TabBar.Render` takes `IReadOnlyList<string>` and names each button
+        /// `"tab-" + tab`, and a bare `new TabBar()` has no children at all
+        /// until Render is called. Same assertions, same messages, against the
+        /// API that is actually here.
+        ///
+        /// The literals ("icon", "icon--" + lowercase) are hardcoded rather
+        /// than read off `TabBar.IconUssClassName`, deliberately: `icons.uss`
+        /// hardcodes them too, and a test that renames itself in step with the
+        /// code it guards would not have noticed the sheet going stale.
+        ///
+        /// IF YOU WEAKEN-TEST THIS, READ THE FAILURE LIST, NOT THE EXIT CODE.
+        /// `run-unity-tests.sh EditMode` exits 2 in its HEALTHY state, because
+        /// `MainThreadAffinityTests.NoConfigureAwaitFalse_InCodeThatTouchesTheUi`
+        /// is a correct, known failure against three deliberate
+        /// `.ConfigureAwait(false)` sites in SessionTests.cs. So the exit code
+        /// is 2 whether or not this test passes and cannot tell you anything.
+        /// Measured, by deleting the `icon--` line in TabBar.cs and putting it
+        /// back: weakened gives 272/270/2 with "Map's glyph is not its own",
+        /// restored gives 272/271/1. The COUNTS and the named failures are the
+        /// discriminator.
+        [Test]
+        public void EveryTabCarriesItsOwnGlyph()
+        {
+            var tabs = new List<string> { "Map", "Ark", "Splice", "Lab", "Allies" };
+            var bar = new TabBar();
+            bar.Render(tabs, "Map", _ => { });
+
+            foreach (var tab in tabs)
+            {
+                var button = bar.Q<Button>("tab-" + tab);
+                Assert.IsNotNull(button, $"no button for {tab}");
+                var icon = button.Q<VisualElement>(className: "icon");
+                Assert.IsNotNull(icon, $"{tab} has no .icon child - a nav bar of bare words");
+                Assert.IsTrue(icon.ClassListContains("icon--" + tab.ToLowerInvariant()),
+                              $"{tab}'s glyph is not its own");
+            }
+        }
+
         [Test]
         public void Render_NamesEachButtonAfterItsOwnTab()
         {

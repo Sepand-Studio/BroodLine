@@ -30,6 +30,25 @@ namespace Broodline.EditorBuild
     /// reconsidered before anything ships to a real player: a shipped app that
     /// exposes its Documents directory is handing the player its own save data.
     ///
+    /// THAT RECONSIDERATION HAS NOW HAPPENED, and the answer was to scope this
+    /// file rather than to remove it. `BootBuilder` builds the release with
+    /// `BuildOptions.None`, and the first line of the callback stands down on
+    /// anything that is not a development build. Nothing about the two
+    /// development builders changes: WaveBuilder and BenchmarkBuilder both pass
+    /// `BuildOptions.Development`, so both still get both keys, and the
+    /// command-line pull of `replay.bin` and the sweep CSV still works exactly
+    /// as it did.
+    ///
+    /// THE FLAG IS `EditorUserBuildSettings.development`, NOT A BuildOptions
+    /// VALUE, because `[PostProcessBuild]` hands the callback only a target and
+    /// a path - the options of the build in flight are not among its arguments.
+    /// `BuildPipeline.BuildPlayer` applies `BuildPlayerOptions.options` to that
+    /// editor flag, which is what makes it stand for the build being made
+    /// rather than for whatever the editor was last set to by hand. BootBuilder
+    /// logs the flag either side of its build for that reason: if a release
+    /// build ever reports it True, this guard did not fire, and the evidence is
+    /// in the build log rather than in a shipped Info.plist nobody opened.
+    ///
     /// THREE THINGS ABOUT HOW THIS IS BUILT, each the correction of a previous
     /// attempt.
     ///
@@ -58,6 +77,13 @@ namespace Broodline.EditorBuild
         [PostProcessBuild(100)]
         public static void OnPostProcessBuild(BuildTarget target, string pathToBuiltProject)
         {
+            // A RELEASE BUILD GETS NEITHER KEY. First line, ahead of even the
+            // target check, so there is no path on which a non-development
+            // build reaches the plist at all - including the BuildFailedException
+            // below, which exists to protect the development pull and has no
+            // business failing a release.
+            if (!EditorUserBuildSettings.development) return;
+
             if (target != BuildTarget.iOS) return;
 
             string plistPath = Path.Combine(pathToBuiltProject, "Info.plist");

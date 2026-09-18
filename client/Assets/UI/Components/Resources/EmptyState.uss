@@ -1,0 +1,33 @@
+/* A centred mark over a muted sentence, with room around it.
+ *
+ * NOTHING IN THE HANDOFF DESIGNS THIS STATE - all 23 of its screens render
+ * populated - so there is no rule here being reinterpreted. What the layer
+ * does give is the vocabulary: `icon` for the mark, `t-secondary` for the
+ * sentence, and a spacing scale to place them on.
+ *
+ * --space-6 IS THE AIR, and it is what makes this read as a state rather
+ * than as a gap. 24px is the scale's top step and was sitting unreferenced
+ * by anything in the project; an empty state is exactly the case it was
+ * added for, because less than that and a two-line message inside a card
+ * looks like content that failed to arrive.
+ */
+.empty-state {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-6);
+}
+
+/* Scoped to the glyph's own rule rather than put as a margin-top on the
+ * message, so an empty state with no glyph does not keep the 8px the glyph
+ * would have needed. */
+.empty-state > .icon {
+    margin-bottom: var(--space-2);
+}
+
+/* Layout only - 11px and --mute come from `t-secondary`. A message here is
+ * a sentence, not a label, so it wraps. */
+.empty-state__message {
+    white-space: normal;
+    -unity-text-align: middle-center;
+}

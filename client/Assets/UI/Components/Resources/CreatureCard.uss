@@ -30,6 +30,79 @@
     margin-bottom: 8px;
 }
 
+/* ==========================================================================
+ * THE INTERIM SPECIES PROXIES. Phase 8 Task 13.
+ *
+ * Six placeholder silhouettes drawn from bible 1.2's silhouette column
+ * verbatim - "Low dome, four stubby legs, no neck", "Tiny body, stilt legs,
+ * long forward neck", and so on. They are placeholder art AND a pre-test of
+ * bible 10.2 rule 1, which `SilhouetteTests` asserts against the same six
+ * PNGs: if two of them collide at 40px, the collision is in the DESIGN, and
+ * `broodline_rig_proof.md` section 6 routes that back to the bible rather
+ * than to the art team.
+ *
+ * `SpeciesProxy.Apply` is what puts these classes on an element. A modifier
+ * with no `.proxy` beside it draws nothing, because the scale mode lives on
+ * the base class - that is deliberate, so a half-applied pair fails visibly
+ * rather than drawing a stretched creature.
+ *
+ * AUTHORED WHITE, NOT BLACK, AND THAT IS LOAD-BEARING - the same trap
+ * `icons.uss` records, and the one the plan told these to walk into.
+ * -unity-background-image-tint-color MULTIPLIES the texture. The plan's Step
+ * 1 says "Flat black on transparent"; black times any tint is still black,
+ * so all six species would have rendered as one identical black mark with no
+ * error anywhere - not a dropped declaration, not a warning, just six cards
+ * that look deliberate and are wrong. The SVG sources fill white; "flat
+ * black" is what the TEST reads, and it reads alpha, which is unaffected.
+ *
+ * SOURCES ARE COMMITTED BESIDE THE RASTERS, which departs from the plan's
+ * "commit only the PNGs". Task 4 could drop its SVGs because lucide.dev is
+ * their durable source; these six have no source but themselves, and the
+ * plan's own instruction to "author them as SVG for editability" buys
+ * nothing if the editable thing is deleted. `splice.svg` - Task 4's one
+ * hand-drawn glyph - is committed for exactly this reason and is the
+ * precedent followed here. Re-rasterise with, from the repo root:
+ *
+ *     cd client/Assets/UI/Art/proxies
+ *     for f in *.svg; do rsvg-convert -w 192 -h 192 -o "${f%.svg}.png" "$f"; done
+ *
+ * 192px authored, drawn at 64 in this slot and read at 40 by the test - the
+ * same 3x convention as the icons.
+ * ========================================================================== */
+.proxy {
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.proxy--vetch {
+    background-image: url("project:///Assets/UI/Art/proxies/vetch.png");
+    -unity-background-image-tint-color: var(--teal);
+}
+
+.proxy--ember {
+    background-image: url("project:///Assets/UI/Art/proxies/ember.png");
+    -unity-background-image-tint-color: var(--coral);
+}
+
+.proxy--skitter {
+    background-image: url("project:///Assets/UI/Art/proxies/skitter.png");
+    -unity-background-image-tint-color: var(--amber);
+}
+
+.proxy--hollow {
+    background-image: url("project:///Assets/UI/Art/proxies/hollow.png");
+    -unity-background-image-tint-color: var(--violet);
+}
+
+.proxy--loam {
+    background-image: url("project:///Assets/UI/Art/proxies/loam.png");
+    -unity-background-image-tint-color: var(--green);
+}
+
+.proxy--pale {
+    background-image: url("project:///Assets/UI/Art/proxies/pale.png");
+    -unity-background-image-tint-color: var(--slate);
+}
+
 .creature-card__header {
     flex-direction: row;
     justify-content: space-between;
@@ -82,12 +155,12 @@
  * treatment in the system; the motion half is not implemented. */
 .creature-card.aberrant {
     border-width: 2px;
-    border-color: #ffffff;
-    background-color: #fdfcff;
+    border-color: var(--surface);
+    background-color: var(--surface-raised);
 }
 
 .creature-card.aberrant .creature-card__silhouette {
-    background-color: #f3eefc;
+    background-color: var(--violet-tint);
 }
 
 /* Committed to a wave: still legible, visibly not actionable. */

@@ -1,46 +1,76 @@
-/* A designed loss (wave 6). bible 4.11 makes this a TEACHING screen, not a
- * failure screen: the diagnosis is the content and the Pale grant is the
- * recovery, so the resupply panel is green while only the headline is coral.
+/* A designed loss (wave 6), composed onto ScreenScaffold. bible 4.11 makes
+ * this a TEACHING screen, not a failure screen: the diagnosis is the content
+ * and the Pale grant is the recovery, so only the headline is coral.
+ *
+ * THIRTY-ONE DECLARATIONS BECAME TEN IN PHASE 8 TASK 11 AND NONE OF THE
+ * TWENTY-ONE WAS REPLACED BY A COPY HERE, which is the test of whether a
+ * screen composes the layer or re-derives it:
+ *   - the root's `padding: var(--gutter)` and `align-items: center` are the
+ *     scaffold's content region, which puts the gutter on
+ *     `unity-scroll-view__content-container` so an elevated card's shadow is
+ *     not clipped at the viewport edge.
+ *   - `__headline`'s size, weight and ink are `.t-hero` and `.t-danger`.
+ *     Both are single-class selectors in Theme.uss and `.t-danger` is
+ *     declared after `.t-hero`, so the coral wins the colour and the 28px
+ *     survives.
+ *   - `__diagnosis`'s --surface fill, --radius-card, 1px --divider border and
+ *     --space-4 of padding were SectionCard's surface written out again,
+ *     minus the elevation - five declarations against a component that
+ *     already carried all five and a drop shadow. Its --text-card-title is
+ *     `.t-card-title` and its --ink is that class's too.
+ *   - `__granted`'s size, weight and ink are `.t-secondary` and `.t-success`.
+ *   - `__grants`'s --green-tint fill, row radius, 12px padding and
+ *     `width: 100%` are gone and nothing took their place: that panel drew a
+ *     full-width green block behind a single 160px card, and the whole block
+ *     drew blank on a defeat with no resupply. WaveDefeatView.Bind has it.
+ *   - `__grant`'s size, ink and wrap were describing a Label that has not
+ *     been in this tree since the grants became CreatureCards. The rule
+ *     survives as the one line the card grid does need, which is the gap
+ *     under a wrapped row.
+ *   - `__retry`'s top margin and full width are the CTA row's own padding and
+ *     its `flex-direction: column`, and the button's whole treatment is
+ *     Theme's `.btn-primary`.
  */
-.wave-defeat-view { flex-direction: column; padding: var(--gutter); align-items: center; }
+.wave-defeat-view { flex-grow: 1; }
 
+
+/* Sentences, not labels, so they wrap. The headline runs to three lines at
+ * 28px on a 430 frame with the wave-6 breach in it, and the diagnosis is the
+ * longest single sentence in the app. */
+/* CENTRED AS TEXT, NOT AS LAYOUT. This screen's root used to carry
+ * `align-items: center` and it was dropped on the claim that the scaffold's
+ * content region supplies it. It does not - `.screen-scaffold__content` is
+ * `flex-grow` alone and its content-container rule sets padding only - so a
+ * short verdict stretched to full content width and rendered flush left,
+ * while SpliceRevealView, the third screen of the same beat, stayed centred.
+ *
+ * The fix is text-align rather than the container's `align-items`, because
+ * this is a Label whose TEXT is off-centre, not a box in the wrong place.
+ * Centring the content container instead makes every sibling shrink-wrap,
+ * which collapses the stat row into overlapping cells - measured, in a
+ * capture, before this was written. */
 .wave-defeat-view__headline {
-    font-size: var(--text-hero);
-    color: var(--coral-text);
-    -unity-font-style: bold;
     white-space: normal;
+    -unity-text-align: middle-center;
     margin-bottom: var(--space-3);
 }
 
-/* "Chill or Ward would have answered it." The single most important sentence
- * on the screen - it is the counter system's teaching surface. */
-.wave-defeat-view__diagnosis {
-    font-size: var(--text-card-title);
-    color: var(--ink);
-    background-color: var(--surface);
-    border-radius: var(--radius-card);
-    border-width: 1px;
-    border-color: var(--divider);
-    padding: var(--space-4);
-    white-space: normal;
-    width: 100%;
-    margin-bottom: var(--space-3);
-}
+.wave-defeat-view__diagnosis { white-space: normal; }
 
-.wave-defeat-view__granted {
-    font-size: var(--text-secondary);
-    color: var(--green-text);
-    -unity-font-style: bold;
-    margin-bottom: var(--space-1);
-}
+.wave-defeat-view__resupply { flex-direction: column; }
 
+/* Sits directly over the cards it introduces, so it reads as their caption
+ * rather than as a line of its own. */
+.wave-defeat-view__granted { margin-bottom: var(--space-1); }
+
+/* The resupply, laid out like RosterView's grid and for the same reason: a
+ * CreatureCard is a fixed 160px, two of them plus the 12px gutter leave 406
+ * of space for 320 of card, and `space-between` is what puts a pair against
+ * both edges and an odd third at the left where the next row starts. */
 .wave-defeat-view__grants {
-    background-color: var(--green-tint);
-    border-radius: var(--radius-row);
-    padding: var(--space-3);
-    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between;
 }
 
-.wave-defeat-view__grant { font-size: var(--text-body); color: var(--green-text); white-space: normal; }
-
-.wave-defeat-view__retry { margin-top: var(--space-4); width: 100%; }
+.wave-defeat-view__grant { margin-bottom: var(--space-3); }

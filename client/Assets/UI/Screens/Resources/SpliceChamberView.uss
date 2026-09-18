@@ -1,7 +1,32 @@
-/* Beat 5. The one screen that consumes creatures, so the destruction notice
- * is a coral panel rather than a coloured line - splice_confirm_spec 4 wants
- * the consequence unmissable. */
-.splice-chamber-view { flex-direction: column; padding: var(--gutter); }
+/* Beat 5, composed onto ScreenScaffold. The one screen that consumes
+ * creatures, so the destruction notice is a coral panel rather than a
+ * coloured line - splice_confirm_spec 4 wants the consequence unmissable -
+ * and it is the LAST child of the content region, directly above the CTA,
+ * which is section 3's own requirement.
+ *
+ * NINE RULES' WORTH OF TREATMENT LEFT THIS FILE IN PHASE 8 TASK 10 AND NONE
+ * WAS REPLACED BY A COPY HERE, which is the test of whether a screen composes
+ * the layer or re-derives it:
+ *   - the root's `padding: var(--gutter)` is the scaffold's content region.
+ *   - the destruction notice, the coverage warning and the mutation line each
+ *     restated a fill, a radius and --space-2/3 of padding that are exactly
+ *     Theme's `.panel-coral`, `.panel-amber` and `.panel-violet`, plus an ink
+ *     that is exactly `.t-danger`, `.t-warn` and `.t-violet`. Twelve
+ *     declarations, three components, one vocabulary.
+ *   - `__forecast`'s surface, card radius, divider border and --space-3
+ *     padding were a re-derivation of `SectionCard`, which now draws it - and
+ *     which also brings the elevation the hand-rolled version never had.
+ *   - `.forecast-row`'s own font-size is `StatCell`'s `t-micro`/`t-num` pair.
+ *     That swap is the point of the change rather than a side effect: see
+ *     SpliceChamberView.ForecastCellFor.
+ *   - `__cta`'s top margin is the CTA row's padding, and its whole treatment
+ *     is Theme's `.btn-primary`.
+ *
+ * WHAT IS LEFT IS THE FOUR THINGS NEITHER THE FRAME NOR A COMPONENT KNOWS:
+ * that the parents sit side by side, that a locked-out one is dimmed, that
+ * the forecast cells sit in a row, and that three of these labels wrap.
+ */
+.splice-chamber-view { flex-grow: 1; }
 
 .splice-chamber-view__parents { flex-direction: row; justify-content: space-between; }
 
@@ -9,53 +34,24 @@
  * bible 3.3's rule read from the splice side. */
 .splice-chamber-view__parents > .creature-card.locked-out { opacity: 0.4; }
 
-.splice-chamber-view__destruction-notice {
-    margin-top: var(--space-3);
-    white-space: normal;
-    color: var(--coral-text);
-    background-color: var(--coral-tint);
-    border-radius: var(--radius-row);
-    padding: var(--space-3);
-    font-size: var(--text-body);
-}
+/* THE HANDOFF'S THREE-CELL STAT ROW, AND THREE IS THE ACTUAL CEILING RATHER
+ * THAN A HOPE. `combatPool` (services/api/src/splice/distribution.ts) is the
+ * two parents' four combat slots; `merged()` drops every entry carrying the
+ * locked trait and then collapses duplicate (trait, tier) pairs, so `combat2`
+ * can hold at most three distinct outcomes and usually holds two. A row of
+ * `flex-basis: 0` cells therefore never gets narrower than a third of the
+ * card, which is what makes the row safe where an unbounded list would not
+ * be. */
+.splice-chamber-view__forecast { flex-direction: row; }
 
-.splice-chamber-view__coverage-warning {
-    margin-top: var(--space-2);
-    white-space: normal;
-    color: var(--amber-text);
-    background-color: var(--amber-tint);
-    border-radius: var(--radius-row);
-    padding: var(--space-2);
-    font-size: var(--text-body);
-}
+/* The empty case is one element in a row of cells, so it has to be told to
+ * take the whole line - a StatCell grows because StatCell.uss says so, and
+ * nothing says it for an EmptyState. */
+.splice-chamber-view__forecast > .empty-state { flex-grow: 1; }
 
-.splice-chamber-view__mutation {
-    margin-top: var(--space-2);
-    color: var(--violet-text);
-    background-color: var(--violet-tint);
-    border-radius: var(--radius-row);
-    padding: var(--space-2);
-    font-size: var(--text-body);
-    -unity-font-style: bold;
-}
-
-.splice-chamber-view__forecast {
-    flex-direction: column;
-    margin-top: var(--space-3);
-    background-color: var(--surface);
-    border-radius: var(--radius-card);
-    border-width: 1px;
-    border-color: var(--divider);
-    padding: var(--space-3);
-}
-
-/* Odds. Every number here is decision-bearing, so none drops below 11px. */
-.forecast-row {
-    flex-direction: row;
-    justify-content: space-between;
-    padding-top: 5px;
-    padding-bottom: 5px;
-    font-size: var(--text-secondary);
-}
-
-.splice-chamber-view__cta { margin-top: var(--space-4); }
+/* Three sentences, not labels, so they wrap. The coverage warning also
+ * COLLAPSES when the server named nothing - SpliceChamberView.Bind has the
+ * measurement. */
+.splice-chamber-view__mutation { white-space: normal; margin-top: var(--space-2); }
+.splice-chamber-view__coverage-warning { white-space: normal; margin-top: var(--space-2); }
+.splice-chamber-view__destruction-notice { white-space: normal; margin-top: var(--space-3); }

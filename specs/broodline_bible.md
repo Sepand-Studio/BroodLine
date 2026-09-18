@@ -45,7 +45,14 @@ Each is distinguishable in pure silhouette at 40px. Shape carries role before an
 | **Skitter** | Swarm | **Sprint**, Litter | `#e8b34a` | Small body, six long thin legs, tiny head |
 | **Hollow** | Sniper | **Reach**, **Pierce** | `#7a6ac0` | Tiny body, stilt legs, long forward neck |
 | **Loam** | Support | Regrow, **Burrow** | `#7cc492` | Segmented ground-hugger, blunt snout, no legs |
-| **Pale** | Control | Screen, **Chill** | `#a9b0c4` | Broad wing arc, small hanging body |
+| **Pale** | Control | Screen, **Chill** | `#c6cede` | Broad wing arc, small hanging body |
+
+> **Pale moved, 2026-09-17:** `#a9b0c4` → `#c6cede`, in Phase 8 Task 6, to take
+> the palette's worst colour-blind pair (Vetch/Pale) from ΔE 7.2 to 17.3. It is
+> the only species colour this project has changed. `Tokens.uss` (`--slate`) and
+> `PaletteContrast.Species` are the live values;
+> `implementation/results/palette-decision.md` has the measurement, and §10.4
+> carries the constraint the move puts on the art.
 
 **Bold traits are counters.** Eight of the twelve answer a raider; the remaining four — Carapace, Litter, Regrow, Screen — are survivability and economy traits that counter nothing by design.
 
@@ -1038,6 +1045,37 @@ The split is clean: **the body says which, the card says how much.**
 **Aberrant traits take an iridescent white-hot treatment** with subtle motion — the only animated treatment in the system. As a class rather than a tier, an Aberrant is a distinct marker rather than a fourth pip. Keeping it white rather than gold avoids colliding with the map's gold Apex Vein pulse.
 
 **Colour never carries information alone.** Pip count works in greyscale; species colour is reinforced by silhouette.
+
+### A constraint on the species art, measured 2026-09-17
+
+**A Pale creature cannot be drawn as one flat colour.** Phase 8 tinted six
+interim proxies and measured each species colour as a flat fill on the creature
+card's `--surface-sunk` `#f8f6fc` silhouette slot:
+
+| Species | Tint | Contrast vs the slot |
+|---|---|---|
+| Hollow | `#7a6ac0` | **4.21 : 1** |
+| Vetch | `#6ba7c0` | 2.47 : 1 |
+| Ember | `#e5867a` | 2.44 : 1 |
+| Loam | `#7cc492` | 1.93 : 1 |
+| Skitter | `#e8b34a` | 1.78 : 1 |
+| **Pale** | `#c6cede` | **1.47 : 1 — effectively invisible** |
+
+Read off the capture, the whole Pale creature moves no channel by more than 50 of
+255. **This is not a defect in the proxies; it is a prediction about the real
+art.** A flat one-colour silhouette has no internal value structure — Phase 9's
+creatures will have outline, shading and a darker core, and Pale specifically
+**will need its own value structure, an outline, or a darker slot behind it.**
+Hue alone will not carry it on a near-white card.
+
+**It is the direct cost of an improvement, and both calls were right.** §1.2's
+move of Pale from `#a9b0c4` to `#c6cede` took the palette's worst colour-blind
+pair from ΔE 7.2 to 17.3, and took Pale's contrast against the card from about
+1.9:1 to 1.47:1 — lightening a colour on a near-white surface is the same
+operation as hiding it. **Both decisions were correct against the measurements
+available at the time**; contrast-against-a-card was not measurable when Pale
+moved, because no species colour had been applied to a surface yet.
+`implementation/results/species-collision.md` has the measurement.
 
 ## 10.5 Raiders
 

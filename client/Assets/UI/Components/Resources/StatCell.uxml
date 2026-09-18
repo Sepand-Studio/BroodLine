@@ -1,0 +1,5 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="StatCell.uss" />
+    <ui:Label name="label" class="stat-cell__label t-micro" />
+    <ui:Label name="value" class="stat-cell__value t-num" />
+</ui:UXML>

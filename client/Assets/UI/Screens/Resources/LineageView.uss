@@ -4,35 +4,60 @@
  * creature does not change colour between the roster and the tree. The
  * previous pairing was a blue founder and a gold mutation, which collided
  * with the card's gold founder ring.
+ *
+ * THOSE TWO COLOURS ARE ALSO TWO SPECIES' COLOURS - Hollow is exactly
+ * --violet and Skitter exactly --amber, both at dE 0.0, measured in Task 6.
+ *
+ * SETTLED IN TASK 13, AND NEITHER COLOUR MOVED. The six proxies were drawn,
+ * tinted and captured, and the render moved the problem: on any screen that
+ * DRAWS a creature the collision is mild, because a 2px founder frame and a
+ * gold animal are different shapes in different places and bible 10.4's
+ * "species colour is reinforced by silhouette" is doing its job. THIS screen
+ * draws no creature at all, so Founder and Mutated were each carried by a
+ * 3px border and nothing else - a 10.4 violation on its own terms, before
+ * any species colour existed, and the reason the rails read as species
+ * marks. The fix was a second channel, not a repaint: `.node__mark` below
+ * writes all three facts in words. Moving the UI roles to new colours and
+ * moving the two species colours were both costed and rejected -
+ * implementation/results/species-collision.md has the evidence and the
+ * reasoning. PaletteContrastTests' comment carries the same note from the
+ * other end.
+ *
+ * WHAT LEFT THIS FILE IN PHASE 8 TASK 9: the root's gutter padding and the
+ * `__title` rule are the scaffold's header and content region; the
+ * `__next` margin is the CTA row's padding; `__notice` is gone entirely,
+ * replaced by an `EmptyState` that exists only when the tree is empty rather
+ * than a banner that drew an empty amber strip on every populated tree.
  */
-.lineage-view { flex-direction: column; padding: var(--gutter); }
-
-.lineage-view__title {
-    font-size: var(--text-screen-title);
-    color: var(--ink);
-    -unity-font-style: bold;
-    margin-bottom: var(--space-2);
-}
-
-.lineage-view__notice {
-    color: var(--amber-text);
-    background-color: var(--amber-tint);
-    border-radius: var(--radius-row);
-    padding: var(--space-2);
-    white-space: normal;
-    font-size: var(--text-body);
-}
+.lineage-view { flex-grow: 1; }
 
 .lineage-view__generations { flex-direction: column; }
 
-.generation-row { flex-direction: row; flex-wrap: wrap; margin-bottom: var(--space-3); }
+/* A ROW OF CELLS AND A ROW OF CREATURES ARE BOTH THE CONTAINER'S JOB, and
+ * StatCell.uss's closing note is why they are declared here rather than in
+ * the components: a component's sheet reaches the component and its
+ * descendants and never its parent, so nothing a StatCell carries can make
+ * the strip holding it a row. The -4px cancels the half-gap a cell carries
+ * on each of its own outer sides, so the strip sits flush with the card. */
+.generation-row__stats {
+    flex-direction: row;
+    margin-left: -4px;
+    margin-right: -4px;
+    margin-bottom: var(--space-3);
+}
 
+.generation-row__creatures { flex-direction: row; flex-wrap: wrap; }
+
+/* --surface-sunk, not --surface: a node now sits INSIDE a SectionCard whose
+ * own fill is --surface, and white on white left the tiles readable only by
+ * their 3px border. The token's own note is "inset rows, unselected
+ * options", which is what a creature tile in a generation card is. */
 .node {
     flex-direction: column;
     margin-right: var(--space-2);
     margin-bottom: var(--space-2);
     padding: var(--space-2);
-    background-color: var(--surface);
+    background-color: var(--surface-sunk);
     border-radius: var(--radius-tile);
     border-left-width: 3px;
     border-left-color: var(--divider);
@@ -41,10 +66,51 @@
 .node.founder  { border-left-color: var(--amber); }
 .node.mutated  { border-left-color: var(--violet); }
 
+/* THE SECOND CHANNEL. bible 10.4 - "Colour never carries information alone."
+ * The two rules above are 3px of colour on a tile that draws no creature, so
+ * until Task 13 they were the WHOLE signal for Founder and Mutated. These
+ * write the same facts in words, and `LineageView.MarksFor` builds the row
+ * only when there is something in it - a node with nothing to say gets no
+ * element, which is the eight-times-over lesson of this phase.
+ *
+ * ONE NEUTRAL INK FOR ALL THREE, and that is the whole point of the fix.
+ * Drawing "Founder" in --amber and "Mutated" in --violet would put both
+ * facts straight back onto the colour they were just taken off, and would
+ * read as a tidier version of the same defect.
+ *
+ * --text-secondary, not --text-micro. bible 10.6's 11px floor is written
+ * about numbers and these are words, so 10px would be legal - but a mark
+ * that a player has to be able to read INSTEAD of the colour is not the
+ * place to spend the last legible point.
+ *
+ * --ink, NOT --mute, AND THAT WAS MEASURED RATHER THAN CHOSEN. These were
+ * --mute for one capture. `Consumed` had been a plain Label - Theme.uss
+ * gives those --ink at --text-body - so demoting it to a secondary grey made
+ * the ONE fact this screen already stated in words HARDER to read than it
+ * was before, and worst on exactly the tiles that need it: a consumed node
+ * carries opacity 0.55, which multiplies whatever colour is set. Measured
+ * off the captures, the darkest pixel of `Consumed` on a dimmed tile went
+ * from 181 to 208 of 255. A mark that stands in for a colour cannot be
+ * quieter than the colour was. This is the same size and ink the old state
+ * line had, one point down so it sits under the name rather than beside it.
+ *
+ * NO COLOUR OF ITS OWN PER MARK, for the reason above: three words in one
+ * ink, and the rail keeps the hue. */
+.node__marks {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-top: var(--space-1);
+}
+
+.node__mark {
+    font-size: var(--text-secondary);
+    -unity-font-style: bold;
+    color: var(--ink);
+    margin-right: var(--space-2);
+}
+
 /* Dimmed, never removed: a consumed parent still being in the record is the
  * thing this screen exists to show. */
 .node.consumed { opacity: 0.55; }
 
 .node.highlight { background-color: var(--violet-tint); }
-
-.lineage-view__next { margin-top: var(--space-4); }
