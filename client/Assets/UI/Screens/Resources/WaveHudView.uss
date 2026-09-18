@@ -21,18 +21,98 @@
    token palette is the semantic colour of the bars, so a chilled raider is
    the same teal as Vetch everywhere else. bible 10.1 asks for the interface
    to be recessive and the creatures to carry the colour - over live combat
-   that argument points this way. */
+   that argument points this way.
+
+   AND THIS IS WHY IT TAKES NO ScreenScaffold. It is an overlay, not a screen:
+   WaveRunner adds it to the wave scene's own `document.rootVisualElement`
+   and it never reaches ScreenHost, never enters the back stack, and has no
+   header, no CTA row and nothing to scroll. ScaffoldTests exempts it BY NAME
+   for that reason, and the exemption is asserted to be exactly two names, so
+   giving this file a scaffold to satisfy a sweep - or moving the type out of
+   Broodline.UI.Screens to dodge one - would both be working around the test
+   rather than with it.
+
+   WHAT PHASE 8 TASK 11 CHANGED, since "no scaffold" is not "no work". Three
+   raw colours left this file and the last two bespoke surfaces on it became
+   the vocabulary the rest of the app uses:
+     - rgba(46, 42, 61, 0.55) on the track is --hud-scrim, which IS --ink-deep
+       at 55% and is now a token because the readout wants the same fill. It
+       was a raw rgba() sitting in the one file verify-uss-tokens.sh's own
+       header names as the reason that gate exists - and rgba() is not hex, so
+       check 1 never saw it.
+     - rgb(250, 249, 252) and rgb(240, 238, 246), the readout's ink and the
+       tag's, are one --surface. They were six levels apart, which is not a
+       hierarchy anybody reads; over a scene that changes every frame both
+       want the most contrast available, and one ink is one fewer pair to keep
+       in step.
+     - the readout is a chip rather than bare text, and each bar is wrapped in
+       `.elev-1`. Both are the same argument: on --paper a surface can be told
+       apart from its background by a hairline, and over a battlefield it
+       cannot.
+
+   THIS IS THE ONE STYLESHEET IN TASKS 9-12 THAT GREW - 28 declarations to 32
+   - AND THE REASON IS NOT THAT LAYOUT WAS RE-DERIVED. Step 5's rule is a test
+   for re-derivation and every one of the five added declarations describes a
+   SURFACE THAT DID NOT EXIST: four are the readout chip (align-self, padding,
+   fill, radius) written in Theme.uss's own `.panel-*` recipe rather than a
+   fourth shape, and one is the elevation wrapper's cancelled top padding. One
+   declaration left (the tag's font-size, which `t-num` now carries). Nothing
+   here duplicates a class the layer already provides, and the three other
+   sheets this task touched went 23 to 9 and 31 to 10.
+
+   THERE IS NO WAVE NUMBER HERE, THOUGH THE HANDOFF AND TASK 11 BOTH ASK FOR
+   ONE. The handoff's Wave Defense layout opens "Wave counter and Ark health",
+   and `HudSnapshot` carries `Integrity` and `Tick` and nothing else -
+   Model/WaveReport.cs, three fields. Adding it is a change to
+   Broodline.Model, to WaveRunner's snapshot builder and to
+   `WaveHudScreen.Integrity`, whose sentence DeviceReplayTests' re-capture
+   procedure reads off the screen to time a tap. That is a data-path change
+   and this is a look pass, so the counter is recorded as owed rather than
+   invented from whatever `WaveRunner` happens to have in scope. */
 .wave-hud-view {
     flex-grow: 1;
     flex-direction: column;
 }
 
+/* THE READOUT IS A CHIP, IN Theme.uss's `.panel-*` RECIPE AND NOT A FOURTH
+ * SHAPE - fill, --radius-row, one padding step - because the five panel
+ * classes are what a tinted surface looks like everywhere else in the app,
+ * and a HUD that invented its own would be the bespoke styling this task is
+ * here to retire. It is not one of those classes only because none of them is
+ * scrim: every `.panel-*` is a light tint for ink on paper, and this one
+ * carries white ink over a battlefield. --space-2 rather than --space-3
+ * because a readout is a chip and a panel is a block; both are on the scale.
+ *
+ * `align-self` IS THE HALF THAT MAKES IT A CHIP RATHER THAN A BAND. The root
+ * is a column, so a child stretches the full width by default - and a
+ * full-width fill under one short line is a strip across the top of the
+ * battlefield, not a readout. `flex-start` shrink-wraps it to its own text,
+ * which is also what keeps the band `ClampIntoFrame` reserves the width of
+ * the thing actually being avoided. */
 .wave-hud-view__integrity {
+    align-self: flex-start;
     margin-left: var(--gutter);
     margin-top: var(--space-2);
-    font-size: 15px;
-    -unity-font-style: bold;
-    color: rgb(250, 249, 252);
+    padding: var(--space-2);
+    background-color: var(--hud-scrim);
+    border-radius: var(--radius-row);
+    color: var(--surface);
+}
+
+/* `t-num` is on the Label in the UXML and its size is overridden HERE, on a
+ * two-class selector, which is the one override in this file and is stated
+ * rather than left to the cascade.
+ *
+ * bible 10.6's 11px is a FLOOR, not a target, and --text-secondary sits
+ * exactly on it. This is the single number a player reads mid-wave, at arm's
+ * length, with a thumb somewhere over the screen, against a scene that is
+ * moving - so it takes the largest size on the scale that still reads as
+ * chrome rather than as a headline. It was a bespoke 15px before this task,
+ * which is on no scale at all; 17px is --text-cta, the project's own "read
+ * this at a glance" size, and it is the nearer of the two tokens either side
+ * of 15 in the direction that does not shrink the readout. */
+.wave-hud-view__integrity.t-num {
+    font-size: var(--text-cta);
 }
 
 .wave-hud-view__bars {
@@ -49,10 +129,40 @@
     flex-direction: column;
 }
 
+/* The elevation wrapper, in SectionCard's exact arrangement: `.elev-1` on a
+ * wrapper that is padding plus the nine-sliced shadow, with the opaque
+ * surface as its child. Theme.uss header note 2 has why UI Toolkit leaves no
+ * other option, and the negative horizontal margin 615229c added is what puts
+ * the track back on the bar's own 52px rather than 6px inside it: the wrapper
+ * stretches to 64, pads 6 a side, and the track comes out 52 and centred on
+ * the body it labels. Measured on the capture, row y=3: the track runs
+ * x=0..51 and the ring's ink x=52..55 at 12, 8, 4 and 4 levels before paper
+ * at x=56 - so `BarWidth` is unchanged and the centring `Place` does is still
+ * against the thing a player sees.
+ *
+ * THE TOP PADDING IS CANCELLED AND THE BOTTOM IS NOT, WHICH IS THE VERTICAL
+ * CASE Theme.uss's "horizontal only" DECISION EXPLICITLY SCOPED AROUND. That
+ * decision is about two STACKED CARDS - cancelling vertically there would put
+ * one card's white edge inside the other's shadow, and there is nothing
+ * stacked here. What there is instead is a position computed from the camera:
+ * `Place` positions the bar ROOT, and 6px of padding above the track moves the
+ * track 6px down the body it labels. Measured before this line: the fill ran
+ * y=6..11 where the previous capture had it at y=0..5. The lift is the one
+ * thing this view's class comment records three failed derivations of, so 6px
+ * of it is not given away to a shadow ring. The BOTTOM padding stays - that is
+ * where the drop actually falls, and it is also the gap to the tag.
+ *
+ * ONE DECLARATION, because `flex-direction: column` is Yoga's default and
+ * writing it out would be this file re-deriving the layer rather than
+ * composing it - which is the thing step 5 of this task is a test for. */
+.wave-hud-view__elev {
+    margin-top: -6px;
+}
+
 .wave-hud-view__track {
     height: 6px;
     flex-direction: row;
-    background-color: rgba(46, 42, 61, 0.55);
+    background-color: var(--hud-scrim);
     border-radius: 3px;
 }
 
@@ -78,7 +188,17 @@
  * is the brightest thing on the field. */
 .wave-hud-view__bar.breaching .wave-hud-view__fill { background-color: var(--coral-alert); }
 
+/* Centred under the track it belongs to, rather than left-aligned under a
+ * 52px column, so a three-letter tag and a seven-letter one both sit over the
+ * body they label.
+ *
+ * ITS SIZE IS NOT SET HERE ANY MORE. "RALLY 42" ends in a countdown, and
+ * combat_engine section 8 makes Rally the player's ONLY input during a wave -
+ * so that remainder is a number a decision depends on, which is bible 10.6's
+ * own test for the `t-num` marker. The class is on the element in `NewBar`
+ * and it already carries --text-secondary, the exact 11px this rule used to
+ * write out. Same pixels, one fewer place for the floor to be lost. */
 .wave-hud-view__tag {
-    font-size: var(--text-secondary);
-    color: rgb(240, 238, 246);
+    -unity-text-align: upper-center;
+    color: var(--surface);
 }

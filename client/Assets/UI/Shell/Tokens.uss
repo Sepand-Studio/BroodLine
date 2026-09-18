@@ -95,6 +95,22 @@
      * pinned by PaletteContrastTests. */
     --slate: #c6cede;             /* Pale, neutral */
 
+    /* ---- The HUD's own backing ---- */
+
+    /* --ink-deep AT 55%, AND IT HAS TO BE A TOKEN BECAUSE USS CANNOT DERIVE
+     * IT AT THE POINT OF USE. There is no alpha function and no color-mix on
+     * 6000.6.0f1, so `--ink-deep at 55%` can only be written out.
+     *
+     * The HUD is the one surface in the app that does not render over
+     * --paper: WaveRunner adds it straight to the wave scene's panel root, so
+     * whatever is behind a bar or a readout is the battlefield and changes
+     * every frame. A light-on-dark scrim is what makes a number legible over
+     * that, and it is the same fill the bar track already used - it was
+     * written as a raw rgba() in WaveHudView.uss, in the one file
+     * verify-uss-tokens.sh's own header names as the reason that gate
+     * exists. rgba() is not hex, so check 1 never saw it. */
+    --hud-scrim: rgba(46, 42, 61, 0.55);
+
     /* ---- Secondary ink ---- */
     --mute: #a29bb5;              /* secondary text, inactive nav */
     --mute-soft: #b3adc2;         /* tertiary text, placeholders */

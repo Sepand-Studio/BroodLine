@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
     <ui:Style src="WaveHudView.uss" />
-    <ui:Label name="integrity" class="wave-hud-view__integrity" />
+    <ui:Label name="integrity" class="wave-hud-view__integrity t-num" />
     <ui:VisualElement name="bars" class="wave-hud-view__bars" />
 </ui:UXML>
