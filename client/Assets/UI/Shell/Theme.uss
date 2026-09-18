@@ -16,13 +16,27 @@
  *    it would have been the only texture in the build, and false once the
  *    icon sheet ships. One ramp, one CTA colour, no art.
  *
- * 2. `box-shadow`. USS still has none. SOLVED as a nine-sliced sprite behind
- *    the card rather than on it: Assets/UI/Art/shadow-card.png, tinted by
- *    --elev-1-tint / --elev-2-tint to the handoff's two elevations. It is a
- *    sibling element, not a style, so a card that wants elevation carries
- *    .elev-1 and the rule draws the sprite as its own background with a
- *    negative margin. On a light theme with white on near-white, this is most
- *    of what separates a card from a rectangle.
+ * 2. `box-shadow`. USS still has none. SOLVED as a nine-sliced sprite at
+ *    Assets/UI/Art/shadow-card.png, tinted by --elev-1-tint / --elev-2-tint
+ *    to the handoff's two elevations. On a light theme with white on
+ *    near-white, this is most of what separates a card from a rectangle.
+ *
+ *    .elev-1 / .elev-2 GO ON A WRAPPER, NOT ON THE CARD, and that is forced
+ *    rather than chosen: UI Toolkit clips background-image to the element's
+ *    own box, so a drop shadow cannot be drawn on the card it belongs to -
+ *    it has to be drawn by something larger. Each class is padding plus the
+ *    sprite; the card goes inside as a child and its own opaque --surface
+ *    covers the middle, leaving the falloff in the padding. Measured on the
+ *    Primitives fixture, putting .elev-1 on the card itself instead paints a
+ *    grey smudge across its interior, because a nine-slice stretches its
+ *    centre region over the whole element.
+ *
+ *    --elev-1-spread / --elev-2-spread ARE that padding, which is also why
+ *    -unity-slice-scale differs between the two classes. Nine-slice maps
+ *    texture offset p to p*scale screen px in from the element edge, and the
+ *    card edge sits at exactly the padding, so scale is padding/10 - the
+ *    texture carries its ink in a 10px frame. One scale cannot serve both
+ *    spreads. generate-textures.py has the arithmetic.
  *
  * 3. The physical button press, `box-shadow: 0 3px 0 #5b4d9e` collapsing to
  *    `0 1px 0` with `translateY(2px)`. bible 10.6 names this specifically and
@@ -159,16 +173,33 @@ Label {
 
 /* ------------------------------------------------------------- elevation */
 
-/* See note 2 in this file's header. Tasks 8-12 put these on card surfaces;
- * nothing carries them yet except the Primitives fixture in ScreenFixtures. */
+/* WRAP a surface in one of these; do not put them ON the surface. See note 2
+ * in this file's header for why UI Toolkit leaves no other option, and
+ * ScreenFixtures' Primitives fixture for the arrangement Tasks 8-12 copy:
+ *
+ *     <ui:VisualElement class="elev-1">
+ *         <ui:VisualElement class="card"> ... </ui:VisualElement>
+ *     </ui:VisualElement>
+ *
+ * The slice scale is padding/10 and so differs per class - one value cannot
+ * serve both spreads. It carries a unit because a bare 0.5 imports as
+ * "warning: Expected (<length>) but found '0.5'", and this phase exists
+ * partly because a USS diagnostic went unread for seven phases. */
 .elev-1, .elev-2 {
     background-image: url("project:///Assets/UI/Art/shadow-card.png");
     -unity-slice-left: 20; -unity-slice-right: 20;
     -unity-slice-top: 20; -unity-slice-bottom: 20;
-    -unity-slice-scale: 0.5;
 }
-.elev-1 { -unity-background-image-tint-color: var(--elev-1-tint); }
-.elev-2 { -unity-background-image-tint-color: var(--elev-2-tint); }
+.elev-1 {
+    padding: var(--elev-1-spread);
+    -unity-slice-scale: 0.6px;
+    -unity-background-image-tint-color: var(--elev-1-tint);
+}
+.elev-2 {
+    padding: var(--elev-2-spread);
+    -unity-slice-scale: 1.2px;
+    -unity-background-image-tint-color: var(--elev-2-tint);
+}
 
 /* --------------------------------------------------------------- buttons */
 

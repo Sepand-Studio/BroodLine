@@ -370,6 +370,14 @@ public static class ScreenFixtures
     /// its own container proves nothing, so every card here has room around
     /// it - and the fourth card carries no elevation class at all, because
     /// "the shadow rendered" is only readable against a card that has none.
+    ///
+    /// THE ELEVATION CLASSES GO ON A WRAPPER, and this fixture is the
+    /// reference for that arrangement. The first version of this fixture put
+    /// .elev-1 on the card itself, as Theme.uss then invited, and the capture
+    /// is what caught it: card centre 248/245 against an unelevated 255,
+    /// densest in the middle, with nothing at all outside the card. UI Toolkit
+    /// clips background-image to the element's own box, so the shadow has to
+    /// be drawn by something larger than the thing casting it.
     static VisualElement Primitives()
     {
         // .shell-root is --paper, so the fixture gets the real screen
@@ -387,9 +395,9 @@ public static class ScreenFixtures
         title.style.marginBottom = 32;
         root.Add(title);
 
-        root.Add(PrimitiveCard("elev-1", ".elev-1  -  handoff 0 2px 8px"));
-        root.Add(PrimitiveCard("elev-2", ".elev-2  -  handoff 0 4px 16px"));
-        root.Add(PrimitiveCard(null, "no elevation class  -  the control"));
+        root.Add(PrimitiveCard("elev-1", ".elev-1 wrapper  -  handoff 0 2px 8px"));
+        root.Add(PrimitiveCard("elev-2", ".elev-2 wrapper  -  handoff 0 4px 16px"));
+        root.Add(PrimitiveCard(null, "no wrapper  -  the control"));
 
         var cta = new Button { text = "Splice" };
         cta.AddToClassList("btn-primary");
@@ -405,21 +413,34 @@ public static class ScreenFixtures
         return root;
     }
 
-    /// One `.card` (`--surface` fill, `--radius-card`), optionally carrying an
-    /// elevation class, with 40px of clear paper under it so the shadow has
-    /// somewhere to fall.
+    /// One `.card` (`--surface` fill, `--radius-card`), wrapped in an
+    /// elevation class when it wants one, with 40px of clear paper under it so
+    /// the shadow has somewhere to fall.
+    ///
+    /// The control returns the bare card with no wrapper, so "no elevation"
+    /// means no wrapper at all rather than a wrapper that draws nothing.
     static VisualElement PrimitiveCard(string elevationClass, string caption)
     {
         var card = new VisualElement();
         card.AddToClassList("card");
-        if (elevationClass != null) card.AddToClassList(elevationClass);
         card.style.height = 116;
-        card.style.marginBottom = 40;
+        card.style.marginBottom = 0;
 
         var label = new Label(caption);
         label.AddToClassList("t-card-title");
         label.style.whiteSpace = WhiteSpace.Normal;
         card.Add(label);
-        return card;
+
+        if (elevationClass == null)
+        {
+            card.style.marginBottom = 40;
+            return card;
+        }
+
+        var wrapper = new VisualElement();
+        wrapper.AddToClassList(elevationClass);
+        wrapper.style.marginBottom = 40;
+        wrapper.Add(card);
+        return wrapper;
     }
 }
