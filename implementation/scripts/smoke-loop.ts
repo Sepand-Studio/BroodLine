@@ -168,16 +168,26 @@ if (!BASE) {
 console.log(`smoke-loop → ${BASE}`)
 
 // ---------------------------------------------------------------------------
-begin('healthz')
-// /healthz answers {ok:true} WITHOUT consulting Postgres - deliberately, so the
-// startup probe passes before migrations. So a green here proves the revision
-// booted and nothing more. It is a precondition, never evidence.
+begin('the revision is serving')
+// NOT /healthz, AND THAT IS NOT A CHOICE. Google's front end reserves that
+// exact path on Cloud Run: it never reaches the container, and returns
+// Google's own HTML 404 instead. Measured against the deployed service -
+// /healthz is intercepted while /healthz/, /healthZ, /health and /v1/healthz
+// all reach the app and get its JSON 404. The app DOES serve /healthz, which
+// is why Cloud Run's startup probe passes on it; the probe talks to the
+// container directly and never crosses the front end.
+//
+// So this probes a route that exists instead. An unauthenticated /v1/sync
+// returns 401 from the app's own auth layer, which proves more than a
+// trivial 200 did: the revision booted, the front end routes to it, and the
+// middleware stack is running. Like /healthz it touches no Postgres, so it is
+// still a precondition and never evidence about the database.
 {
-  const r = await call('/healthz')
-  if (r.status !== 200 || r.body?.ok !== true) {
-    fail(`expected 200 {"ok":true}, got ${r.status}`, r.text.slice(0, 400))
+  const r = await call('/v1/sync')
+  if (r.status !== 401 || r.body?.code !== 'unauthorized') {
+    fail(`expected 401 {"code":"unauthorized"}, got ${r.status}`, r.text.slice(0, 400))
   }
-  ok('the revision is up (says nothing about the database - see the comment)')
+  ok('the revision is up and routing (says nothing about the database)')
 }
 
 // ---------------------------------------------------------------------------
