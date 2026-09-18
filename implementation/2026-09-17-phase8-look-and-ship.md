@@ -166,6 +166,41 @@ So Task 6 builds the measurement, commits it as a tracked baseline, and puts a c
 
 ---
 
+---
+
+## RE-GATED 2026-09-17 — the visual work does not wait on the test runner
+
+**Why this section exists.** As first written, all thirteen visual tasks gated on
+`./implementation/scripts/run-unity-tests.sh EditMode`. That runner turned out to be broken
+(Task 1a), so a tooling defect blocked the entire deliverable. **That coupling was a planning
+error, not a fact about the project.** Whether a game looks good is judged by looking at it;
+the unit suite is a safety net, not a prerequisite for editing a stylesheet.
+
+**The order changes. Build the harness first.** Tasks 14 and 15 — the Editor screen harness and
+the screenshot corpus — move to the FRONT, before any visual change. Doing visual work without
+being able to see the result is how this plan ended up gated on a test runner in the first
+place. The harness needs the Editor, not the test runner, and `-executeMethod` works.
+
+**New order:** 14, 15 (see the "before"), then 1, 2, 3, 4, 5, 6, then 7, 8, 9–12, 13.
+
+**Gates, revised:**
+
+| Task | Was | Now |
+|---|---|---|
+| 1 fonts | NUnit tabular-figures test | A `-executeMethod` check that prints the ten digit advances and exits non-zero if they differ. Same assertion, no test framework. Works today |
+| 2 token lint | shell + EditMode suite | **Shell only.** It never needed Unity |
+| 3 elevation, 4 icons, 5 motion | EditMode suite | Screenshot corpus + the eyes-on pass |
+| 6 palette CVD | NUnit in `Broodline.UI.Tests` | **Move to `dotnet test`.** The maths is pure C# with no Unity types — it belongs beside the engine suite, which runs green today. `PaletteContrast.cs` moves out of `client/` into the tools/engine test project |
+| 7 scaffold sweep | NUnit reflection sweep | Keep the test, but it is **not blocking**. The screenshot corpus shows whether a screen has a header and a CTA row |
+| 13 silhouettes | NUnit 40px test | A standalone script over the six PNGs. No Unity needed to downsample an image and diff two masks |
+
+**The EditMode suite is not abandoned.** Task 1a is committed with its diagnosis and the one
+hanging test identified. When it lands, re-attach the gates above. Until then, no visual task
+waits on it, and **no task may claim a green from a suite that did not run** — the honest
+statement is "verified by screenshot and eye", which for visual work is the stronger claim.
+
+---
+
 ## Task 0: The record — re-measure, and correct what is stale
 
 Design §2.1. **Runs first, before any other task**, because every later task's "did I break something" comparison is against this baseline, and it currently asserts a failure that does not exist.
