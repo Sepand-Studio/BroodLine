@@ -119,10 +119,33 @@ MSG
   exit 1
 fi
 
-if ! command -v psql >/dev/null 2>&1; then
-  echo "  FAIL: psql is not on PATH, and DATABASE_URL is set - install libpq or use the proxy's client" >&2
-  exit 1
-fi
+# NODE AND `pg`, NOT psql. The first version of this check shelled out to
+# psql and died on the first machine that ran it - which is every machine
+# here, because nothing else in this repo needs psql and it is not in
+# verify-prereqs.sh. migrate-cli.ts and seed-server.sh both reach Postgres
+# through `createPool` from the same DATABASE_URL, so this does too rather
+# than adding a system package to the prerequisites for three SELECTs.
+#
+# `pgq <sql>` is the psql call it replaces, option for option: -A -t -F '|'
+# is unaligned, tuples-only, pipe-separated, which is what the comparisons
+# below parse. Multi-statement SQL returns an array of results and the last
+# one is the SELECT; a failed connection throws and exits non-zero, which is
+# the behaviour the split-then-filter comments below depend on.
+PG_RUNNER="./.smoke-loop-pg-$$.mts"
+trap 'rm -f "$PG_RUNNER"' EXIT
+cat > "$PG_RUNNER" <<'PGJS'
+import { createPool } from './services/api/src/db/client.ts'
+const pool = createPool(process.env.DATABASE_URL!)
+try {
+  const res = await pool.query(process.argv[2]!)
+  const last = Array.isArray(res) ? res[res.length - 1] : res
+  for (const row of (last?.rows ?? [])) console.log(Object.values(row).join('|'))
+} finally {
+  await pool.end()
+}
+PGJS
+
+pgq() { "$NODE_BIN" --experimental-strip-types "$PG_RUNNER" "$1"; }
 
 # `SET app.server_id` IS REQUIRED, not belt and braces. 0002_rls.sql applies
 # FORCE ROW LEVEL SECURITY to every table, which removes the owner's usual
@@ -147,10 +170,10 @@ SELECT reason_code, currency, delta
 # makes `grep -v` exit 1, which fails the pipeline, which kills the script -
 # so a ledger that holds nothing at all, which is precisely the failure this
 # check exists to catch, would abort here with no message instead of printing
-# the diff below. Split, psql's own non-zero exit still aborts loudly (a
+# the diff below. Split, the query's own non-zero exit still aborts loudly (a
 # refused connection must not read as "no rows"), and an empty success flows
 # through to the comparison.
-LEDGER_RAW="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 --no-psqlrc -A -t -F '|' -c "$LEDGER_SQL")"
+LEDGER_RAW="$(pgq "$LEDGER_SQL")"
 ACTUAL_LEDGER="$(printf '%s\n' "$LEDGER_RAW" | grep -v '^$' | LC_ALL=C sort || true)"
 EXPECTED_LEDGER="$("$NODE_BIN" -e '
   const s = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))
@@ -189,7 +212,7 @@ SELECT w.currency, w.balance, COALESCE(s.total, 0)
 # Split for the reason the ledger read above is split: no drift is the HAPPY
 # case here and it returns zero rows, so a one-pipeline form would fail under
 # pipefail on every healthy run.
-DRIFT_RAW="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 --no-psqlrc -A -t -F '|' -c "$DRIFT_SQL")"
+DRIFT_RAW="$(pgq "$DRIFT_SQL")"
 DRIFT="$(printf '%s\n' "$DRIFT_RAW" | grep -v '^$' || true)"
 if [ -n "$DRIFT" ]; then
   echo "  FAIL: wallet and ledger disagree (currency|wallet|ledger_sum):" >&2
@@ -200,7 +223,7 @@ fi
 SHARDS_SQL="SET app.server_id = '${SERVER_ID}';
 SELECT balance FROM wallets
  WHERE server_id = ${SERVER_ID} AND player_id = '${PLAYER_ID}' AND currency = 'shards';"
-SHARDS_RAW="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 --no-psqlrc -A -t -c "$SHARDS_SQL")"
+SHARDS_RAW="$(pgq "$SHARDS_SQL")"
 STORED_SHARDS="$(printf '%s\n' "$SHARDS_RAW" | grep -v '^$' || true)"
 if [ "$STORED_SHARDS" != "$EXPECTED_SHARDS" ]; then
   echo "  FAIL: wallets holds ${STORED_SHARDS:-<no row>} shards, the run earned ${EXPECTED_SHARDS}" >&2
