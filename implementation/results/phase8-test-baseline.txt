@@ -284,6 +284,8 @@ gate.silhouette.collisions	0	six proxies rendered 40x40 flat black, pairwise —
 gate.screens.scaffolded	10	EveryScreenComposesTheScaffold; 12 types in Broodline.UI.Screens, 2 exempt by name
 gate.screens.captures	16	PNGs in implementation/results/screens/, not committed — one command rebuilds them
 gate.device-capture.simversion	0.4.0	matches engine/Runtime/SimVersion.cs
+gate.smoke-loop	PASS	against the DEPLOYED stack, 2026-09-18. 13 API steps + 6 ledger rows (one per mutation) + wallet reconciles to its ledger sum (715 shards) + 3 replay objects in GCS. api https://broodline-api-cru36b5eaq-uc.a.run.app, images :1ab9fab, bundle 0.1.3.
+gate.smoke-loop.caveat	note	the FIRST wave submission after sim goes idle returns 503. sim's cold start exceeds SimClient's 5s budget; sim logs its own 200 for a request the api stopped waiting for. Reproduced, then passed on a warm sim. Unresolved - raise the budget, set sim minScale=1, or make the client retry.
 gate.ci.tests	pass	run 35364458995 — Engine suite (CoreCLR), Unity settings (incl. verify-uss-tokens.sh), Cross-language contract: all success
 gate.ci.determinism	running	run 35364459009 — the self-hosted macOS job; green locally (cross-runtime-diff.sh: 500 scenarios agree) and RED on develop (run 35252288421, ~4h45m). Unowned gap.
 gate.determinism-ci.runners	1	sd-sassadi-m1, macOS/ARM64, online — REGISTERED, contrary to the brief for this task
