@@ -1179,7 +1179,25 @@ Design §4.2, §4.3, §2.3.
 - Modify: `client/Assets/UI/Shell/Tokens.uss`, `client/Assets/UI/Shell/Theme.uss`
 
 **Interfaces:**
-- Produces: `.elev-1` and `.elev-2` — the classes Tasks 8–12 put on every card surface.
+- Produces: `.elev-1` and `.elev-2` — the classes Tasks 8–12 put on an element that **WRAPS** a card surface, not on the surface itself.
+
+> **Corrected 2026-09-17 after implementation (`7367e20`).** This line originally
+> read "the classes Tasks 8–12 put on every card surface", and following it
+> literally produces a grey smudge inside the card rather than a shadow under
+> it. UI Toolkit clips `background-image` to the element's own box, so a drop
+> shadow cannot be drawn on the card — it must be on something larger. The
+> wrapper's `padding` is `var(--elev-N-spread)`, which is what those two tokens
+> are for; they were dead on arrival in the plan as written, and that was the
+> tell. `Theme.uss`'s rule comment carries a UXML snippet to copy.
+>
+> One geometric constraint, non-obvious and worth not rediscovering: nine-slice
+> maps a texture offset `p` to `p × scale` screen pixels in from the element
+> edge, so `scale = padding / C` for the card edge at texture offset `C`, and
+> `C` must be ≤ the 20px slice border or the stretched centre is not fully
+> inside the card. A single `-unity-slice-scale` therefore **cannot** serve both
+> elevations: `.elev-2` would need `C = 24`. The shipped values are `0.6px` and
+> `1.2px` against `C = 10`, which also lands the texture's 3.33px offset on
+> exactly 2px and 4px — the handoff's `0 2px 8px` and `0 4px 16px`.
 
 - [ ] **Step 1: Generate both textures**
 
