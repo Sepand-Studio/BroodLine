@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  xcodebuild -exportArchive options for the TestFlight build.
+
+    xcodebuild -exportArchive -archivePath ./Broodline.xcarchive \
+               -exportPath ./export \
+               -exportOptionsPlist ../../client/Assets/Editor/ExportOptions.plist \
+               -allowProvisioningUpdates
+
+  method is "app-store-connect", not "app-store". Xcode 15.3 renamed the
+  value and the old spelling is deprecated; this project builds on Xcode 27.
+
+  destination is "export", not "upload", because the plan's next command is
+  `xcrun altool --upload-app -f export/Broodline.ipa`. "upload" would send the
+  build from inside this step and leave no .ipa for that line to find.
+
+  manageAppVersionAndBuildNumber is false so the uploaded build carries the
+  number Unity baked from ProjectSettings.asset. Left at its default, Xcode
+  picks a build number of its own and App Store Connect then disagrees with
+  the repository about what was shipped.
+
+  signingStyle/teamID match BenchmarkBuilder.ConfigureSigning — the same team
+  and the same automatic signing, so the archive and the export cannot drift
+  onto two different identities.
+
+  This file lives under Assets/Editor/ and is therefore stripped from every
+  player build; it is only ever read by xcodebuild on the host.
+-->
+<plist version="1.0">
+<dict>
+	<key>method</key>
+	<string>app-store-connect</string>
+	<key>destination</key>
+	<string>export</string>
+	<key>teamID</key>
+	<string>R4Z6W7AW86</string>
+	<key>signingStyle</key>
+	<string>automatic</string>
+	<key>uploadSymbols</key>
+	<true/>
+	<key>manageAppVersionAndBuildNumber</key>
+	<false/>
+</dict>
+</plist>
