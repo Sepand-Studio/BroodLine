@@ -49,43 +49,41 @@ using UnityEngine.UIElements;
 /// (`UIElementsRuntimeUtility`, native-hooked into the player loop this
 /// script has none of) actually calls and in what order.
 ///
-/// KNOWN GAP, STILL OPEN AFTER A SECOND ROUND: TOKENS.USS/THEME.USS'S
-/// CUSTOM PROPERTIES DO NOT VISIBLY RESOLVE IN THESE CAPTURES.
-/// `resolvedStyle.backgroundColor` on the panel's own root measures fully
-/// transparent rather than `--paper`'s `#f7f4fb`, and text measures as
-/// Unity's default runtime theme's grey rather than `--ink`'s `#3f3a52` -
-/// checked directly with `resolvedStyle` each round, not inferred from the
-/// picture. TWO DISTINCT THEORIES HAVE BEEN TESTED AND BOTH FALSIFIED:
+/// THE TOKEN GAP THAT WAS OPEN HERE FOR TWO ROUNDS IS CLOSED, AND IT WAS
+/// NEVER THIS FILE. For the record, because two wrong theories were
+/// committed to this comment before the right one:
 ///
-/// 1. Driving the internal `Styles`/`Layout`/`TransformClip`/`Authoring`
-///    `VisualTreeUpdatePhase` updaters directly (`BaseVisualElementPanel.
-///    GetUpdater(phase).Update()`, one reflection layer past everything
-///    else `ForceRender` does) - no measurable difference.
-/// 2. `:root` needing the stylesheet on the PANEL'S ACTUAL root rather than
-///    on a child - a plausible-sounding second theory, since `host` used to
-///    be where these attached and is a child of `document.rootVisualElement`
-///    (this is also why the styles now attach to the root regardless: it is
-///    structurally correct either way, matching how `Shell.uxml` applies
-///    Tokens/Theme/Shell at the true UXML root). Moving them produced
-///    BYTE-IDENTICAL PNGs and BYTE-IDENTICAL `resolvedStyle` readings to
-///    before the move. Adding `MarkDirtyRepaint()` on the root, `host` and
-///    the screen on top of that changed nothing either.
+/// Symptom: `resolvedStyle.backgroundColor` on a `.shell-root` element
+/// measured fully transparent instead of `--paper`, and text measured
+/// Unity's default grey instead of `--ink` - so every capture rendered
+/// untokenized. Theories 1 and 2 (driving the internal `VisualTreeUpdatePhase`
+/// updaters by hand; `:root` needing the sheet on the panel's true root
+/// rather than a child) were both tested and both falsified, and the second
+/// one was additionally built on a false premise - `document.rootVisualElement`
+/// is a `UIDocumentRootElement` parented UNDER the panel's `PanelRootElement`,
+/// so it is not the panel root either and that "fix" moved the sheets from
+/// one child to another.
 ///
-/// So the cascade is not gated by attachment point or by a missing dirty
-/// flag this file can set through public API. Whatever gates it is deeper
-/// than two rounds of reflection have reached, and a third round did not
-/// have a new, specific hypothesis to test rather than another guess - see
-/// task-14-15-report.md's fix-round-1 section for the full account, written
-/// for whoever picks this up with a concrete next theory. Inline C# styles
-/// (this file's own `width`/`height`, every screen's own layout) and
-/// Unity's built-in default runtime theme both render correctly regardless
-/// - only Broodline's OWN token layer is affected. Given how close
-/// `--paper`/`--surface-sunk`/`--hairline` already sit to white by design,
-/// these captures likely still read close to accurate on colour - but
-/// unresolved custom properties also take out padding, radius and
-/// font-size wherever a screen's own USS reaches for one, which is a larger
-/// effect than colour alone and should not be waved through as "probably
-/// fine" a second time.
+/// Actual cause: `Tokens.uss` compiled to ZERO RULES. Its header comment
+/// cited the path `specs/Designs/_ds/modernist-<variant>/styles.css`, and the
+/// comment-terminator in that glob closed the block comment eighteen
+/// lines early. Lines
+/// 10-28 were then parsed as USS source, where the apostrophes in
+/// `Broodline's` and `Shell.uss's` and the quotes on lines 18-19 opened
+/// unterminated strings - the four `LineBreakUnexpected` errors Unity had
+/// been logging at import all along, at exactly the end-of-line columns of
+/// those four lines, and at no line before the accidental terminator.
+/// A whole design system was dead for the want of one slash.
+///
+/// WHAT MAKES THIS WORTH READING RATHER THAN DELETING: nothing in the
+/// capture path was broken, and every measurement taken here was correct.
+/// The harness was faithfully reporting a real defect in the shipped app -
+/// the runtime panel had exactly the same dead sheet - and it was the only
+/// thing in the project that noticed. USS import errors do not fail a
+/// build, do not fail a test, and do not throw at runtime; a stylesheet
+/// that parses to nothing renders as nothing, silently. That is why
+/// `check-stylesheets.sh` now asserts every sheet compiles to a non-zero
+/// rule count, and why it runs as a gate rather than on request.
 public static class ScreenshotCapture
 {
     // The handoff's reference frame - the same 430x932 ScreenHarness hosts a

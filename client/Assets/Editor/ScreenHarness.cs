@@ -24,13 +24,10 @@ public class ScreenHarness : EditorWindow
         var names = ScreenFixtures.Names;
         var picker = new PopupField<string>("Screen", new List<string>(names), 0);
 
-        // ON THE WINDOW'S ACTUAL ROOT, NOT ON `host` BELOW - fix round 1,
-        // matching how Shell.uxml applies Tokens/Theme/Shell at the true
-        // UXML root rather than on its inner "shell-root"-classed element.
-        // Structurally correct regardless of the next paragraph: see
-        // AddShellStyles for why this specific move was tested (in
-        // ScreenshotCapture, where resolvedStyle can actually be checked
-        // headlessly) and did NOT fix the thing it was suspected of fixing.
+        // On the window's own root rather than on `host` below, so the
+        // cascade reaches a screen the same way Shell.uxml's reaches one at
+        // runtime. Tokens resolve here - verified by measurement, not by
+        // eye; see AddShellStyles.
         AddShellStyles(rootVisualElement);
         rootVisualElement.AddToClassList("shell-root");
 
@@ -53,15 +50,15 @@ public class ScreenHarness : EditorWindow
     /// properties), Theme (element defaults), then the icon and motion
     /// sheets Phase 8's later tasks add.
     ///
-    /// CALLED WITH THE PANEL'S ACTUAL ROOT ELEMENT - fix round 1, matching
-    /// `Shell.uxml`'s own structure. `ScreenshotCapture.Capture` calls this
-    /// the same way, on `document.rootVisualElement`, where it was possible
-    /// to check with `resolvedStyle` whether moving the attachment point
-    /// here (off the 430x932 `host` this used to sit on) actually changed
-    /// which custom properties resolve. It did not: `ScreenshotCapture.cs`'s
-    /// own class comment has the full account, including the theory this
-    /// disproved, because "it did not visibly change anything" is worth
-    /// exactly as much record-keeping as a fix that worked.
+    /// ATTACHMENT POINT IS NOT LOAD-BEARING, THOUGH IT READS AS IF IT MIGHT
+    /// BE. `:root`, `var()` and plain class selectors were each measured
+    /// resolving correctly from a sheet attached at the window root, at the
+    /// panel root, and at a child of either - so none of the three is what
+    /// decides whether a token resolves. What decided it was whether the
+    /// sheet parsed at all: `Tokens.uss` was compiling to zero rules.
+    /// `ScreenshotCapture.cs`'s class comment has the full account. Pass
+    /// this whichever element the screen actually hangs under and it works;
+    /// `check-stylesheets.sh` is what guards the thing that really breaks.
     ///
     /// NULL-GUARDED, SEPARATELY. `AssetDatabase.LoadAssetAtPath` returns
     /// null for a path that does not exist rather than throwing, and

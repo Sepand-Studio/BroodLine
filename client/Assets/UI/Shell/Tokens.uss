@@ -7,7 +7,7 @@
  * Every hex below is copied from that README's table. If one looks wrong,
  * the README is the thing to argue with, not this file.
  *
- * NOT specs/Designs/_ds/modernist-*/styles.css. That is a generic design
+ * NOT specs/Designs/_ds/modernist-<variant>/styles.css. That is a generic design
  * system that happens to sit in the same folder - red accent, Archivo, zero
  * radius. It is not Broodline's and matches neither the bible nor the
  * handoff. Do not merge the two.
