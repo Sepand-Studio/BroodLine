@@ -55,6 +55,8 @@ public static class ScreenFixtures
         "SpliceRevealView",
         "WaveDefeatView",
         "WaveHudView",
+        // NOT A SCREEN, and last for that reason - see Primitives() below.
+        "Primitives",
     };
 
     public static VisualElement Build(string name)
@@ -73,6 +75,7 @@ public static class ScreenFixtures
             case "SpliceRevealView": return SpliceReveal();
             case "WaveDefeatView": return WaveDefeat();
             case "WaveHudView": return WaveHud();
+            case "Primitives": return Primitives();
             default: throw new ArgumentException("ScreenFixtures has no fixture named '" + name + "'", nameof(name));
         }
     }
@@ -343,5 +346,80 @@ public static class ScreenFixtures
         var view = new WaveHudView();
         view.Bind(() => snapshot);
         return view;
+    }
+
+    // ---------------------------------------------------------------
+    // Components
+    // ---------------------------------------------------------------
+
+    /// NOT A SCREEN. The class vocabulary Theme.uss defines but no screen
+    /// carries yet.
+    ///
+    /// WHY IT EXISTS. `.elev-1`, `.elev-2` and `.btn-primary` are produced by
+    /// Phase 8 Task 3 and consumed by Tasks 8-12; measured at Task 3, they
+    /// have zero usages anywhere in `client/` (real CTAs are per-screen BEM
+    /// classes - the Splice CTA is `splice-chamber-view__cta`). So the twelve
+    /// screen captures come back byte-identical however those three rules
+    /// render, or fail to. That is the plan's own amendment finding 4 - a
+    /// byte-identical corpus "looks like no regression and is actually not
+    /// looked at" - and this fixture is the one picture that tells the
+    /// difference. It is deliberately the only thing Task 3 adds to the
+    /// corpus: putting `.elev-1` on a real card is Tasks 8-12's work.
+    ///
+    /// GENEROUS SPACING IS THE POINT, not layout taste. A shadow clipped by
+    /// its own container proves nothing, so every card here has room around
+    /// it - and the fourth card carries no elevation class at all, because
+    /// "the shadow rendered" is only readable against a card that has none.
+    static VisualElement Primitives()
+    {
+        // .shell-root is --paper, so the fixture gets the real screen
+        // background from the token layer rather than a hardcoded colour.
+        var root = new VisualElement();
+        root.AddToClassList("shell-root");
+        root.style.flexGrow = 1;
+        root.style.paddingLeft = 40;
+        root.style.paddingRight = 40;
+        root.style.paddingTop = 48;
+        root.style.paddingBottom = 48;
+
+        var title = new Label("Theme primitives");
+        title.AddToClassList("t-screen-title");
+        title.style.marginBottom = 32;
+        root.Add(title);
+
+        root.Add(PrimitiveCard("elev-1", ".elev-1  -  handoff 0 2px 8px"));
+        root.Add(PrimitiveCard("elev-2", ".elev-2  -  handoff 0 4px 16px"));
+        root.Add(PrimitiveCard(null, "no elevation class  -  the control"));
+
+        var cta = new Button { text = "Splice" };
+        cta.AddToClassList("btn-primary");
+        cta.style.marginTop = 40;
+        root.Add(cta);
+
+        var note = new Label("btn-primary carries the 2x64 ramp: #8878cf at the top, #6f5fbb at the bottom.");
+        note.AddToClassList("t-secondary");
+        note.style.whiteSpace = WhiteSpace.Normal;
+        note.style.marginTop = 16;
+        root.Add(note);
+
+        return root;
+    }
+
+    /// One `.card` (`--surface` fill, `--radius-card`), optionally carrying an
+    /// elevation class, with 40px of clear paper under it so the shadow has
+    /// somewhere to fall.
+    static VisualElement PrimitiveCard(string elevationClass, string caption)
+    {
+        var card = new VisualElement();
+        card.AddToClassList("card");
+        if (elevationClass != null) card.AddToClassList(elevationClass);
+        card.style.height = 116;
+        card.style.marginBottom = 40;
+
+        var label = new Label(caption);
+        label.AddToClassList("t-card-title");
+        label.style.whiteSpace = WhiteSpace.Normal;
+        card.Add(label);
+        return card;
     }
 }

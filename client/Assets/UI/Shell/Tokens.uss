@@ -106,6 +106,12 @@
     --radius-card: 20px;
     --radius-cta: 15px;
 
+    /* ---- Elevation. USS has no box-shadow; these tint a nine-slice. ---- */
+    --elev-1-tint: rgba(63, 58, 82, 0.06);   /* handoff: 0 2px 8px  */
+    --elev-2-tint: rgba(63, 58, 82, 0.09);   /* handoff: 0 4px 16px */
+    --elev-1-spread: 6px;
+    --elev-2-spread: 12px;
+
     /* ---- Type scale (bible 10.6: 11px floor on decision-bearing numbers) ---- */
     --text-screen-title: 21px;
     --text-hero: 28px;

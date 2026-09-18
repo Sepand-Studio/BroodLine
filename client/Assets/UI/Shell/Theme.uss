@@ -9,16 +9,20 @@
  * done instead. These are deliberate translations, not omissions - read
  * before "fixing" one of them back to the README's literal value.
  *
- * 1. `linear-gradient(180deg, #8878cf, #6f5fbb)` on the primary CTA. UI
- *    Toolkit has no gradient background; `background-image` takes a texture,
- *    not a function. A solid `--violet` sits between the two stops and is
- *    what is used. A gradient would mean shipping a 1xN texture per CTA
- *    colour, which is real art for a difference of six hex steps.
+ * 1. `linear-gradient(180deg, #8878cf, #6f5fbb)` on the primary CTA. SOLVED
+ *    in Phase 8 with a 2x64 ramp texture at Assets/UI/Art/cta-ramp.png. The
+ *    Phase 7 note said a gradient "would mean shipping a 1xN texture per CTA
+ *    colour, which is real art for a difference of six hex steps" - true when
+ *    it would have been the only texture in the build, and false once the
+ *    icon sheet ships. One ramp, one CTA colour, no art.
  *
- * 2. `box-shadow`. USS has no box-shadow at all - not on cards, not on the
- *    CTA. Card elevation is therefore carried by the surface/paper contrast
- *    and radius alone, which is why `--surface` is pure white against
- *    `--paper`: on a light theme that contrast IS the elevation.
+ * 2. `box-shadow`. USS still has none. SOLVED as a nine-sliced sprite behind
+ *    the card rather than on it: Assets/UI/Art/shadow-card.png, tinted by
+ *    --elev-1-tint / --elev-2-tint to the handoff's two elevations. It is a
+ *    sibling element, not a style, so a card that wants elevation carries
+ *    .elev-1 and the rule draws the sprite as its own background with a
+ *    negative margin. On a light theme with white on near-white, this is most
+ *    of what separates a card from a rectangle.
  *
  * 3. The physical button press, `box-shadow: 0 3px 0 #5b4d9e` collapsing to
  *    `0 1px 0` with `translateY(2px)`. bible 10.6 names this specifically and
@@ -153,6 +157,19 @@ Label {
     margin-bottom: var(--space-2);
 }
 
+/* ------------------------------------------------------------- elevation */
+
+/* See note 2 in this file's header. Tasks 8-12 put these on card surfaces;
+ * nothing carries them yet except the Primitives fixture in ScreenFixtures. */
+.elev-1, .elev-2 {
+    background-image: url("project:///Assets/UI/Art/shadow-card.png");
+    -unity-slice-left: 20; -unity-slice-right: 20;
+    -unity-slice-top: 20; -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.5;
+}
+.elev-1 { -unity-background-image-tint-color: var(--elev-1-tint); }
+.elev-2 { -unity-background-image-tint-color: var(--elev-2-tint); }
+
 /* --------------------------------------------------------------- buttons */
 
 /* Unity's runtime theme gives Button its own border, margin and tinted
@@ -193,6 +210,16 @@ Button:disabled {
     background-color: var(--hairline);
     color: var(--mute-soft);
     border-bottom-color: var(--hairline);
+}
+
+/* Primary: the handoff's CTA gradient, as the ramp texture. See note 1 in
+ * this file's header. `background-color` goes transparent because a colour
+ * under a `background-image` is what the image is composited over, and
+ * leaving `--violet` there tints the ramp. */
+.btn-primary {
+    background-image: url("project:///Assets/UI/Art/cta-ramp.png");
+    -unity-background-scale-mode: stretch-to-fill;
+    background-color: rgba(0, 0, 0, 0);
 }
 
 /* Secondary: violet on tint, per the handoff's secondary button. */
