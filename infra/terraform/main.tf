@@ -730,6 +730,35 @@ resource "google_cloud_run_v2_service_iam_member" "api_invokes_sim" {
   member   = "serviceAccount:${google_service_account.api.email}"
 }
 
+# THE PLAYER-FACING ROUTE. Without this, nothing outside the project can call
+# `api` at all - and that was the state of this file until the stack was first
+# deployed in Phase 8.
+#
+# WHY IT WAS MISSING AND WHY IT LOOKED FINE. `api` already carries
+# `ingress = "INGRESS_TRAFFIC_ALL"`, so it accepts traffic at the NETWORK
+# layer; what it lacked was the IAM binding that lets an unauthenticated
+# caller actually invoke it. The two are separate gates and only the first was
+# open, so every request reached Google's front end and was refused there -
+# `curl /healthz` returns a Google 404 page, not a response from the
+# container, which reads like a routing mistake rather than a permission one.
+# No plan, no test and no compile could surface it: IAM denial happens on a
+# request, and until Phase 8 nothing had ever made one.
+#
+# WHY allUsers IS CORRECT HERE AND NOT A LOOSENING. `sim` is the service that
+# must never be public - internal ingress, invoked only by the binding above,
+# which is design 3.1 and the Phase 5 plan's own table ("no public route, so
+# sim needs no authentication of its own"). That table makes `api` the public
+# route by construction: it is the one a phone talks to. `api` does not rely
+# on IAM for authentication - it mints and verifies its own bearer tokens
+# (src/identity/jwt.ts), which is the only scheme a mobile client can satisfy,
+# since an app cannot hold a Google service-account credential.
+resource "google_cloud_run_v2_service_iam_member" "api_public" {
+  name     = google_cloud_run_v2_service.api.name
+  location = google_cloud_run_v2_service.api.location
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
+
 # ---------------------------------------------------------------------------
 # The player-visible replay collection. Design 5.1 / 5.2.
 # ---------------------------------------------------------------------------
