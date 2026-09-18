@@ -138,6 +138,6 @@
     --text-secondary: 11px;
     --text-micro: 10px;
     --text-cta: 17px;
-    --text-tab: 12px;
+    --text-tab: 11.5px;
     --text-nav: 10px;
 }
