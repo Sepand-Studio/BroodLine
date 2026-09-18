@@ -64,6 +64,15 @@ namespace Broodline.UI.Components
             _instinct.text = creature.Instinct;
             _silhouette.tooltip = creature.Species;
 
+            // The interim proxy, tinted to the species colour by
+            // CreatureCard.uss. `Apply` clears before it adds, which is what
+            // makes this safe on the re-bind this class is built around: an
+            // add-only version would leave a recycled card wearing the
+            // previous creature's body under the new one's tint. A species
+            // outside bible 1.2's six adds nothing and the slot stays the
+            // empty paint it has carried since Phase 7 - see SpeciesProxy.
+            SpeciesProxy.Apply(_silhouette, creature.Species);
+
             EnableInClassList(FounderUssClassName, creature.IsFounder);
             EnableInClassList(CommittedUssClassName, creature.CommittedTo.HasValue);
 

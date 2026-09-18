@@ -40,8 +40,11 @@ namespace Broodline.UI.Screens
     /// applied and the elevation renders, not that the flare reads well
     /// under a thumb. That is Task 16's pass.
     ///
-    /// The `silhouette` slot inside the card is still empty paint. Task 13's
-    /// species proxy is what fills it.
+    /// The `silhouette` slot inside the card is filled as of Task 13 - the
+    /// interim species proxy, tinted to the child's species. Nothing on this
+    /// screen does the filling: `CreatureCard.Bind` calls `SpeciesProxy` and
+    /// every consumer of the card got it at once, which is what "the atom of
+    /// the interface" is supposed to buy.
     [UxmlElement]
     public partial class SpliceRevealView : VisualElement
     {

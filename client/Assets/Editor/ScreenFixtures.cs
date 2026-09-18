@@ -160,6 +160,23 @@ public static class ScreenFixtures
     // FirstHourScreensTests.cs / WaveScreensTests.cs in Broodline.UI.Tests.
     // ---------------------------------------------------------------
 
+    /// `species` IS ONE OF BIBLE 1.2's SIX AND NOT A DISPLAY NAME. These
+    /// fixtures carried "Vetch Crawler" and "Ember Skitter" until Phase 8
+    /// Task 13; `broodline_data_model.md` section 2 says the field is "one of
+    /// six", and neither of those is. "Ember Skitter" was the worse of the
+    /// two - it contains the names of TWO species, so nothing can read a
+    /// species out of it without guessing which. (The plan read it as a
+    /// Skitter; it could as easily have been read as an Ember.)
+    ///
+    /// It was invisible while nothing consumed the field. `SpeciesProxy` is
+    /// the first consumer, it matches the six exactly and refuses to guess,
+    /// and with the old strings in place fourteen of the sixteen captures
+    /// would have shown an empty silhouette slot and looked like a wiring
+    /// bug. The same strings are still in `Broodline.UI.Tests`, where they
+    /// are harmless: no test there reads the field AS a species - two assert
+    /// it appears verbatim in the destruction notice, which is a test about
+    /// CreatureLabel and passes whatever the string is. See this file's
+    /// class comment on why the two copies are expected to drift.
     static CreatureDto Creature(
         string species, int generation, string name, bool founder, Guid? id = null,
         string trait1 = "Chill", int? tier1 = 1, string trait2 = "Guard", int? tier2 = 1)
@@ -233,10 +250,10 @@ public static class ScreenFixtures
         view.Bind(new[]
         {
             new TraitSummary { Id = "Chill", Species = "Pale", Counters = "Courser" },
-            new TraitSummary { Id = "Taunt", Species = "Vetch Crawler", Counters = "Lash" },
+            new TraitSummary { Id = "Taunt", Species = "Vetch", Counters = "Lash" },
             // bible 1.2: four traits counter nothing by design - Carapace is
             // one, and a null Counters is the fixture for that real state.
-            new TraitSummary { Id = "Carapace", Species = "Vetch Crawler", Counters = null },
+            new TraitSummary { Id = "Carapace", Species = "Vetch", Counters = null },
         }, onDismiss: () => { });
         return view;
     }
@@ -248,7 +265,7 @@ public static class ScreenFixtures
         var selected = new List<Guid>();
         for (var i = 0; i < 3; i++)
         {
-            var creature = Creature("Vetch Crawler", 1, name: null, founder: false);
+            var creature = Creature("Vetch", 1, name: null, founder: false);
             response.Creatures.Add(creature);
             selected.Add(creature.CreatureId);
         }
@@ -262,7 +279,7 @@ public static class ScreenFixtures
 
     static VisualElement FounderNaming()
     {
-        var founder = Creature("Vetch Crawler", 1, name: null, founder: true, id: FounderId);
+        var founder = Creature("Vetch", 1, name: null, founder: true, id: FounderId);
         var view = new FounderNamingView();
         view.Bind(founder, FounderNamingScreen.DefaultFor(founder), onName: _ => { }, onSkip: () => { });
         return view;
@@ -275,10 +292,10 @@ public static class ScreenFixtures
         {
             Nodes = new List<LineageNode>
             {
-                Node("Vetch Crawler", FounderId, 1, founder: true, name: "Ash"),
-                Node("Ember Skitter", ParentAId, 1, founder: false, consumedAt: "2026-09-16T00:00:00Z"),
+                Node("Vetch", FounderId, 1, founder: true, name: "Ash"),
+                Node("Skitter", ParentAId, 1, founder: false, consumedAt: "2026-09-16T00:00:00Z"),
                 Node("Pale", ParentBId, 1, founder: false, consumedAt: "2026-09-16T00:00:00Z"),
-                Node("Vetch Crawler", ChildId, 2, founder: false, mutated: true,
+                Node("Hollow", ChildId, 2, founder: false, mutated: true,
                     parentA: ParentAId, parentB: ParentBId),
             },
         }, highlight: FounderId, next: () => { });
@@ -328,8 +345,21 @@ public static class ScreenFixtures
             Cap = 20,
             Creatures =
             {
-                Creature("Vetch Crawler", 4, name: "Ash", founder: true),
-                Creature("Ember Skitter", 6, name: null, founder: false),
+                // ONE OF EACH OF BIBLE 1.2's SIX, and the roster is the right
+                // screen to carry them: it is the only one whose job is
+                // several creatures at once, so it is where the species
+                // palette is actually comparable. Two Vetch-shaped cards told
+                // a reviewer nothing about five sixths of the palette, and
+                // Phase 8 Task 13 needed a frame in which a Skitter's amber
+                // body sits beside the Founder's amber border and a Hollow's
+                // violet body sits above the violet CTA. It does; see
+                // implementation/results/species-collision.md.
+                Creature("Vetch", 4, name: "Ash", founder: true),
+                Creature("Skitter", 6, name: null, founder: false),
+                Creature("Hollow", 5, name: null, founder: false),
+                Creature("Ember", 3, name: null, founder: false),
+                Creature("Loam", 2, name: null, founder: false),
+                Creature("Pale", 1, name: null, founder: false),
             },
         });
 
@@ -340,8 +370,8 @@ public static class ScreenFixtures
 
     static VisualElement SpliceChamber()
     {
-        var a = Creature("Vetch Crawler", 4, name: "Ash", founder: true, id: ParentAId);
-        var b = Creature("Ember Skitter", 6, name: null, founder: false, id: ParentBId);
+        var a = Creature("Vetch", 4, name: "Ash", founder: true, id: ParentAId);
+        var b = Creature("Skitter", 6, name: null, founder: false, id: ParentBId);
         var model = SpliceScreen.Build(a, b, Preview());
 
         var view = new SpliceChamberView();
@@ -351,9 +381,9 @@ public static class ScreenFixtures
 
     static VisualElement SpliceReveal()
     {
-        var a = Creature("Vetch Crawler", 4, name: "Ash", founder: true, id: ParentAId);
-        var b = Creature("Ember Skitter", 6, name: null, founder: false, id: ParentBId);
-        var child = Creature("Vetch Crawler", 5, name: null, founder: false, id: ChildId);
+        var a = Creature("Vetch", 4, name: "Ash", founder: true, id: ParentAId);
+        var b = Creature("Skitter", 6, name: null, founder: false, id: ParentBId);
+        var child = Creature("Vetch", 5, name: null, founder: false, id: ChildId);
         var committed = new SpliceCommitResponse
         {
             Child = child,
@@ -715,11 +745,11 @@ public static class ScreenFixtures
         cards.style.justifyContent = Justify.SpaceBetween;
 
         var a = new CreatureCard();
-        a.Bind(Creature("Vetch Crawler", 4, name: "Ash", founder: true, id: ParentAId), null);
+        a.Bind(Creature("Vetch", 4, name: "Ash", founder: true, id: ParentAId), null);
         cards.Add(a);
 
         var b = new CreatureCard();
-        b.Bind(Creature("Ember Skitter", 6, name: null, founder: false, id: ParentBId), null);
+        b.Bind(Creature("Skitter", 6, name: null, founder: false, id: ParentBId), null);
         cards.Add(b);
 
         scaffold.Content.Add(cards);

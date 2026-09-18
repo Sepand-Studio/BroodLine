@@ -23,5 +23,18 @@ public class ArtImportSettings : AssetPostprocessor
 
         if (assetPath.EndsWith("shadow-card.png"))
             t.spriteBorder = new Vector4(20, 20, 20, 20);   // L, B, R, T
+
+        // The species proxies are READ BACK, not just drawn. SilhouetteTests
+        // blits each one into a 40x40 RenderTexture and thresholds its alpha
+        // to assert bible 10.2 rule 1 - and a crunched or block-compressed
+        // source carries alpha that has been through a lossy codec, so the
+        // mask it reads would be a measurement of the compressor rather than
+        // of the drawing. ReadPixels after a Blit does not need isReadable;
+        // it does need the source to be what was authored.
+        if (assetPath.StartsWith("Assets/UI/Art/proxies/"))
+        {
+            t.crunchedCompression = false;
+            t.textureCompression = TextureImporterCompression.Uncompressed;
+        }
     }
 }
