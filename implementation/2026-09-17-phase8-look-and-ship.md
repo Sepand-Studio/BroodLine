@@ -194,10 +194,23 @@ place. The harness needs the Editor, not the test runner, and `-executeMethod` w
 | 7 scaffold sweep | NUnit reflection sweep | Keep the test, but it is **not blocking**. The screenshot corpus shows whether a screen has a header and a CTA row |
 | 13 silhouettes | NUnit 40px test | A standalone script over the six PNGs. No Unity needed to downsample an image and diff two masks |
 
-**The EditMode suite is not abandoned.** Task 1a is committed with its diagnosis and the one
-hanging test identified. When it lands, re-attach the gates above. Until then, no visual task
-waits on it, and **no task may claim a green from a suite that did not run** — the honest
-statement is "verified by screenshot and eye", which for visual work is the stronger claim.
+**UPDATE — the EditMode suite LANDED.** Task 1a completed and was verified before this
+re-gating was written: commit `014b025`, a reflection runner invoked through `-executeMethod`,
+**268 total / 267 passed / 1 failed**, proven by two real runs plus a weakening probe that
+detected a deliberate failure and then cleared.
+
+**The gate's healthy state is exit code 2, not 0.** The single failure is
+`MainThreadAffinityTests.NoConfigureAwaitFalse_InCodeThatTouchesTheUi`, a genuine pre-existing
+defect flagging three real `.ConfigureAwait(false)` sites in `SessionTests.cs`. It is
+deliberately not fixed. **Do not read exit 2 as a broken runner, and do not fix that test to
+get a green** — it is a real finding about the codebase and it belongs to whoever owns that
+code, not to a visual task passing through.
+
+So both forms of verification now exist, and the ordering above still stands: **the screenshot
+corpus is primary for visual work and the suite is the safety net**, not the other way round.
+Run the suite; expect 267/268; treat any *other* failure as yours.
+
+**PlayMode is still broken** and still uses `-runTests`. No Phase 8 task needs it.
 
 ---
 
