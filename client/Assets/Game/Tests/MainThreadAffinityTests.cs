@@ -45,6 +45,72 @@ namespace Broodline.Game.Tests
         /// on its own continuation line, or chained off a closing brace.
         static readonly Regex Offender = new Regex(@"\.ConfigureAwait\s*\(\s*false\s*\)");
 
+        /// Blanks out comments and string literals, preserving offsets so
+        /// reported line numbers still point at the real line.
+        ///
+        /// WHY THIS EXISTS. The scan used to match raw source text, so any
+        /// PROSE naming the pattern tripped the gate that forbids it. That is
+        /// not hypothetical: `TabBarTests.cs` carries a doc comment explaining
+        /// that this very test is a known, correct failure against three
+        /// deliberate sites - and the sentence naming them became a fourth.
+        /// Documentation of a rule is not a violation of it, and a gate that
+        /// cannot tell code from commentary punishes the commenting.
+        ///
+        /// String literals go too, for the same reason at one remove: a test
+        /// asserting on the text of an error message should not register as
+        /// the defect the message describes.
+        ///
+        /// `verify-uss-tokens.sh` strips comments before its hex check for
+        /// exactly this reason, and for exactly the same original cause -
+        /// `Theme.uss` documents the two primitives USS cannot express, hexes
+        /// and all. This is that lesson, applied to C#.
+        static string StripCommentsAndStrings(string src)
+        {
+            var outp = new System.Text.StringBuilder(src.Length);
+            // 0 code, 1 line comment, 2 block comment, 3 string, 4 char, 5 verbatim string
+            var state = 0;
+            for (var i = 0; i < src.Length; i++)
+            {
+                var c = src[i];
+                var next = i + 1 < src.Length ? src[i + 1] : '\0';
+                var keep = false;
+
+                switch (state)
+                {
+                    case 0:
+                        if (c == '/' && next == '/') { state = 1; }
+                        else if (c == '/' && next == '*') { state = 2; }
+                        else if (c == '"' && i > 0 && src[i - 1] == '@') { state = 5; }
+                        else if (c == '"') { state = 3; }
+                        else if (c == '\'') { state = 4; }
+                        else keep = true;
+                        break;
+                    case 1:
+                        if (c == '\n') { state = 0; keep = true; }
+                        break;
+                    case 2:
+                        if (c == '*' && next == '/') { state = 0; i++; }
+                        else if (c == '\n') keep = true;
+                        break;
+                    case 3:
+                        if (c == '\\') i++;
+                        else if (c == '"') state = 0;
+                        break;
+                    case 4:
+                        if (c == '\\') i++;
+                        else if (c == '\'') state = 0;
+                        break;
+                    case 5:
+                        if (c == '"' && next == '"') i++;
+                        else if (c == '"') state = 0;
+                        else if (c == '\n') keep = true;
+                        break;
+                }
+                outp.Append(keep ? c : (c == '\n' ? '\n' : ' '));
+            }
+            return outp.ToString();
+        }
+
         [Test]
         public void NoConfigureAwaitFalse_InCodeThatTouchesTheUi()
         {
@@ -64,7 +130,7 @@ namespace Broodline.Game.Tests
                     if (Path.GetFileName(file) == "MainThreadAffinityTests.cs") continue;
 
                     scanned++;
-                    var text = File.ReadAllText(file);
+                    var text = StripCommentsAndStrings(File.ReadAllText(file));
                     var lines = text.Split('\n');
                     for (var i = 0; i < lines.Length; i++)
                     {
