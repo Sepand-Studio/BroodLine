@@ -34,8 +34,15 @@ namespace Broodline.UI.Tests
         /// so it is the face every numeral is set in and it is what
         /// DisplayFace points at. Theme.uss's selectors mirror this split:
         /// Baloo 2 on .t-screen-title/.t-section/.btn-primary only.
-        const string DisplayFace = "Assets/UI/Fonts/Nunito-Bold SDF.asset";
+        /// THREE ROLES, TWO FACES, AND THEY ARE NOT INTERCHANGEABLE. These
+        /// used to be two constants holding the SAME string, which made two of
+        /// the tests below byte-identical and left Baloo 2 - the face on every
+        /// heading and every CTA - asserted by nothing at all. That was a side
+        /// effect of correctly repointing the numeral face at Nunito: the
+        /// coverage of the face that still ships went with it.
+        const string NumeralFace = "Assets/UI/Fonts/Nunito-Bold SDF.asset";
         const string BodyFace    = "Assets/UI/Fonts/Nunito-Bold SDF.asset";
+        const string DisplayFace = "Assets/UI/Fonts/Baloo2-Bold SDF.asset";
 
         static float[] DigitAdvances(string path)
         {
@@ -52,11 +59,11 @@ namespace Broodline.UI.Tests
         }
 
         [Test]
-        public void TheDisplayFacesDigitsAllAdvanceTheSameWidth()
+        public void TheNumeralFacesDigitsAllAdvanceTheSameWidth()
         {
-            var a = DigitAdvances(DisplayFace);
+            var a = DigitAdvances(NumeralFace);
             Assert.That(a.Distinct().Count(), Is.EqualTo(1),
-                "display face numerals are proportional, so every ticking number will jitter. " +
+                "numeral face digits are proportional, so every ticking number will jitter. " +
                 "Advances 0-9: " + string.Join(", ", a) + ". bible 10.6 says what to do.");
         }
 
@@ -68,17 +75,24 @@ namespace Broodline.UI.Tests
                 "body face numerals are proportional. Advances 0-9: " + string.Join(", ", a));
         }
 
-        [Test]
-        public void TheDisplayFaceDistinguishesOneFromEllAndZeroFromOh()
+        /// BOTH FACES, because 10.6's second requirement is about anything a
+        /// player reads, and the two split the screen between them: Baloo 2
+        /// on titles, sections and CTAs, Nunito on everything else. Asserting
+        /// it on one of them proves half of it.
+        [TestCase(DisplayFace)]
+        [TestCase(BodyFace)]
+        public void AFaceDistinguishesOneFromEllAndZeroFromOh(string path)
         {
-            var font = AssetDatabase.LoadAssetAtPath<FontAsset>(DisplayFace);
+            var font = AssetDatabase.LoadAssetAtPath<FontAsset>(path);
+            Assert.IsNotNull(font, $"no FontAsset at {path} - run Broodline/Rebuild Font Assets");
             font.TryAddCharacters("1lI0O");
             foreach (var pair in new[] { ('1', 'l'), ('1', 'I'), ('0', 'O') })
             {
                 Assert.IsTrue(font.characterLookupTable.TryGetValue(pair.Item1, out var a));
                 Assert.IsTrue(font.characterLookupTable.TryGetValue(pair.Item2, out var b));
                 Assert.That(a.glyph.index, Is.Not.EqualTo(b.glyph.index),
-                    $"'{pair.Item1}' and '{pair.Item2}' share a glyph - 10.6's second requirement fails");
+                    $"in {font.name}, '{pair.Item1}' and '{pair.Item2}' share a glyph - "
+                    + "10.6's second requirement fails");
             }
         }
     }

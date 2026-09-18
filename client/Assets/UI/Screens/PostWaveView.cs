@@ -123,6 +123,16 @@ namespace Broodline.UI.Screens
             // `PostWaveScreen.Title`'s comment has that argument in full.
             Collapsing(_headline, PostWaveScreen.Headline(response.Result));
 
+            // AND ITS COLOUR, because this screen renders both verdicts. The
+            // class used to be baked into the UXML as `t-success`, which meant
+            // a non-win response - a documented path, see WaveScreens'
+            // `Headline` - printed "Wave not cleared." in the green reserved
+            // for a win. `WaveDefeatView` can hardcode `t-danger` because it
+            // is a defeat-only screen; this one cannot hardcode either.
+            var won = response.Result == PostWaveScreen.WinResult;
+            _headline.EnableInClassList("t-success", won);
+            _headline.EnableInClassList("t-danger", !won);
+
             _reward.Value = PostWaveScreen.RewardLine(response.Reward);
             _integrity.Value = PostWaveScreen.IntegrityStatValue(response.IntegrityRemaining);
 

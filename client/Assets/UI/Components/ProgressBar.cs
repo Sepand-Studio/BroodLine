@@ -68,7 +68,22 @@ namespace Broodline.UI.Components
 
         public float Fill
         {
-            set => _fill.style.width = Length.Percent(Mathf.Clamp01(value) * 100f);
+            // NOT Mathf.Clamp01, WHICH DOES NOT CLAMP NaN. It is two
+            // comparisons - `< 0` then `> 1` - and both are false for NaN, so
+            // NaN falls through and reaches Length.Percent, where Yoga treats
+            // the width as undefined rather than as 0% and the bar renders at
+            // whatever auto-sizing produces, with no warning.
+            //
+            // That is not a theoretical input. This class's own comment names
+            // the source - "the shapes a division by a stale denominator
+            // makes" - and 0/0f is precisely the one that yields NaN rather
+            // than Infinity, which Clamp01 does handle. An un-authored
+            // chapter or an empty coverage set gives exactly 0/0.
+            set => _fill.style.width = Length.Percent(Clamp01(value) * 100f);
         }
+
+        /// Clamp01 with the NaN hole closed: anything that is not a number
+        /// reads as empty, which is the honest rendering of "no ratio".
+        static float Clamp01(float v) => float.IsNaN(v) ? 0f : Mathf.Clamp01(v);
     }
 }

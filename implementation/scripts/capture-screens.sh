@@ -75,8 +75,26 @@ code=$?
 echo "--- unity log: $LOG ---"
 tail -20 "$LOG"
 
+# EXACTLY AS MANY AS THERE ARE FIXTURES, READ OFF THE RUN ITSELF.
+#
+# This used to be `-ge 12` against a fixture list that grew 12 -> 14 -> 16
+# while the threshold stayed put, and ScreenshotCapture swallowed a screen
+# that threw while binding. Unity returns 0 for a logged error, so four
+# screens could break and this still printed OK - leaving a reviewer to
+# compare a corpus against a baseline it was silently short of. The corpus is
+# the phase's primary verification; the one thing it must never do is look
+# complete when it is not.
+#
+# The expected count is parsed from "captured N of M screens", which the
+# capture already logs, so the two cannot drift the way a literal did.
+counts=$(grep -oE 'captured [0-9]+ of [0-9]+ screens' "$LOG" | tail -1)
+[ -n "$counts" ] || { echo "FAIL: the capture never reported a count. See $LOG."; exit 1; }
+want=$(echo "$counts" | awk '{print $4}')
+got=$(echo "$counts" | awk '{print $2}')
+[ "$got" -eq "$want" ] || { echo "FAIL: captured $got of $want screens. See $LOG."; exit 1; }
+
 n=$(ls "$OUT"/*.png 2>/dev/null | wc -l | tr -d ' ')
-[ "$n" -ge 12 ] || { echo "FAIL: expected >=12 screens, got $n. See $LOG."; exit 1; }
+[ "$n" -eq "$want" ] || { echo "FAIL: expected $want PNGs on disk, got $n. See $LOG."; exit 1; }
 
 small=$(find "$OUT" -name '*.png' -size -8k)
 [ -z "$small" ] || { echo "FAIL: these captures are suspiciously small (blank?):"; echo "$small"; exit 1; }

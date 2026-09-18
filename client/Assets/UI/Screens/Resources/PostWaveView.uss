@@ -37,10 +37,24 @@
  */
 .post-wave-view { flex-grow: 1; }
 
+
 /* A sentence, not a label, so it wraps - "Wave not cleared." fits on one line
  * at 28px on a 430 frame and a longer verdict from a later server would not. */
+/* CENTRED AS TEXT, NOT AS LAYOUT. This screen's root used to carry
+ * `align-items: center` and it was dropped on the claim that the scaffold's
+ * content region supplies it. It does not - `.screen-scaffold__content` is
+ * `flex-grow` alone and its content-container rule sets padding only - so a
+ * short verdict stretched to full content width and rendered flush left,
+ * while SpliceRevealView, the third screen of the same beat, stayed centred.
+ *
+ * The fix is text-align rather than the container's `align-items`, because
+ * this is a Label whose TEXT is off-centre, not a box in the wrong place.
+ * Centring the content container instead makes every sibling shrink-wrap,
+ * which collapses the stat row into overlapping cells - measured, in a
+ * capture, before this was written. */
 .post-wave-view__headline {
     white-space: normal;
+    -unity-text-align: middle-center;
     margin-bottom: var(--space-3);
 }
 

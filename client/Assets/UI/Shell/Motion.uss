@@ -47,28 +47,40 @@
  *    a thumb is Task 16's eyes-on pass over the running app, and motion is
  *    the one part of this phase where that pass has no substitute.
  *
- * FOUR OF THESE SIX CLASSES MATCH NOTHING TODAY, by design and not by
- * oversight: motion-screen-in, sheet-layer--hidden, option-row and
- * reveal-flare appear in no other file in the project. Tasks 7-12 are what
- * apply this vocabulary. t-num is a live class in Theme.uss and sheet-layer
- * is a live element in Shell.uxml, so those two rules bite immediately. The
- * rest lands inert on purpose - which is exactly why the probe above was the
- * only evidence available.
+ * WHAT THIS FILE NO LONGER CONTAINS, AND WHY.
+ *
+ * It used to carry six classes, four of which matched nothing, on the stated
+ * expectation that "Tasks 7-12 are what apply this vocabulary". Those tasks
+ * landed and did not. Measured at the end of the phase: motion-screen-in,
+ * motion-screen-in--enter, sheet-layer--hidden and reveal-flare--hidden had
+ * zero references anywhere outside this file, and ScreenHost touches none of
+ * them - so the screen push, the screen pop and the sheet slide were never
+ * animated by anything. reveal-flare was applied, in SpliceRevealView.uxml,
+ * but nothing ever added or removed its --hidden pair, so there was no state
+ * change for its transition to run against and it animated nothing either.
+ *
+ * A transition whose end state no code applies is not deferred work, it is a
+ * claim the file cannot back - and it reads to the next author as though the
+ * app has motion it does not have. So the inert rules are gone rather than
+ * relabelled. What remains is what a class change actually drives today.
+ * Restoring the screen and sheet transitions is a matter of landing them
+ * WITH the ScreenHost code that toggles the classes, in one change, so the
+ * two cannot be believed separately again.
+ *
+ * REVEAL-FLARE IS THE EXCEPTION AND IT WAS KEPT, because it is the only one
+ * of the four that already had both a consumer and a test: the class is
+ * applied to the reveal's hero card, and FirstHourScreensTests pins it there
+ * precisely because "a rule that goes stale silently". What it lacked was the
+ * toggle, so that was landed with it rather than deleting a payoff the rest
+ * of the screen is built around. SpliceRevealView.Bind now sets the --hidden
+ * state and clears it on the next frame, which is the state change the
+ * transition runs against.
+ *
+ * VERIFIED, NOT ASSUMED, for what is left: option-row is toggled by
+ * OptionRow.Selected and by its own :active rule; t-num is a live class in
+ * Theme.uss; reveal-flare--hidden is added and removed by SpliceRevealView.
+ * Those three bite.
  */
-.motion-screen-in {
-    transition-property: opacity, translate;
-    transition-duration: var(--motion-screen);
-    transition-timing-function: ease-out;
-}
-.motion-screen-in--enter { opacity: 0; translate: 12px 0; }
-
-.sheet-layer > * {
-    transition-property: translate;
-    transition-duration: var(--motion-screen);
-    transition-timing-function: ease-out;
-}
-.sheet-layer--hidden > * { translate: 0 100%; }
-
 .option-row {
     transition-property: border-color, background-color;
     transition-duration: var(--motion-quick);

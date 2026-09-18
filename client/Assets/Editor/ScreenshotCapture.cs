@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using UnityEditor;
@@ -101,6 +102,7 @@ public static class ScreenshotCapture
         Directory.CreateDirectory(dir);
 
         var captured = 0;
+        var threw = new List<string>();
         foreach (var name in ScreenFixtures.Names)
         {
             byte[] png;
@@ -111,8 +113,11 @@ public static class ScreenshotCapture
             catch (Exception e)
             {
                 // Resolution 4: a screen that throws while binding is a
-                // finding to report, not a reason to abort the other eleven.
+                // finding to report, not a reason to abort the others - so
+                // the loop continues. But it is recorded and it fails the
+                // run below, which it did not used to.
                 Debug.LogError("[ScreenshotCapture] " + name + " threw and was not captured: " + e);
+                threw.Add(name);
                 continue;
             }
 
@@ -121,6 +126,21 @@ public static class ScreenshotCapture
         }
 
         Debug.Log($"captured {captured} of {ScreenFixtures.Names.Count} screens to {dir}");
+
+        // A LOGGED ERROR IS NOT A FAILED RUN, AND THAT IS THE WHOLE PROBLEM.
+        // Unity's -batchmode -quit returns 0 for a Debug.LogError; only an
+        // uncaught throw or an explicit Exit makes it non-zero. So a screen
+        // that broke used to leave a corpus one PNG short, a green exit code,
+        // and a reviewer comparing fifteen pictures against sixteen. The
+        // corpus is this phase's primary verification, and the one thing it
+        // must never do is look complete when it is not. StylesheetCheck.Run
+        // already calls Exit for the same reason.
+        if (threw.Count > 0)
+        {
+            Debug.LogError($"[ScreenshotCapture] {threw.Count} of {ScreenFixtures.Names.Count} screens "
+                + $"failed to capture: {string.Join(", ", threw)}");
+            EditorApplication.Exit(1);
+        }
     }
 
     static byte[] Capture(VisualElement screen, bool inScreenHost)

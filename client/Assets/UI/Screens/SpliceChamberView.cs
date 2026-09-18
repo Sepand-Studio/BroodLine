@@ -128,7 +128,19 @@ namespace Broodline.UI.Screens
             _cta.text = m.CtaLabel ?? string.Empty;
             // SpliceScreen.MutationLine is the model's own sentence for the
             // mutation/Aberrant pair (section 2: "stated as two numbers").
-            _mutation.text = SpliceScreen.MutationLine(m.Forecast);
+            //
+            // AND IT COLLAPSES, for the same reason the coverage warning
+            // below does: `MutationLine` returns empty for a null forecast -
+            // a state `Bind` itself treats as reachable two blocks down, where
+            // it renders `ForecastEmptyMessage` - and `_mutation` sits in a
+            // `--violet-tint` panel with 12px of padding, so an empty one drew
+            // a blank violet strip directly under a card saying the server
+            // named no outcomes. The TEXT still round-trips to string.Empty,
+            // which is what `ScreenBindingTests` reads.
+            var mutation = SpliceScreen.MutationLine(m.Forecast);
+            _mutation.text = mutation;
+            _mutation.style.display = string.IsNullOrEmpty(mutation)
+                ? DisplayStyle.None : DisplayStyle.Flex;
 
             // THE COVERAGE WARNING COLLAPSES WHEN THE SERVER NAMED NOTHING.
             // `CoverageWarningFor` returns empty for an empty `coverageLost`,

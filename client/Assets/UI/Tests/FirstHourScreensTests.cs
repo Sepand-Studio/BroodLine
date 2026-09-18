@@ -278,12 +278,14 @@ namespace Broodline.UI.Tests
         }
 
         /// THE HERO CARD IS THE ONE PLACE IN THE APP THAT EARNS `.elev-2`,
-        /// and the one consumer `reveal-flare` was written for - Motion.uss
-        /// lists it among four classes that "match nothing today", which is
-        /// a rule that goes stale silently: nothing renders differently when
-        /// a transition class stops being applied, and a screenshot of a
-        /// 220ms transition is one frame either way. So it is asserted here
-        /// rather than left to the eye.
+        /// and the one consumer `reveal-flare` was written for. A transition
+        /// class goes stale silently in both directions: nothing renders
+        /// differently when it stops being applied, and a screenshot of a
+        /// 220ms transition is one frame either way. This assertion caught
+        /// the second direction - the class was applied and pinned here while
+        /// Motion.uss carried no state change to run it against, so the flare
+        /// existed on paper and never played. `Bind` now toggles
+        /// `reveal-flare--hidden`, which is what actually drives it.
         [Test]
         public void SpliceReveal_TheHeroCardWearsTheRaisedElevationAndTheRevealTransition()
         {

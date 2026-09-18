@@ -52,6 +52,11 @@ namespace Broodline.UI.Screens
         public const string MutatedUssClassName = "mutated";
         public const string ParentUssClassName = "splice-reveal-view__parent";
 
+        /// Motion.uss's end state for `reveal-flare`. Named here because Bind
+        /// is what toggles it, and an unreferenced transition class was how
+        /// this animation came to exist without ever running.
+        public const string FlareHiddenUssClassName = "reveal-flare--hidden";
+
         readonly ScreenScaffold _scaffold;
         readonly Label _headline;
         readonly VisualElement _child;
@@ -139,17 +144,43 @@ namespace Broodline.UI.Screens
             // null, so two nulls used to render as nothing at all - the same
             // screen, minus the lesson, with no sentence saying whether the
             // parents were consumed or simply never arrived.
+            // EITHER PARENT MISSING IS THE SAME CASE AS BOTH, and the test
+            // used to be `childCount == 0`, which only caught both. A splice
+            // consumes two creatures, so one card on its own does not render
+            // half the truth - it renders a different and wrong one, a child
+            // with a single parent. Worse, `Consumption` returns empty as
+            // soon as EITHER is null, so the one-parent case fell through
+            // this guard AND that sentence: a lone card, no explanation,
+            // on the screen bible 2.1 makes the first hour's teaching moment.
             _parents.Clear();
-            AddParent(parentA);
-            AddParent(parentB);
-            if (_parents.childCount == 0)
+            if (parentA == null || parentB == null)
             {
                 _parents.Add(new EmptyState(SpliceRevealScreen.NoParentsMessage, "warning"));
             }
+            else
+            {
+                AddParent(parentA);
+                AddParent(parentB);
+            }
 
-            _consumption.text = SpliceRevealScreen.Consumption(parentA, parentB);
+            // AND THE SENTENCE COLLAPSES WHEN THERE IS NONE, rather than
+            // leaving a blank Label in the tree above the CTA.
+            var consumption = SpliceRevealScreen.Consumption(parentA, parentB);
+            _consumption.text = consumption;
+            _consumption.style.display = string.IsNullOrEmpty(consumption)
+                ? DisplayStyle.None : DisplayStyle.Flex;
             _next.text = SpliceRevealScreen.NextLabel;
             _onNext = next;
+
+            // AND THE FLARE ACTUALLY RUNS. `reveal-flare` was applied to the
+            // hero card and pinned by a test, but nothing ever added or
+            // removed its `--hidden` pair - so there was no state change for
+            // the transition to run against and the payoff of the whole first
+            // hour snapped in with no motion at all. A USS transition needs
+            // two computed styles: set the end state the element starts from,
+            // then clear it once layout has resolved, which is the next frame.
+            _child.AddToClassList(FlareHiddenUssClassName);
+            _child.schedule.Execute(() => _child.RemoveFromClassList(FlareHiddenUssClassName));
         }
 
         void AddParent(CreatureDto parent)

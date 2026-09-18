@@ -220,7 +220,25 @@ namespace Broodline.TestHarness
         {
             Type[] types;
             try { types = asm.GetTypes(); }
-            catch (ReflectionTypeLoadException ex) { types = ex.Types.Where(t => t != null).ToArray(); }
+            catch (ReflectionTypeLoadException ex)
+            {
+                // KEEP GOING, BUT SAY SO. Taking the types that did load is
+                // right - one broken type should not cost the other fixtures
+                // in the assembly. Discarding the loader errors was not: a
+                // whole test class could vanish and the run still exited 0,
+                // because the only nearby guard fires at assembly granularity
+                // ("found zero tests"), which a PARTIAL load never trips.
+                //
+                // `problems` is what feeds the exit code at the top of Run, so
+                // recording them here is what turns this from a silent pass
+                // into a red run. This file's own doctrine: a runner that can
+                // go quietly wrong is worse than one that cannot run at all.
+                types = ex.Types.Where(t => t != null).ToArray();
+                foreach (var le in ex.LoaderExceptions.Where(e => e != null).Take(10))
+                    problems.Add($"type load failed in {asm.GetName().Name}: {le.Message}");
+                problems.Add($"{asm.GetName().Name}: {ex.Types.Count(t => t == null)} type(s) failed to load "
+                    + "and were skipped - the tests in them did not run");
+            }
 
             foreach (var type in types)
             {
@@ -284,41 +302,57 @@ namespace Broodline.TestHarness
                             MethodInfo[] setUp, MethodInfo[] tearDown, List<CaseResult> results, List<string> problems)
         {
             Exception failure = null;
+
+            // Fix round 3, Step 2, WIDENED: suppress the ambient
+            // SynchronizationContext for the whole case - setup, test AND
+            // teardown - not just the test call. See the file header ("THE
+            // FIX") for why this is not the same as running on another
+            // thread: this thread doesn't change, only where an internal
+            // await's continuation resolves.
+            //
+            // WHY IT HAD TO WIDEN. The suppression used to wrap the test
+            // invocation alone, while setup ran before it and teardown ran in
+            // the finally after the context had been put back. All three go
+            // through InvokeAndAwait, which does GetAwaiter().GetResult(); so
+            // an `async Task [SetUp]` with any await that does not complete
+            // synchronously queued its continuation to the main thread while
+            // that thread sat blocked waiting for it - the exact round-3
+            // deadlock, in the two places the fix did not cover. The run
+            // would hang with no output past the "->" line below, and
+            // InvokeAndAwait's own comment advertises async setup/teardown as
+            // supported, so nobody had a warning.
+            var prevContext = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(null);
             try
             {
-                foreach (var s in setUp) InvokeAndAwait(s, instance, null);
-                // Fix round 3, Step 1 (coordinator-mandated observability
-                // before any fix): logged immediately before the call that
-                // might hang, so if the process freezes again the last line
-                // of the log names exactly which test it froze on, rather
-                // than leaving that a guess. Kept permanently, not just for
-                // this round - it cost one run to find the first hang and
-                // will cost one run to find the next.
-                Debug.Log($"[EditModeRunner] -> {fullName}");
-
-                // Fix round 3, Step 2: suppress the ambient
-                // SynchronizationContext for exactly the duration of the
-                // test call. See the file header ("THE FIX") for why this
-                // is not the same as running the test on another thread -
-                // this thread doesn't change, only where an internal
-                // await's continuation resolves.
-                var prevContext = SynchronizationContext.Current;
-                SynchronizationContext.SetSynchronizationContext(null);
-                try { InvokeAndAwait(method, instance, args); }
-                finally { SynchronizationContext.SetSynchronizationContext(prevContext); }
-            }
-            catch (Exception ex)
-            {
-                failure = Unwrap(ex);
-            }
-            finally
-            {
-                foreach (var t in tearDown)
+                try
                 {
-                    try { InvokeAndAwait(t, instance, null); }
-                    catch (Exception ex) { problems.Add($"[TearDown] threw for {fullName}: {Unwrap(ex).Message}"); }
+                    foreach (var s in setUp) InvokeAndAwait(s, instance, null);
+                    // Fix round 3, Step 1 (coordinator-mandated observability
+                    // before any fix): logged immediately before the call that
+                    // might hang, so if the process freezes again the last line
+                    // of the log names exactly which test it froze on, rather
+                    // than leaving that a guess. Kept permanently, not just for
+                    // this round - it cost one run to find the first hang and
+                    // will cost one run to find the next.
+                    Debug.Log($"[EditModeRunner] -> {fullName}");
+
+                    InvokeAndAwait(method, instance, args);
+                }
+                catch (Exception ex)
+                {
+                    failure = Unwrap(ex);
+                }
+                finally
+                {
+                    foreach (var t in tearDown)
+                    {
+                        try { InvokeAndAwait(t, instance, null); }
+                        catch (Exception ex) { problems.Add($"[TearDown] threw for {fullName}: {Unwrap(ex).Message}"); }
+                    }
                 }
             }
+            finally { SynchronizationContext.SetSynchronizationContext(prevContext); }
 
             if (failure == null)
                 results.Add(new CaseResult { FullName = fullName, Passed = true });

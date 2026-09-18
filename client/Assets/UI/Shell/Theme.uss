@@ -121,10 +121,18 @@ Label, Button, TextField {
     font-size: var(--text-secondary);
 }
 
+/* NO -unity-font-style: bold HERE, DELIBERATELY. The rule above binds every
+ * Label to Nunito-Bold SDF, which IS the bold face. Asking for bold on top of
+ * it does not select a heavier typeface - the asset's m_FontWeightTable is
+ * empty, so TextCore has nothing to swap to and falls back to synthetic
+ * emboldening, a 0.75 weight dilation over a face that is already 700. That
+ * thickens strokes and closes counters worst at --text-secondary (11px) and
+ * --text-micro (10px), which are exactly the sizes bible 10.6's "1/l/I and
+ * 0/O must be unambiguous" is about. Weight comes from the face, not from a
+ * style flag. */
 Label {
     color: var(--ink);
     font-size: var(--text-body);
-    -unity-font-style: bold;
 }
 
 .t-screen-title {

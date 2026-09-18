@@ -51,3 +51,20 @@
 .option-row__detail {
     margin-top: var(--space-1);
 }
+
+/* THE PRESS, BECAUSE AN OPTION ROW IS NOT A BUTTON AND INHERITS NOTHING.
+ * `.campaign-row:active` used to carry this and went out with the bespoke
+ * rule it lived in. A row is a bare element with a ClickEvent handler, so
+ * Theme.uss's `Button:active` never applied to it, and Motion.uss's
+ * `.option-row` transition only runs on a class change - which a tap is not.
+ * The result was a row that did nothing at all under a thumb: no movement, no
+ * tint, nothing between the tap and the screen transition. That is the
+ * failure mode ScreenScaffold.OnBack's own comment argues against, and it is
+ * invisible to both the suite and the corpus, neither of which can render an
+ * :active state. Placed on the component rather than one screen, so every
+ * consumer gets it. The 1px translate is the handoff's lighter press - the
+ * 2px drop and its shadow edge belong to a CTA, not to a list row. */
+.option-row:active {
+    translate: 0 1px;
+    background-color: var(--violet-tint);
+}

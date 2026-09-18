@@ -117,10 +117,24 @@
     padding-top: var(--space-2);
 }
 
+/* A SENTENCE, SO IT WRAPS, AND IT SITS ON THE GUTTER LIKE EVERYTHING ELSE.
+ * Screens hand their caveats to this row - RosterView deleted its own
+ * `__notice` rule on the understanding that the colour, size, wrap and margin
+ * were all covered here. Two of those were not. Without `white-space: normal`
+ * a long note ("Your roster could not be loaded, so this is not all of it.
+ * Try again.") renders on one unwrapped line, and with no horizontal padding
+ * it runs edge to edge, because `.screen-host`'s gutter was removed in the
+ * same branch that moved the note here. Every other multi-sentence Label in
+ * the project sets `white-space: normal`; this was the one that did not. The
+ * corpus never showed it: the only footer note in any fixture is short and
+ * centred, and the roster fixture is complete, which hides this one. */
 .screen-scaffold__footer-note {
     -unity-text-align: middle-center;
+    white-space: normal;
     flex-shrink: 0;
     color: var(--mute);
+    padding-left: var(--gutter);
+    padding-right: var(--gutter);
     padding-top: var(--space-2);
     padding-bottom: var(--space-2);
 }

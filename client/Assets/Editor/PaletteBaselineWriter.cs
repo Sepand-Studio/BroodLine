@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using Broodline.UI.Diagnostics;
@@ -18,8 +19,17 @@ public static class PaletteBaselineWriter
     {
         var path = Path.GetFullPath(Path.Combine(
             UnityEngine.Application.dataPath, "../../implementation/results/palette-cvd-baseline.txt"));
+        // INVARIANT CULTURE, BECAUSE THE TEST PARSES IT THAT WAY.
+        // `PaletteContrastTests.ReadBaseline` uses CultureInfo.InvariantCulture,
+        // so writing in the Editor's culture - which follows the OS and is not
+        // forced to invariant - puts "83,2" in this file on any comma-decimal
+        // locale. double.Parse then reads that as NumberStyles.Float |
+        // AllowThousands, does not validate group size, and returns 832: every
+        // pinned value inflated tenfold, all 45 pairs reported as regressed,
+        // and a reader sent hunting a palette change that never happened.
         var rows = PaletteContrast.Measure()
-                                  .Select(kv => $"{kv.Key}\t{kv.Value.DeltaL:F1}\t{kv.Value.DeltaE:F1}");
+                                  .Select(kv => string.Format(CultureInfo.InvariantCulture,
+                                      "{0}\t{1:F1}\t{2:F1}", kv.Key, kv.Value.DeltaL, kv.Value.DeltaE));
         File.WriteAllText(path, Header + string.Join("\n", rows) + "\n");
         UnityEngine.Debug.Log($"wrote {path}");
     }
