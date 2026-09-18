@@ -206,6 +206,28 @@ their content changes, but the "before" they are measured against moved a
 long way in one commit, and any judgement made by eye against a
 pre-`b374bcd` capture should be re-made.
 
+**3. `/bin/bash` on macOS is 3.2.57, and it parses `case` inside `$( )`
+differently from bash 5.** Task 2's gate, as this plan wrote it, died with
+``syntax error near unexpected token `;;'`` on every Mac while parsing
+cleanly on the ubuntu runner — so the check it guarded would have been
+permanently green in CI and permanently broken locally. The fix is POSIX's
+optional leading `(` on the case pattern: `(*" $t "*)` rather than
+`*" $t "*)`. **Any later task writing a shell gate must test it under
+`/bin/bash`, not under the login shell**, which here is zsh. A gate that
+only runs in one of the two places is worse than no gate, because it reads
+as coverage.
+
+**4. The screenshot corpus renders no component states.** Its twelve
+fixtures cover screens only — nothing in it renders `.aberrant`,
+`ConfirmDialog`, a secondary button's drop edge, or any `:active` state.
+Measured: `ScreenFixtures.cs` matches neither `aberrant` nor
+`ConfirmDialog`. Three of the five tokens Task 2 added
+(`--violet-edge`, `--violet-pale`, `--surface-raised`) are therefore
+invisible to the phase's primary verification mechanism, and a colour
+change confined to those states produces a byte-identical corpus — which
+looks like "no regression" and is actually "not looked at". Task 16's
+eyes-on pass should not be the first time anyone sees them.
+
 **The new gate: `./implementation/scripts/check-stylesheets.sh`.** Every
 `.uss` must compile to at least one rule; exit 1 and the offending file named
 otherwise. Verified to fail on the real defect and on a synthetic one. **Run
