@@ -72,6 +72,23 @@ public static class BootBuilder
     const string ConfigPath  = "Assets/Resources/BroodlineConfig.json";
     const string ApiUrlEnvar = "BROODLINE_API_URL";
 
+    /// THE RELEASE IDENTIFIER, NOT THE BENCHMARK'S. `BenchmarkBuilder.
+    /// ConfigureSigning` sets `com.sepandstudio.broodlinebench`, which is
+    /// correct for the two development builders and wrong for a build a
+    /// stranger installs. App Store Connect records are keyed by bundle id.
+    ///
+    /// THIS IS THE ONE VALUE IN THIS FILE THAT MUST AGREE WITH SOMETHING
+    /// OUTSIDE THE REPOSITORY. If an App Store Connect app record already
+    /// exists under a different id, change this to match it before the first
+    /// archive — after an upload the id cannot be corrected, only abandoned.
+    const string ReleaseBundleId = "com.sepandstudio.broodline";
+
+    /// CFBundleVersion. App Store Connect requires it to increase with every
+    /// upload under the same CFBundleShortVersionString, and it was 0, which
+    /// is rejected outright. Bump this per upload; `bundleVersion` (0.3.0) is
+    /// the marketing version and moves on its own schedule.
+    const string ReleaseBuildNumber = "1";
+
     /// Spellings of "this machine". `localhost` is the one the plan names; the
     /// other three are the same mistake typed differently, and `127.0.0.1` is
     /// the value sitting in the committed config file right now.
@@ -113,6 +130,26 @@ public static class BootBuilder
         // home screen, not a measuring instrument.
         BenchmarkBuilder.ConfigureSigning();
         PlayerSettings.productName = "Broodline";
+
+        // AND THE BUNDLE ID, WHICH ConfigureSigning ALSO SETS TO THE BENCH'S.
+        // It is shared with BenchmarkBuilder for the team id and the automatic
+        // signing flag, and those are right; the identifier is not. A release
+        // left on com.sepandstudio.broodlinebench uploads into whatever App
+        // Store Connect record that id belongs to - records are keyed by
+        // bundle id, so this is a decision that cannot be corrected after the
+        // upload, only abandoned.
+        //
+        // IF THE APP STORE CONNECT RECORD ALREADY EXISTS UNDER A DIFFERENT
+        // ID, change this constant to match it before the first archive. It
+        // is the one value here that has to agree with something outside this
+        // repository.
+        PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, ReleaseBundleId);
+
+        // CFBundleVersion, which Unity writes from this. It was 0, which App
+        // Store Connect rejects: every uploaded build needs a version greater
+        // than the last one under the same CFBundleShortVersionString.
+        PlayerSettings.iOS.buildNumber = ReleaseBuildNumber;
+        AssetDatabase.SaveAssets();
 
         var outDir = Path.GetFullPath(Path.Combine(Application.dataPath, "../../build/ios-release"));
         Directory.CreateDirectory(outDir);
