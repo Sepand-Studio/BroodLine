@@ -4,35 +4,50 @@
  * creature does not change colour between the roster and the tree. The
  * previous pairing was a blue founder and a gold mutation, which collided
  * with the card's gold founder ring.
+ *
+ * THOSE TWO COLOURS ARE ALSO TWO SPECIES' COLOURS - Hollow is exactly
+ * --violet and Skitter exactly --amber, both at dE 0.0, measured in Task 6 -
+ * so a founder node and a mutated node are bordered in the same two hues
+ * that will identify species once a creature is rendered. That collision is
+ * DEFERRED TO TASK 13, where species colour first meets a drawn creature,
+ * and nothing here resolves it. PaletteContrastTests' comment carries the
+ * same note from the other end.
+ *
+ * WHAT LEFT THIS FILE IN PHASE 8 TASK 9: the root's gutter padding and the
+ * `__title` rule are the scaffold's header and content region; the
+ * `__next` margin is the CTA row's padding; `__notice` is gone entirely,
+ * replaced by an `EmptyState` that exists only when the tree is empty rather
+ * than a banner that drew an empty amber strip on every populated tree.
  */
-.lineage-view { flex-direction: column; padding: var(--gutter); }
-
-.lineage-view__title {
-    font-size: var(--text-screen-title);
-    color: var(--ink);
-    -unity-font-style: bold;
-    margin-bottom: var(--space-2);
-}
-
-.lineage-view__notice {
-    color: var(--amber-text);
-    background-color: var(--amber-tint);
-    border-radius: var(--radius-row);
-    padding: var(--space-2);
-    white-space: normal;
-    font-size: var(--text-body);
-}
+.lineage-view { flex-grow: 1; }
 
 .lineage-view__generations { flex-direction: column; }
 
-.generation-row { flex-direction: row; flex-wrap: wrap; margin-bottom: var(--space-3); }
+/* A ROW OF CELLS AND A ROW OF CREATURES ARE BOTH THE CONTAINER'S JOB, and
+ * StatCell.uss's closing note is why they are declared here rather than in
+ * the components: a component's sheet reaches the component and its
+ * descendants and never its parent, so nothing a StatCell carries can make
+ * the strip holding it a row. The -4px cancels the half-gap a cell carries
+ * on each of its own outer sides, so the strip sits flush with the card. */
+.generation-row__stats {
+    flex-direction: row;
+    margin-left: -4px;
+    margin-right: -4px;
+    margin-bottom: var(--space-3);
+}
 
+.generation-row__creatures { flex-direction: row; flex-wrap: wrap; }
+
+/* --surface-sunk, not --surface: a node now sits INSIDE a SectionCard whose
+ * own fill is --surface, and white on white left the tiles readable only by
+ * their 3px border. The token's own note is "inset rows, unselected
+ * options", which is what a creature tile in a generation card is. */
 .node {
     flex-direction: column;
     margin-right: var(--space-2);
     margin-bottom: var(--space-2);
     padding: var(--space-2);
-    background-color: var(--surface);
+    background-color: var(--surface-sunk);
     border-radius: var(--radius-tile);
     border-left-width: 3px;
     border-left-color: var(--divider);
@@ -46,5 +61,3 @@
 .node.consumed { opacity: 0.55; }
 
 .node.highlight { background-color: var(--violet-tint); }
-
-.lineage-view__next { margin-top: var(--space-4); }

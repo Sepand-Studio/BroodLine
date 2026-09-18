@@ -49,6 +49,34 @@ namespace Broodline.UI.Screens
             _confirm = this.Q<Button>("confirm");
             _skip = this.Q<Button>("skip");
 
+            // THE FRAME, COMPOSED AND NOT INHERITED. ScreenScaffold's class
+            // comment has the reason in full: `ScaffoldTests`' sweep asks
+            // each screen for a DESCENDANT carrying `screen-scaffold`, and
+            // UQuery never matches the element it is called on - so a screen
+            // that derived from the scaffold would read as bare. Composing
+            // also leaves this type's own `[UxmlElement] partial class` and
+            // `UssClassName` where every existing test reads them.
+            //
+            // pushed: false - beat 4 is a top-level destination, so no back
+            // chevron. ScreenHost.Show, never Push.
+            var scaffold = new ScreenScaffold(FounderNamingScreen.Title);
+
+            // The UXML declares the screen's own furniture as children of
+            // this element; the scaffold's slots take them over here. A
+            // re-parent rather than a second tree, so there is exactly one
+            // place each element is authored.
+            var card = new SectionCard();
+            card.Body.Add(_founder);
+            card.Body.Add(_name);
+
+            scaffold.Content.Add(_prompt);
+            scaffold.Content.Add(card);
+            scaffold.Content.Add(_blocker);
+            scaffold.CtaRow.Add(_confirm);
+            scaffold.CtaRow.Add(_skip);
+            scaffold.FooterNote = FounderNamingScreen.FooterNote;
+            Add(scaffold);
+
             // Registered once, in the constructor, against fields the next
             // Bind overwrites - `DeployView` established this, and the
             // hazard it avoids is a re-bound screen stacking a second
@@ -78,7 +106,7 @@ namespace Broodline.UI.Screens
             var seed = FounderNamingScreen.Sanitize(defaultName);
             _name.value = seed.Length > 0 ? seed : FounderNamingScreen.DefaultFor(founder);
 
-            _blocker.text = string.Empty;
+            Blocker(null);
             _confirm.text = FounderNamingScreen.ConfirmLabel;
             _skip.text = FounderNamingScreen.SkipLabel;
 
@@ -102,10 +130,10 @@ namespace Broodline.UI.Screens
             var name = FounderNamingScreen.Sanitize(_name.value);
             if (name.Length == 0)
             {
-                _blocker.text = FounderNamingScreen.EmptyNameBlocker;
+                Blocker(FounderNamingScreen.EmptyNameBlocker);
                 return;
             }
-            _blocker.text = string.Empty;
+            Blocker(null);
             _onName?.Invoke(name);
         }
 
@@ -115,8 +143,26 @@ namespace Broodline.UI.Screens
         /// the fallback, so skipping is a choice the caller must hear about.
         public void Skip()
         {
-            _blocker.text = string.Empty;
+            Blocker(null);
             _onSkip?.Invoke();
+        }
+
+        /// The refusal banner, shown only when it says something.
+        ///
+        /// THE DISPLAY TOGGLE IS NOT TIDYING. `.founder-naming-view__blocker`
+        /// carries a --coral-tint fill and --space-2 of padding, so an empty
+        /// blocker is a blank coral strip under the name field - visible in
+        /// every capture of this screen before Phase 8 Task 9, on a screen
+        /// where nothing is wrong. `ScreenScaffold.FooterNote` collapses its
+        /// own row for the same reason and `AnEmptyFooterNoteHidesItsRow`
+        /// pins it there; this is that rule applied to the one other
+        /// conditional row on the screen. The TEXT still round-trips to
+        /// string.Empty, which is what FirstHourScreensTests reads.
+        void Blocker(string message)
+        {
+            _blocker.text = message ?? string.Empty;
+            _blocker.style.display = string.IsNullOrEmpty(message)
+                ? DisplayStyle.None : DisplayStyle.Flex;
         }
     }
 }

@@ -1,5 +1,18 @@
 /* The trait reference. bible 10.5: recognition is the counter system's
- * teaching surface, so this reads as a reference table, not a dialog. */
+ * teaching surface, so this reads as a reference table, not a dialog.
+ *
+ * THE SHEET KEEPS ITS OWN SURFACE AND ITS OWN PADDING, unlike the three
+ * screens landed beside it in Phase 8 Task 9, because it takes no
+ * ScreenScaffold - `CodexSheet`'s class comment has the reason, and
+ * `ScaffoldTests` exempts it by name. `.sheet-layer` in Shell.uss draws no
+ * scrim, so this fill is the only thing between the sheet and the screen
+ * under it: --paper would make the two the same colour.
+ *
+ * `.codex-entry` LOST ITS WHOLE RULE and gained `SectionCard`. Fill, radius,
+ * padding, margin and type were all a re-derivation of what that component
+ * already draws, and the elevation the card brings with it is what separates
+ * a white card from this white sheet.
+ */
 .codex-sheet {
     flex-direction: column;
     padding: var(--space-4);
@@ -7,25 +20,13 @@
     border-radius: var(--radius-card);
 }
 
-.codex-sheet__title {
-    font-size: var(--text-section);
-    color: var(--ink);
-    -unity-font-style: bold;
-    margin-bottom: var(--space-3);
-}
+.codex-sheet__title { margin-bottom: var(--space-3); }
 
 .codex-sheet__entries { flex-direction: column; }
 
-.codex-entry {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    background-color: var(--surface-sunk);
-    border-radius: var(--radius-row);
-    padding: var(--space-3);
-    margin-bottom: var(--space-2);
-    font-size: var(--text-body);
-    color: var(--ink);
-}
+/* A sentence, not a label. Both lines of an entry's body wrap rather than
+ * running off the sheet's right edge, which is what the old one-line row
+ * did with "Found on Vetch Crawler." at 430px. */
+.codex-entry Label { white-space: normal; }
 
 .codex-sheet__dismiss { margin-top: var(--space-3); }

@@ -1,41 +1,39 @@
-/* Beat 4. bible 3.3 makes naming optional, so the skip is a quiet action and
- * the confirm is the only CTA on screen. */
-.founder-naming-view { flex-direction: column; padding: var(--gutter); }
+/* Beat 4, composed onto ScreenScaffold. What is left in this file is the
+ * three things the frame and the components cannot know: the gap under the
+ * prompt, the centring of the one card, and that two of these labels wrap.
+ *
+ * FOUR RULES LEFT THIS FILE IN PHASE 8 TASK 9 AND NONE OF THEM WERE
+ * REPLACED BY A COPY HERE, which is the whole test of whether a screen is
+ * composing the layer or re-deriving it:
+ *   - the root's `padding: var(--gutter)` is the scaffold's content region.
+ *   - `__prompt`'s font-size/colour/weight is `t-section` in the UXML; the
+ *     screen TITLE moved to the scaffold's header, so the prompt is no
+ *     longer also acting as one.
+ *   - `__blocker`'s fill, radius and padding are Theme's `.panel-coral` and
+ *     its ink is `.t-danger`.
+ *   - `__skip`'s whole treatment was a verbatim second copy of Theme's
+ *     `.btn-quiet`, down to the `:active` rule.
+ *   - `__confirm` and `__name`'s margins are the CTA row's padding and
+ *     Theme's own TextField margin.
+ */
+.founder-naming-view { flex-grow: 1; }
 
 .founder-naming-view__prompt {
-    font-size: var(--text-screen-title);
-    color: var(--ink);
-    -unity-font-style: bold;
     margin-bottom: var(--space-3);
     white-space: normal;
 }
 
+/* The card holds one CreatureCard, which is a fixed 160px tile - so the
+ * centring is the container's job and cannot come from the tile. */
 .founder-naming-view__founder {
     flex-direction: row;
     justify-content: center;
-    margin-bottom: var(--space-4);
-}
-
-.founder-naming-view__name { margin-bottom: var(--space-1); }
-
-.founder-naming-view__blocker {
-    color: var(--coral-text);
-    background-color: var(--coral-tint);
-    border-radius: var(--radius-row);
-    padding: var(--space-2);
-    white-space: normal;
     margin-bottom: var(--space-2);
-    font-size: var(--text-body);
 }
 
-.founder-naming-view__confirm { margin-top: var(--space-2); }
-
-/* Quiet, not a second CTA: skipping is legitimate and shouldn't compete. */
-.founder-naming-view__skip {
-    margin-top: var(--space-1);
-    background-color: rgba(0, 0, 0, 0);
-    color: var(--mute);
-    border-bottom-width: 0;
-    font-size: var(--text-body);
+/* A sentence, not a label, so it wraps. Shown only when it says something -
+ * FounderNamingView.Blocker has the measurement. */
+.founder-naming-view__blocker {
+    white-space: normal;
+    margin-top: var(--space-2);
 }
-.founder-naming-view__skip:active { translate: 0 0; color: var(--violet-text); }

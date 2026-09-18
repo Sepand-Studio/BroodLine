@@ -1,36 +1,38 @@
 /* Wave selection. A locked wave is a disabled row, not a hidden one - the
- * campaign's shape should be visible before it is playable. */
-.campaign-select-view { flex-direction: column; padding: var(--gutter); }
-
-.campaign-select-view__title {
-    font-size: var(--text-screen-title);
-    color: var(--ink);
-    -unity-font-style: bold;
-    margin-bottom: var(--space-3);
-}
+ * campaign's shape should be visible before it is playable.
+ *
+ * THE ROW ITSELF IS GONE FROM THIS FILE. `.campaign-row`'s fill, border,
+ * radius, padding, margin and type were a line-by-line re-derivation of
+ * `.option-row`, which now draws the row; the screen's own title rule went
+ * with the title, into the scaffold's header. What is left is the one thing
+ * neither the frame nor the component can know: what LOCKED looks like on
+ * this list.
+ *
+ * A SCREEN CAN STYLE ITS COMPONENTS' INSIDES, WHICH IS THE OPPOSITE OF
+ * StatCell.uss's note and not a contradiction of it. This sheet is attached
+ * at this screen's root, so it reaches every descendant - including the
+ * OptionRows added to `#waves`. What a COMPONENT's sheet cannot reach is its
+ * own PARENT, which is upward rather than downward.
+ */
+.campaign-select-view { flex-grow: 1; }
 
 .campaign-select-view__waves { flex-direction: column; }
 
-.campaign-row {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    background-color: var(--surface);
-    border-radius: var(--radius-row);
-    border-width: 1px;
-    border-color: var(--divider);
-    padding: var(--space-3);
-    margin-bottom: var(--space-2);
-    color: var(--ink);
-    font-size: var(--text-card-title);
-    border-bottom-width: 1px;
-    border-bottom-color: var(--divider);
-}
+/* Unity's default theme dims a disabled element to 50% opacity, which would
+ * take the row's border and the padlock with it and read as damage rather
+ * than as a state. The locked treatment is stated instead: the sunk fill it
+ * already has, and its words in --mute-soft. */
+.campaign-row:disabled { opacity: 1; }
+.campaign-row:disabled .option-row__title { color: var(--mute-soft); }
+.campaign-row:disabled .option-row__detail { color: var(--mute-soft); }
 
-.campaign-row:active { translate: 0 1px; background-color: var(--violet-tint); }
-
-.campaign-row:disabled {
-    background-color: var(--surface-sunk);
-    color: var(--mute-soft);
-    opacity: 1;
+/* OUT OF FLOW at the row's right edge. `.option-row` is a column of two
+ * labels, so an in-flow glyph would land under them as a third line; a
+ * VisualElement's default position is relative, which is what an absolutely
+ * positioned child resolves against. --space-3 is the row's own padding, so
+ * the mark sits on the same inset as the text. */
+.campaign-row > .icon {
+    position: absolute;
+    right: var(--space-3);
+    top: var(--space-3);
 }
