@@ -4,6 +4,8 @@ using Broodline.Api;
 using Broodline.Model;
 using Broodline.UI;
 using Broodline.UI.Screens;
+using Broodline.UI.Shell;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -55,8 +57,11 @@ public static class ScreenFixtures
         "SpliceRevealView",
         "WaveDefeatView",
         "WaveHudView",
-        // NOT A SCREEN, and last for that reason - see Primitives() below.
+        // NOT SCREENS, and last for that reason - see Primitives() and
+        // Icons() below. Each exists because the twelve screens above it
+        // cannot show the thing it shows.
         "Primitives",
+        "Icons",
     };
 
     public static VisualElement Build(string name)
@@ -76,6 +81,7 @@ public static class ScreenFixtures
             case "WaveDefeatView": return WaveDefeat();
             case "WaveHudView": return WaveHud();
             case "Primitives": return Primitives();
+            case "Icons": return Icons();
             default: throw new ArgumentException("ScreenFixtures has no fixture named '" + name + "'", nameof(name));
         }
     }
@@ -442,5 +448,115 @@ public static class ScreenFixtures
         wrapper.style.marginBottom = 40;
         wrapper.Add(card);
         return wrapper;
+    }
+
+    /// The thirteen glyphs, each at the 19px it is really drawn at, beside the
+    /// `.icon--` name that maps to it - and under them a live `TabBar`
+    /// rendering the five nav tabs through the same classes the runtime uses.
+    ///
+    /// WHY THIS EXISTS AT ALL. `Shell.uxml` is the only thing that mounts a
+    /// `TabBar`, and no screen fixture mounts a shell - so without this the
+    /// icon task lands as thirteen PNGs, one stylesheet, and twelve
+    /// byte-identical screens. That is the plan's amendment finding 4 again: a
+    /// corpus that cannot see a change reads as "no regression" when what it
+    /// actually means is "not looked at". Same reason as `Primitives`, one
+    /// task later.
+    ///
+    /// THE NAME BESIDE THE MARK IS THE POINT, not decoration. Nothing else in
+    /// this task can tell `gem.svg` from `award.svg`: TabBarTests asserts a
+    /// tab carries the class `icon--shard`, check-stylesheets asserts the rule
+    /// compiles, and both stay green if `shard.png` is a padlock. A wrong
+    /// mapping is invisible to every automated check here and obvious on this
+    /// grid, which is the only place it can be caught.
+    ///
+    /// THE BAR RENDERS WITH `Splice` ACTIVE so both tint states are in the
+    /// picture - four glyphs at `--mute-soft`, one at `--violet-text`. That
+    /// pair is also the check on how the rasters were authored: Lucide's
+    /// `stroke="currentColor"` rasterises to BLACK, and
+    /// `-unity-background-image-tint-color` MULTIPLIES, so black glyphs would
+    /// ignore both tints and render five identical black marks. They are
+    /// authored white for exactly this reason, and this is where you see it.
+    static VisualElement Icons()
+    {
+        // .shell-root is --paper, as in Primitives - the real screen
+        // background out of the token layer rather than a hardcoded colour.
+        var root = new VisualElement();
+        root.AddToClassList("shell-root");
+        root.style.flexGrow = 1;
+        root.style.paddingLeft = 32;
+        root.style.paddingRight = 32;
+        root.style.paddingTop = 48;
+
+        var title = new Label("Icons");
+        title.AddToClassList("t-screen-title");
+        title.style.marginBottom = 20;
+        root.Add(title);
+
+        // The order `icons.uss` declares them in, which is also the order the
+        // plan's Interfaces line names them.
+        foreach (var name in new[]
+                 {
+                     "map", "ark", "splice", "lab", "allies", "back", "charge",
+                     "shard", "tier", "timer", "lock", "check", "warning",
+                 })
+        {
+            root.Add(GlyphRow(name));
+        }
+
+        var caption = new Label("TabBar, live - Splice active");
+        caption.AddToClassList("t-secondary");
+        caption.style.marginTop = 24;
+        caption.style.marginBottom = 8;
+        root.Add(caption);
+
+        var bar = new TabBar();
+        bar.Render(new List<string> { "Map", "Ark", "Splice", "Lab", "Allies" }, "Splice", _ => { });
+
+        // SHELL.USS, ON THE BAR'S SUBTREE ONLY, AND IT IS NOT OPTIONAL HERE.
+        // `ScreenHarness.AddShellStyles` loads Tokens, Theme, icons and
+        // Motion - not Shell.uss - so every `.tab-bar*` rule is absent from
+        // this capture: the row direction, the --surface fill, the divider,
+        // and the block that undoes `Button`'s primary-CTA fill for nav items.
+        // Without it a real TabBar draws as five violet CTA buttons in a
+        // COLUMN, which is not what ships and would make this fixture lie
+        // about the thing it exists to show. Scoped to `bar` rather than added
+        // to AddShellStyles deliberately: Shell.uss also carries `.shell-root`
+        // safe-area padding off `--safe-top`/`--safe-bottom`, which only
+        // SafeAreaBinder sets, so putting it on the panel root would re-lay
+        // out all thirteen other fixtures for no gain.
+        var shell = AssetDatabase.LoadAssetAtPath<StyleSheet>("Assets/UI/Shell/Shell.uss");
+        if (shell != null) bar.styleSheets.Add(shell);
+
+        // Out to the fixture's edges, as the tab-bar slot sits at runtime -
+        // the bar draws its own --surface fill and top divider, and inset by
+        // 32px it would read as a floating card instead of shell chrome.
+        bar.style.marginLeft = -32;
+        bar.style.marginRight = -32;
+        root.Add(bar);
+
+        return root;
+    }
+
+    /// One glyph at its real 19px with the name that maps to it beside it.
+    /// No scaling up: a mark that is unreadable at the size it ships at is a
+    /// finding, not something for this fixture to flatter away.
+    static VisualElement GlyphRow(string name)
+    {
+        var row = new VisualElement();
+        row.style.flexDirection = FlexDirection.Row;
+        row.style.alignItems = Align.Center;
+        row.style.marginBottom = 9;
+
+        var glyph = new VisualElement();
+        glyph.AddToClassList("icon");
+        glyph.AddToClassList("icon--" + name);
+        row.Add(glyph);
+
+        var label = new Label(name);
+        label.AddToClassList("t-card-title");
+        label.style.marginLeft = 14;
+        row.Add(label);
+
+        return row;
     }
 }

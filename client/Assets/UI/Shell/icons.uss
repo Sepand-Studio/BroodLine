@@ -1,0 +1,44 @@
+/* Glyphs. Lucide at 24/2.0, rescaled to the handoff's 19px / no fill;
+ * `splice` is drawn to match because no general set carries it.
+ *
+ * LICENCE IS ISC, NOT MIT - the plan said MIT and the file it tells you to
+ * fetch says "ISC License" on line 1. Three of these thirteen (`check`,
+ * `back`, `lock`) are Lucide's Feather-derived set and carry Feather's MIT
+ * on top. Both texts are in LICENSE-lucide.txt beside the rasters.
+ *
+ * RASTER, NOT VECTOR. UI Toolkit reads SVG only through the Vector Graphics
+ * package, and ad7ff3c removed two unused packages from the client build this
+ * phase last. A dependency for glyphs that never exceed 24px is not a trade
+ * worth making, so these are 3x PNGs: 57px authored, 19px drawn.
+ *
+ * AUTHORED WHITE, NOT BLACK, AND THAT IS LOAD-BEARING.
+ * -unity-background-image-tint-color MULTIPLIES the texture. Lucide's
+ * `stroke="currentColor"` rasterises to black, black times any tint is
+ * still black, and the two tab states at the bottom of this file would have
+ * collapsed into one identical grey-on-nothing glyph with no error anywhere.
+ * The rasteriser substitutes white for currentColor; the tint is what
+ * colours a glyph, so every colour here still comes from the token layer.
+ */
+.icon {
+    width: 19px;
+    height: 19px;
+    -unity-background-scale-mode: scale-to-fit;
+    -unity-background-image-tint-color: var(--mute-soft);
+}
+.icon--map     { background-image: url("project:///Assets/UI/Art/icons/map.png"); }
+.icon--ark     { background-image: url("project:///Assets/UI/Art/icons/ark.png"); }
+.icon--splice  { background-image: url("project:///Assets/UI/Art/icons/splice.png"); }
+.icon--lab     { background-image: url("project:///Assets/UI/Art/icons/lab.png"); }
+.icon--allies  { background-image: url("project:///Assets/UI/Art/icons/allies.png"); }
+.icon--back    { background-image: url("project:///Assets/UI/Art/icons/back.png"); }
+.icon--charge  { background-image: url("project:///Assets/UI/Art/icons/charge.png"); }
+.icon--shard   { background-image: url("project:///Assets/UI/Art/icons/shard.png"); }
+.icon--tier    { background-image: url("project:///Assets/UI/Art/icons/tier.png"); }
+.icon--timer   { background-image: url("project:///Assets/UI/Art/icons/timer.png"); }
+.icon--lock    { background-image: url("project:///Assets/UI/Art/icons/lock.png"); }
+.icon--check   { background-image: url("project:///Assets/UI/Art/icons/check.png"); }
+.icon--warning { background-image: url("project:///Assets/UI/Art/icons/warning.png"); }
+
+/* The tab bar's two states, per the handoff's nav model. */
+.tab-bar__tab .icon            { -unity-background-image-tint-color: var(--mute-soft); }
+.tab-bar__tab--active .icon    { -unity-background-image-tint-color: var(--violet-text); }

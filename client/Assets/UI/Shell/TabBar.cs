@@ -16,6 +16,7 @@ namespace Broodline.UI.Shell
         public const string UssClassName = "tab-bar";
         public const string TabUssClassName = "tab-bar__tab";
         public const string ActiveTabUssClassName = "tab-bar__tab--active";
+        public const string IconUssClassName = "icon";
 
         public TabBar()
         {
@@ -32,6 +33,17 @@ namespace Broodline.UI.Shell
                 var button = new Button(() => onSelect?.Invoke(tab)) { text = tab, name = "tab-" + tab };
                 button.AddToClassList(TabUssClassName);
                 if (tab == active) button.AddToClassList(ActiveTabUssClassName);
+
+                // The glyph, before the label. `icons.uss` maps
+                // `.icon--<lowercased tab>` to a raster and tints it from the
+                // token layer, so a tab whose name has no glyph draws nothing
+                // rather than drawing the wrong thing.
+                var icon = new VisualElement();
+                icon.AddToClassList(IconUssClassName);
+                icon.AddToClassList(IconUssClassName + "--" + tab.ToLowerInvariant());
+                icon.pickingMode = PickingMode.Ignore;   // the button takes the click, not the glyph
+                button.Insert(0, icon);
+
                 Add(button);
             }
         }
