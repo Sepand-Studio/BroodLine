@@ -168,6 +168,52 @@ So Task 6 builds the measurement, commits it as a tracked baseline, and puts a c
 
 ---
 
+## AMENDED 2026-09-17 (second) — two numbers in this plan are stale, and the token layer was dead
+
+Two corrections that every task below inherits. Read them before taking a
+task; both were measured, not inferred.
+
+**1. The EditMode gate's healthy state is exit 2, not exit 0, and the count
+is 268 / 267, not 264.** The measured state of
+`./implementation/scripts/run-unity-tests.sh EditMode` is **268 total, 267
+passed, 1 failed, exit 2**. The single failure is
+`MainThreadAffinityTests.NoConfigureAwaitFalse_InCodeThatTouchesTheUi`, and
+it is a correct failure: it flags three genuine `.ConfigureAwait(false)`
+sites in `SessionTests.cs` that are real and deliberately unfixed. It is not
+your breakage. Wherever a task below says "expect 264", "exit 0" or "EditMode
+all pass" — lines 551, 570, 620, 838, 1039 among them — read it as "267
+passed, 1 known failure, exit 2, plus whatever your task adds." Those lines
+are left as written rather than edited in place, because this plan's own
+Task 0 is about what happens when a cached number outlives its measurement:
+the regeneration command is the authority, the number in the prose is a
+cache of it.
+
+**2. `Tokens.uss` was compiling to ZERO RULES, and every `var(--token)` in
+the project resolved to nothing.** Fixed in `b374bcd`. Its header comment
+cited a path whose trailing glob formed a `*/`, which closed the block
+comment eighteen lines early; the remainder was parsed as USS source, stray
+apostrophes opened unterminated strings, and the file died at import. Unity
+logged four `LineBreakUnexpected` errors and nothing read them, because a
+USS parse error fails no build, no test and no runtime assertion — the asset
+still imports, still loads non-null, and still renders, just without its
+rules. Colour, spacing, radius and font-size all went silently and at once,
+in the Editor, in the harness, and in the built player.
+
+This changes what Phase 8 is doing. The premise recorded in the spec — "the
+UI is pretty rough" — was substantially this defect rather than absent
+design work. Tasks 3, 6, 7, 8 and 9–12 are all still needed and none of
+their content changes, but the "before" they are measured against moved a
+long way in one commit, and any judgement made by eye against a
+pre-`b374bcd` capture should be re-made.
+
+**The new gate: `./implementation/scripts/check-stylesheets.sh`.** Every
+`.uss` must compile to at least one rule; exit 1 and the offending file named
+otherwise. Verified to fail on the real defect and on a synthetic one. **Run
+it after any stylesheet edit**, and be careful never to write a `*/` inside a
+USS comment — paths and globs are the way it happens.
+
+---
+
 ## RE-GATED 2026-09-17 — the visual work does not wait on the test runner
 
 **Why this section exists.** As first written, all thirteen visual tasks gated on
