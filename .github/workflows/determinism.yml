@@ -121,6 +121,7 @@ on:
       - 'client/Assets/**'
       # The scripts this job runs.
       - 'implementation/scripts/run-unity-tests.sh'
+      - 'implementation/scripts/check-stylesheets.sh'
   pull_request:
     paths:
       - 'engine/**'
@@ -149,6 +150,7 @@ on:
       - 'client/Assets/**'
       # The scripts this job runs.
       - 'implementation/scripts/run-unity-tests.sh'
+      - 'implementation/scripts/check-stylesheets.sh'
   # schedule:
   #   # Nightly at 09:00 UTC.
   #   - cron: '0 9 * * *'
@@ -175,6 +177,22 @@ jobs:
       # Before the IL2CPP diff, not after: the diff switches the active build
       # target to StandaloneOSX and back, and a test run either side of that
       # is slower and noisier than one before it.
+      # Every .uss must compile to at least one rule. This is the gate from
+      # b374bcd, and until now it had no CI home at all: Tokens.uss spent a
+      # stretch of Phase 8 compiling to ZERO rules, which took the entire
+      # design system down - colour, spacing, radius, font-size - silently,
+      # past a green compile and 267 passing tests. A USS parse error fails no
+      # build and no test; the asset imports, the sheet loads non-null, the
+      # panel renders, just without its rules.
+      #
+      # It is here rather than in tests.yml because it needs Unity in batch
+      # mode, and this is the only job that has one.
+      #
+      # Before the EditMode tests: it takes a fraction of the time and a dead
+      # stylesheet is worth learning about before a 45-minute job, not after.
+      - name: Stylesheets compile
+        run: ./implementation/scripts/check-stylesheets.sh
+
       - name: Unity EditMode tests
         run: ./implementation/scripts/run-unity-tests.sh EditMode
 

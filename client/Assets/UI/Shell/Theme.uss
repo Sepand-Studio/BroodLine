@@ -161,7 +161,7 @@ Label {
 Button {
     -unity-font-style: bold;
     font-size: var(--text-cta);
-    color: #ffffff;
+    color: var(--surface);
     background-color: var(--violet);
     background-image: none;
     border-left-width: 0;
@@ -199,9 +199,9 @@ Button:disabled {
 .btn-secondary {
     background-color: var(--violet-tint);
     color: var(--violet-text);
-    border-bottom-color: #ddd3f0;
+    border-bottom-color: var(--violet-edge);
 }
-.btn-secondary:active { background-color: #e7e0f6; }
+.btn-secondary:active { background-color: var(--violet-pressed); }
 
 /* Success and danger CTAs - green-deep and coral-deep per the token table. */
 .btn-success { background-color: var(--green); border-bottom-color: var(--green-deep); }
@@ -265,7 +265,7 @@ TextField:focus > * {
  * the same border at 1px - the layout cost is identical because both states
  * carry a border, which is why the unselected one is specified at all. */
 .option {
-    background-color: #f7f5fb;
+    background-color: var(--surface-sunk);
     border-width: 1px;
     border-color: var(--hairline);
     border-radius: var(--radius-row);

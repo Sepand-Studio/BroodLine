@@ -4,8 +4,12 @@
  * bundle are authoritative: colour, spacing, radius, elevation, the physical
  * button-press state on primary CTAs, and the named animation set. They are
  * complete and should be implemented as specified rather than reinterpreted."
- * Every hex below is copied from that README's table. If one looks wrong,
- * the README is the thing to argue with, not this file.
+ * Every hex below is copied from that README's table, EXCEPT the five marked
+ * "not in the handoff" - added by Phase 8 Task 2, when verify-uss-tokens.sh
+ * found colours living raw in screen stylesheets that no token covered. Each
+ * one states what it is for and why the nearest existing token would not do.
+ * If a README hex looks wrong, the README is the thing to argue with, not
+ * this file.
  *
  * NOT specs/Designs/_ds/modernist-<variant>/styles.css. That is a generic design
  * system that happens to sit in the same folder - red accent, Archivo, zero
@@ -33,6 +37,7 @@
     --paper: #f7f4fb;             /* screen background */
     --surface: #ffffff;           /* cards */
     --surface-sunk: #f8f6fc;      /* inset rows, unselected options */
+    --surface-raised: #fdfcff;    /* CreatureCard's selected fill, above --surface */
 
     /* ---- Brand ---- */
     --violet: #7a6ac0;            /* primary brand, CTAs */
@@ -41,6 +46,24 @@
     --violet-tint: #f1ecfa;       /* secondary button, violet panels */
     --violet-text: #6b5fa8;       /* violet-on-light text */
     --violet-light: #8878cf;      /* CTA gradient start, selection ring */
+    --violet-pressed: #e7e0f6;    /* secondary button :active, under --violet-tint */
+
+    /* Not in the handoff. The secondary button's drop edge - the 3px bottom
+     * border that stands in for the press state USS cannot express (see
+     * Theme.uss header item 3). It is NOT --hairline: against the
+     * --violet-tint fill this reads 55 in summed channel distance, in the
+     * same family as --violet to --violet-shadow (94) and --coral to
+     * --coral-deep (48), while --hairline reads 14 and would flatten the
+     * edge into the fill. Task 2 was told to collapse it as drift; it is
+     * not drift, and the arithmetic is recorded here so the call can be
+     * argued with. */
+    --violet-edge: #ddd3f0;       /* not in the handoff - secondary drop edge */
+
+    /* Not in the handoff. The icon inside an aberrant trait pip. Nothing in
+     * the table is near it - --hairline, the closest, is 46 away and far
+     * lighter - so it is a real sixth violet rather than a near-miss of an
+     * existing one. Task 2's own step list omitted this colour entirely. */
+    --violet-pale: #d9cdf5;       /* not in the handoff - aberrant pip icon */
 
     /* ---- Species / semantic ---- */
     --teal: #6ba7c0;              /* Vetch, info */
@@ -57,6 +80,7 @@
     --coral-deep: #d4776a;
     --coral-tint: #fbeae7;
     --coral-text: #b3564a;
+    --coral-alert: #ff6b5c;       /* breach state - hotter than --coral, HUD only */
     --slate: #a9b0c4;             /* Pale, neutral */
 
     /* ---- Secondary ink ---- */

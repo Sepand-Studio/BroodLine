@@ -82,12 +82,12 @@
  * treatment in the system; the motion half is not implemented. */
 .creature-card.aberrant {
     border-width: 2px;
-    border-color: #ffffff;
-    background-color: #fdfcff;
+    border-color: var(--surface);
+    background-color: var(--surface-raised);
 }
 
 .creature-card.aberrant .creature-card__silhouette {
-    background-color: #f3eefc;
+    background-color: var(--violet-tint);
 }
 
 /* Committed to a wave: still legible, visibly not actionable. */

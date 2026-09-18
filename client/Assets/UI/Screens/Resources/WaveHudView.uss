@@ -60,23 +60,23 @@
 .wave-hud-view__fill {
     height: 6px;
     border-radius: 3px;
-    background-color: #e5867a;
+    background-color: var(--coral);
 }
 
 /* Yours. Green - the same success colour the post-wave screen uses. */
-.wave-hud-view__bar.creature .wave-hud-view__fill { background-color: #7cc492; }
+.wave-hud-view__bar.creature .wave-hud-view__fill { background-color: var(--green); }
 
 /* Chill applied: teal, matching the Vetch/info token. Chill is the trait the
  * wave-6 defeat screen teaches, so it should be the same colour there and
  * here or the lesson does not transfer. */
-.wave-hud-view__bar.chilled .wave-hud-view__fill { background-color: #6ba7c0; }
+.wave-hud-view__bar.chilled .wave-hud-view__fill { background-color: var(--teal); }
 
 /* Rally: amber-bright, the apex/attention colour. */
-.wave-hud-view__bar.rallied .wave-hud-view__fill { background-color: #ffb703; }
+.wave-hud-view__bar.rallied .wave-hud-view__fill { background-color: var(--amber-bright); }
 
 /* Breaching - the one state a player must catch in peripheral vision, so it
  * is the brightest thing on the field. */
-.wave-hud-view__bar.breaching .wave-hud-view__fill { background-color: #ff6b5c; }
+.wave-hud-view__bar.breaching .wave-hud-view__fill { background-color: var(--coral-alert); }
 
 .wave-hud-view__tag {
     font-size: var(--text-secondary);

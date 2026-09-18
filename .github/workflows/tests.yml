@@ -186,3 +186,17 @@ jobs:
       # a package write, then a `git add -A` in a commit about something else.
       - name: verify-unity-settings.sh
         run: bash implementation/scripts/verify-unity-settings.sh
+
+      # The token lint. Pure shell over committed .uss text - no Unity, no
+      # licence - so it belongs on the hosted runner beside the settings check.
+      #
+      # ITS SIBLING CANNOT LIVE HERE. check-stylesheets.sh, the gate that
+      # catches a stylesheet compiling to zero rules (b374bcd), drives Unity in
+      # batch mode and exits 127 without an editor. Putting it in this job would
+      # paint the board permanently red for a missing binary rather than a
+      # broken sheet, so it is wired into determinism.yml's self-hosted macOS
+      # job instead, next to the EditMode tests. The two gates are
+      # complementary and neither subsumes the other: this one reads sheets
+      # that parse and checks what they say, that one checks they parse at all.
+      - name: verify-uss-tokens.sh
+        run: bash implementation/scripts/verify-uss-tokens.sh

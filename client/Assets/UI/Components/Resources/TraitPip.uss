@@ -39,11 +39,11 @@
 }
 
 .trait-pip.aberrant {
-    background-color: #ffffff;
+    background-color: var(--surface);
     border-width: 1px;
-    border-color: #efe9fb;
+    border-color: var(--hairline);
 }
 
 .trait-pip.aberrant .trait-pip__icon {
-    background-color: #d9cdf5;
+    background-color: var(--violet-pale);
 }
