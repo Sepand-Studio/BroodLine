@@ -55,6 +55,11 @@ namespace Broodline.UI.Screens
         public const string MutatedUssClassName = "mutated";
         public const string HighlightUssClassName = "highlight";
 
+        /// The words that keep Founder, Mutated and Consumed off colour
+        /// alone - bible 10.4. `MarksFor` has the whole account.
+        public const string MarksUssClassName = "node__marks";
+        public const string MarkUssClassName = "node__mark";
+
         readonly ScreenScaffold _scaffold;
         readonly VisualElement _generations;
         readonly Button _next;
@@ -232,11 +237,10 @@ namespace Broodline.UI.Screens
                 highlight != Guid.Empty && node.CreatureId == highlight);
 
             element.Add(new Label { name = "label", text = LineageScreen.NodeLabel(node) });
-            element.Add(new Label
-            {
-                name = "state",
-                text = string.IsNullOrEmpty(node.ConsumedAt) ? string.Empty : LineageScreen.ConsumedLabel,
-            });
+
+            // THE SECOND CHANNEL, AND IT IS NOT DECORATION. See MarksFor.
+            var marks = MarksFor(node);
+            if (marks != null) element.Add(marks);
 
             var traits = new VisualElement { name = "traits" };
             AddTrait(traits, node.Trait1, node.Tier1);
@@ -244,6 +248,66 @@ namespace Broodline.UI.Screens
             element.Add(traits);
 
             return element;
+        }
+
+        /// What is true about this creature, in words - or nothing at all.
+        ///
+        /// bible 10.4: "Colour never carries information alone." This screen
+        /// was the one place in the app that broke it. A lineage node draws
+        /// NO CREATURE - it is a label, a state line and two pips - so there
+        /// is no silhouette here to reinforce anything, and Founder and
+        /// Mutated were each carried by a 3px coloured border and by nothing
+        /// else. `Consumed` was already a word, which is the pattern the
+        /// other two now follow; `LineageScreen.ConsumedLabel`'s own comment
+        /// had said so all along - "the screen says so in words as well as in
+        /// a class name".
+        ///
+        /// It is also what closes Task 6's deferred palette collision without
+        /// moving a colour. The amber rail IS Skitter and the violet rail IS
+        /// Hollow, at dE 0.0, so on a screen where colour was the only
+        /// channel the rails read as species marks. With the words present,
+        /// amber can go on meaning Founder. Rendered evidence, and the three
+        /// costed alternatives that were rejected, are in
+        /// implementation/results/species-collision.md.
+        ///
+        /// RETURNS NULL RATHER THAN AN EMPTY ROW, AND THAT IS THE POINT OF
+        /// THE SIGNATURE. Phase 8 found eight banners drawn unconditionally
+        /// that merely emptied their text - a blank amber strip on this very
+        /// screen was one of them, removed in Task 9. The `state` Label this
+        /// replaces was the same shape: constructed for every node and given
+        /// `string.Empty` for the living ones. Measured, it collapsed to zero
+        /// height and was not a defect, but building the ninth one next to
+        /// where the eighth was diagnosed is not a thing to do. A node with
+        /// nothing to say gets no element.
+        static VisualElement MarksFor(LineageNode node)
+        {
+            var marks = new VisualElement { name = "marks" };
+            marks.AddToClassList(MarksUssClassName);
+
+            // Ordered as the creature's own history reads: what it was born
+            // as, what happened at its splice, what happened to it in the
+            // end. A node can carry more than one - a consumed founder is an
+            // ordinary thing - so the row wraps rather than choosing.
+            AddMark(marks, node.IsFounder, FounderUssClassName, LineageScreen.FounderLabel);
+            AddMark(marks, node.Mutated, MutatedUssClassName, LineageScreen.MutatedLabel);
+            // `consumedAt` is a TIMESTAMP, nullable on the wire - its
+            // presence is the fact, and the client never parses it.
+            AddMark(marks, !string.IsNullOrEmpty(node.ConsumedAt),
+                    ConsumedUssClassName, LineageScreen.ConsumedLabel);
+
+            return marks.childCount == 0 ? null : marks;
+        }
+
+        /// One word, or nothing. Named after itself so a test and a deep link
+        /// can reach a single mark, the same way every node is named after
+        /// its creature id.
+        static void AddMark(VisualElement into, bool applies, string modifier, string text)
+        {
+            if (!applies) return;
+            var mark = new Label { name = modifier, text = text };
+            mark.AddToClassList(MarkUssClassName);
+            mark.AddToClassList(MarkUssClassName + "--" + modifier);
+            into.Add(mark);
         }
 
         /// A lineage node's traits are nullable on the wire (a pruned or very

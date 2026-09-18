@@ -2725,9 +2725,55 @@ them, not the specs. `PaletteContrastTests` fails if the two disagree. Nothing e
 in the palette moved. Full reasoning, the four costed options and the trade:
 `implementation/results/palette-decision.md`.
 
-**2. THIS TASK OWNS AN OPEN DECISION.** Two species share their *exact* hex with a
-token that names a UI role, at ΔE 0.0 — identical, for every player, colour-blind
-or not:
+**2. THIS TASK OWNED AN OPEN DECISION — ✅ RESOLVED IN EXECUTION, AND OWED TO TASK 19.**
+
+> **The two species colours are fine; `LineageView` is what needed a second
+> channel.**
+>
+> **No colour moved** — not a species colour, not a token, not a UI role. The six
+> proxies were drawn, tinted and captured, and **the render changed the answer.**
+> On any screen that *draws* a creature the collision is mild: a 2px amber Founder
+> frame and a gold Skitter body are different shapes in different places, which is
+> bible §10.4's *"species colour is reinforced by silhouette"* doing its job.
+> **`LineageView` draws no creature at all** — a node is two Labels and a 3px
+> coloured rail — so Founder and Mutated were each carried by colour and nothing
+> else. That is a §10.4 violation *on its own terms, before any species had a
+> colour*, and the shared hex was its symptom.
+>
+> **Applied:** lineage nodes now state **Founder**, **Mutated** and **Consumed** in
+> words beside the rail (`LineageView.MarksFor`, `.node__mark`), built only when
+> non-empty. Asserted by
+> `FirstHourScreensTests.Lineage_StatesEveryFactInWordsAndNotOnlyInColour`, seen to
+> fail twice before being trusted. Acceptance test: the capture in greyscale still
+> reads Founder / Consumed / Consumed / Mutated.
+>
+> **Rejected, with reasons, so nobody re-derives them:**
+> - **Move the two UI roles to new colours.** There is no spare hue — all six are
+>   species and the seventh is the brand violet — so it needs a colour *outside the
+>   design handoff*, which must then survive the same CVD measurement against six
+>   existing colours. And it still leaves the tree carrying two facts on colour.
+> - **Move the two species colours.** Re-opens a floor Task 6 already spent a
+>   colour reaching (≈ΔE 10–12 for six hues in this family), requires re-pinning the
+>   CVD baseline, and spends a third of the species palette on a problem that bites
+>   on one screen — immediately before Phase 9's art is built, the most expensive
+>   possible moment.
+>
+> **Also found, and separate: Pale is effectively invisible on a card.** `#c6cede`
+> against the silhouette slot's `#f8f6fc` is **1.47:1**, and the whole creature
+> moves no channel by more than 50 of 255. This is a property of flat proxies, not
+> of the palette — but it is a **prediction about Phase 9's art** and belongs in the
+> illustrator's brief: a Pale creature cannot read on hue alone and needs its own
+> value structure. Note honestly that Task 6's lightening of Pale improved the
+> colour-blindness numbers *and* made this worse, and **both calls were correct
+> against their own measurements** — contrast-against-a-card was not measurable
+> until a species colour first landed on a surface, which is this task.
+>
+> Full rendered evidence, the four costed options and the caveats:
+> `implementation/results/species-collision.md`. **Task 19 owes the record.**
+
+The decision as it stood when the task began — two species share their *exact* hex
+with a token that names a UI role, at ΔE 0.0, identical for every player,
+colour-blind or not:
 
 | Species | Token | The token's job | Where it renders today |
 |---|---|---|---|
@@ -3397,6 +3443,33 @@ bash implementation/scripts/verify-uss-tokens.sh | tail -2
 - [ ] **Step 3: The accessibility erratum**
 
 Replace `broodline_accessibility.md` §4's recommendation block with Task 6's finding and whichever option was chosen, and **delete the sentence** *"It is a small change and it must happen before the Character Bible is finalised"* — it is false as written, because the small change does not exist. Cite `palette-cvd-baseline.txt` as the measurement.
+
+**Three rows are owed here, not one.** Task 6 moved a colour and Task 13 settled
+the decision Task 6 deferred; both are unrecorded in the specs, and one is a note
+an illustrator needs before Phase 9 starts. Source for all three:
+`implementation/results/palette-decision.md` and
+`implementation/results/species-collision.md`.
+
+1. **Pale is `#c6cede`, not `#a9b0c4`** — in `bible §1.2`'s species table,
+   `accessibility.md §4`'s palette list, and the design handoff README. Those three
+   are stale on that one row; `Tokens.uss --slate` and `PaletteContrast.Species`
+   are the live values and `PaletteContrastTests` pins them together.
+2. **The species↔token collision is settled, and no colour moved.** *The two
+   species colours are fine; `LineageView` is what needed a second channel.*
+   Hollow is still exactly `--violet` and Skitter still exactly `--amber`, by
+   decision rather than by omission — `PaletteContrast.TokenIdentities` records
+   both as intended, and `LineageView` now states Founder, Mutated and Consumed in
+   words so neither rides on colour alone (bible §10.4). Repainting the UI roles
+   and repainting the two species were both costed and rejected: the first needs a
+   seventh hue outside the handoff, the second re-opens the floor Task 6 spent a
+   colour reaching, right before Phase 9's art.
+3. **`bible §10.4` and the Phase 9 art brief are owed the Pale contrast finding.**
+   `#c6cede` on the card's `#f8f6fc` silhouette slot is **1.47:1** — a Pale
+   creature is effectively invisible when drawn as one flat colour. Not a defect in
+   the interim proxies; a constraint on the real art, which will need value,
+   outline or a darker slot to make that species read. Say plainly that Task 6's
+   lightening of Pale improved the colour-blindness numbers and worsened this, and
+   that both were correct against the measurements available at the time.
 
 - [ ] **Step 4: The design erratum**
 

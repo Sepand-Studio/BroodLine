@@ -344,6 +344,67 @@ namespace Broodline.UI.Tests
             Assert.IsFalse(view.Q(A.ToString()).ClassListContains(LineageView.MutatedUssClassName));
         }
 
+        /// bible 10.4: "Colour never carries information alone."
+        ///
+        /// THIS SCREEN WAS THE ONE PLACE IN THE APP THAT BROKE IT, and it
+        /// broke it silently: a lineage node draws no creature, so Founder
+        /// and Mutated were each carried by a 3px coloured border and by
+        /// nothing at all besides. Every assertion in
+        /// `Lineage_ShowsConsumedParentsUnderTheChild_AndMarksTheFounder`
+        /// passes on that version, because a USS class IS the colour - the
+        /// class list cannot tell you whether a second channel exists.
+        ///
+        /// It is also what closed Task 6's deferred palette collision. Amber
+        /// IS Skitter and violet IS Hollow at dE 0.0, so while colour was the
+        /// only channel here the rails read as species marks; no colour
+        /// moved, the words were added instead. If this test is ever deleted
+        /// to make a redesign pass, that decision comes back open - see
+        /// implementation/results/species-collision.md.
+        [Test]
+        public void Lineage_StatesEveryFactInWordsAndNotOnlyInColour()
+        {
+            var view = BoundLineage(F,
+                Node("Hollow", F, founder: true, name: "Ash"),
+                Node("Vetch", A, consumedAt: "2026-09-16T00:00:00Z"),
+                Node("Ember", B),
+                Node("Hollow", C, generation: 2, mutated: true, parentA: A, parentB: B));
+
+            // Each coloured class has a word beside it. Read off the TEXT,
+            // not off a class name, because a class name is the colour.
+            AssertMarked(view, F, LineageScreen.FounderLabel);
+            AssertMarked(view, C, LineageScreen.MutatedLabel);
+            AssertMarked(view, A, LineageScreen.ConsumedLabel);
+
+            // The contrast: a node with nothing true about it says nothing.
+            // B is an ordinary living non-founder, and it gets NO marks row
+            // at all rather than an empty one - the blank-banner shape this
+            // phase found eight times, once on this very screen.
+            var plain = view.Q(B.ToString());
+            Assert.IsNull(plain.Q<VisualElement>(className: LineageView.MarksUssClassName),
+                "a node with nothing to say built a marks row anyway - that is the ninth blank banner");
+            Assert.AreEqual(0, plain.Query<Label>(className: LineageView.MarkUssClassName).ToList().Count);
+
+            // And a marker is not stamped on everybody: the founder did not
+            // mutate and was not consumed.
+            var founderWords = Words(view, F);
+            CollectionAssert.DoesNotContain(founderWords, LineageScreen.MutatedLabel);
+            CollectionAssert.DoesNotContain(founderWords, LineageScreen.ConsumedLabel);
+        }
+
+        static List<string> Words(LineageView view, Guid id)
+        {
+            return view.Q(id.ToString())
+                       .Query<Label>(className: LineageView.MarkUssClassName)
+                       .ToList()
+                       .ConvertAll(l => l.text);
+        }
+
+        static void AssertMarked(LineageView view, Guid id, string word)
+        {
+            CollectionAssert.Contains(Words(view, id), word,
+                $"{word} is carried by the rail's colour and by nothing else - bible 10.4");
+        }
+
         [Test]
         public void Lineage_OffersAWayOnwardOnlyWhenThereIsSomewhereToGo()
         {

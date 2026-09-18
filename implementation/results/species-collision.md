@@ -1,10 +1,28 @@
-# Two species wear two interface colours — rendered, measured, and still open
+# Two species wear two interface colours — rendered, measured, and settled
 
-**Status: OPEN. Costed here, not applied.** Phase 8 Task 6 deferred this to Task 13
-so it could be decided against a picture instead of a hex table. Task 13 drew the
-six proxies, tinted them, and captured the two screens the argument is about. This
-is what they look like. `implementation/results/palette-decision.md` has the other
-half of the story — the one colour that did move, and why.
+> ## The decision
+>
+> **The two species colours are fine; `LineageView` is what needed a second
+> channel.**
+>
+> **Status: DECIDED AND APPLIED** (Phase 8 Task 13). **No colour moved** — not a
+> species colour, not a token, not a UI role. `LineageView`'s nodes now state
+> **Founder**, **Mutated** and **Consumed** in words beside the coloured rail, so
+> none of the three rides on colour alone. Options C and D — repainting the UI
+> roles, or repainting the two species — were costed and **rejected**; see "The
+> options, as costed" below for why.
+>
+> **Task 19 owes the spec edits.** `bible §1.2`, `broodline_accessibility.md §4`
+> and the design handoff README are stale on Pale's row (`#a9b0c4` → `#c6cede`,
+> Task 6) and say nothing about this. Both records belong in the same sweep.
+
+Phase 8 Task 6 deferred this to Task 13 so it could be decided against a picture
+instead of a hex table. Task 13 drew the six proxies, tinted them, and captured the
+screens the argument is about. **The picture changed the answer**: read off the hex
+table this looks like a palette problem, and it is not — it is one screen carrying
+two facts on colour and nothing else, which is a bible §10.4 violation that existed
+before any species had a colour. `implementation/results/palette-decision.md` has
+the other half of the story — the one colour that did move, and why.
 
 Regenerate the pictures with `bash implementation/scripts/capture-screens.sh` and
 look at `implementation/results/screens/RosterView.png` and `LineageView.png`. They
@@ -107,14 +125,28 @@ looking for. Every species tint is a flat fill on the card's `--surface-sunk`
 Measured on the capture: the entire Pale creature moves no channel by more than
 **50 of 255**. It is a ghost on the card.
 
-**This is a property of the proxies, not of the palette, and it should not drive
-this decision.** A flat one-colour silhouette has no internal value structure;
-Phase 9's real art will have outline, shading and a darker core. It is recorded
-because it is also a *prediction about that art*: whatever gets drawn, a Pale
-creature at `#c6cede` on a near-white card will need its own value structure to
-read at all, and Task 6 lightened Pale (from `#a9b0c4`) which made this worse while
-making the colour-blindness numbers better. Worth knowing before an illustrator
-starts.
+**This is a property of the proxies, not of the palette, and it did not drive the
+decision above.** A flat one-colour silhouette has no internal value structure;
+Phase 9's real art will have outline, shading and a darker core.
+
+**It is recorded because it is a prediction about that art, and it belongs to
+whoever draws it.** Whatever Phase 9 draws, a Pale creature at `#c6cede` on a
+near-white card *cannot* read on hue alone — it will need its own value structure,
+an outline, or a darker slot behind it. That is a constraint on the brief, not a
+note on a proxy, and it is the kind of thing that is cheap now and expensive after
+six species are modelled.
+
+**And here is the part that stings.** Task 6 lightened Pale from `#a9b0c4` to
+`#c6cede` and that was the right call: it took the palette's worst colour-blind
+pair from ΔE 7.2 to 17.3 and moved the worst-pair position off Pale entirely, for
+the price of 0.2–2.3 ΔE on four pairs that were already comfortable. It also took
+Pale's contrast against the card from about 1.9:1 to **1.47:1** — because lightening
+a colour on a near-white surface is the same operation as hiding it. **Both
+decisions were correct against their own measurements.** Nobody was measuring
+contrast-against-the-card in Task 6, because no species colour had been applied to
+a surface yet; that only became measurable here, which is exactly why Task 6
+deferred to a render. Two good measurements can still pull in opposite directions,
+and this pair does.
 
 ---
 
@@ -131,7 +163,7 @@ be the two species a player has learned from every other screen.
 real art is expected to make species unmistakable by shape everywhere. It is not
 defensible as a *palette* answer, because the palette is not what is wrong.
 
-### B. Give the lineage tree a second channel. ← RECOMMENDED
+### B. Give the lineage tree a second channel. ← CHOSEN AND APPLIED
 
 Stop the rail being the only thing that says Founder or Mutated. A word, a glyph,
 or a rail weight — the existing node already has a state line that says "Consumed",
@@ -180,16 +212,53 @@ expensive possible moment.
 
 ---
 
-## Recommendation
+## What was actually built
 
-**B.** The render moved the problem: it is not a palette problem, it is one screen
-carrying two facts on colour and nothing else. Fixing that is the cheapest option
-on the list, it is the one the bible already requires independently, it leaves the
-species palette exactly where Task 6 measured it, and it makes the shared hex
-harmless rather than removing it.
+**B, as words.** Glyphs were considered and rejected: `icons.uss` has thirteen
+names, but `splice` is already this screen's empty-state mark and `tier` is the
+codex sheet's, so either would have given one glyph a second meaning — the same
+shape of defect being fixed. A word needs no legend, reads at 11px where a 12px
+glyph does not, and the screen already said **Consumed** in words. The other two
+now follow the pattern `LineageScreen.ConsumedLabel`'s own comment had described
+all along: *"the screen says so in words as well as in a class name."*
 
-If only one sentence survives to Task 19, it should be: **the two species colours
-are fine; `LineageView` is what needs a second channel.**
+- `LineageView.MarksFor` builds a `node__marks` row carrying **Founder**,
+  **Mutated**, **Consumed** — in that order, because that is how a creature's
+  history reads, and a node can carry more than one.
+- The row is **built only when it has something in it.** A node with nothing true
+  about it gets no element. The `state` Label this replaced was the eighth
+  instance of this phase's blank-banner shape — constructed for every node,
+  emptied for the living ones. It measured zero height and was not a defect, but
+  it was not worth rebuilding next to where it had just been diagnosed.
+- All three marks are **one neutral ink**. Colouring "Founder" amber would put the
+  fact straight back on the colour it was just taken off.
+
+**Two things were measured rather than assumed**, both because the coordinator
+asked for them:
+
+1. **Legibility.** The marks were `--mute` for one capture. That made the one fact
+   the screen already stated in words *harder* to read than before — a consumed
+   node carries `opacity: 0.55`, which multiplies whatever ink is set, and the
+   darkest pixel of "Consumed" went from 181 to 208 of 255. A mark standing in for
+   a colour cannot be quieter than the colour was. Changed to `--ink`, which
+   restores it to exactly 181.
+2. **Vertical rhythm.** Before, a living node and a consumed node differed by one
+   line (text bands at y 245/292/326 against 245/276/309/343). After, every tile in
+   the row carries four bands at the same rows — 244/279/310/344 — because each one
+   now has exactly one mark. The rhythm got *more* uniform, not less.
+
+**The acceptance test, run:** the capture was converted to greyscale, so the amber
+and violet rails become indistinguishable grey bars. Every node still reads:
+Ash — **Founder**, Skitter — **Consumed**, Pale — **Consumed**, Hollow —
+**Mutated**. The rails are now reinforcement rather than the signal.
+
+`FirstHourScreensTests.Lineage_StatesEveryFactInWordsAndNotOnlyInColour` asserts
+it, and was seen to fail twice before being trusted: once with the words removed
+("Founder is carried by the rail's colour and by nothing else"), and once with only
+the empty-row guard removed ("a node with nothing to say built a marks row anyway —
+that is the ninth blank banner"). A rule asserted only by a screenshot is not
+asserted; if that test is ever deleted to make a redesign pass, this decision comes
+back open.
 
 ---
 

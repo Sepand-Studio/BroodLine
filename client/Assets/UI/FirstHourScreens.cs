@@ -236,6 +236,31 @@ namespace Broodline.UI
         /// parents are STILL HERE, and the screen says so in words as well as
         /// in a class name. "Individuals are consumed; the record survives."
         public const string ConsumedLabel = "Consumed";
+
+        /// THE OTHER TWO FACTS A NODE CARRIES, IN WORDS. Phase 8 Task 13.
+        ///
+        /// bible 10.4: "Colour never carries information alone." Until this
+        /// commit `Consumed` was the only one of the three that obeyed it -
+        /// Founder was an amber rail and Mutated a violet rail and NOTHING
+        /// else, on a screen that draws no creature at all, so there was no
+        /// silhouette to reinforce either. A node is two labels and a 3px
+        /// coloured border; colour was the whole channel.
+        ///
+        /// That was a 10.4 violation on its own terms, before any species
+        /// colour existed. It also happened to be the reason Task 6's
+        /// deferred palette collision mattered: amber IS Skitter and violet
+        /// IS Hollow at dE 0.0, so the tree's rails read as species marks to
+        /// a player who learned the species colours anywhere else. Adding the
+        /// words fixes the violation, and the collision stops mattering as a
+        /// consequence - which is why no colour moved.
+        /// implementation/results/species-collision.md has the rendered
+        /// evidence and the three rejected alternatives.
+        ///
+        /// NEUTRAL INK, DELIBERATELY. LineageView.uss draws all three marks
+        /// in --mute. Colouring "Founder" amber would put the fact straight
+        /// back onto the colour it was just taken off.
+        public const string FounderLabel = "Founder";
+        public const string MutatedLabel = "Mutated";
     }
 
     /// Campaign Select - design section 5.2's second added screen: "how a
