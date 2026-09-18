@@ -20,22 +20,27 @@ namespace Broodline.UI.Tests
     ///   - Vetch/Hollow, which section 4 names as collapsing, does not:
     ///     dE76 26.9 under deuteranopia, 32.9 under protanopia. Comfortable.
     ///   - Ember/Loam, which section 4 also names, IS real: dE76 11.0 under
-    ///     deuteranopia, third-worst in the palette. Section 4 is right here.
+    ///     deuteranopia. Section 4 is right about this one, and it is now the
+    ///     second worst pair in the palette.
     ///   - Skitter/Loam under tritanopia, section 4's third claim, is dE76
     ///     63.0 - among the BEST separated pairs there is. Section 4 is wrong.
-    ///   - The palette's genuinely worst pair is Vetch/Pale at dE76 7.2 under
-    ///     protanopia, named by neither section 4 nor the plan. It is also the
-    ///     closest pair at NORMAL vision (dE76 17.7, where every other pair is
-    ///     above 43), so it is the palette's weak link for every player and
-    ///     protanopia only sharpens an existing problem.
-    ///   - The plan's nominated worst pair, Skitter/Pale under protanopia, is
-    ///     dL* 0.6 and dE76 71.4. Equally bright, wildly different. Not a
+    ///   - The palette's worst pair was Vetch/Pale at dE76 7.2 under
+    ///     protanopia, named by neither section 4 nor the plan. It was also
+    ///     the closest pair at NORMAL vision (17.7, where every other pair is
+    ///     above 43) - too close for every player, not just colour-blind
+    ///     ones. THAT PAIR IS THE ONE THING THIS TASK CHANGED: Pale moved
+    ///     #a9b0c4 to #c6cede, and the pair is now 17.3 and 23.9.
+    ///   - The plan's nominated worst pair, Skitter/Pale under protanopia, was
+    ///     dL* 0.6 and dE76 71.4. Equally bright, wildly different. Never a
     ///     confusion at all.
     ///
-    /// And a threshold is not available in any case. Six hues give 15 pairs x
-    /// 3 deficiencies = 45 constraints against 6 free colours. Deleting Pale
-    /// outright still leaves a worst pair of 10.5, so roughly dE 10-12 is the
-    /// ceiling for six saturated hues in this family however they are moved.
+    /// The worst pair is now Vetch/Loam under tritanopia at dE76 10.5, and a
+    /// threshold is still not available. Six hues give 15 pairs x 3
+    /// deficiencies = 45 constraints against 6 free colours, and deleting Pale
+    /// outright would ALSO leave 10.5 - Vetch/Loam is a ceiling Pale cannot
+    /// reach, so roughly dE 10-12 is the floor for six saturated hues in this
+    /// family however they are moved. It is also a tritan number, which
+    /// PaletteContrast.cs explains is the weakest of the three.
     ///
     /// So this asserts no threshold. It pins all 45 measurements on both
     /// channels and fails when any of them gets WORSE, which makes the

@@ -2693,6 +2693,44 @@ Design §5.4. The proxies are placeholder art **and** a pre-test of the art dire
 **Interfaces:**
 - Produces: `SpeciesProxy.UssClassFor(string species)` → `"proxy proxy--vetch"`, consumed by `CreatureCard` and Task 15's capture.
 
+### ⚠ INHERITED FROM TASK 6 — a decision this task has to take, and one value that moved
+
+**1. Pale is `#c6cede`, not `#a9b0c4`.** Task 6 measured the palette and moved one
+colour. `bible §1.2`, `accessibility.md §4` and the design handoff README all still
+carry the old value and are stale on that row until Task 19 records it.
+**`Tokens.uss --slate` and `PaletteContrast.Species` are the live values** — read
+them, not the specs. `PaletteContrastTests` fails if the two disagree. Nothing else
+in the palette moved. Full reasoning, the four costed options and the trade:
+`implementation/results/palette-decision.md`.
+
+**2. THIS TASK OWNS AN OPEN DECISION.** Two species share their *exact* hex with a
+token that names a UI role, at ΔE 0.0 — identical, for every player, colour-blind
+or not:
+
+| Species | Token | The token's job | Where it renders today |
+|---|---|---|---|
+| **Hollow** | `--violet` | primary brand, every CTA | `Theme.uss` Button, `TraitPip.uss`, `LineageView` *mutated* node |
+| **Skitter** | `--amber` | warnings, Apex/gold | `CreatureCard` *Founder* border, `LineageView` *founder* node |
+
+No CVD simulation will ever flag these, because they are not confusions between two
+species — they are one species being indistinguishable from interface chrome.
+
+**The concrete case is `LineageView`:** a *founder* node is amber-bordered and a
+*mutated* node violet-bordered, which are exactly Skitter's and Hollow's colours.
+And `CreatureCard.uss` shows how easily it hides — its Founder rule reasons
+explicitly about clashing with gold, citing bible §10.4's *"Keeping it white rather
+than gold avoids colliding with the map's gold Apex Vein pulse"*, and then uses for
+the Founder marker the colour that **is** Skitter.
+
+**Why it is yours and not Task 6's.** This task is the first point where a species
+colour lands on a real surface — Step 1's proxies are tinted via
+`-unity-background-image-tint-color`. Deciding it against a rendered creature card
+and a rendered `LineageView` node is worth more than deciding it against a hex
+table, and waiting costs nothing because nothing references either colour *as a
+species* today. **After Step 3, look at the captured `LineageView.png` and
+`RosterView.png` with a Skitter and a Hollow in them, and decide: either the two
+species colours move, or the two UI roles do.** Record the outcome for Task 19.
+
 - [ ] **Step 1: Draw the six from bible §1.2's silhouette column**
 
 Flat black on transparent, 192×192 (3× of the 64px card slot), each a literal reading of its row:
@@ -3301,6 +3339,32 @@ Append to `specs/plans/broodline_phase8_look_and_ship.md`:
 passed while the palette got worse. Task 6 replaced it with a tracked baseline
 over all 45 pair/deficiency measurements. See that task and
 `implementation/results/palette-decision.md`.
+
+**`accessibility.md` §4 named the wrong pairs, and so did this plan.** Both
+ranked the palette by lightness (ΔL\*), which does not rank confusability — it
+inverts it. §4 scored one for three: Ember/Loam is real (ΔE 11.0), Vetch/Hollow
+does not collapse (26.9), and Skitter/Loam under tritanopia is 63.0, among the
+best-separated pairs there is. This plan's own nominated worst pair,
+Skitter/Pale, was ΔE 71.4. **The real worst pair was Vetch/Pale at ΔE 7.2** —
+unnamed by both documents, and the closest pair at normal vision too.
+
+**Two corrections to Task 6's drafted maths, both measured.** The matrices are
+applied to **linear** RGB, not gamma-encoded sRGB — the draft did the latter,
+which is a known, named defect with a history (fixed in R `colorspace` 2.1-0
+after Matthew Petroff reported it). And the draft's "Ember/Skitter 15.2" was
+12.8; its other option-B numbers reproduce exactly.
+
+**Pale moved: `#a9b0c4` → `#c6cede`.** The only species colour this phase
+changed. **`bible §1.2`, `accessibility.md §4` and the design handoff README are
+all stale on that one row, and Task 19 owes the edit** — along with replacing
+§4's final paragraph, whose prescription was costed as option B and retired.
+
+**One palette decision is deliberately still open**: Hollow is the same hex as
+`--violet` (every CTA) and Skitter the same as `--amber` (every warning and
+Founder marker), at ΔE 0.0 for every viewer. No simulation can see it, because
+it is not a confusion between two species. **Deferred to Task 13**, the first
+point where a species colour lands on a rendered surface; see that task's
+inherited-decision block.
 
 **§7.1's "resolved font-size ≥ 11px" gate was not implementable in
 `Broodline.UI.Tests`**, which has no attached `Panel`. Implemented in

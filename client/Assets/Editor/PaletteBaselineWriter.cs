@@ -39,17 +39,18 @@ public static class PaletteBaselineWriter
 #        read when asking whether two species can be told apart.
 #   dL*  is the GREYSCALE channel - what survives with colour removed
 #        entirely. It does NOT rank confusability and must not be read as
-#        though it does: Skitter/Pale under protanopia is dL* 0.6 and dE76
-#        71.4, which is two equally-bright and completely different colours.
+#        though it does: Vetch/Ember under tritanopia is dL* 0.1 and dE76
+#        83.2, which is two equally-bright and completely different colours.
 #        It is kept because a repaint that held hue while collapsing value
 #        would be invisible to dE alone, and because it is the channel
 #        bible 10.2's silhouette rule actually leans on.
 #
 # THIS FILE IS A BASELINE, NOT A TARGET. See PaletteContrastTests for why a
-# threshold is not available: 45 constraints against 6 free colours, and
-# deleting Pale outright still leaves a worst pair of dE76 10.5. The test
-# fails when a number here gets WORSE on either channel, which is the
-# question a change can actually answer.
+# threshold is not available: 45 constraints against 6 free colours, and the
+# worst pair - Vetch/Loam under tritanopia at dE76 10.5 - is one that deleting
+# Pale outright would not improve either. Roughly dE 10-12 is the floor for six
+# saturated hues in this family. The test fails when a number here gets WORSE
+# on either channel, which is the question a change can actually answer.
 #
 # Regenerate: Unity -> Broodline/Write Palette CVD Baseline, or
 #   Unity -executeMethod PaletteBaselineWriter.Write
@@ -58,9 +59,17 @@ public static class PaletteBaselineWriter
 #   Ember/Loam     deutan  dE76 11.0  <- section 4 is RIGHT about this one.
 #   Vetch/Hollow   deutan  dE76 26.9  <- section 4 says this collapses. It does not.
 #   Skitter/Loam   tritan  dE76 63.0  <- section 4 says these 'move closer'. They do not.
-#   Vetch/Pale     protan  dE76  7.2  <- the worst pair in the palette. Unmentioned,
-#                                        and already the closest pair (17.7) at
-#                                        normal vision, where nothing else is under 43.
+#   Vetch/Pale     protan  dE76 17.3  <- WAS 7.2 and the worst pair in the palette,
+#                                        unmentioned by section 4 and by the plan,
+#                                        and the closest pair (17.7) at normal vision
+#                                        too, where nothing else was under 43. Phase 8
+#                                        Task 6 moved Pale #a9b0c4 -> #c6cede for this
+#                                        one pair; normal vision is now 23.9.
+#
+# PALE IS THEREFORE NOT THE HANDOFF'S VALUE, and bible 1.2, accessibility.md
+# section 4 and the handoff README are all stale on that one row until Task 19
+# records the decision. Tokens.uss --slate and PaletteContrast.Species are the
+# live values, and PaletteContrastTests asserts they cannot drift apart.
 #
 # The two collisions no simulation can see, because they are not between two
 # species: Hollow IS --violet (every CTA) and Skitter IS --amber (every

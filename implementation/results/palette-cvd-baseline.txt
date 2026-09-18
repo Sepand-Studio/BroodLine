@@ -13,17 +13,18 @@
 #        read when asking whether two species can be told apart.
 #   dL*  is the GREYSCALE channel - what survives with colour removed
 #        entirely. It does NOT rank confusability and must not be read as
-#        though it does: Skitter/Pale under protanopia is dL* 0.6 and dE76
-#        71.4, which is two equally-bright and completely different colours.
+#        though it does: Vetch/Ember under tritanopia is dL* 0.1 and dE76
+#        83.2, which is two equally-bright and completely different colours.
 #        It is kept because a repaint that held hue while collapsing value
 #        would be invisible to dE alone, and because it is the channel
 #        bible 10.2's silhouette rule actually leans on.
 #
 # THIS FILE IS A BASELINE, NOT A TARGET. See PaletteContrastTests for why a
-# threshold is not available: 45 constraints against 6 free colours, and
-# deleting Pale outright still leaves a worst pair of dE76 10.5. The test
-# fails when a number here gets WORSE on either channel, which is the
-# question a change can actually answer.
+# threshold is not available: 45 constraints against 6 free colours, and the
+# worst pair - Vetch/Loam under tritanopia at dE76 10.5 - is one that deleting
+# Pale outright would not improve either. Roughly dE 10-12 is the floor for six
+# saturated hues in this family. The test fails when a number here gets WORSE
+# on either channel, which is the question a change can actually answer.
 #
 # Regenerate: Unity -> Broodline/Write Palette CVD Baseline, or
 #   Unity -executeMethod PaletteBaselineWriter.Write
@@ -32,9 +33,17 @@
 #   Ember/Loam     deutan  dE76 11.0  <- section 4 is RIGHT about this one.
 #   Vetch/Hollow   deutan  dE76 26.9  <- section 4 says this collapses. It does not.
 #   Skitter/Loam   tritan  dE76 63.0  <- section 4 says these 'move closer'. They do not.
-#   Vetch/Pale     protan  dE76  7.2  <- the worst pair in the palette. Unmentioned,
-#                                        and already the closest pair (17.7) at
-#                                        normal vision, where nothing else is under 43.
+#   Vetch/Pale     protan  dE76 17.3  <- WAS 7.2 and the worst pair in the palette,
+#                                        unmentioned by section 4 and by the plan,
+#                                        and the closest pair (17.7) at normal vision
+#                                        too, where nothing else was under 43. Phase 8
+#                                        Task 6 moved Pale #a9b0c4 -> #c6cede for this
+#                                        one pair; normal vision is now 23.9.
+#
+# PALE IS THEREFORE NOT THE HANDOFF'S VALUE, and bible 1.2, accessibility.md
+# section 4 and the handoff README are all stale on that one row until Task 19
+# records the decision. Tokens.uss --slate and PaletteContrast.Species are the
+# live values, and PaletteContrastTests asserts they cannot drift apart.
 #
 # The two collisions no simulation can see, because they are not between two
 # species: Hollow IS --violet (every CTA) and Skitter IS --amber (every
@@ -49,30 +58,30 @@ Ember/Hollow	tritan	15.1	61.4
 Ember/Loam	deutan	3.7	11.0
 Ember/Loam	protan	13.8	15.6
 Ember/Loam	tritan	7.5	80.2
-Ember/Pale	deutan	3.0	37.4
-Ember/Pale	protan	11.1	28.7
-Ember/Pale	tritan	6.3	58.7
+Ember/Pale	deutan	13.8	37.7
+Ember/Pale	protan	21.8	32.6
+Ember/Pale	tritan	17.0	60.6
 Ember/Skitter	deutan	9.2	34.3
 Ember/Skitter	protan	11.7	46.4
 Ember/Skitter	tritan	9.8	20.1
 Hollow/Loam	deutan	22.8	63.5
 Hollow/Loam	protan	24.5	71.8
 Hollow/Loam	tritan	22.6	35.3
-Hollow/Pale	deutan	22.2	39.2
-Hollow/Pale	protan	21.7	40.1
-Hollow/Pale	tritan	21.4	23.1
-Loam/Pale	deutan	0.7	27.0
-Loam/Pale	protan	2.8	33.9
-Loam/Pale	tritan	1.2	23.0
+Hollow/Pale	deutan	32.9	47.6
+Hollow/Pale	protan	32.4	48.4
+Hollow/Pale	tritan	32.1	33.4
+Loam/Pale	deutan	10.1	26.8
+Loam/Pale	protan	7.9	32.6
+Loam/Pale	tritan	9.5	24.9
 Skitter/Hollow	deutan	28.4	106.3
 Skitter/Hollow	protan	22.4	107.3
 Skitter/Hollow	tritan	25.0	51.2
 Skitter/Loam	deutan	5.6	43.7
 Skitter/Loam	protan	2.1	37.7
 Skitter/Loam	tritan	2.4	63.0
-Skitter/Pale	deutan	6.2	70.6
-Skitter/Pale	protan	0.6	71.4
-Skitter/Pale	tritan	3.6	42.4
+Skitter/Pale	deutan	4.5	68.3
+Skitter/Pale	protan	10.1	69.9
+Skitter/Pale	tritan	7.1	42.6
 Vetch/Ember	deutan	4.6	47.3
 Vetch/Ember	protan	6.2	32.5
 Vetch/Ember	tritan	0.1	83.2
@@ -82,9 +91,9 @@ Vetch/Hollow	tritan	15.0	30.9
 Vetch/Loam	deutan	8.3	37.6
 Vetch/Loam	protan	7.6	40.0
 Vetch/Loam	tritan	7.5	10.5
-Vetch/Pale	deutan	7.6	12.4
-Vetch/Pale	protan	4.8	7.2
-Vetch/Pale	tritan	6.4	25.8
+Vetch/Pale	deutan	18.3	21.9
+Vetch/Pale	protan	15.5	17.3
+Vetch/Pale	tritan	17.1	30.4
 Vetch/Skitter	deutan	13.8	81.2
 Vetch/Skitter	protan	5.5	77.0
 Vetch/Skitter	tritan	9.9	67.5

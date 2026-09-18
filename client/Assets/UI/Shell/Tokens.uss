@@ -81,7 +81,19 @@
     --coral-tint: #fbeae7;
     --coral-text: #b3564a;
     --coral-alert: #ff6b5c;       /* breach state - hotter than --coral, HUD only */
-    --slate: #a9b0c4;             /* Pale, neutral */
+    /* MOVED from the handoff's #a9b0c4 by Phase 8 Task 6, which is the only
+     * value on this page that does not match the handoff table. Measured,
+     * Vetch and Pale were the palette's worst pair under every viewer -
+     * dE76 7.2 under protanopia, and 17.7 at NORMAL vision where no other
+     * pair was under 43, so they were too close for everyone rather than
+     * for colour-blind players specifically. Lightening Pale one step takes
+     * that pair to 17.3 and 23.9 and moves the worst-pair position off it
+     * entirely, at the cost of 0.2 to 2.3 dE on four Pale pairs that were
+     * already above 26. One colour, and it reaches the same floor a
+     * five-colour repaint would. The measurement, the four costed options
+     * and the trade are in implementation/results/palette-decision.md and
+     * pinned by PaletteContrastTests. */
+    --slate: #c6cede;             /* Pale, neutral */
 
     /* ---- Secondary ink ---- */
     --mute: #a29bb5;              /* secondary text, inactive nav */

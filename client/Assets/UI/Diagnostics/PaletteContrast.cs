@@ -39,13 +39,16 @@ namespace Broodline.UI.Diagnostics
     ///
     /// 2. IT MEASURES dE76 AS WELL AS dL*, AND dE IS THE ONE THAT MATTERS.
     ///    The plan asked for lightness separation alone. Measured, dL* does
-    ///    not rank confusability - it inverts it. Skitter/Pale under
-    ///    protanopia is dL* 0.6, the plan's nominated "worst pair in the
-    ///    palette"; its dE76 is 71.4, which makes it one of the BEST separated
-    ///    pairs in the table. The two colours are equally bright and wildly
-    ///    different. Meanwhile the genuinely worst pair, Vetch/Pale under
-    ///    protanopia at dE76 7.2, has an unremarkable dL* of 4.8 and is named
-    ///    by neither the design nor the plan.
+    ///    not rank confusability - it inverts it. Vetch/Ember under
+    ///    tritanopia is dL* 0.1, which by lightness alone is a total collapse;
+    ///    its dE76 is 83.2, the second most separated pair in the table. Two
+    ///    equally bright, completely different colours.
+    ///
+    ///    This is not academic. Ranking by lightness is what sent both
+    ///    documents after the wrong pairs: the palette's genuine worst was
+    ///    Vetch/Pale under protanopia at dE76 7.2 - an unremarkable dL* of
+    ///    4.8, named by neither the design nor the plan - and finding it is
+    ///    what moved Pale. See palette-decision.md.
     ///
     ///    dE76 (plain Euclidean distance in CIE L*a*b*) rather than dE2000:
     ///    dE76 is hand-checkable, and dE2000's extra machinery is exactly the
@@ -70,11 +73,19 @@ namespace Broodline.UI.Diagnostics
         }
 
         /// broodline_bible.md section 1.2, broodline_accessibility.md section
-        /// 4 and the design handoff README all carry these six and agree.
+        /// 4 and the design handoff README all carry these six.
+        ///
+        /// FIVE OF THEM AGREE WITH ALL THREE. Pale does not: it was #a9b0c4
+        /// everywhere and is #c6cede here and in Tokens.uss, moved by Phase 8
+        /// Task 6 because Vetch/Pale was the palette's worst pair under every
+        /// viewer, colour-blind or not. Those three documents are stale on
+        /// this one row until Task 19 records the decision; the token layer
+        /// and this array are the live values, and the test below asserts
+        /// they cannot drift apart.
         public static readonly (string Name, string Hex)[] Species =
         {
             ("Vetch",  "#6ba7c0"), ("Ember", "#e5867a"), ("Skitter", "#e8b34a"),
-            ("Hollow", "#7a6ac0"), ("Loam",  "#7cc492"), ("Pale",    "#a9b0c4"),
+            ("Hollow", "#7a6ac0"), ("Loam",  "#7cc492"), ("Pale",    "#c6cede"),
         };
 
         /// Four species share a hex with the token that names them, which is
