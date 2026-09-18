@@ -58,6 +58,29 @@ arm's length on a real phone. Both §2.3 and §2.6 are waiting on it.
 
 ---
 
+## 1b. One DoD item met in substance but not in form
+
+**DoD item 3 asks for the palette fix "in one commit"** across `Tokens.uss`,
+`broodline_accessibility.md` §4 and `broodline_bible.md` §1.2. It landed in
+two: `a359dd8` moved `--slate` and `PaletteContrast.Species`, and `47850ae`
+wrote the three spec rows as part of Task 19's errata sweep.
+
+The clause is not bookkeeping. Its point is that the code and the documents
+can never disagree about what colour a species is — and between those two
+commits they did. For that window `Tokens.uss` said `#c6cede` while the bible,
+the accessibility doc and the handoff README all still said `#a9b0c4`, which
+is exactly the state that sends an illustrator to the wrong swatch.
+
+**It is consistent now**, and `PaletteContrastTests` pins `Tokens.uss` against
+`PaletteContrast.Species` so the two halves of the *code* cannot drift. What
+nothing pins is the specs: no test reads `broodline_bible.md`. A future
+palette change can still land in code alone, and the only thing standing
+against it is that Task 13's block and this file both say to read `Tokens.uss`
+rather than the specs. That is a convention, not a gate — recorded here rather
+than claimed as closed.
+
+---
+
 ## 2. The punch list — what is owed, with its evidence
 
 Seven items. Each carries the measurement it rests on, so a later session can
