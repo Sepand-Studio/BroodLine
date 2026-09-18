@@ -153,8 +153,15 @@
 # as a pass. Each of these is rowed with an explicit non-value so that A ROW
 # THAT PROVES NOTHING DOES NOT LOOK LIKE A ROW THAT PROVES SOMETHING.
 #
-#   gate.ci.*  — NOTHING ON THIS BRANCH HAS BEEN THROUGH CI, because the
-#     branch has never been pushed: `git ls-remote --heads origin phase_8`
+#   gate.ci.*  — CORRECTED 2026-09-18. This block used to say nothing on the
+#     branch had been through CI, because it had never been pushed. It has
+#     been now, and `Tests` is green on all three jobs - including the
+#     verify-uss-tokens.sh step this phase added, which is DoD item 2's
+#     "in tests.yml, and green" met with CI evidence rather than a local run.
+#     The determinism gate is a separate matter; see its row.
+#     The line this replaces was true when written and false within a day,
+#     which is the failure mode this whole file argues against: a record is
+#     worth what its last measurement was worth.
 #     returns nothing. Every gate row below was measured on one developer
 #     machine (darwin/arm64) and NONE of them has been reproduced by CI on
 #     this tree. That is the single largest caveat on this file.
@@ -277,7 +284,8 @@ gate.silhouette.collisions	0	six proxies rendered 40x40 flat black, pairwise —
 gate.screens.scaffolded	10	EveryScreenComposesTheScaffold; 12 types in Broodline.UI.Screens, 2 exempt by name
 gate.screens.captures	16	PNGs in implementation/results/screens/, not committed — one command rebuilds them
 gate.device-capture.simversion	0.4.0	matches engine/Runtime/SimVersion.cs
-gate.ci.runs-on-this-branch	0	NEVER PUSHED — git ls-remote --heads origin phase_8 is empty
+gate.ci.tests	pass	run 35364458995 — Engine suite (CoreCLR), Unity settings (incl. verify-uss-tokens.sh), Cross-language contract: all success
+gate.ci.determinism	running	run 35364459009 — the self-hosted macOS job; green locally (cross-runtime-diff.sh: 500 scenarios agree) and RED on develop (run 35252288421, ~4h45m). Unowned gap.
 gate.determinism-ci.runners	1	sd-sassadi-m1, macOS/ARM64, online — REGISTERED, contrary to the brief for this task
 gate.determinism-ci.runs-green	1	ONLY EVER ONCE — run 35238465972, workflow_dispatch, 8m3s, on phase_7
 gate.determinism-ci.last-run	FAILURE	run 35252288421 on develop, 4h45m56s. Local equivalent is green; treat as a CI-execution failure
