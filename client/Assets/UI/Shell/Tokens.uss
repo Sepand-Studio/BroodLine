@@ -106,8 +106,8 @@
      * whoever owns the palette without saying where it already renders.
      * Both live call sites are `--text-micro` (10px), under AA's floor for
      * small text regardless of the 4.5:1 gap above:
-     *   - TraitChip.uss:71, `.trait-chip--vetch .trait-chip__label`, on the
-     *     `--teal-tint` fill TraitChip.uss:64 sets
+     *   - TraitChip.uss:80, `.trait-chip--vetch .trait-chip__label`, on the
+     *     `--teal-tint` fill TraitChip.uss:73 sets
      *   - InheritanceBar.uss:123, `.inheritance-bar__tag--teal`, fill and
      *     ink on one line
      * The escalation stands unchanged - this only corrects what it has to
