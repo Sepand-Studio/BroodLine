@@ -5,6 +5,7 @@ import { loadPlayerId, requireSession } from '../http/auth.ts'
 import { fail } from '../http/errors.ts'
 import { loadArk } from '../map/claim.ts'
 import { loadRoster, rosterCap } from '../roster/creatures.ts'
+import { settleExpiredForPlayer } from '../wave/sweep.ts'
 
 /**
  * `GET /v1/roster` - the player's live creatures.
@@ -17,9 +18,11 @@ import { loadRoster, rosterCap } from '../roster/creatures.ts'
  * so the loop closed only inside a single session. No earlier task was
  * assigned the listing; this is that gap closed.
  *
- * DERIVED AND WRITES NOTHING, like `GET /v1/region/state`. No
- * Idempotency-Key, no transaction beyond the two reads, and two calls in a
- * row return the same list.
+ * MOSTLY DERIVED. The one write is `settleExpiredForPlayer`: a live-but-
+ * expired issuance is settled 'expired' and its creatures released before
+ * the list is read, so two calls in a row return the same list EXCEPT
+ * across an expiry, where the second is the healed one. No Idempotency-Key,
+ * because the write is idempotent by `settle()`'s own guard.
  *
  * LIVENESS IS `liveCreature()` AND IS NOT WRITTEN HERE. `loadRoster` in
  * roster/creatures.ts owns the predicate, next to the definition and the two
@@ -37,6 +40,12 @@ export function registerRosterRoutes(app: Hono, deps: Deps): void {
     const result = await withServer(deps.db, session.serverId, async (tx) => {
       const playerId = await loadPlayerId(tx, session.accountId)
       if (playerId === undefined) return null
+
+      // Phase 9 design §2.1: the same expiry settle `wave/start` runs before
+      // its checks, run here, so a roster read after the window is enough
+      // to free creatures a never-submitted wave left committed. At most one
+      // row, one sorted release statement - no lockRoster needed.
+      await settleExpiredForPlayer(tx, session.serverId, playerId)
 
       // The Ark read is what makes `cap` this player's rather than a
       // constant; `rosterCap` throws for a tier nobody authored, which is

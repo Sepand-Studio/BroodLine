@@ -113,3 +113,22 @@ describe('POST /v1/wave/abandon', () => {
     expect(r.status).toBe(401)
   })
 })
+
+describe('GET /v1/roster heals', () => {
+  it('releases creatures committed to an issuance past its expiry, with no abandon call', async () => {
+    const p = await setupPlayer(deps)
+    const mine = await winningRoster()
+    const deployed = mine.slice(0, 2)
+    const res = await start(6, deployed)
+    const { issuanceId } = await res.json() as { issuanceId: string }
+    await t.ownerDb.execute(sql`
+      UPDATE wave_issuances SET expires_at = now() - interval '1 second'
+      WHERE issuance_id = ${issuanceId}`)
+
+    const r = await app.request('/v1/roster', { headers: { authorization: `Bearer ${p.token}` } })
+    expect(r.status).toBe(200)
+    const body = await r.json() as { creatures: { creatureId: string; committedTo: string | null }[] }
+    for (const c of body.creatures) expect(c.committedTo).toBeNull()
+    expect(await liveIssuance()).toBeUndefined()
+  })
+})
