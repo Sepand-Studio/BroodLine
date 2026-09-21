@@ -1,20 +1,29 @@
 #!/usr/bin/env python3
-"""Regenerates the two UI textures beside this file. Run from the REPO ROOT:
+"""Regenerates the five UI textures beside this file. Run from the REPO ROOT:
 
     python3 client/Assets/UI/Art/generate-textures.py
 
-Neither texture is art; both are arithmetic, which is why the script is
+None of them is art; all five are arithmetic, which is why the script is
 committed with them rather than the PNGs arriving from nowhere. Needs Pillow.
 
 The nine-slice border on shadow-card.png is NOT recorded here - it is
 re-asserted on every import by client/Assets/Editor/ArtImportSettings.cs,
 because a .meta can be regenerated and a silently-zeroed border turns every
 card shadow into a stretched blur.
+
+THREE OF THE FIVE EXIST BECAUSE USS CANNOT DRAW THEM. Theme.uss's header
+lists the four primitives the handoff asks for that USS has no property for;
+these are the answers to three of them:
+  - a gradient          -> a ramp texture, stretched (cta, amber, hybrid)
+  - a box-shadow        -> a nine-sliced sprite (shadow-card)
+  - a dashed border     -> a ring texture, stretched (hero-ring)
+USS has `border-width` and `border-color` and no `border-style` at all, so a
+dashed or dotted ring is not a border that has been styled - it is a picture.
 """
 
 import math
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 # ---------------------------------------------------------------- shadow-card
 #
@@ -93,15 +102,96 @@ for y in range(BORDER, SIZE - BORDER):
 
 shadow.save("client/Assets/UI/Art/shadow-card.png")
 
-# ------------------------------------------------------------------- cta-ramp
-# 2x64, #8878cf -> #6f5fbb top to bottom. Two px wide because a 1px texture
-# invites the importer to treat it as degenerate.
-a, b = (0x88, 0x78, 0xcf), (0x6f, 0x5f, 0xbb)
-ramp = Image.new("RGB", (2, 64))
-for y in range(64):
-    t = y / 63
-    c = tuple(round(a[i] + (b[i] - a[i]) * t) for i in range(3))
-    for x in range(2):
-        ramp.putpixel((x, y), c)
-ramp.save("client/Assets/UI/Art/cta-ramp.png")
-print("wrote both")
+# ---------------------------------------------------------------------- ramps
+#
+# EACH RAMP RUNS THE WAY ITS GRADIENT DOES, which is why two of the three are
+# 2x64 and one is 64x2. A ramp is stretched to fill its element, so the axis
+# it varies along IS its direction and there is no other way to say so - USS
+# has no gradient and therefore no angle. The handoff's three:
+#
+#   cta      linear-gradient(180deg, #8878cf, #6f5fbb)   top -> bottom
+#   amber    linear-gradient(100deg, #fdf0d0, #f9e0a8)   left -> right
+#   hybrid   linear-gradient(170deg, #ffffff, #f4f0fb)   top -> bottom
+#
+# 100deg is 10 degrees off horizontal and 170deg is 10 off vertical; CSS
+# measures a gradient line clockwise from up, so both are within 10 degrees
+# of an axis and a 2px cross-section loses nothing visible at these sizes.
+#
+# TWO PX ON THE SHORT AXIS, never one: a 1px texture invites the importer to
+# treat it as degenerate.
+#
+# THE HYBRID RAMP'S DEEP END IS NOT THE HANDOFF'S. Tokens.uss's
+# --hybrid-tint-deep has the reasoning - the handoff's #f4f0fb is a sheen on
+# the #f7f4fb page the panel sits on there, and is invisible on the white
+# SectionCard this project puts the panel on. The other five endpoints are
+# the handoff's own, to the digit.
+
+
+def ramp(name, start, end, horizontal=False):
+    """A two-stop linear ramp, 64 steps along its gradient axis."""
+    n = 64
+    img = Image.new("RGB", (n, 2) if horizontal else (2, n))
+    for i in range(n):
+        t = i / (n - 1)
+        c = tuple(round(start[k] + (end[k] - start[k]) * t) for k in range(3))
+        for j in range(2):
+            img.putpixel((i, j) if horizontal else (j, i), c)
+    img.save("client/Assets/UI/Art/" + name)
+
+
+ramp("cta-ramp.png", (0x88, 0x78, 0xcf), (0x6f, 0x5f, 0xbb))
+ramp("amber-ramp.png", (0xfd, 0xf0, 0xd0), (0xf9, 0xe0, 0xa8), horizontal=True)
+ramp("hybrid-ramp.png", (0xf7, 0xf4, 0xfb), (0xeb, 0xe4, 0xf7))
+
+# ------------------------------------------------------------------ hero-ring
+#
+# The dotted ring around a HeroSlot, as a picture, because USS has
+# `border-width` and `border-color` and NO `border-style` - there is no dashed
+# border to ask for. The handoff draws this ring as an SVG circle with
+# `stroke-dasharray: 3 8` (predicted hybrid, r 54) and `4 7` (parent slots,
+# r 42), slowly rotating; the rotation is not reproduced here and is not
+# missed on a still surface.
+#
+# AUTHORED WHITE, LIKE THE GLYPHS, AND FOR THE SAME REASON.
+# -unity-background-image-tint-color MULTIPLIES, so a mark authored in its
+# final colour can only ever be darkened. White times a tint IS the tint, so
+# HeroSlot.uss can tint one ring texture to the species of whatever is inside
+# it - which is what the handoff does, and what a second PNG per species
+# would otherwise have cost. icons.uss's header has the long form.
+#
+# 3x, LIKE THE GLYPHS: 288px authored, 96px drawn (--hero-slot). Stretched to
+# fill, so a slot at any other size still gets a round ring - only the dash
+# count would read differently, and nothing in the phase draws one at another
+# size.
+#
+# THIRTY DASHES, NOT A DASH LENGTH. A dash pattern laid along a circle has to
+# CLOSE - an arc length that does not divide the circumference leaves one
+# short dash where the pattern meets its own start, and on a 96px ring that
+# reads as a nick rather than as a pattern. So the count is the integer and
+# the length falls out of it: 30 periods of 12 degrees, 27.6% of each period
+# inked, which is the handoff's own 3-on-8-off duty cycle at this radius.
+RING = 288                     # 3x of --hero-slot
+RING_SS = 4                    # supersample, then downsample for the edges
+RING_STROKE = 2 * 3            # --hero-ring at 3x
+RING_DASHES = 30
+RING_DUTY = 3.0 / 11.0         # the handoff's `stroke-dasharray: 3 8`
+
+big = RING * RING_SS
+ring = Image.new("RGBA", (big, big), (255, 255, 255, 0))
+pen = ImageDraw.Draw(ring)
+stroke = RING_STROKE * RING_SS
+inset = stroke / 2.0
+box = (inset, inset, big - inset - 1, big - inset - 1)
+period = 360.0 / RING_DASHES
+for k in range(RING_DASHES):
+    start = k * period
+    pen.arc(box, start, start + period * RING_DUTY, fill=(255, 255, 255, 255), width=int(stroke))
+
+# RGB IS WHITE EVERYWHERE, INCLUDING WHERE ALPHA IS ZERO, which is what keeps
+# the downsample clean: Pillow resamples the channels independently and does
+# not premultiply, so a transparent pixel carrying black RGB would bleed grey
+# into every antialiased edge. Set transparent to white-with-zero-alpha above
+# and the colour channel is constant, so only alpha is actually resampled.
+ring.resize((RING, RING), Image.LANCZOS).save("client/Assets/UI/Art/hero-ring.png")
+
+print("wrote shadow-card, cta-ramp, amber-ramp, hybrid-ramp, hero-ring")

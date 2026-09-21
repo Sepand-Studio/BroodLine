@@ -1,0 +1,135 @@
+/* The handoff's creature frame: a slowly turning dotted ring, a tinted disc,
+ * and the animal on top of it. `Splice Chamber.dc.html` draws it twice at
+ * 74px for the parents and once at 112px for the predicted hybrid.
+ *
+ * --hero-slot IS 96px AND IT IS A TOKEN, unlike almost every other measured
+ * value in this project's component sheets. Tokens.uss's "Component
+ * geometry" block says why: a hero slot is sized here, framed by two
+ * screens that put a live portrait in one, and rendered into by a camera in
+ * another assembly. A number more than one file has to agree on is a token.
+ *
+ * THE TWO NUMBERS BELOW THAT ARE NOT TOKENS ARE DERIVED FROM ONE THAT IS,
+ * AND USS CANNOT SAY SO. 48 is half of --hero-slot and 80 is --hero-slot
+ * less 8px of ring clearance on each side - both would be `calc()` if
+ * 6000.6.0f1 had one. It does not: Theme.uss's elevation note records the
+ * measurement, where `calc(var(--elev-1-spread) * -1)` imported as "Unknown
+ * function 'calc'", the declaration was DROPPED, and nothing failed - not
+ * the compile, not the gates, not the capture. So these are literals with
+ * the arithmetic written beside them, exactly as `.elev-1`'s -6px margin is,
+ * and they have the same hazard: MOVE --hero-slot AND THESE MOVE WITH IT.
+ * Unlike the elevation pair there is no check that reads both; the ring
+ * simply stops being round and the disc stops being centred, which the
+ * Components capture shows at a glance.
+ */
+.hero-slot {
+    width: var(--hero-slot);
+    height: var(--hero-slot);
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* THE RING IS A PICTURE BECAUSE USS HAS NO `border-style`. There is
+ * `border-width` and `border-color` and nothing that takes `dashed`, so the
+ * handoff's `stroke-dasharray: 3 8` has no property to land in. hero-ring.png
+ * is that ring, authored at 3x (288px for a 96px slot) and stretched.
+ *
+ * NO BORDER AND NO RADIUS ON THIS ELEMENT, deliberately. A 2px solid ring
+ * UNDER the dotted one would show through every gap in the pattern as a
+ * continuous line, which is the one thing a dotted ring must not have.
+ * --hero-ring is the width the texture was DRAWN at rather than a width set
+ * here; the token exists so the script and this sheet agree on what "the
+ * ring" is.
+ *
+ * TINTED, NOT RECOLOURED, and that is what makes one texture serve six
+ * species. -unity-background-image-tint-color multiplies, and the ring is
+ * authored white, so white times a tint IS the tint - icons.uss's header has
+ * the long form and the failure mode (a black-authored mark ignores every
+ * tint and reads as one grey glyph). */
+.hero-slot__ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url("project:///Assets/UI/Art/hero-ring.png");
+    -unity-background-scale-mode: stretch-to-fill;
+    -unity-background-image-tint-color: var(--mute-soft);
+}
+
+/* 40px is half of 80, so this is a true circle - a square element clamps
+ * both axes to the same number and is the one shape immune to the lens
+ * defect Theme.uss header item 4 measured. */
+.hero-slot__disc {
+    width: 80px;
+    height: 80px;
+    border-radius: 40px;
+    background-color: var(--surface-sunk);
+    align-items: center;
+    justify-content: center;
+}
+
+/* Stacked body / dorsal / flank, the arrangement `CreatureCard` established
+ * in Task 9 and for the same reason: bible 10.2 rule 2 says a hybrid ADDS
+ * parts rather than averaging them, so the picture is composited from a body
+ * and its parts rather than baked per combination.
+ *
+ * scale-to-fit, NOT scale-and-crop. A creature that overflows its disc is a
+ * creature with its legs cut off; one that sits small inside it is a
+ * creature. */
+.hero-slot__layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+/* The six species tints, on the ring and the disc together. The handoff
+ * tints both - a Vetch parent gets a #8fc4d8 ring over an #e7f3f9 disc, an
+ * Ember gets #eda093 over #fbeae7 - so the frame says whose animal it is
+ * before the name under it is read. Same table as TraitChip.uss, same
+ * two-class specificity rule. */
+.hero-slot--vetch   .hero-slot__ring { -unity-background-image-tint-color: var(--teal); }
+.hero-slot--ember   .hero-slot__ring { -unity-background-image-tint-color: var(--coral); }
+.hero-slot--skitter .hero-slot__ring { -unity-background-image-tint-color: var(--amber); }
+.hero-slot--hollow  .hero-slot__ring { -unity-background-image-tint-color: var(--violet); }
+.hero-slot--loam    .hero-slot__ring { -unity-background-image-tint-color: var(--green); }
+.hero-slot--pale    .hero-slot__ring { -unity-background-image-tint-color: var(--slate); }
+
+.hero-slot--vetch   .hero-slot__disc { background-color: var(--teal-tint); }
+.hero-slot--ember   .hero-slot__disc { background-color: var(--coral-tint); }
+.hero-slot--skitter .hero-slot__disc { background-color: var(--amber-tint); }
+.hero-slot--hollow  .hero-slot__disc { background-color: var(--violet-tint); }
+.hero-slot--loam    .hero-slot__disc { background-color: var(--green-tint); }
+.hero-slot--pale    .hero-slot__disc { background-color: var(--surface-sunk); }
+
+/* A LIVE PORTRAIT, WHICH IS THE HANDOFF'S PREDICTED HYBRID AND ITS FOUNDER.
+ * Violet rather than --mute-soft because an un-bound live slot is never
+ * "nothing chosen" - the studio is already turning something in it - and
+ * because the handoff's own hybrid ring is #c9bcf0. A `Bind` with a species
+ * overrides this from the table above, which is the order the rules are
+ * written in. */
+.hero-slot--live .hero-slot__ring {
+    -unity-background-image-tint-color: var(--violet-pale);
+}
+
+/* THIS REACHES INTO ANOTHER COMPONENT, AND IT IS THE ONE PLACE THAT IS
+ * ALLOWED TO. `CreatureStage` sizes its own frame at 128px because that is
+ * what it is on the screens that show one alone; inside a 96px slot it would
+ * overflow the disc it is meant to sit in. A component's stylesheet reaches
+ * its own descendants (StatCell.uss's closing note: and nothing else), and a
+ * stage handed to this constructor IS a descendant, so this is the sheet
+ * that owns the answer.
+ *
+ * THE FRAME GOES TRANSPARENT because the disc under it is already the fill,
+ * and a --surface-sunk frame on top would cover the species tint the ring
+ * above is matched to. rgba rather than a hex, so verify-uss-tokens.sh's
+ * check 1 sees a colour that is not a colour. */
+.hero-slot .creature-stage__frame {
+    width: 80px;
+    height: 80px;
+    border-radius: 40px;
+    background-color: rgba(0, 0, 0, 0);
+}

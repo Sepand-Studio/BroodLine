@@ -96,6 +96,8 @@ public static class ScreenFixtures
         "Icons",
         "Scaffold",
         "Components",
+        "Vocabulary",
+        "Lane",
     };
 
     /// Whether the shell holds this fixture in `#screen-host`, which is the
@@ -113,8 +115,9 @@ public static class ScreenFixtures
     ///                 does not reproduce the overlay layer.
     ///   WaveHudView - never reaches ScreenHost at all. `WaveRunner` adds it
     ///                 straight to the wave scene's own panel root.
-    ///   the four catalogues - Primitives, Icons, Scaffold and Components are
-    ///                 not screens and have no place in the shell.
+    ///   the six catalogues - Primitives, Icons, Scaffold, Components,
+    ///                 Vocabulary and Lane are not screens and have no place
+    ///                 in the shell.
     public static bool GoesInTheScreenHost(string name)
     {
         switch (name)
@@ -125,6 +128,8 @@ public static class ScreenFixtures
             case "Icons":
             case "Scaffold":
             case "Components":
+            case "Vocabulary":
+            case "Lane":
                 return false;
             default:
                 return true;
@@ -151,6 +156,8 @@ public static class ScreenFixtures
             case "Icons": return Icons();
             case "Scaffold": return Scaffold();
             case "Components": return Components();
+            case "Vocabulary": return Vocabulary();
+            case "Lane": return Lane();
             default: throw new ArgumentException("ScreenFixtures has no fixture named '" + name + "'", nameof(name));
         }
     }
@@ -697,8 +704,22 @@ public static class ScreenFixtures
 
         // No flexGrow set here: .screen-scaffold already carries flex-grow 1,
         // so this frame takes whatever the fixed one below it leaves.
-        var pushed = new ScreenScaffold("Splice Reveal", pushed: true, onBack: () => { });
+        // EYEBROW AND RESOURCE PILL ON THE PUSHED FRAME ONLY, so one capture
+        // holds both header forms: the handoff's full header above, and the
+        // bare title-only header ten screens still build below. That pair is
+        // the only check in existence on whether the eyebrow actually hides
+        // when nothing sets it.
+        var pushed = new ScreenScaffold("Splicing Chamber", pushed: true, onBack: () => { },
+            eyebrow: "Gene Lab");
         FillScaffold(pushed);
+
+        // THE CURRENCY HEADER GOES SO THE PILL CAN BE SEEN. Both live in
+        // `HeaderSlot` and both answer "what do I have"; no screen in the
+        // handoff shows two of them, and side by side in a 390 frame neither
+        // reads. The unpushed frame below keeps the currency header, so the
+        // capture still holds one of each.
+        pushed.HeaderSlot.Clear();
+        pushed.SetResourcePill("icon--charge", "4", "/5");
         pushed.FooterNote = "Consumes both parents.";
         root.Add(pushed);
 
@@ -873,9 +894,13 @@ public static class ScreenFixtures
         statRow.style.flexDirection = FlexDirection.Row;
         statRow.style.marginLeft = -4;
         statRow.style.marginRight = -4;
-        statRow.Add(new StatCell("Control", "62%"));
+        // ONE OF EACH TREND AND ONE WITHOUT, in a row, because an arrow is
+        // only legible against the other two: "is that green triangle big
+        // enough" is unanswerable next to nothing, and the middle cell is
+        // the proof that a cell with no trend reserves no space for one.
+        statRow.Add(new StatCell("Control", "62%", StatCell.Trend.Up));
         statRow.Add(new StatCell("Travel", "4h 20m"));
-        statRow.Add(new StatCell("Arks", "2"));
+        statRow.Add(new StatCell("Arks", "2", StatCell.Trend.Down));
         stats.Body.Add(statRow);
         Stack(stats);
 
@@ -916,6 +941,201 @@ public static class ScreenFixtures
         empties.Add(withoutGlyph);
         Stack(empties);
 
+        return root;
+    }
+
+    /// Seven of the nine parts Phase 9 Task 13 added: everything the splice
+    /// chamber is built from, stacked in the order that screen stacks it.
+    ///
+    /// TWO NEW CATALOGUES, AND THE FRAME IS WHY. `Components` was already
+    /// using all 932 of the capture's pixels; these nine parts add roughly
+    /// 900 more, and this file's class comment is explicit about what a flex
+    /// column does with an overflow - it SHRINKS every child that will
+    /// shrink, silently, which once took a 6px ProgressBar track to zero
+    /// height and out of the picture altogether. MEASURED RATHER THAN
+    /// ESTIMATED: the first capture of this fixture held all nine and lost
+    /// the field rows and the cost row off the bottom of the frame
+    /// completely, with the 274px lane card taking a third of the height on
+    /// its own.
+    ///
+    /// SPLIT BY SCREEN, NOT BY SIZE. The two that moved to `Lane` are the
+    /// two the wave screen uses and this one does not, so each frame is a
+    /// screen's vocabulary rather than an arbitrary half of a list - which
+    /// is also what makes each one worth putting beside the handoff capture
+    /// it corresponds to.
+    static VisualElement Vocabulary()
+    {
+        var root = CatalogueRoot();
+
+        void Stack(VisualElement child)
+        {
+            child.style.flexShrink = 0;
+            root.Add(child);
+        }
+
+        var title = new Label("Vocabulary");
+        title.AddToClassList("t-screen-title");
+        Stack(title);
+
+        Stack(ComponentCaption("GenChip  ·  TraitChip  -  the six species tints, and an aberrant"));
+
+        // WRAPPING, and the first capture is why: five chips at the handoff's
+        // own sizes are wider than the 366px content width, and the fifth ran
+        // off the right edge. A row of chips is the caller's to arrange -
+        // StatCell.uss's closing note - so the wrap is set here.
+        var chips = new VisualElement();
+        chips.style.flexDirection = FlexDirection.Row;
+        chips.style.flexWrap = Wrap.Wrap;
+        chips.style.alignItems = Align.Center;
+        chips.style.marginBottom = 8;
+        chips.Add(new GenChip(4));
+        chips.Add(new TraitChip("Carapace", 3, "Vetch"));
+        chips.Add(new TraitChip("Cinder", 2, "Ember"));
+        chips.Add(new TraitChip("Sprint", null, "Skitter"));
+        chips.Add(new TraitChip("Screen", 1, "Pale"));
+        Stack(chips);
+
+        Stack(ComponentCaption("HeroSlot  -  bound, tinted-but-unbaked, and live"));
+
+        // Three slots: a bound Vetch (the one species baked before Task 15,
+        // so this is the only one that can show real sprites), an Ember bound
+        // for its tint with no art behind it, and the live form. Side by side
+        // because the ring's species tint is the thing being checked and a
+        // tint is only a tint against another one.
+        var slots = new VisualElement();
+        slots.style.flexDirection = FlexDirection.Row;
+        slots.style.alignItems = Align.Center;
+        slots.style.justifyContent = Justify.SpaceBetween;
+
+        var vetch = new HeroSlot();
+        vetch.Bind(Creature("Vetch", 4, name: "Ash", founder: true,
+            trait1: "Carapace", tier1: 1, trait2: "Taunt", tier2: 1));
+        slots.Add(vetch);
+
+        var ember = new HeroSlot();
+        ember.Bind(Creature("Ember", 6, name: null, founder: false));
+        slots.Add(ember);
+
+        // The live form, with nothing in it: no camera runs in a headless
+        // capture, so what this shows is the frame around a portrait - the
+        // violet ring and the transparent stage - which is exactly the part
+        // of it this project owns.
+        slots.Add(new HeroSlot(new CreatureStage()));
+        Stack(slots);
+
+        Stack(ComponentCaption("InheritanceBar  ·  MutationBanner"));
+        Stack(new InheritanceBar("Carapace III", 0.78f, "DOM", "teal"));
+        Stack(new InheritanceBar("Cinder Spit", 0.54f, "DOM", "coral"));
+        Stack(new InheritanceBar("Sprint II", 0.31f, "REC", "mute"));
+
+        var banner = new MutationBanner();
+        banner.Text = "Mutation window open  -  1 in 9 chance of an unlisted trait";
+        Stack(banner);
+
+        Stack(ComponentCaption("LineageStrip  ·  CostCtaRow"));
+        var lineage = new LineageStrip();
+        lineage.Bind(
+            new[] { (1, "vetch", false), (3, "vetch", false), (4, "vetch", false),
+                    (6, "ember", false), (7, "hollow", true) },
+            "Unbroken Vetch line since G1  -  pedigree bonus +12% trait fidelity");
+        Stack(lineage);
+
+        var cost = new CostCtaRow("icon--charge", "2", "Begin Splice", () => { });
+        cost.style.marginTop = 12;
+        Stack(cost);
+
+        return root;
+    }
+
+    /// The other two: what the wave screen puts above and below its lane.
+    ///
+    /// THE LANE CARD IS EMPTY HERE AND THAT IS THE HONEST PICTURE. `LaneStage`
+    /// (Task 17, `Broodline.Game`) is what renders into it, and nothing in a
+    /// headless `-executeMethod` drives a camera - so what this frame checks
+    /// is everything the card owns on its own: the 4:3 height, the radius,
+    /// the fill it shows before the first frame arrives, and the pocket tags.
+    static VisualElement Lane()
+    {
+        var root = CatalogueRoot();
+
+        void Stack(VisualElement child)
+        {
+            child.style.flexShrink = 0;
+            root.Add(child);
+        }
+
+        var title = new Label("Lane");
+        title.AddToClassList("t-screen-title");
+        Stack(title);
+
+        Stack(ComponentCaption("LanePreviewCard  -  4:3, pockets named along the bottom edge"));
+        var lane = new LanePreviewCard();
+        lane.SetSlots(new[] { ("A", true), ("B", false), ("C", false), ("D", true) });
+        Stack(lane);
+
+        Stack(ComponentCaption("FieldSlotRow  -  filled, empty, selected"));
+
+        // IN A CARD, BECAUSE THAT IS WHERE THEY LIVE AND BECAUSE OF WHAT THE
+        // FIRST CAPTURE SHOWED. The handoff puts this list inside its "On the
+        // field" card, and a row's --surface-sunk fill is 4 channel steps from
+        // --paper - so on bare paper these rows read as four labels floating
+        // in space, and the one thing the fixture is for (is a sunk row
+        // visible? is the selected ring stronger than the fill?) cannot be
+        // answered. On the white surface they belong on, both are.
+        var field = new SectionCard("On the field");
+
+        // TWO TO A ROW, which is the handoff's own `grid-template-columns:
+        // 1fr 1fr` for this list. A row of these is the caller's to arrange -
+        // StatCell.uss's closing note: a component's stylesheet reaches its
+        // descendants and never its parent - so the direction is set here.
+        field.Body.Add(FieldPair(
+            new FieldSlotRow("A", "Vetch Wall R2", filled: true, onTap: () => { }),
+            new FieldSlotRow("B", "Empty", filled: false, onTap: () => { })));
+
+        var selected = new FieldSlotRow("C", "Empty", filled: false, onTap: () => { });
+        selected.Selected = true;
+        field.Body.Add(FieldPair(selected,
+            new FieldSlotRow("D", "Cinderplate R1", filled: true, onTap: () => { })));
+        Stack(field);
+
+        return root;
+    }
+
+    /// Two field rows side by side, each taking half the width whatever its
+    /// text says - `flex-basis: 0` rather than `auto`, so "Empty" and
+    /// "Cinderplate R1" produce two equal columns instead of one narrow one.
+    static VisualElement FieldPair(VisualElement left, VisualElement right)
+    {
+        var row = new VisualElement();
+        row.style.flexDirection = FlexDirection.Row;
+
+        left.style.flexGrow = 1;
+        left.style.flexBasis = 0;
+        left.style.marginRight = 7;
+        row.Add(left);
+
+        right.style.flexGrow = 1;
+        right.style.flexBasis = 0;
+        row.Add(right);
+
+        return row;
+    }
+
+    /// The frame both new catalogues share.
+    ///
+    /// THE GUTTER IS THE REAL ONE, 12px, not the 32 the other catalogues use.
+    /// Half of these parts are full-width - the lane card, the cost row, the
+    /// field rows - and a component measured at the handoff's own 366px
+    /// content width is the only one whose proportions can be checked against
+    /// the handoff's own captures.
+    static VisualElement CatalogueRoot()
+    {
+        var root = new VisualElement();
+        root.AddToClassList("shell-root");
+        root.style.flexGrow = 1;
+        root.style.paddingLeft = 12;
+        root.style.paddingRight = 12;
+        root.style.paddingTop = 20;
         return root;
     }
 

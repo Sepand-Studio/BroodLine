@@ -53,9 +53,39 @@
  *
  * The value's own rule is layout plus the handoff's ink; its size and its
  * tabular face come from `t-num`, per the note at the head of this file. */
-.stat-cell__value {
+/* THE VALUE IS A ROW NOW, NOT A LABEL, so a trend arrow can sit beside the
+ * number instead of under it - the handoff's `B+ ▲` and `C ▼`. The 3px that
+ * used to be the value's own top margin moves here, because the row is what
+ * follows the label.
+ *
+ * `align-items: center` rather than `baseline`: the arrow is a background
+ * image with no baseline of its own, and a flex item without one is aligned
+ * by its bottom edge, which drops a triangle below the digits it belongs to. */
+.stat-cell__value-line {
+    flex-direction: row;
+    align-items: center;
     margin-top: 3px;
+}
+
+.stat-cell__value {
     color: var(--ink);
+}
+
+/* TWO CLASSES, to beat icons.uss's 19px without depending on which sheet the
+ * panel applies last - the rule every override of a Theme/icons class in
+ * this phase follows. 11px is the handoff's own 10px arrow rounded to the
+ * nearest whole pixel a 57px raster halves cleanly into, and it sits beside
+ * an 11px value.
+ *
+ * NO TINT HERE. `icon--trend-up` and `icon--trend-down` carry their own
+ * green and coral in icons.uss, so a cell that forgot one would get
+ * `.icon`'s --mute-soft and read as a disabled arrow rather than as no
+ * arrow. Setting a colour here as well would mean two files deciding it. */
+.stat-cell .stat-cell__trend {
+    width: 11px;
+    height: 11px;
+    margin-left: var(--space-1);
+    flex-shrink: 0;
 }
 
 /* THERE IS NO `.stat-cell-row` RULE IN THIS FILE, AND THERE CANNOT BE ONE.

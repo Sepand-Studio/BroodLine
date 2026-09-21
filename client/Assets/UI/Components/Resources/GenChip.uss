@@ -1,0 +1,50 @@
+/* The generation badge. Almost everything it looks like comes from
+ * Theme.uss's `.chip` - the --violet-tint fill, --radius-chip, the 4/8
+ * padding - which is the point of building it on that class rather than
+ * beside it.
+ *
+ * THIS SHEET EXISTS FOR THREE THINGS `.chip` CANNOT DO FROM THE ROOT, and
+ * all three are about the Label inside it rather than about the chip:
+ *
+ * 1. COLOUR DOES NOT REACH A CHILD LABEL. `.chip` sets `color:
+ *    var(--violet-text)` on the chip element, and colour is inherited - but
+ *    Theme.uss also sets `Label { color: var(--ink); }`, and a rule that
+ *    applies DIRECTLY to an element beats a value inherited into it however
+ *    specific the ancestor's rule was. So a Label inside a chip is --ink
+ *    unless its own rule says otherwise. Measured the same way `TraitPip`
+ *    found it: that component sets the violet on `.trait-pip__label` and
+ *    not on the pip.
+ * 2. SIZE, FOR THE SAME REASON PLUS ONE MORE. `.t-num` sets
+ *    --text-secondary directly on this Label, so it already wins over both
+ *    `.chip`'s 10px and `Label`'s 12px. The handoff sets this badge at 9px;
+ *    11px is the floor bible 10.6 puts under any number a decision depends
+ *    on, and the floor wins. Nothing is restated here - this note is, so
+ *    the next reader does not "fix" the 2px.
+ * 3. WEIGHT. `.chip` sets `-unity-font-style: bold`, which IS inherited and
+ *    does reach the Label - see the rule below.
+ */
+.gen-chip {
+    /* A chip is content-sized. Without this it stretches to whatever row it
+     * is in, because a flex child's default cross-axis behaviour is stretch
+     * and every caller puts one of these at the end of a header row. */
+    align-self: flex-start;
+    flex-shrink: 0;
+}
+
+.gen-chip__label {
+    color: var(--violet-text);
+
+    /* `normal`, AND THAT IS NOT THE SAME AS "NOT BOLD". Theme.uss binds
+     * every Label to Nunito-Bold SDF, so the face IS the bold one and
+     * `normal` renders it as drawn. `bold` on top of it does not select a
+     * heavier face - the asset's weight table is empty, so TextCore falls
+     * back to synthetic emboldening, a 0.75 weight dilation over a face
+     * already at 700. That closes counters worst at exactly the sizes this
+     * label lives at, which is what bible 10.6's "1/l/I and 0/O must be
+     * unambiguous" is about, and it is a GENERATION NUMBER - a 4 that
+     * reads as a 9 is a wrong creature. `.chip` sets bold on the chip and
+     * it inherits down here, so this cancels it rather than merely
+     * omitting it. Theme.uss's own note under the `Label` rule is the long
+     * form. */
+    -unity-font-style: normal;
+}

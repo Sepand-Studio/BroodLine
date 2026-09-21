@@ -1,0 +1,5 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="LanePreviewCard.uss" />
+    <ui:VisualElement name="lane" class="lane-preview-card__lane" picking-mode="Ignore" />
+    <ui:VisualElement name="slots" class="lane-preview-card__slots" />
+</ui:UXML>

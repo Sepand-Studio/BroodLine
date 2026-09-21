@@ -1,0 +1,75 @@
+/* The handoff's commit row, quoted from `Splice Chamber.dc.html`:
+ *
+ *     display: flex; align-items: center; gap: 11px; padding: 12px 16px 8px;
+ *       <div>  COST  /  <13px charge glyph>  <17px Baloo "2">
+ *       <button flex: 1>  Begin Splice
+ *
+ * THE OUTER PADDING IS NOT HERE. This row goes into
+ * `ScreenScaffold.CtaRow`, which already carries the gutter and the top
+ * space; adding the handoff's 16px again would inset the button from every
+ * card above it by 16 where the scaffold puts everything else at 12. The
+ * scaffold's own note on `.screen-scaffold__content` is the same lesson
+ * measured the hard way - two containers each applying "the" gutter.
+ */
+.cost-cta-row {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.cost-cta-row__block {
+    flex-direction: column;
+    flex-shrink: 0;
+    margin-right: 11px;
+}
+
+.cost-cta-row__line {
+    flex-direction: row;
+    align-items: center;
+    margin-top: 2px;
+}
+
+/* TWO CLASSES, to beat icons.uss's 19px and --mute-soft without depending on
+ * sheet order. The handoff draws this glyph at 13px in the deeper teal it
+ * uses for the charge mark everywhere - the same --teal-text the resource
+ * pill in the header tints its own charge glyph with, which is what makes
+ * the two read as one currency. */
+.cost-cta-row .cost-cta-row__icon {
+    width: 13px;
+    height: 13px;
+    margin-right: 5px;
+    -unity-background-image-tint-color: var(--teal-text);
+}
+
+/* TWO CLASSES AGAIN, over `.t-num`'s --text-secondary, and this is the
+ * biggest of the three size overrides in this task: 17px against 11. The
+ * handoff sets this number at 17px beside a 16px CTA label, so it is the
+ * second-largest thing in the row and the only number in it. At 11 it would
+ * be smaller than the eyebrow's own tracking makes "COST" look, and the
+ * price of the action would read as a footnote to it.
+ *
+ * --text-cta IS 17px EXACTLY, so this is the scale rather than a literal.
+ * The floor is a minimum and going up does not touch bible 10.6;
+ * verify-uss-tokens.sh check 2 reads for --text-micro under a `.t-num`
+ * selector, which is the thing the floor actually forbids. */
+.cost-cta-row .cost-cta-row__cost {
+    font-size: var(--text-cta);
+    color: var(--ink);
+}
+
+/* `flex-basis: 0` as well as `flex-grow: 1`, so the button takes the row's
+ * remaining width rather than its own content width plus the remainder - a
+ * long CTA label ("See the lineage") and a short one ("Start") end at the
+ * same right edge, which is what makes a column of screens look like one
+ * app.
+ *
+ * THE VERTICAL MARGIN IS ZEROED. Theme.uss gives every Button 4px top and
+ * bottom for a stacked CTA column; in a row beside a two-line cost block it
+ * only makes the row 8px taller than the taller of its two children. */
+.cost-cta-row__cta {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+}

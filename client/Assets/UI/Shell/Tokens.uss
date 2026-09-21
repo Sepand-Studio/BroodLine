@@ -65,9 +65,43 @@
      * existing one. Task 2's own step list omitted this colour entirely. */
     --violet-pale: #d9cdf5;       /* not in the handoff - aberrant pip icon */
 
+    /* Not in the handoff's table; it is the deep end of the predicted-hybrid
+     * panel's ramp (Art/hybrid-ramp.png) and the fill that ramp composites
+     * over, so a texture that fails to import degrades to the panel's own
+     * deepest tint rather than to white. The handoff's Splice Chamber draws
+     * that panel `linear-gradient(170deg, #ffffff, #f4f0fb)` - white to one
+     * step off --paper - which is a sheen on the #f7f4fb page it sits on and
+     * is invisible on the --surface SectionCard this project puts it on. One
+     * step deeper is what makes the panel read as its own surface. It sits
+     * one step BELOW --violet-tint (#f1ecfa, 17 away in summed channel
+     * distance) rather than above it, so the ramp's far end still reads as
+     * the same violet family as the panels beside it and not as a new hue. */
+    --hybrid-tint-deep: #ebe4f7;  /* not in the handoff - predicted-hybrid ramp end */
+
     /* ---- Species / semantic ---- */
     --teal: #6ba7c0;              /* Vetch, info */
     --teal-tint: #e7f3f9;
+
+    /* Not in the handoff's TABLE, and the one gap in it that the handoff's
+     * own markup fills six times over. Five of the six families carry a
+     * `-text` token for the darker ink a chip or a tag sets its label in -
+     * --green-text, --amber-text, --coral-text, --violet-text - and teal,
+     * which is Vetch AND the "info" role, carries none. So every teal chip
+     * in `Creature Roster.dc.html` (#3c7f98) and every one in
+     * `Splice Chamber.dc.html` (#4b8ba6, plus the charge glyph and the DOM
+     * tag) had nothing to reference.
+     *
+     * #3c7f98 IS THE DARKER OF THE TWO THE HANDOFF USES, chosen for the
+     * contrast rather than by preference: measured against --teal-tint it is
+     * 4.0:1, where #4b8ba6 is 3.0:1 - and the family this token joins sits
+     * at 5.1:1 (--green-text on --green-tint). 4.0 is under WCAG AA's 4.5
+     * for body text and is recorded as such; it is the best either authored
+     * value offers, and inventing a third teal the handoff never drew would
+     * be the drift verify-uss-tokens.sh exists to stop. Colour never carries
+     * information alone here (bible 10.4) - the chip states the trait in
+     * words. */
+    --teal-text: #3c7f98;         /* not in the handoff's table - teal-on-light text */
+
     --green: #7cc492;             /* Loam, success */
     --green-deep: #5aa87a;
     --green-tint: #e8f5ec;
@@ -76,6 +110,18 @@
     --amber-bright: #ffb703;
     --amber-tint: #fdf1d8;
     --amber-text: #7a5b12;
+
+    /* Not in the handoff. The MutationBanner's sparkle mark, and the deep
+     * end of the amber ramp behind it (Art/amber-ramp.png). The mutation
+     * window is the one amber surface in the app that is GOOD news, so its
+     * glyph must not read as the warning triangle's ink: --amber-text
+     * (#7a5b12) is a brown at 8.0:1 and looks like a caution label, and
+     * --amber (#e8b34a) on the ramp's own #f9e0a8 is 1.4:1 and disappears.
+     * The handoff draws this mark at #d19a1f; this is 36 away in summed
+     * channel distance - inside the range Tokens.uss already treats as one
+     * colour - and is the value the task brief fixed for the phase, so it
+     * is kept rather than re-split into a seventeenth amber. */
+    --amber-bright-deep: #e7a324; /* not in the handoff - MutationBanner sparkle, amber ramp end */
     --coral: #e5867a;             /* Ember, danger */
     --coral-deep: #d4776a;
     --coral-tint: #fbeae7;
@@ -160,6 +206,23 @@
     --radius-row: 14px;
     --radius-card: 20px;
     --radius-cta: 15px;
+
+    /* ---- Component geometry ----
+     *
+     * FOUR SIZES, AND THEY ARE HERE RATHER THAN IN A STYLESHEET BECAUSE TWO
+     * FILES EACH NEED THEM. Everything else quoted from the handoff stays a
+     * literal beside the sentence it came from (ScreenScaffold.uss's header
+     * settled that convention and StatCell.uss restates it): the token layer
+     * holds the SCALE, and one-off geometry is written where it is read.
+     * These four are not one-off - a hero slot is sized in HeroSlot.uss and
+     * framed in the two screens that put a live portrait in one, a lane card
+     * is sized here and measured by the stage that renders into it, and a
+     * badge size decides its own radius. A number two files must agree on is
+     * a token. */
+    --hero-slot: 96px;            /* HeroSlot outer size - the handoff's 112px predicted-hybrid art circle at the 390 frame's 0.86 */
+    --hero-ring: 2px;             /* HeroSlot dotted ring width - the handoff's 1.6-2px ring stroke */
+    --lane-card-height: 274px;    /* LanePreviewCard - 4:3 at the 366px content width, the handoff's own 406x300 lane */
+    --field-badge: 18px;          /* FieldSlotRow letter badge - the handoff's 18px square */
 
     /* ---- Elevation. USS has no box-shadow; these tint a nine-slice. ---- */
     --elev-1-tint: rgba(63, 58, 82, 0.06);   /* handoff: 0 2px 8px  */

@@ -193,6 +193,30 @@ Label {
     margin-bottom: var(--space-2);
 }
 
+/* The predicted-hybrid panel, and the one panel in the set whose fill is a
+ * gradient rather than a flat tint - `Splice Chamber.dc.html` is explicit
+ * that this surface is different from the cards above and below it. USS has
+ * no gradient (this file's header, item 1), so it is a ramp texture like the
+ * CTA's, stretched.
+ *
+ * THE COLOUR UNDER THE IMAGE IS DELIBERATE AND IS THE OPPOSITE CALL FROM
+ * `.btn-primary`, WHICH SETS IT TRANSPARENT. There, `--violet` was already
+ * on the element from the `Button` rule and would have tinted the ramp. Here
+ * nothing is under it, so the fill costs nothing while the image is present
+ * and is what the panel degrades to if the texture ever fails to import -
+ * the panel's own deepest tint rather than white. This phase exists partly
+ * because a missing asset rendered as nothing and nobody noticed.
+ *
+ * NOT `.btn-primary--hybrid`, which is what this task's brief named. That
+ * would be a modifier on the primary CTA, and nothing in the phase composes
+ * one: the ramp belongs to a SectionCard in the splice chamber, which is a
+ * panel. Named for what it is. */
+.panel-hybrid {
+    background-image: url("project:///Assets/UI/Art/hybrid-ramp.png");
+    -unity-background-scale-mode: stretch-to-fill;
+    background-color: var(--hybrid-tint-deep);
+}
+
 .panel-violet { background-color: var(--violet-tint); border-radius: var(--radius-row); padding: var(--space-3); }
 .panel-teal   { background-color: var(--teal-tint);   border-radius: var(--radius-row); padding: var(--space-3); }
 .panel-green  { background-color: var(--green-tint);  border-radius: var(--radius-row); padding: var(--space-3); }
@@ -421,6 +445,38 @@ TextField:focus > * {
     padding-bottom: var(--space-1);
     padding-left: var(--space-3);
     padding-right: var(--space-3);
+}
+
+/* THE HANDOFF'S HEADER AFFORDANCE: a white tile at the header's left edge,
+ * lifted off the paper rather than sunk into it. Every pushed screen in the
+ * bundle wears one - the back chevron on Splice Chamber, the pause control on
+ * Wave Defense - at `background: #ffffff; box-shadow: 0 1px 3px
+ * rgba(63,58,82,.1)`.
+ *
+ * THE SHADOW IS A 1px --hairline BORDER, AND THAT IS FORCED. USS has no
+ * box-shadow (this file's header, item 2) and the nine-slice answer does not
+ * reach here: `.elev-1` is a WRAPPER - padding plus the sprite, with the
+ * surface as a child inside it - and a Button draws its own label and glyph
+ * in its own box, so it cannot be the child of a wrapper without ceasing to
+ * be the control. Put `.elev-1` on the Button itself instead and the
+ * nine-slice stretches its centre region across the interior and paints a
+ * grey smudge under the chevron, which this project has shipped twice. A
+ * hairline is the honest substitute for a 3px-blur shadow at this size.
+ *
+ * NOT A PILL, THOUGH THE NAME SAYS SO. The name is fixed by the phase's
+ * component contract; the SHAPE is the handoff's, which is a 34px rounded
+ * SQUARE at radius 12 (`Splice Chamber.dc.html`) or 11 (`Wave Defense`), not
+ * a 17px circle. --radius-tile (11px) sits in the handoff's own 9-14px
+ * icon-tile band and is what the back control already carried.
+ *
+ * Radius, size and padding stay with the element that has them - the
+ * scaffold's back Button keeps its own rule. This class is the FILL, so a
+ * screen that needs the same white tile for its own control (the pause
+ * button, the speed pill) gets it here rather than re-deriving it. */
+.pill-back {
+    background-color: var(--surface);
+    border-width: 1px;
+    border-color: var(--hairline);
 }
 
 /* Selected / unselected option, from the handoff's exact rule. USS has no

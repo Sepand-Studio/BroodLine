@@ -1,0 +1,11 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="CostCtaRow.uss" />
+    <ui:VisualElement name="cost-block" class="cost-cta-row__block">
+        <ui:Label name="eyebrow" class="cost-cta-row__eyebrow t-micro" />
+        <ui:VisualElement name="cost-line" class="cost-cta-row__line">
+            <ui:VisualElement name="cost-icon" class="icon cost-cta-row__icon" />
+            <ui:Label name="cost" class="cost-cta-row__cost t-num" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+    <ui:Button name="cta" class="cost-cta-row__cta btn-primary" />
+</ui:UXML>

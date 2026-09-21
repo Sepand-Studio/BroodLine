@@ -1,0 +1,77 @@
+/* The handoff's mutation strip:
+ *
+ *     background: linear-gradient(100deg, #fdf0d0, #f9e0a8);
+ *     border-radius: 14px; padding: 9px 11px;
+ *     box-shadow: inset 0 0 0 1px rgba(196,150,45,.28);
+ *     <24px white disc, glow 2s>  <11px copy in #7a5b12>
+ *
+ * THE GRADIENT IS A TEXTURE, like the CTA's, because USS has none (Theme.uss
+ * header item 1). amber-ramp.png is 64x2 rather than 2x64 - the handoff's
+ * angle is 100deg, ten degrees off horizontal, so the ramp runs across the
+ * strip rather than down it. generate-textures.py has the three ramps and
+ * their angles together.
+ *
+ * THE INSET RING IS A REAL BORDER, because USS has no inset box-shadow
+ * either - the same substitution `.option--selected` makes in Theme.uss. The
+ * handoff's is #c4962d at 28%, which composites over its own #f9e0a8 to
+ * about #eacb85; --amber is one step stronger than that and is the token
+ * this family already has. A strip that has to read as rarer than everything
+ * around it is the wrong place to spend a step of contrast.
+ *
+ * THE FILL AND THE RADIUS AND THE PADDING ARE `.panel-amber`'s, not this
+ * sheet's. Its radius is --radius-row (14px), which is the handoff's number
+ * exactly, and its padding is --space-3 against the handoff's 9/11 - inside
+ * the band the README gives for a row. Setting them again here would put two
+ * single-class rules from two sheets on the same properties, which is the
+ * order-dependence every override in this task is written to avoid.
+ *
+ * THE ANIMATION IS NOT REPRODUCED. The handoff pulses the disc on a 2s
+ * `glow`; Motion.uss owns this project's transitions and has no keyframe
+ * vocabulary, and a still capture is the phase's verification. Named here
+ * so it reads as a decision rather than an oversight.
+ */
+.mutation-banner {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    background-image: url("project:///Assets/UI/Art/amber-ramp.png");
+    -unity-background-scale-mode: stretch-to-fill;
+    border-width: 1px;
+    border-color: var(--amber);
+    margin-top: 11px;
+}
+
+/* 12px is half of 24 - a square element, so both axes clamp alike and this
+ * is a true circle (Theme.uss header item 4). */
+.mutation-banner__disc {
+    width: 24px;
+    height: 24px;
+    border-radius: 12px;
+    background-color: var(--surface);
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-right: var(--space-2);
+}
+
+/* TWO CLASSES, to beat icons.uss's `.icon` (19px, --mute-soft) without
+ * depending on which sheet the panel applies last. The handoff draws this
+ * mark at 12px in the 24px disc, in a deep amber that is neither the warning
+ * brown nor the tint - Tokens.uss's --amber-bright-deep note has the two
+ * measurements that ruled both out. */
+.mutation-banner .mutation-banner__spark {
+    width: 12px;
+    height: 12px;
+    -unity-background-image-tint-color: var(--amber-bright-deep);
+}
+
+/* --amber-text comes from `.t-warn`. `white-space: normal` so a sentence
+ * wraps rather than running off the strip: the copy is authored by the
+ * server and this component cannot know its length, which is exactly the
+ * mistake `.screen-scaffold__footer-note` records making once. */
+.mutation-banner__text {
+    flex-grow: 1;
+    flex-shrink: 1;
+    white-space: normal;
+    font-size: var(--text-secondary);
+}

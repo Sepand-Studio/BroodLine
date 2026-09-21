@@ -51,6 +51,45 @@
 .icon--check   { background-image: url("project:///Assets/UI/Art/icons/check.png"); }
 .icon--warning { background-image: url("project:///Assets/UI/Art/icons/warning.png"); }
 
+/* Three more, and all three are BESPOKE rather than fetched - so all three
+ * keep their .svg beside the raster, on the rule the thirteen established
+ * (splice.svg was kept for exactly this reason; lucide.dev is a durable
+ * source and a hand-drawn mark has none). Same pipeline, same re-cut:
+ *
+ *     sed 's/currentColor/#ffffff/g; s/stroke-width="2"/stroke-width="2.4"/g' n.svg \
+ *       | rsvg-convert -w 57 -h 57 -o n.png
+ *
+ * `sparkle` IS THE HANDOFF'S OWN PATH, to the digit - the mutation banner in
+ * `Splice Chamber.dc.html` draws
+ * `M12 2 L14.5 9.5 L22 12 L14.5 14.5 L12 22 L9.5 14.5 L2 12 L9.5 9.5 Z`.
+ * Lucide has a `sparkle`, and it is a different four-pointed star; the
+ * handoff drew this one, so this is the one.
+ *
+ * THE TWO ARROWS ARE FILLED, WHICH BREAKS THIS SET'S `fill="none"` RULE ON
+ * PURPOSE. The handoff's stat cells set them as literal text triangles - `▲`
+ * at #6cba8b and `▼` at #e5867a, 10px beside a 15px value - and an outlined
+ * chevron at that size reads as a chevron, which in this app means
+ * navigation. A solid triangle at 11px reads as a direction. They keep the
+ * set's rounded joins so they still belong to it. */
+.icon--sparkle { background-image: url("project:///Assets/UI/Art/icons/sparkle.png"); }
+
+/* THE TINT IS PART OF THE MARK HERE, AND NOT PART OF THE INFORMATION.
+ * Direction is what says up or down - bible 10.4, colour never carries
+ * information alone - and green/coral is the reinforcement the handoff
+ * draws. Set on the modifier rather than left to each caller because a stat
+ * cell that forgot it would get `.icon`'s --mute-soft and read as a
+ * disabled arrow. --green (#7cc492) is the nearest token to the handoff's
+ * #6cba8b and --coral (#e5867a) is its down arrow exactly.
+ *
+ * AFTER `.icon`, DELIBERATELY. These two ties with it on specificity (one
+ * class each), and within a single stylesheet the later rule wins - which
+ * is why they are here and not in a sheet whose load order against this one
+ * nothing states. */
+.icon--trend-up   { background-image: url("project:///Assets/UI/Art/icons/trend-up.png");
+                    -unity-background-image-tint-color: var(--green); }
+.icon--trend-down { background-image: url("project:///Assets/UI/Art/icons/trend-down.png");
+                    -unity-background-image-tint-color: var(--coral); }
+
 /* The tab bar's two states, per the handoff's nav model - plus the one rule
  * that keeps the glyph off the word.
  *

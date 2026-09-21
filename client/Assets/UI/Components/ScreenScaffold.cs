@@ -26,7 +26,12 @@ namespace Broodline.UI.Components
     {
         public const string UssClassName = "screen-scaffold";
 
+        /// The resource readout's own element, by name, so `SetResourcePill`
+        /// and anything looking for one agree on the spelling.
+        public const string ResourcePillName = "resource-pill";
+
         readonly Label _footer;
+        readonly Label _eyebrow;
         readonly VisualElement _header;
         readonly Button _back;
         readonly bool _pushed;
@@ -48,12 +53,40 @@ namespace Broodline.UI.Components
             }
         }
 
-        public ScreenScaffold(string title, bool pushed = false, Action onBack = null)
+        /// The handoff's kicker - the small uppercase line ABOVE the title
+        /// that says where in the app this screen is. `Gene Lab` over
+        /// `Splicing Chamber`; `Hollow Reach · defense` over `Wave 7`.
+        ///
+        /// NULL OR EMPTY HIDES THE ROW, which is the state every screen
+        /// written before this task is in. It is the same contract
+        /// `FooterNote` has had since Phase 8 and it is what keeps this
+        /// change invisible to the ten screens that pass no eyebrow.
+        ///
+        /// HIDDEN RATHER THAN REMOVED, which is the opposite of what the
+        /// back chevron and `SectionCard`'s heading do. The reason is that
+        /// this one is re-settable: a screen learns its eyebrow at bind time
+        /// and can change it (the roster's is a count), so removing the
+        /// label would mean re-inserting one at a known index inside the
+        /// title column on every change. `FooterNote` already made this
+        /// trade for the same reason.
+        public string Eyebrow
+        {
+            set
+            {
+                _eyebrow.text = value ?? string.Empty;
+                _eyebrow.style.display = string.IsNullOrEmpty(value)
+                    ? DisplayStyle.None : DisplayStyle.Flex;
+            }
+        }
+
+        public ScreenScaffold(string title, bool pushed = false, Action onBack = null, string eyebrow = null)
         {
             AddToClassList(UssClassName);
             Resources.Load<VisualTreeAsset>("ScreenScaffold").CloneTree(this);
 
             this.Q<Label>("title").text = title ?? string.Empty;
+            _eyebrow = this.Q<Label>("eyebrow");
+            Eyebrow = eyebrow;
 
             // NO SCROLLER CHROME, AND THAT IS A DECISION MADE ONCE HERE FOR
             // ALL TEN SCREENS. Left at its default of Auto, a ScrollView draws
@@ -101,6 +134,70 @@ namespace Broodline.UI.Components
             _back.clicked += () => _onBack?.Invoke();
 
             OnBack = onBack;
+        }
+
+        /// The handoff's resource readout, at the header's right edge: a
+        /// white pill holding a tinted glyph disc, a value and an optional
+        /// muted cap - `SetResourcePill("icon--charge", "4", "/5")` is the
+        /// splice chamber's charge counter, verbatim.
+        ///
+        /// BUILT AND REMOVED RATHER THAN SHOWN AND HIDDEN, because unlike
+        /// the eyebrow this is a whole subtree and nothing re-reads it: a
+        /// screen that has no resource to state has no pill at all, and
+        /// `SetResourcePill(null, null)` is how it says so. That also keeps
+        /// `HeaderSlot` free for the screens that put something else there -
+        /// the avatar, the progress pips - which is what the slot is for.
+        ///
+        /// IT REPLACES RATHER THAN STACKS. A screen re-binding a changed
+        /// charge count calls this again, and a second pill appearing beside
+        /// the first is exactly the bug the scaffold's single `clicked`
+        /// subscription avoids one method down.
+        ///
+        /// A NULL OR EMPTY `value` REMOVES IT, and `icon` may be null on its
+        /// own for a pill with no glyph. `value` is the thing the pill is
+        /// for; an icon with nothing beside it is chrome.
+        public void SetResourcePill(string icon, string value, string suffix = null)
+        {
+            var existing = HeaderSlot.Q<VisualElement>(ResourcePillName);
+            if (existing != null) existing.RemoveFromHierarchy();
+            if (string.IsNullOrEmpty(value)) return;
+
+            var pill = new VisualElement { name = ResourcePillName };
+            pill.AddToClassList("resource-pill");
+
+            if (!string.IsNullOrEmpty(icon))
+            {
+                var disc = new VisualElement { name = "pill-disc" };
+                disc.AddToClassList("resource-pill__disc");
+                var glyph = new VisualElement { name = "pill-glyph" };
+                glyph.AddToClassList("icon");
+                glyph.AddToClassList("resource-pill__glyph");
+                glyph.AddToClassList(icon);
+                disc.Add(glyph);
+                pill.Add(disc);
+            }
+
+            // `t-num` IS THE POINT, the same way it is on StatCell: the
+            // charge count is a number a decision depends on, so bible
+            // 10.6's tabular face and 11px floor both apply and this marker
+            // is what TypographyTests and verify-uss-tokens.sh enforce them
+            // through. The handoff sets this readout in Baloo 2, which is
+            // the one instruction in its type table this project does not
+            // follow - Theme.uss's header has the ten measured digit widths.
+            var valueLabel = new Label(value) { name = "pill-value" };
+            valueLabel.AddToClassList("resource-pill__value");
+            valueLabel.AddToClassList("t-num");
+            pill.Add(valueLabel);
+
+            if (!string.IsNullOrEmpty(suffix))
+            {
+                var suffixLabel = new Label(suffix) { name = "pill-suffix" };
+                suffixLabel.AddToClassList("resource-pill__suffix");
+                suffixLabel.AddToClassList("t-num");
+                pill.Add(suffixLabel);
+            }
+
+            HeaderSlot.Add(pill);
         }
 
         /// The action behind the back chevron, and the thing that decides

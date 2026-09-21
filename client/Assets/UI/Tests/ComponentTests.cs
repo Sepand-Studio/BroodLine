@@ -636,5 +636,234 @@ namespace Broodline.UI.Tests
             // here rather than adding another file-wide alias.
             UnityEngine.Object.DestroyImmediate(tex);
         }
+
+        // ===============================================================
+        // THE COMPONENT VOCABULARY - Phase 9 design 4.1. Nine parts the
+        // handoff's screens are actually made of, built once so the six
+        // screen tasks after this one compose rather than re-derive.
+        //
+        // EVERY ONE OF THESE IS A STRUCTURE-AND-TEXT TEST, on the rule this
+        // file's class comment sets out: a plain `VisualElement` tree, no
+        // scene, no live `Panel`, no dispatched clicks. What a still tree
+        // can prove is what is asserted - which children exist, what they
+        // say, which classes they carry. What it cannot prove (that a tap
+        // fires, that a colour resolves) is left to the capture corpus and
+        // said so at the site.
+        // ===============================================================
+
+        [Test]
+        public void GenChip_ShowsGWithTheGeneration_OnTNum()
+        {
+            var chip = new GenChip(4);
+
+            Assert.AreEqual("G4", chip.Q<Label>().text,
+                "the generation badge is written by CreatureLabel.Generation, so it cannot read 'Gen 4' here "
+                + "and 'G4' on a card");
+            Assert.IsTrue(chip.Q<Label>().ClassListContains("t-num"),
+                "a generation is a number a decision depends on - bible 10.6's tabular face and 11px floor "
+                + "are both enforced through this marker and nothing else");
+            Assert.IsTrue(chip.ClassListContains("chip"),
+                "the chip shape comes from Theme.uss rather than from a second copy of it");
+        }
+
+        [Test]
+        public void TraitChip_IsTintedByTheSpecies_AndMarksAberrant()
+        {
+            var vetch = new TraitChip("Carapace", 3, "Vetch");
+            Assert.IsTrue(vetch.ClassListContains("trait-chip--vetch"),
+                "the species modifier is what picks the tint; without it every chip is the default violet");
+            StringAssert.Contains("Carapace", vetch.Q<Label>().text);
+            StringAssert.Contains("III", vetch.Q<Label>().text,
+                "tiers are written I-III by CreatureLabel.TraitWithTier, not as digits");
+
+            // data_model 2: a null coverage tier IS an Aberrant, and null and
+            // zero must never be conflated - "zero would sort and display as
+            // 'less than tier I'".
+            var aberrant = new TraitChip("Cinder", null, "Ember");
+            Assert.IsTrue(aberrant.ClassListContains("aberrant"),
+                "an Aberrant carries no tier, so the outline is the only thing that distinguishes it from "
+                + "an untiered Instinct");
+            Assert.AreEqual("Cinder", aberrant.Q<Label>().text,
+                "a null tier must not render as a '0' or as a stray space");
+        }
+
+        [Test]
+        public void HeroSlot_StacksThreeLayers_AndClearsOnNull()
+        {
+            var slot = new HeroSlot();
+            slot.Bind(Creature("Vetch", gen: 1, name: "Ash", founder: true,
+                trait1: "Carapace", tier1: 1, trait2: "Taunt", tier2: 1));
+
+            Assert.IsNotNull(slot.Q<VisualElement>("body").style.backgroundImage.value.texture,
+                "the body layer has no sprite - CreatureSprites.Body returned null for 'Vetch', which is "
+                + "the one species baked before Task 15");
+            Assert.IsNotNull(slot.Q<VisualElement>("ring"),
+                "no ring: USS has no dashed border, so the ring is a texture element and not a border");
+            Assert.IsTrue(slot.ClassListContains("hero-slot--vetch"),
+                "the ring and disc take the species tint, which is what the handoff draws");
+
+            slot.Bind(null);
+            Assert.IsNull(slot.Q<VisualElement>("body").style.backgroundImage.value.texture,
+                "an unbound slot still showed the last creature - the splice chamber opens with no parent "
+                + "picked and would open showing one");
+            Assert.IsFalse(slot.ClassListContains("hero-slot--vetch"),
+                "clearing left the previous species tint on the ring");
+        }
+
+        [Test]
+        public void HeroSlot_FramesALivePortraitInsteadOfSprites()
+        {
+            var stage = new CreatureStage();
+            var slot = new HeroSlot(stage);
+
+            Assert.IsTrue(slot.ClassListContains(HeroSlot.LiveUssClassName));
+            Assert.IsNotNull(slot.Q<VisualElement>("ring"), "a live slot keeps the ring - that is the point");
+            Assert.AreSame(stage, slot.Q<CreatureStage>(), "the stage handed in is not the one in the tree");
+            Assert.IsNull(slot.Q<VisualElement>("body"),
+                "a live slot must not also answer to 'body': the screen tests tell the two forms apart by "
+                + "exactly that question");
+        }
+
+        [Test]
+        public void InheritanceBar_ShowsOddsOnTNum_AndTheTag()
+        {
+            var bar = new InheritanceBar("Carapace III", 0.78f, "DOM", "teal");
+
+            Assert.AreEqual("78%", bar.Q<Label>("odds").text);
+            Assert.IsTrue(bar.Q<Label>("odds").ClassListContains("t-num"),
+                "three odds are read down a column against each other, and Baloo 2's ten digit widths do "
+                + "not line up - Theme.uss's header has the measurement");
+            Assert.AreEqual("DOM", bar.Q<Label>("tag").text);
+            Assert.IsNotNull(bar.Q<VisualElement>(className: "progress-bar--teal"),
+                "the bar takes the same colour family as the dot and the tag, from one argument");
+        }
+
+        [Test]
+        public void MutationBanner_CollapsesWhenEmpty()
+        {
+            var banner = new MutationBanner();
+            Assert.AreEqual(DisplayStyle.None, banner.style.display.value,
+                "a banner with nothing to say still occupied a row; the server decides whether there is a "
+                + "mutation window and a screen should not have to branch on it");
+
+            banner.Text = "Mutation window open";
+            Assert.AreEqual(DisplayStyle.Flex, banner.style.display.value);
+            Assert.AreEqual("Mutation window open", banner.Q<Label>("text").text);
+            Assert.IsNotNull(banner.Q<VisualElement>(className: "icon--sparkle"),
+                "the sparkle is what makes this amber strip read as the rare good thing rather than as "
+                + "another warning panel");
+        }
+
+        [Test]
+        public void LineageStrip_DrawsOneNodePerGeneration_AndMarksTheCurrent()
+        {
+            var strip = new LineageStrip();
+            strip.Bind(new[] { (1, "vetch", false), (4, "vetch", false), (7, "vetch", true) },
+                "Unbroken Vetch line since G1");
+
+            Assert.AreEqual(3, strip.Query<VisualElement>(className: LineageStrip.NodeUssClassName).ToList().Count);
+            Assert.AreEqual(1, strip.Query<VisualElement>(className: LineageStrip.CurrentUssClassName).ToList().Count,
+                "exactly one generation is the current one; a rebuilt strip that kept a stale mark would "
+                + "put it on the wrong animal");
+            Assert.AreEqual("G7", strip.Query<Label>(className: LineageStrip.GenUssClassName).ToList().Last().text);
+            Assert.AreEqual("Unbroken Vetch line since G1", strip.Q<Label>("note").text);
+        }
+
+        [Test]
+        public void LineageStrip_CollapsesWithNoChain()
+        {
+            var strip = new LineageStrip();
+            Assert.AreEqual(DisplayStyle.None, strip.style.display.value,
+                "a rail with no nodes on it is a horizontal line across a card, which reads as a divider "
+                + "somebody forgot to delete");
+
+            strip.Bind(new[] { (1, "vetch", true) }, null);
+            Assert.AreEqual(DisplayStyle.Flex, strip.style.display.value);
+            Assert.AreEqual(DisplayStyle.None, strip.Q<Label>("note").style.display.value,
+                "no pedigree note was sent, so no row is reserved for one");
+        }
+
+        [Test]
+        public void CostCtaRow_ShowsCostOnTNum_AndOnePrimaryButton()
+        {
+            var row = new CostCtaRow("icon--charge", "2", "Begin Splice", () => { });
+
+            Assert.AreEqual("2", row.Q<Label>("cost").text);
+            Assert.IsTrue(row.Q<Label>("cost").ClassListContains("t-num"),
+                "the cost is the number the decision is about");
+            Assert.AreEqual("Begin Splice", row.Q<Button>().text);
+            Assert.IsTrue(row.Q<Button>().ClassListContains("btn-primary"),
+                "the commit action is the screen's primary CTA and carries the handoff's gradient and press");
+            Assert.AreEqual(CostCtaRow.CostEyebrow, row.Q<Label>("eyebrow").text);
+            Assert.IsNotNull(row.Q<VisualElement>(className: "icon--charge"),
+                "the cost glyph says WHICH currency; a bare '2' does not");
+
+            row.Enabled = false;
+            Assert.IsFalse(row.Q<Button>().enabledSelf,
+                "a row that cannot be afforded must disable its own button rather than leave the screen to");
+        }
+
+        [Test]
+        public void FieldSlotRow_StatesTheLetterAndTheOccupant()
+        {
+            var empty = new FieldSlotRow("B", "Empty", filled: false, onTap: () => { });
+            Assert.AreEqual("B", empty.Q<Label>("letter").text);
+            Assert.AreEqual("Empty", empty.Q<Label>("label").text);
+            Assert.IsFalse(empty.ClassListContains(FieldSlotRow.FilledUssClassName));
+
+            var filled = new FieldSlotRow("A", "Vetch Wall R2", filled: true, onTap: () => { });
+            Assert.IsTrue(filled.ClassListContains(FieldSlotRow.FilledUssClassName));
+
+            filled.Selected = true;
+            Assert.IsTrue(filled.ClassListContains(FieldSlotRow.SelectedUssClassName));
+            filled.Selected = false;
+            Assert.IsFalse(filled.ClassListContains(FieldSlotRow.SelectedUssClassName),
+                "selection reads and writes the class list directly, so there is no second copy of the "
+                + "state to drift from what is rendered");
+        }
+
+        [Test]
+        public void LanePreviewCard_ShowsATextureAndFourSlotTags()
+        {
+            var card = new LanePreviewCard();
+            var tex = new Texture2D(4, 4);
+            card.SetTexture(tex);
+            Assert.AreEqual(tex, card.Q<VisualElement>("lane").style.backgroundImage.value.texture);
+
+            card.SetSlots(new[] { ("A", true), ("B", false), ("C", false), ("D", true) });
+            var tags = card.Query<Label>(className: LanePreviewCard.SlotUssClassName).ToList();
+            Assert.AreEqual(4, tags.Count);
+            Assert.AreEqual("A", tags[0].text);
+            Assert.IsTrue(tags[0].ClassListContains(LanePreviewCard.SlotFilledUssClassName));
+            Assert.IsFalse(tags[1].ClassListContains(LanePreviewCard.SlotFilledUssClassName));
+
+            // A SHORTER WAVE MUST NOT LEAVE A POCKET BEHIND. The strip is
+            // rebuilt rather than recycled for exactly this - a leftover tag
+            // would be a pocket the player cannot fill.
+            card.SetSlots(new[] { ("A", false) });
+            Assert.AreEqual(1, card.Query<Label>(className: LanePreviewCard.SlotUssClassName).ToList().Count);
+
+            card.SetTexture(null);
+            Assert.IsNull(card.Q<VisualElement>("lane").style.backgroundImage.value.texture,
+                "the card showed the previous wave's lane after being cleared");
+
+            UnityEngine.Object.DestroyImmediate(tex);
+        }
+
+        [Test]
+        public void StatCell_ShowsATrendArrow()
+        {
+            var up = new StatCell("Armor", "B+", StatCell.Trend.Up);
+            Assert.IsNotNull(up.Q<VisualElement>(className: "icon--trend-up"));
+
+            var down = new StatCell("Speed", "C", StatCell.Trend.Down);
+            Assert.IsNotNull(down.Q<VisualElement>(className: "icon--trend-down"));
+
+            // REMOVED, NOT HIDDEN, and the default is what the twelve
+            // existing two-argument call sites get - see StatCell.Trend.
+            var flat = new StatCell("Travel", "4h 20m");
+            Assert.IsNull(flat.Q<VisualElement>("trend"),
+                "a cell with no trend reserved a node for an arrow it will never draw");
+        }
     }
 }

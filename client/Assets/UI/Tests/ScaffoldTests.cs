@@ -142,6 +142,63 @@ namespace Broodline.UI.Tests
             Assert.AreEqual(DisplayStyle.Flex, s.Q<Label>("footer-note").resolvedStyle.display);
         }
 
+        /// THE HANDOFF'S HEADER IS THREE THINGS AND THE SCAFFOLD CARRIED
+        /// ONE. Every screen in the bundle puts an eyebrow over its title
+        /// ("Gene Lab" over "Splicing Chamber", "Hollow Reach · defense" over
+        /// "Wave 7") and most put a resource readout at the right edge. Both
+        /// were missing, and ten screens were composing a header that said
+        /// less than the design's.
+        ///
+        /// THE TEN EXISTING SCREENS MUST NOT MOVE, which is what the rest of
+        /// this file asserts and why both additions are opt-in: a scaffold
+        /// built the old way gets a hidden eyebrow and no pill at all.
+        [Test]
+        public void Scaffold_ShowsAnEyebrow_AndAResourcePill_WhenGiven()
+        {
+            var s = new ScreenScaffold("Splicing Chamber", eyebrow: "Gene Lab");
+            Assert.AreEqual("Gene Lab", s.Q<Label>("eyebrow").text);
+            Assert.AreEqual(DisplayStyle.Flex, s.Q<Label>("eyebrow").style.display.value);
+
+            s.SetResourcePill("icon--charge", "4", "/5");
+            Assert.AreEqual("4", s.Q<Label>("pill-value").text);
+            Assert.IsTrue(s.Q<Label>("pill-value").ClassListContains("t-num"),
+                "the charge count is a number a decision depends on - bible 10.6's floor and tabular face "
+                + "are enforced through this marker and nothing else");
+            Assert.AreEqual("/5", s.Q<Label>("pill-suffix").text);
+            Assert.IsNotNull(s.Q<VisualElement>(className: "icon--charge"), "the pill has no glyph");
+            Assert.IsNotNull(s.HeaderSlot.Q<VisualElement>("resource-pill"),
+                "the pill belongs to the header slot, so a screen that wants something else there can "
+                + "still have it");
+
+            // A RE-BOUND SCREEN MUST NOT GROW A SECOND PILL. The charge count
+            // changes every splice, so this is called again and again on one
+            // scaffold.
+            s.SetResourcePill("icon--charge", "3", "/5");
+            Assert.AreEqual(1, s.Query<VisualElement>("resource-pill").ToList().Count);
+            Assert.AreEqual("3", s.Q<Label>("pill-value").text);
+
+            s.SetResourcePill(null, null);
+            Assert.IsNull(s.Q<VisualElement>("resource-pill"),
+                "a screen with no resource to state kept an empty white pill in its header");
+        }
+
+        /// The state every screen written before this task is in, asserted
+        /// rather than assumed: ten of them pass no eyebrow and no pill, and
+        /// this change has to be invisible to all ten.
+        [Test]
+        public void AScaffoldWithNoEyebrowReservesNoRowForOne()
+        {
+            var s = new ScreenScaffold("Roster");
+            Assert.AreEqual(DisplayStyle.None, s.Q<Label>("eyebrow").style.display.value);
+            Assert.IsNull(s.Q<VisualElement>("resource-pill"));
+
+            s.Eyebrow = "Hatchery";
+            Assert.AreEqual(DisplayStyle.Flex, s.Q<Label>("eyebrow").style.display.value);
+            s.Eyebrow = null;
+            Assert.AreEqual(DisplayStyle.None, s.Q<Label>("eyebrow").style.display.value,
+                "clearing the eyebrow left its row behind");
+        }
+
         [Test]
         public void EveryScreenComposesTheScaffold()
         {

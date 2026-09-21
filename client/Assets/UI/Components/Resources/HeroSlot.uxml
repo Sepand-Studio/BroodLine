@@ -1,0 +1,9 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="HeroSlot.uss" />
+    <ui:VisualElement name="ring" class="hero-slot__ring" picking-mode="Ignore" />
+    <ui:VisualElement name="disc" class="hero-slot__disc">
+        <ui:VisualElement name="body" class="hero-slot__layer" />
+        <ui:VisualElement name="dorsal" class="hero-slot__layer" />
+        <ui:VisualElement name="flank" class="hero-slot__layer" />
+    </ui:VisualElement>
+</ui:UXML>

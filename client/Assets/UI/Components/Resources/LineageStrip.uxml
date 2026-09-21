@@ -1,0 +1,5 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="LineageStrip.uss" />
+    <ui:VisualElement name="track" class="lineage-strip__track" />
+    <ui:Label name="note" class="lineage-strip__note t-secondary" />
+</ui:UXML>
