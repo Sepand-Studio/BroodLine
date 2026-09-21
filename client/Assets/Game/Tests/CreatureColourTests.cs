@@ -1,4 +1,3 @@
-using System.Linq;
 using Broodline.Creatures;
 using Broodline.UI.Diagnostics;
 using NUnit.Framework;

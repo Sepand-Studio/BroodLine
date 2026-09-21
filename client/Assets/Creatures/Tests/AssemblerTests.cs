@@ -90,7 +90,13 @@ namespace Broodline.Creatures.Tests
 
                 motion.Hurt01 = 1f; motion.Tick(1.2f, 0.4f);
                 Assert.Greater(Mathf.Abs(root.localRotation.eulerAngles.x % 360f), 0.5f, "hurt droops the root");
-                Assert.AreEqual(1f, c.GetComponentInChildren<SkinnedMeshRenderer>().material.GetFloat("_Desaturate"), 0.05f);
+                // _Desaturate is written through a MaterialPropertyBlock, not the
+                // material itself (a hundred creatures on the wave lane cannot each
+                // own a material instance), so it is read back the same way:
+                // GetPropertyBlock fills a block with what SetPropertyBlock last wrote.
+                var block = new MaterialPropertyBlock();
+                c.GetComponentInChildren<SkinnedMeshRenderer>().GetPropertyBlock(block);
+                Assert.AreEqual(1f, block.GetFloat("_Desaturate"), 0.05f);
             }
             finally { Object.DestroyImmediate(c); }
         }

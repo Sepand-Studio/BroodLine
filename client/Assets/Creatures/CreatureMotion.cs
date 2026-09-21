@@ -23,12 +23,8 @@ namespace Broodline.Creatures
 
         Transform _root;
         Vector3 _restPosition;
-        // Per-instance materials, not a MaterialPropertyBlock: a block overrides
-        // only what the GPU sees and never touches Renderer.material's own
-        // values, so a caller (or a test) reading .material.GetFloat back would
-        // see the shared default forever. Damage-as-posture is read back
-        // elsewhere (portrait, roster), so the instance has to actually hold it.
-        Material[] _materials;
+        Renderer[] _renderers;
+        MaterialPropertyBlock _block;
         float _flinchUntil = -1f;
         float _phase;
 
@@ -38,9 +34,8 @@ namespace Broodline.Creatures
         {
             _root = transform.Find("root") ?? transform;
             _restPosition = _root.localPosition;
-            var renderers = GetComponentsInChildren<Renderer>();
-            _materials = new Material[renderers.Length];
-            for (int i = 0; i < renderers.Length; i++) _materials[i] = renderers[i].material;
+            _renderers = GetComponentsInChildren<Renderer>();
+            _block = new MaterialPropertyBlock();
             _phase = Random.value * 6.28f;   // a wave is not a chorus line
         }
 
@@ -62,7 +57,12 @@ namespace Broodline.Creatures
 
             _root.localRotation = Quaternion.Euler(Hurt01 * DroopDegrees, 0f, 0f);
 
-            foreach (var m in _materials) m.SetFloat(DesaturateId, Hurt01);
+            foreach (var r in _renderers)
+            {
+                r.GetPropertyBlock(_block);
+                _block.SetFloat(DesaturateId, Hurt01);
+                r.SetPropertyBlock(_block);
+            }
         }
     }
 }
