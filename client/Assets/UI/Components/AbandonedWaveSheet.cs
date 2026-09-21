@@ -11,6 +11,14 @@ namespace Broodline.UI.Components
     ///
     /// A SHEET, LIKE `CodexSheet`: no scaffold, destined for `#sheet-layer`
     /// through `ScreenFlow.ShowSheetAsync`, which hides it on resume.
+    ///
+    /// `#card` IS THE ELEVATION WRAPPER, NOT THE SURFACE - the same split
+    /// `SectionCard` uses, and for the same reason (its own class comment
+    /// records this exact bug shipping once already this phase): UI Toolkit
+    /// clips a background-image to the element's own box, so `elev-2`'s
+    /// nine-sliced shadow has to be drawn by something larger than the
+    /// `--surface` fill it sits behind. `#surface`, one level in, carries
+    /// the fill, the radius and the padding; `#card` carries only `elev-2`.
     public sealed class AbandonedWaveSheet : VisualElement
     {
         public const string UssClassName = "abandoned-wave-sheet";

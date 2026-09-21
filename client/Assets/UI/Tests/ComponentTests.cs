@@ -555,5 +555,30 @@ namespace Broodline.UI.Tests
             Assert.IsTrue(buttons[0].ClassListContains("btn-primary"));
             Assert.IsNull(sheet.Q<VisualElement>(className: ScreenScaffold.UssClassName), "a sheet takes no scaffold");
         }
+
+        /// Regression for the bug `ASectionCardWearsItsElevationOnTheWrapperAndNotOnTheSurface`
+        /// already pins once in this file: `elev-2` and the `--surface` fill
+        /// must not land on the same element, or UI Toolkit's nine-slice
+        /// paints a grey smudge across the card's interior instead of an
+        /// edge shadow (Theme.uss header note 2; SectionCard.cs's class
+        /// comment records this shipping once already this phase).
+        [Test]
+        public void AnAbandonedWaveSheetWearsItsElevationOnTheWrapperAndNotOnTheSurface()
+        {
+            var sheet = new AbandonedWaveSheet(onForfeit: () => { });
+
+            var card = sheet.Q<VisualElement>("card");
+            Assert.IsNotNull(card);
+            Assert.IsTrue(card.ClassListContains("elev-2"),
+                "the sheet's card is the elevation wrapper - Theme.uss header note 2");
+
+            var surface = card.Q<VisualElement>("surface");
+            Assert.IsNotNull(surface, "the card's --surface fill lives on a child of the wrapper, named 'surface'");
+            Assert.IsFalse(surface.ClassListContains("elev-1"));
+            Assert.IsFalse(surface.ClassListContains("elev-2"),
+                "elevation on the surface itself paints a grey smudge across the card - UI Toolkit clips "
+                + "background-image to the element's own box, so the shadow has to be drawn by something larger");
+            Assert.IsNotNull(surface.Q<Label>("headline"), "the content sits inside the surface, not beside it in the shadow's padding");
+        }
     }
 }

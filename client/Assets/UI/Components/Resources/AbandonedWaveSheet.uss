@@ -1,6 +1,17 @@
+/* .abandoned-wave-sheet__card IS THE ELEVATION WRAPPER, NOT THE SURFACE -
+ * Theme.uss header note 2: "WRAP a surface in .elev-1/.elev-2; do not put
+ * them ON the surface." UI Toolkit clips a background-image to the
+ * element's own box, so the nine-sliced shadow has to be drawn by something
+ * LARGER than the card, and putting --surface on the same element the
+ * shadow sprite paints on stretches the sprite's centre region across the
+ * whole card as a grey smudge instead of an edge shadow (SectionCard.cs's
+ * class comment records this shipping once already this phase). So the
+ * --surface fill, the radius, and the padding all live one level in, on
+ * `#surface` - the same split SectionCard.uxml/.uss use.
+ */
 .abandoned-wave-sheet { position: absolute; top: 0; left: 0; right: 0; bottom: 0; justify-content: flex-end; }
 .abandoned-wave-sheet__scrim { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--hud-scrim); }
-.abandoned-wave-sheet__card {
+.abandoned-wave-sheet__surface {
     background-color: var(--surface);
     border-top-left-radius: var(--radius-card);
     border-top-right-radius: var(--radius-card);

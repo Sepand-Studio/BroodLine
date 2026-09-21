@@ -386,6 +386,7 @@ namespace Broodline.Game.Tests
             Assert.IsTrue(FtueDirector.NeedsForfeit(new[] { Creature("Vetch"), Creature("Ember", committedTo: live) }));
             Assert.IsFalse(FtueDirector.NeedsForfeit(new CreatureDto[0]), "an empty roster has nothing to forfeit");
             Assert.IsFalse(FtueDirector.NeedsForfeit(new CreatureDto[] { null }), "a null slot is skipped, as FightAsync skips it");
+            Assert.IsFalse(FtueDirector.NeedsForfeit(null), "no roster loaded yet is not treated as locked");
         }
 
         // ---------------------------------------------------------------
