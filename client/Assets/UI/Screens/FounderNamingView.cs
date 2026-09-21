@@ -20,10 +20,25 @@ namespace Broodline.UI.Screens
     /// Every sentence is `FounderNamingScreen`'s, including the default -
     /// see that class's `DefaultFor` for why the default lives on the model
     /// rather than here.
+    ///
+    /// PHASE 9 TASK 14 BROUGHT IT TO `Onboarding.dc.html` STEP 1, and the
+    /// shape of that is three things: the step frame (five pips and a
+    /// counter, in the scaffold's header slot), the founder in a `HeroSlot`
+    /// above the field, and the caveat moved off the scaffold's footer onto a
+    /// violet tip panel inside the card - which is where the handoff draws
+    /// its own note. This is the first screen in the project to compose Task
+    /// 13's vocabulary, so the arrangement here is the one the four screens
+    /// after it follow.
     [UxmlElement]
     public partial class FounderNamingView : VisualElement
     {
         public const string UssClassName = "founder-naming-view";
+
+        /// The card the founder is looked at in, as opposed to the one the
+        /// name is typed into. Named here rather than typed as a literal at
+        /// the call site so the coupling to the stylesheet is visible from
+        /// both ends, on `SectionCard.ElevationUssClassName`'s convention.
+        public const string HeroCardUssClassName = "founder-naming-view__hero";
 
         readonly Label _prompt;
         readonly VisualElement _founder;
@@ -49,6 +64,10 @@ namespace Broodline.UI.Screens
             _confirm = this.Q<Button>("confirm");
             _skip = this.Q<Button>("skip");
 
+            var progress = this.Q<VisualElement>("progress");
+            this.Q<Label>("step").text = FounderNamingScreen.Step;
+            this.Q<Label>("note-text").text = FounderNamingScreen.Note;
+
             // THE FRAME, COMPOSED AND NOT INHERITED. ScreenScaffold's class
             // comment has the reason in full: `ScaffoldTests`' sweep asks
             // each screen for a DESCENDANT carrying `screen-scaffold`, and
@@ -59,22 +78,62 @@ namespace Broodline.UI.Screens
             //
             // pushed: false - beat 4 is a top-level destination, so no back
             // chevron. ScreenHost.Show, never Push.
-            var scaffold = new ScreenScaffold(FounderNamingScreen.Title);
+            //
+            // THE EYEBROW IS ALREADY UPPERCASE AND NOTHING HERE MAKES IT SO.
+            // UI Toolkit has no `text-transform`, so the handoff's
+            // `.lbl { text-transform: uppercase }` has no property to land in
+            // and the casing is baked into the constant. Read, never
+            // repeated - `FounderNamingScreen.Eyebrow` has the full note.
+            var scaffold = new ScreenScaffold(
+                FounderNamingScreen.Title, eyebrow: FounderNamingScreen.Eyebrow);
 
             // The UXML declares the screen's own furniture as children of
             // this element; the scaffold's slots take them over here. A
             // re-parent rather than a second tree, so there is exactly one
             // place each element is authored.
-            var card = new SectionCard();
-            card.Body.Add(_founder);
-            card.Body.Add(_name);
+            //
+            // THE HEADER SLOT IS WHERE THE STEP FRAME GOES, which is the
+            // scaffold's own answer to "something else per screen" beside the
+            // title. FounderNamingView.uss's `__progress` note has why the
+            // handoff's full-width bar row could not be reproduced literally.
+            scaffold.HeaderSlot.Add(progress);
 
-            scaffold.Content.Add(_prompt);
+            // TWO CARDS, NOT ONE, AND THE SPLIT IS THE HANDOFF'S. Step 1
+            // draws the creature in a tall panel of its own and the words in
+            // a card beneath it; the only thing this collapses is the height,
+            // because a `HeroSlot` is 96px where the handoff's hero region is
+            // 300+ and a card padded out to that would be mostly empty paper.
+            var hero = new SectionCard();
+            hero.AddToClassList(HeroCardUssClassName);
+            hero.Body.Add(_founder);
+
+            // THE PROMPT IS INSIDE THE CARD, AND THE BRIEF COULD BE READ
+            // EITHER WAY. It says the hero slot goes "above the prompt" and
+            // separately that the name field goes in a SectionCard, which
+            // leaves open whether the prompt is a bare line between the two
+            // cards or the card's first child. The handoff settles it: its
+            // card is kicker, title, body, note in one white surface, and the
+            // kicker and title have already moved to the scaffold's header -
+            // so the body copy and the note belong to the same card, with the
+            // field between them. A bare `t-section` line floating between
+            // two elevated cards is a STRUCTURAL difference from the handoff,
+            // which is the class of gap this task exists to close.
+            var card = new SectionCard();
+            card.Body.Add(_prompt);
+            card.Body.Add(_name);
+            card.Body.Add(_blocker);
+            card.Body.Add(this.Q<VisualElement>("note"));
+
+            scaffold.Content.Add(hero);
             scaffold.Content.Add(card);
-            scaffold.Content.Add(_blocker);
             scaffold.CtaRow.Add(_confirm);
             scaffold.CtaRow.Add(_skip);
-            scaffold.FooterNote = FounderNamingScreen.FooterNote;
+
+            // NO FOOTER NOTE, AND THAT IS THE ONE THING THIS SCREEN GAVE UP.
+            // "Founders keep their names for life." is still on the screen -
+            // it is the tip note inside the card now, which is where
+            // `Onboarding.dc.html` puts its own. Left unset rather than set
+            // to null for effect: the scaffold hides the row by default.
             Add(scaffold);
 
             // Registered once, in the constructor, against fields the next
@@ -85,19 +144,51 @@ namespace Broodline.UI.Screens
             _skip.clicked += Skip;
         }
 
-        public void Bind(CreatureDto founder, string defaultName, Action<string> onName, Action onSkip)
+        /// `portrait` is the live turntable from `Broodline.Game`'s portrait
+        /// studio, and null is a real answer rather than a missing argument.
+        ///
+        /// NULL FALLS BACK TO THE SPRITE STACK, WHICH IS WHY THE PARAMETER IS
+        /// OPTIONAL AND TRAILING. `FtueDirector` is constructed with a studio
+        /// that may be absent (its own field is `PortraitStudio studio =
+        /// null`), the EditMode suite has no camera to render one, and
+        /// `ScreenFixtures` captures this screen in batch mode. All three
+        /// want the same screen with a baked creature in it, and none of them
+        /// should have to say so.
+        ///
+        /// `Texture` RATHER THAN `RenderTexture`, matching
+        /// `PortraitStudio.Show`'s own return type and `CreatureStage`'s
+        /// parameter - the studio hands out a `RenderTexture` today and the
+        /// stage already branches on that, so narrowing it here would put a
+        /// cast in the one place that has no reason to know.
+        public void Bind(CreatureDto founder, string defaultName, Action<string> onName,
+            Action onSkip, Texture portrait = null)
         {
             if (founder == null) throw new ArgumentNullException(nameof(founder));
 
             _prompt.text = FounderNamingScreen.Prompt(founder);
 
+            // THE TWO HeroSlot FORMS, AND `Q("body")` IS WHAT TELLS THEM
+            // APART. A live slot removes its three sprite layers rather than
+            // leaving them empty behind the stage, which is that component's
+            // stated contract and the discriminator `FirstHourScreensTests`
+            // reads. `Bind` runs on both: a live slot still takes the species
+            // tint for its ring, because the studio draws the animal and not
+            // the frame around it.
             _founder.Clear();
-            var card = new CreatureCard { name = founder.CreatureId.ToString() };
-            // No `counters` map reaches this Bind - same reason as
-            // `DeployView`'s: nothing in this assembly can derive one and the
-            // caller's signature carries none.
-            card.Bind(founder, null);
-            _founder.Add(card);
+            HeroSlot slot;
+            if (portrait == null)
+            {
+                slot = new HeroSlot();
+            }
+            else
+            {
+                var stage = new CreatureStage();
+                stage.SetTexture(portrait);
+                slot = new HeroSlot(stage);
+            }
+            slot.name = founder.CreatureId.ToString();
+            slot.Bind(founder);
+            _founder.Add(slot);
 
             // An empty or absent `defaultName` falls back to the model's own
             // default rather than to a blank field. bible 3.3 asks for "a

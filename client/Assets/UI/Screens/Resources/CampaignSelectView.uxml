@@ -1,4 +1,4 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
     <ui:Style src="CampaignSelectView.uss" />
-    <ui:VisualElement name="waves" class="campaign-select-view__waves" />
+    <ui:VisualElement name="waves" />
 </ui:UXML>

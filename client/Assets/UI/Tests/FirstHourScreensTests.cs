@@ -202,6 +202,102 @@ namespace Broodline.UI.Tests
             Assert.AreEqual("Hollow", view.Q<TextField>("name").value);
         }
 
+        [Test]
+        public void FounderNaming_WearsTheOnboardingStepFrame()
+        {
+            // `Onboarding.dc.html` step 1: five progress marks with the first
+            // lit, and a counter beside them. The pips are in the scaffold's
+            // header slot rather than in a band of their own -
+            // FounderNamingView.uss's `__progress` note has why - so this
+            // also proves the re-parent happened, which nothing else would
+            // notice if the row were left behind in the screen's own tree.
+            var view = BoundNaming(Creature("Hollow", founder: true), _ => { }, () => { });
+            var slot = view.Q<VisualElement>("header-slot");
+
+            var pips = slot.Query<VisualElement>(className: "progress-pip").ToList();
+            Assert.AreEqual(5, pips.Count, "onboarding is five steps");
+
+            var lit = pips.Where(p => p.ClassListContains("progress-pip--current")).ToList();
+            Assert.AreEqual(1, lit.Count, "beat 4 is step 1 of 5, so exactly one pip is lit");
+            Assert.AreSame(pips[0], lit[0], "the lit pip is the first one");
+
+            Assert.AreEqual(FounderNamingScreen.Step, slot.Q<Label>("step").text);
+
+            // The caveat that makes `SkipLabel` a real answer. It was the
+            // scaffold's footer note until Task 14 and is now the violet tip
+            // panel inside the card, which is where the handoff draws its
+            // own - so it is still ON the screen and still the model's
+            // sentence rather than a literal in the markup.
+            Assert.AreEqual(FounderNamingScreen.Note, view.Q<Label>("note-text").text);
+            Assert.IsNotEmpty(FounderNamingScreen.Note);
+        }
+
+        [Test]
+        public void FounderNaming_TurnsTheFounderWhenItIsGivenOne_AndShowsTheSpriteStackWhenItIsNot()
+        {
+            // `HeroSlot` has two forms and the live one REMOVES its three
+            // sprite layers rather than leaving them empty behind the stage -
+            // that component's own contract, and `Q("body")` is the
+            // discriminator it names. A slot answering to both names is a
+            // slot no test can tell apart, so both halves are asserted.
+            var founder = Creature("Vetch", founder: true);
+
+            var baked = new FounderNamingView();
+            baked.Bind(founder, "Ash", _ => { }, () => { });
+            var bakedSlot = baked.Q<HeroSlot>();
+            Assert.IsNotNull(bakedSlot, "the founder is not in a hero slot at all");
+            Assert.IsNotNull(bakedSlot.Q<VisualElement>("body"),
+                "a slot with no portrait must be the sprite form, which has a body layer");
+            Assert.IsNull(baked.Q<CreatureStage>(),
+                "nothing was passed to turn, so there must be no stage");
+
+            // The contrast. A view that ignored `portrait` entirely would
+            // pass every line above and fail every line below.
+            var live = new FounderNamingView();
+            live.Bind(founder, "Ash", _ => { }, () => { }, new UnityEngine.Texture2D(2, 2));
+            var liveSlot = live.Q<HeroSlot>();
+            Assert.IsNotNull(live.Q<CreatureStage>(),
+                "a portrait was passed and nothing is showing it");
+            Assert.IsNull(liveSlot.Q<VisualElement>("body"),
+                "the live slot kept its sprite layers, so no test can tell the two forms apart");
+        }
+
+        // ---------------------------------------------------------------
+        // The handoff's eyebrow, on both of Task 14's screens
+        // ---------------------------------------------------------------
+
+        [Test]
+        public void TheFirstTwoScreens_SayWhereInTheAppTheyAre_InCasingUssCannotApply()
+        {
+            // The handoff renders every kicker through `.lbl {
+            // text-transform: uppercase }`. UI Toolkit has no
+            // `text-transform` at all, so the casing has to be in the string,
+            // and these two constants are the only place it is written.
+            // Asserted against the CONSTANT and never against a repeated
+            // literal - a test holding "YOUR GENE ARK" would still pass if
+            // the screen stopped reading the model.
+            var naming = BoundNaming(Creature("Hollow", founder: true), _ => { }, () => { });
+            var eyebrow = naming.Q<Label>("eyebrow");
+            Assert.AreEqual(FounderNamingScreen.Eyebrow, eyebrow.text);
+            Assert.AreEqual(DisplayStyle.Flex, eyebrow.resolvedStyle.display,
+                "the eyebrow row is hidden, so the screen renders with no kicker at all");
+
+            var campaign = BoundCampaign(highestWaveCleared: 2);
+            Assert.AreEqual(CampaignSelectScreen.Eyebrow, campaign.Q<Label>("eyebrow").text);
+
+            // And the casing is a property of the constants rather than
+            // something that happened to be typed once. `ToUpperInvariant`
+            // rather than a spelled-out literal, for the reason above.
+            Assert.AreEqual(FounderNamingScreen.Eyebrow.ToUpperInvariant(),
+                FounderNamingScreen.Eyebrow, "the eyebrow must ship uppercase; USS cannot transform it");
+            Assert.AreEqual(CampaignSelectScreen.Eyebrow.ToUpperInvariant(),
+                CampaignSelectScreen.Eyebrow, "the eyebrow must ship uppercase; USS cannot transform it");
+
+            // Two screens, two different places in the app. Equal eyebrows
+            // would mean the header stopped saying anything.
+            Assert.AreNotEqual(FounderNamingScreen.Eyebrow, CampaignSelectScreen.Eyebrow);
+        }
+
         // ---------------------------------------------------------------
         // Splice Reveal - beat 7, splice_confirm_spec 5
         // ---------------------------------------------------------------
@@ -581,6 +677,42 @@ namespace Broodline.UI.Tests
                 "a locked wave has no padlock");
             Assert.IsNull(view.Q("wave-6").Q<VisualElement>(className: "icon--lock"),
                 "the next playable wave is wearing a padlock");
+        }
+
+        [Test]
+        public void CampaignSelect_PutsItsRowsOnAWhiteCard_AndMarksTheClearedOnes()
+        {
+            // `phase8-visual-review.md`'s one objectively out-of-spec
+            // finding: an `OptionRow`'s --surface-sunk fill on --paper is
+            // 1.0151:1, under WCAG 1.4.11's 3:1 for a non-text boundary. Of
+            // the three fixes it offered, design section 4.1 took the third -
+            // compose the rows inside a `SectionCard` so the fill sits on
+            // white. This is that arrangement, pinned: a later refactor that
+            // lifted the rows back out would restore the defect silently,
+            // because nothing else in this suite can see a fill.
+            var view = BoundCampaign(highestWaveCleared: 2);
+
+            var card = view.Q<SectionCard>();
+            Assert.IsNotNull(card, "the wave list is not on a card at all");
+            Assert.IsNotNull(card.Body.Q(CampaignSelectScreen.RowName(6)),
+                "the rows are somewhere other than inside the card's body");
+
+            // The cleared mark, and the locked one's opposite number: a
+            // beaten wave wears a green chip the way a locked one wears a
+            // padlock. Both are redundant with the detail line by design -
+            // the mark is what makes a row readable at a glance.
+            var cleared = view.Q(CampaignSelectScreen.RowName(1)).Q<Label>("cleared");
+            Assert.IsNotNull(cleared, "a cleared wave carries no chip");
+            Assert.AreEqual(CampaignSelectScreen.ClearedLabel, cleared.text);
+            Assert.AreEqual(CampaignSelectScreen.StateLabel(1, Authored, 2), cleared.text,
+                "the chip and the detail line must be the same word, from the same constant");
+
+            // The contrast. A view that chipped every row would pass every
+            // line above.
+            Assert.IsNull(view.Q(CampaignSelectScreen.RowName(6)).Q<Label>("cleared"),
+                "the next unplayed wave is wearing a Cleared chip");
+            Assert.IsNull(view.Q(CampaignSelectScreen.RowName(7)).Q<Label>("cleared"),
+                "a locked wave is wearing a Cleared chip");
         }
 
         // ---------------------------------------------------------------

@@ -23,11 +23,43 @@ namespace Broodline.UI
         /// header that outlives it or flatten the prompt into a label.
         public const string Title = "Name your Founder";
 
-        /// The scaffold's footer note. bible 3.3 makes the prompt optional
-        /// and the Roster rename the fallback, so this is the caveat that
-        /// makes `SkipLabel` a real answer rather than a discard: the name is
-        /// permanent for the Founder, which is why the screen exists at all.
-        public const string FooterNote = "Founders keep their names for life.";
+        /// The handoff's kicker, over the title. `Onboarding.dc.html` step 1
+        /// titles itself "This is your Gene Ark"; the screen's own title is
+        /// the instruction, so the Ark is what the eyebrow says instead -
+        /// where in the app the player is standing.
+        ///
+        /// UPPERCASE IN THE CONSTANT, WHICH IS NOT A STYLE CHOICE MADE HERE.
+        /// The handoff renders every eyebrow through `.lbl { text-transform:
+        /// uppercase }` (`Onboarding.dc.html:15`), and UI Toolkit has no
+        /// `text-transform` at all - Task 13 established this and
+        /// `CostCtaRow.CostEyebrow` is the same constant for the same reason.
+        /// So the casing is baked into the string, in ONE place, and
+        /// everything that renders or asserts it reads this rather than
+        /// repeating the literal.
+        public const string Eyebrow = "YOUR GENE ARK";
+
+        /// The step counter beside the progress pips. Onboarding is five
+        /// steps and the Ark is the first of them, which is the handoff's
+        /// own `stepLabel` for that screen.
+        ///
+        /// A NUMBER, SO IT RENDERS ON `.t-num`. bible 10.6's tabular face
+        /// and 11px floor apply to any figure a decision depends on, and
+        /// "how much of this is left" is one.
+        public const string Step = "1 / 5";
+
+        /// The violet tip note under the name field. bible 3.3 makes the
+        /// prompt optional and the Roster rename the fallback, so this is the
+        /// caveat that makes `SkipLabel` a real answer rather than a discard:
+        /// the name is permanent for the Founder, which is why the screen
+        /// exists at all.
+        ///
+        /// IT WAS THE SCAFFOLD'S FOOTER NOTE UNTIL PHASE 9 TASK 14. The
+        /// handoff's step 1 puts its note INSIDE the card, on a violet panel
+        /// behind a glyph, rather than as grey type under the CTA - and the
+        /// sentence is the same sentence, so it moved rather than being
+        /// replaced. Renamed with it: a constant called `FooterNote` that no
+        /// longer reaches `ScreenScaffold.FooterNote` is a name that lies.
+        public const string Note = "Founders keep their names for life.";
 
         /// bible 3.3's "sensible default": the species. It is the only name
         /// the client has that is about THIS creature, and a default the
@@ -269,6 +301,37 @@ namespace Broodline.UI
     {
         public const string Title = "Campaign";
 
+        /// The handoff's kicker, over the title: the region these waves are
+        /// fought in. design 5.2 gives this screen no `.dc.html` of its own,
+        /// so the eyebrow is the one the rest of the bundle uses for a wave -
+        /// `Wave Defense.dc.html` heads its own with "Hollow Reach · defense".
+        ///
+        /// UPPERCASE IN THE CONSTANT, for the reason
+        /// `FounderNamingScreen.Eyebrow` states in full: the handoff gets it
+        /// from `text-transform`, and USS has none.
+        public const string Eyebrow = "HOLLOW REACH";
+
+        /// The word a cleared wave is marked with, in the detail line AND in
+        /// the green chip at the row's right edge.
+        ///
+        /// ONE CONSTANT FOR BOTH, deliberately. `StateLabel` returns it and
+        /// the chip renders it, so a row cannot end up saying "Cleared" in
+        /// one place and "Complete" in the other - which is exactly what a
+        /// second literal at the chip's call site would eventually produce.
+        public const string ClearedLabel = "Cleared";
+
+        /// Whether this wave has already been beaten - the replay branch.
+        ///
+        /// SEPARATE FROM `IsPlayable`, though a cleared wave is always
+        /// playable. The two answer different questions: `IsPlayable` gates
+        /// the tap, this decides which MARK the row wears, and a screen that
+        /// derived the mark from the gate would put the green chip on the
+        /// next unplayed wave as well.
+        public static bool IsCleared(int waveId, int highestWaveCleared)
+        {
+            return waveId >= 1 && waveId <= highestWaveCleared;
+        }
+
         /// What the list says when the bundle authored no waves at all.
         /// `FtueDirector.CampaignAsync` returns early on an empty set today,
         /// so this is reachable only through a direct `Bind` - but a list
@@ -324,7 +387,7 @@ namespace Broodline.UI
         /// and "Locked" must never read the same as each other.
         public static string StateLabel(int waveId, IReadOnlyList<int> authored, int highestWaveCleared)
         {
-            if (waveId <= highestWaveCleared) return "Cleared";
+            if (IsCleared(waveId, highestWaveCleared)) return ClearedLabel;
             return IsPlayable(waveId, authored, highestWaveCleared) ? "Next" : "Locked";
         }
 

@@ -1,6 +1,21 @@
-/* Beat 4, composed onto ScreenScaffold. What is left in this file is the
- * three things the frame and the components cannot know: the gap under the
- * prompt, the centring of the one card, and that two of these labels wrap.
+/* Beat 4, against `Onboarding.dc.html` step 1. Composed onto ScreenScaffold
+ * and out of Task 13's components; what is left here is the onboarding STEP
+ * FRAME - the progress pips and the tip note - plus the three pieces of
+ * layout no component can know.
+ *
+ * THIS FILE GREW IN PHASE 9 TASK 14 AND THAT IS NOT A COMPOSITION FAILURE.
+ * The brief expected it to shrink, on the general rule that a screen reaching
+ * for the component vocabulary should be deleting what it used to hand-roll.
+ * Phase 8 Task 9 had already done that deletion - the four rules it removed
+ * are listed below and none came back - so there was nothing of that kind
+ * left to take out. What arrived instead is the step frame: five pips, a step
+ * counter and a tip note, which exist on this screen because the handoff's
+ * onboarding has them and on no other screen in the app. A component for a
+ * vocabulary of one is the trade Task 13 spent its whole brief declining, and
+ * `HeroSlot`, `SectionCard` and `ScreenScaffold` are what this screen DID
+ * take instead of deriving: the ring, the disc, the species tint, the card,
+ * the elevation wrapper, the header, the CTA row. Those are the deletions;
+ * they happened one phase early.
  *
  * FOUR RULES LEFT THIS FILE IN PHASE 8 TASK 9 AND NONE OF THEM WERE
  * REPLACED BY A COPY HERE, which is the whole test of whether a screen is
@@ -18,17 +33,109 @@
  */
 .founder-naming-view { flex-grow: 1; }
 
+/* ------------------------------------------------------- the step frame */
+
+/* THE PIPS LIVE IN THE SCAFFOLD'S HEADER SLOT, WHICH IS NOT WHERE THE
+ * HANDOFF PUTS THEM, AND THE SIZE IS THE REASON. `Onboarding.dc.html` draws
+ * five `flex: 1` bars across the full 430 with the step label at the right -
+ * a row of its own above the hero region. This project has no such row: the
+ * scaffold's header IS the top of every screen, and adding a sixth structural
+ * band to it for one screen would move the header for the other nine. The
+ * slot is what the scaffold offers instead ("for a currency header or an
+ * avatar, per screen"), so the pips become five fixed 8px marks rather than
+ * five stretching ones. Same five, same order, same current-step colour,
+ * same counter beside them; they read as a progress meter rather than as a
+ * full-width rule.
+ *
+ * `flex-shrink: 0` because the titles column beside this one carries
+ * `flex-grow: 1` and a long title would otherwise crush the meter rather
+ * than wrap. */
+.founder-naming-view__progress {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+/* 2px is half of --space-1 (4px), which is this element's own height - the
+ * literal-beside-the-measurement form Tokens.uss's radius block requires,
+ * because there is no --radius-pill and a pill radius is a function of one
+ * element's height. ROUNDED DOWN IS NOT NEEDED HERE: 4 is even, so 2 is
+ * exactly half and the cap is a true semicircle.
+ *
+ * --hairline IS THE UNLIT STATE AND IT IS A DELIBERATE STEP DOWN FROM THE
+ * HANDOFF, which uses #e3dbf3. That colour is not in the token layer and is
+ * 22 in summed channel distance from --hairline (#ece7f6), the token this
+ * project already uses for exactly this job - an inactive outline on paper.
+ * Inventing a second near-identical grey-violet to be faithful to one
+ * gradient stop is the drift verify-uss-tokens.sh exists to stop. */
+.progress-pip {
+    width: var(--space-2);
+    height: var(--space-1);
+    border-radius: 2px;
+    background-color: var(--hairline);
+    margin-right: var(--space-1);
+}
+
+/* The handoff lights every bar up to and including the current step. Beat 4
+ * is step 1, so exactly one is lit and this modifier is on exactly one pip
+ * in the UXML. --violet is the handoff's own `ON` (#7a6ac0), to the digit. */
+.progress-pip--current { background-color: var(--violet); }
+
+/* "1 / 5". The handoff sets it at 10.5px in #a29bb5, which is --mute
+ * exactly; the size comes from `.t-num` at --text-secondary (11px), because
+ * bible 10.6 puts an 11px floor under any number a decision depends on and
+ * "how much of this is left" is one. The half-pixel is recorded here rather
+ * than argued with, on StatCell.uss's precedent. */
+.founder-naming-view__step {
+    color: var(--mute);
+    margin-left: var(--space-1);
+}
+
+/* ----------------------------------------------------------- the screen */
+
+/* THE HERO REGION IS A BAND, NOT A BADGE, AND 300 IS THE HANDOFF'S OWN
+ * NUMBER. `Onboarding.dc.html`'s hero is `flex: 1; min-height: 300px` - it
+ * takes whatever the column has left and never goes under 300 - and what
+ * fills it is a dotted ring, a glowing disc and the animal inside them. That
+ * IS a `HeroSlot`, which is why Task 13 built one; the slot is 96px because
+ * --hero-slot is a token three files agree on, so the SIZE of the region has
+ * to come from the card around it rather than from the component in it.
+ * Without this the founder sat in a 130px strip and read as a list thumbnail
+ * on a screen whose whole job is to look at one creature.
+ *
+ * `flex-grow` IS THE `flex: 1` HALF AND IT MAY WELL DO NOTHING HERE. The
+ * scaffold's content region is a ScrollView, and a ScrollView's content
+ * container is sized by its content so that it can exceed the viewport -
+ * which means a growing child inside it has nothing to grow into. It is left
+ * in because it costs nothing, because it is what the handoff says, and
+ * because the day the content container gains a `min-height: 100%` this
+ * screen should take the space rather than need a second edit. The
+ * `min-height` is what actually renders today, and it is quoted rather than
+ * chosen.
+ *
+ * `justify-content: center` ON THE SURFACE, so the slot sits in the middle
+ * of the band rather than at the top of it. This reaches into SectionCard's
+ * own element, which is the direction a screen's sheet is allowed to reach -
+ * downward into its descendants, never upward (StatCell.uss's closing note).
+ */
+.founder-naming-view__hero { flex-grow: 1; }
+
+.founder-naming-view__hero .section-card__surface {
+    min-height: 300px;
+    justify-content: center;
+}
+
+/* The hero card holds one HeroSlot, which is a fixed 96px square - so the
+ * centring is the container's job and cannot come from the slot. A
+ * SectionCard body is a column at the default `align-items: stretch`, and a
+ * fixed-width child in a stretch column is left-aligned rather than
+ * stretched, which is why this rule is still needed after the CreatureCard
+ * it used to centre became a HeroSlot. */
+.founder-naming-view__founder { align-items: center; }
+
 .founder-naming-view__prompt {
     margin-bottom: var(--space-3);
     white-space: normal;
-}
-
-/* The card holds one CreatureCard, which is a fixed 160px tile - so the
- * centring is the container's job and cannot come from the tile. */
-.founder-naming-view__founder {
-    flex-direction: row;
-    justify-content: center;
-    margin-bottom: var(--space-2);
 }
 
 /* A sentence, not a label, so it wraps. Shown only when it says something -
@@ -36,4 +143,82 @@
 .founder-naming-view__blocker {
     white-space: normal;
     margin-top: var(--space-2);
+}
+
+/* THE TIP NOTE, WHICH USED TO BE THE SCAFFOLD'S FOOTER NOTE. Same sentence,
+ * moved: `Onboarding.dc.html` step 1 puts its note INSIDE the card, on
+ * `background: #f1ecfa; border-radius: 14px; padding: 10px 12px; margin-top:
+ * 13px`, behind a 24px white disc holding a check. The fill, radius and
+ * padding are `.panel-violet`'s - --violet-tint is #f1ecfa to the digit and
+ * --radius-row is 14px to the digit - so this rule sets only the row
+ * direction and the gap above.
+ *
+ * IT HAS TO BE ON WHITE, WHICH IS WHY IT IS INSIDE THE SectionCard AND NOT
+ * UNDER IT. Measured in summed channel distance: --violet-tint against
+ * --surface is 38, against --paper it is 15. Fifteen is the neighbourhood
+ * the Pale hero disc was just moved OUT of (1157ed2 - four, and the disc read
+ * as a bare ring on the page it was drawn on). A tip panel that only exists
+ * as a faint wash is a tip panel nobody reads, so it sits on the card like
+ * the handoff's does.
+ *
+ * --space-3 IS 12px AGAINST THE HANDOFF'S 13. On the scale; the 1px is not
+ * worth a one-use token, on this project's standing convention for one-off
+ * geometry. */
+.founder-naming-view__note {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    margin-top: var(--space-3);
+}
+
+/* 12px is half of 24 - a square element, so both axes clamp alike and this
+ * is a true circle (Theme.uss header item 4). The handoff's gap to the copy
+ * is 10px; --space-2 is 8, on the scale.
+ *
+ * THE THIRD COPY OF THIS DISC IN THE PROJECT, after `.mutation-banner__disc`
+ * (24px) and `.resource-pill__disc` (22px). Not unified, deliberately: the
+ * three differ in size, tint and glyph, and the shared part is six
+ * declarations of circle arithmetic that a component wrapping them would
+ * have to parameterise all of. Task 13 drew the line at nine components and
+ * this is on the far side of it. */
+.founder-naming-view__note-disc {
+    width: 24px;
+    height: 24px;
+    border-radius: 12px;
+    background-color: var(--surface);
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-right: var(--space-2);
+}
+
+/* TWO CLASSES, to beat icons.uss's `.icon` (19px, --mute-soft) without
+ * depending on which sheet the panel applies last - the same override form
+ * `.mutation-banner__spark` and `.resource-pill__glyph` are written in. The
+ * handoff draws this mark at 12px in the 24px disc.
+ *
+ * --violet-text IS MEASURED AGAINST THE DISC IT IS ACTUALLY DRAWN ON, which
+ * is --surface and not the --violet-tint panel behind it - the mistake the
+ * retired --amber-bright-deep was built on and that Tokens.uss's --amber-text
+ * note records. On --surface it is 5.49:1, well clear of the 3:1 WCAG floor
+ * a tinted graphic needs. It is also `.t-violet`'s colour on the copy two
+ * words to its right, so the mark and the sentence are one ink. The
+ * handoff's own stroke here is #7a6ac0, one step brighter; --violet-text is
+ * the token this project already reads for violet ink on light. */
+.founder-naming-view .founder-naming-view__note-glyph {
+    width: 12px;
+    height: 12px;
+    -unity-background-image-tint-color: var(--violet-text);
+}
+
+/* --violet-text comes from `.t-violet`; 11.5px in the handoff, and
+ * --text-secondary (11px) is the nearest step on the scale. `white-space:
+ * normal` so the caveat wraps rather than running off the panel - the
+ * mistake `.screen-scaffold__footer-note` records making once, on this very
+ * sentence, in the row this one replaced. */
+.founder-naming-view__note-text {
+    flex-grow: 1;
+    flex-shrink: 1;
+    white-space: normal;
+    font-size: var(--text-secondary);
 }

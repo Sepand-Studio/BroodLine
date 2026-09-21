@@ -4,9 +4,16 @@
  * THE ROW ITSELF IS GONE FROM THIS FILE. `.campaign-row`'s fill, border,
  * radius, padding, margin and type were a line-by-line re-derivation of
  * `.option-row`, which now draws the row; the screen's own title rule went
- * with the title, into the scaffold's header. What is left is the one thing
+ * with the title, into the scaffold's header. What is left is the two things
  * neither the frame nor the component can know: what LOCKED looks like on
- * this list.
+ * this list, and what CLEARED does.
+ *
+ * `__waves` LOST ITS ONLY DECLARATION IN PHASE 9 TASK 14 AND THE RULE WENT
+ * WITH IT. It set `flex-direction: column`, which is a VisualElement's
+ * default and was therefore never doing anything; nothing changed when it
+ * was removed, which is the test for a rule that was only ever restating the
+ * layout engine. The element itself stays - `Bind` clears and refills it by
+ * name, and it is now the SectionCard body's one child.
  *
  * A SCREEN CAN STYLE ITS COMPONENTS' INSIDES, WHICH IS THE OPPOSITE OF
  * StatCell.uss's note and not a contradiction of it. This sheet is attached
@@ -16,8 +23,6 @@
  */
 .campaign-select-view { flex-grow: 1; }
 
-.campaign-select-view__waves { flex-direction: column; }
-
 /* Unity's default theme dims a disabled element to 50% opacity, which would
  * take the row's border and the padlock with it and read as damage rather
  * than as a state. The locked treatment is stated instead: the sunk fill it
@@ -26,13 +31,42 @@
 .campaign-row:disabled .option-row__title { color: var(--mute-soft); }
 .campaign-row:disabled .option-row__detail { color: var(--mute-soft); }
 
-/* OUT OF FLOW at the row's right edge. `.option-row` is a column of two
- * labels, so an in-flow glyph would land under them as a third line; a
- * VisualElement's default position is relative, which is what an absolutely
- * positioned child resolves against. --space-3 is the row's own padding, so
- * the mark sits on the same inset as the text. */
-.campaign-row > .icon {
+/* OUT OF FLOW at the row's right edge, for both marks. `.option-row` is a
+ * column of two labels, so an in-flow glyph or chip would land under them as
+ * a third line; a VisualElement's default position is relative, which is what
+ * an absolutely positioned child resolves against. --space-3 is the row's own
+ * padding, so the mark sits on the same inset as the text.
+ *
+ * ONE RULE FOR THE PADLOCK AND THE CHIP because they are one idea - the
+ * at-a-glance mark for a row whose state the detail line has already spelled
+ * out. A row never carries both: CampaignSelectView.RowFor branches. */
+.campaign-row > .icon,
+.campaign-row > .chip {
     position: absolute;
     right: var(--space-3);
     top: var(--space-3);
+}
+
+/* THE CLEARED CHIP'S GREEN, IN TWO CLASSES RATHER THAN ONE. Theme.uss's
+ * `.chip` sets --violet-tint and --violet-text at single-class specificity;
+ * a single-class rule here would tie with it and be settled by whichever
+ * sheet the panel applied last, which is the order-dependence every override
+ * in this project is written to avoid (MutationBanner.uss's header states
+ * it). Two classes is (0,2,0) against (0,1,0) and settles deterministically.
+ *
+ * `color` ON THE CHIP WORKS HERE, WHICH IS NOT TRUE OF `GenChip`. That
+ * component's note records the trap: a Label INSIDE a chip takes --ink from
+ * Theme's own `Label` rule, because a rule applying DIRECTLY to an element
+ * beats a value inherited into it. This chip IS the Label, so the class rule
+ * applies directly and wins on specificity over the type rule.
+ *
+ * --green-text on --green-tint is 5.10:1, which is the family's own measured
+ * pairing and clears WCAG AA for small text. The chip renders at
+ * --text-micro (10px) from `.chip`; that is under AA's floor for small text
+ * on size alone, which is true of every chip in the app and is why bible
+ * 10.4 requires the word as well - "Cleared" is in the detail line above it
+ * at --text-secondary. */
+.campaign-select-view .campaign-select-view__cleared {
+    background-color: var(--green-tint);
+    color: var(--green-text);
 }

@@ -389,12 +389,47 @@ namespace Broodline.Game
                 return;
             }
 
+            // THE FOUNDER TURNS WHILE IT IS BEING NAMED - Phase 9 design
+            // section 3.8's first of three hero moments. The studio renders
+            // one creature into one RenderTexture; the screen frames that
+            // texture in a `HeroSlot` and knows nothing about the camera.
+            //
+            // NULL IS A REAL ANSWER AND THE SCREEN HANDLES IT. `_studio` is
+            // an optional constructor argument - `BootController` supplies
+            // one, `FtueDirectorTests` does not, and a batch-mode capture has
+            // no camera to turn - so `Bind`'s trailing `portrait` is
+            // optional and falls back to the baked sprite stack. A director
+            // without a studio shows exactly the screen it showed before.
+            var portrait = _studio == null
+                ? null
+                : _studio.Show(founder.Species, founder.Trait1, founder.Trait2, 0f);
+
             var view = new FounderNamingView();
             var chosen = await _flow.ShowAsync<string>(view, resume => view.Bind(
                 founder,
                 FounderNamingScreen.DefaultFor(founder),
                 onName: name => resume(name),
-                onSkip: () => resume(null)));
+                onSkip: () => resume(null),
+                portrait: portrait));
+
+            // CLEARED THE MOMENT THE TURN RESOLVES, BEFORE ANY BRANCH BELOW
+            // CAN RETURN PAST IT. `Show` leaves a camera enabled and a
+            // creature rotating every frame; the skip path returns two lines
+            // down, so a Clear placed after that branch would leave the
+            // studio running for the rest of the session on the one answer
+            // the player is most likely to give. `Clear` is also what blanks
+            // the render texture - the studio's own note has why disabling
+            // the camera is not enough.
+            //
+            // `!= null` RATHER THAN `?.`, AND THAT IS NOT STYLE. The brief
+            // wrote `_studio?.Clear()`. `PortraitStudio` is a MonoBehaviour,
+            // and `?.` is a reference-null test the compiler emits directly -
+            // it does not run UnityEngine.Object's overloaded `==`, which is
+            // what reports a DESTROYED object as null. On a studio whose
+            // GameObject has gone (a scene change mid-beat), `?.` would call
+            // through to a dead native object; `!= null` does not. The `Show`
+            // line above already tests `_studio == null` for the same reason.
+            if (_studio != null) _studio.Clear();
 
             // SET BEFORE the await's outcome is acted on and regardless of
             // which answer came back: the beat has been offered either way,
