@@ -103,7 +103,45 @@
 .hero-slot--skitter .hero-slot__disc { background-color: var(--amber-tint); }
 .hero-slot--hollow  .hero-slot__disc { background-color: var(--violet-tint); }
 .hero-slot--loam    .hero-slot__disc { background-color: var(--green-tint); }
-.hero-slot--pale    .hero-slot__disc { background-color: var(--surface-sunk); }
+.hero-slot--pale    .hero-slot__disc { background-color: var(--hairline); }
+
+/* PALE'S DISC IS --hairline, NOT --surface-sunk, AND THE CAPTURE DECIDED IT -
+ * FOR THE SECOND TIME. TraitChip.uss's header records the first: on --paper,
+ * --surface-sunk (#f8f6fc) is 4 in summed channel distance from the page
+ * (#f7f4fb), and the Pale chip read as a bare label with no chip behind it.
+ * The same token was still on the disc here because NO FIXTURE INSTANCED A
+ * PALE SLOT until Task 13's fix round put all six species into the Vocabulary
+ * capture - so a defect this project had already found and already fixed once
+ * sat unrendered in a second component for as long as the corpus could not
+ * see it. Measured off that raster and not off the tokens: the disc came back
+ * (248,246,252) on a (247,244,251) page, one level per channel, and the sixth
+ * slot showed as an empty ring beside five that plainly had a disc.
+ *
+ * 29, WHICH IS INSIDE THE BAND AND NOT ABOVE IT. --hairline (#ece7f6) sits
+ * among the five species tints rather than beyond them - --violet-tint 15,
+ * --teal-tint 19, --green-tint 31, --coral-tint 34, --amber-tint 44. A
+ * neutral disc should be the quietest of the six, which is not the same
+ * thing as being absent from them.
+ *
+ * IT IS ALSO 14 FROM --violet-tint, WHICH MAKES Pale/Hollow THE TIGHTEST
+ * DISC PAIR OF THE SIX. That is at the bottom of a band the palette already
+ * occupies rather than below it - teal/green ship at 16 and teal/violet at
+ * 18 - and the two rings pull hardest apart of any pair in the set (--violet
+ * 322 from the page, --slate 116). Checked side by side in the capture, not
+ * inferred: --hairline is the greyer of the two and the discs separate. If a
+ * neutral that is further from violet is wanted, that is a palette ruling.
+ *
+ * THE RING STAYS --slate, AND IT WAS LOOKED AT. At 116 and 1.45:1 it is the
+ * faintest of the six, but it is Pale's own colour from bible 1.2, it is
+ * legible in the capture as a dotted circle, and --violet-pale on the live
+ * slot is fainter still (75, 1.38:1) by deliberate choice. FIVE OF THE SIX
+ * ARE UNDER 3:1 - teal 2.44, coral 2.40, green 1.90, amber 1.76, slate 1.45,
+ * and only Hollow's --violet clears it at 4.15 - so a 3:1 graphic floor is
+ * not what this ring has ever been held to. The species is carried by the
+ * disc and the animal, which is bible 10.4 working as designed. The ring
+ * also never touches the disc (closest ink 44.9px from centre against a 40px
+ * disc radius), so this fill cannot change how the ring reads. Moving
+ * --slate is a palette ruling, not a component-local repaint. */
 
 /* A LIVE PORTRAIT, WHICH IS THE HANDOFF'S PREDICTED HYBRID AND ITS FOUNDER.
  * Violet rather than --mute-soft because an un-bound live slot is never
