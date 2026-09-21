@@ -25,6 +25,7 @@ namespace Broodline.Game.Shell
         public const string SceneName = "Wave";
 
         readonly Func<IReadOnlyList<TraitSummary>> _traits;
+        readonly Action<bool> _setShellVisible;
 
         /// `traits` is read PER RUN rather than captured once, because the
         /// snapshot it comes from is replaced wholesale by every `/v1/sync`
@@ -32,9 +33,10 @@ namespace Broodline.Game.Shell
         /// wholesale, with no merge"). A host holding the list it was
         /// constructed with would name last week's counter on the defeat
         /// screen after a bundle publish.
-        public WaveHost(Func<IReadOnlyList<TraitSummary>> traits)
+        public WaveHost(Func<IReadOnlyList<TraitSummary>> traits, Action<bool> setShellVisible = null)
         {
             _traits = traits ?? throw new ArgumentNullException(nameof(traits));
+            _setShellVisible = setShellVisible ?? (_ => { });
         }
 
         /// How long a hosted wave may run before the host abandons it.
@@ -89,6 +91,15 @@ namespace Broodline.Game.Shell
                 await Await(SceneManager.LoadSceneAsync(SceneName, LoadSceneMode.Additive));
 
                 var runner = FindRunner();
+
+                // Phase 9 design §2.2. AFTER the load, not before: the wave
+                // scene's UIDocument is a sibling root in the shared panel and
+                // is attached by now, so hiding the shell here leaves the HUD
+                // and the battlefield on screen and nothing else. Hidden
+                // before the load, the frame between hide and attach showed
+                // whatever the last camera cleared to - the reverted fix.
+                _setShellVisible(false);
+
                 runner.Configure(WaveDef.ForId(waveId), deployment, seed, inputEnabled);
                 await Completion(runner);
 
@@ -111,6 +122,12 @@ namespace Broodline.Game.Shell
                 // which the runner either deploys wave 6 over the player's
                 // own roster or overwrites the tracked capture artifacts
                 // with a wave nobody asked to record.
+                // RESTORE FIRST, and on every path. The exception path is the
+                // one the reverted fix never restored. Guarded so a throwing
+                // callback cannot skip the unload below.
+                try { _setShellVisible(true); }
+                catch (Exception error) { Debug.LogError("[WaveHost] setShellVisible(true) threw: " + error); }
+
                 await UnloadAsync();
                 WaveRunner.Hosted = false;
                 Interlocked.Exchange(ref _active, 0);

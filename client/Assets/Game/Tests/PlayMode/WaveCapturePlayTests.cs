@@ -257,7 +257,8 @@ public class WaveCapturePlayTests
     [UnityTest]
     public IEnumerator AHostedWave_ReportsItsOutcomeAndWritesNoCapture()
     {
-        var host = new WaveHost(() => Bundle);
+        var visibility = new List<bool>();
+        var host = new WaveHost(() => Bundle, visible => visibility.Add(visible));
         var run = host.RunAsync(
             WaveRunner.CaptureWaveId, WaveRunner.Deployment(), WaveRunner.Seed, inputEnabled: false);
 
@@ -267,6 +268,11 @@ public class WaveCapturePlayTests
         yield return Until(() => (hosted = UnityEngine.Object.FindAnyObjectByType<WaveRunner>()) != null &&
                                  hosted.Runner != null,
                            "WaveHost never configured a runner");
+
+        // Phase 9 design §2.2: hidden AFTER the scene is resident, never
+        // before the load - and hidden by now, because the runner is.
+        CollectionAssert.AreEqual(new[] { false }, visibility,
+            "the shell must be hidden exactly once by the time the runner is configured");
 
         Assert.IsFalse(hosted.StandaloneCapture,
             "a hosted wave must not own the capture artifacts");
@@ -300,6 +306,9 @@ public class WaveCapturePlayTests
         // per-frame budget in the app alive behind every other screen.
         Assert.IsFalse(SceneManager.GetSceneByName(SceneName).isLoaded);
         Assert.IsFalse(WaveRunner.Hosted, "the hosted latch must be cleared when the run ends");
+
+        CollectionAssert.AreEqual(new[] { false, true }, visibility,
+            "the shell must be restored when the run ends");
     }
 
     /// THE ERROR PATH, which is the one that stranded the player.
@@ -317,7 +326,8 @@ public class WaveCapturePlayTests
     [UnityTest]
     public IEnumerator AHostedWaveThatThrows_StillUnloadsTheBattlefield()
     {
-        var host = new WaveHost(() => Bundle);
+        var visibility = new List<bool>();
+        var host = new WaveHost(() => Bundle, visible => visibility.Add(visible));
         var run = host.RunAsync(999, WaveRunner.Deployment(), WaveRunner.Seed, inputEnabled: false);
 
         yield return Until(() => run.IsCompleted, "WaveHost.RunAsync never completed");
@@ -334,6 +344,11 @@ public class WaveCapturePlayTests
             "a wave that threw must not leave the 3D battlefield loaded over the shell");
         Assert.IsFalse(WaveRunner.Hosted,
             "the hosted latch must be cleared on the error path too");
+
+        // The white screen the reverted fix produced is consistent with the
+        // restore never running on this path. It runs on this path.
+        CollectionAssert.AreEqual(new[] { false, true }, visibility,
+            "hidden after the load, restored by the finally, even when Configure throws");
     }
 
     /// `config.traits` from `/v1/sync`, as the shell would hand it over. The

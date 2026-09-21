@@ -106,7 +106,10 @@ namespace Broodline.Game.Shell
             // `traits` is read per run, never captured - `WaveHost`'s own
             // rule, because the snapshot it comes from is replaced wholesale
             // by every sync.
-            _waves = new WaveHost(() => _session.Snapshot?.Traits);
+            var shellRoot = root.Q<VisualElement>("shell-root");
+            _waves = new WaveHost(
+                () => _session.Snapshot?.Traits,
+                visible => shellRoot.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None);
 
             _ftue = new FtueDirector(
                 _session.Api,
