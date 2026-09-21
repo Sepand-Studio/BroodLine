@@ -21,6 +21,40 @@ namespace Broodline.Game.PlayTests
             var texture = (RenderTexture)studio.Show("vetch", "carapace", "taunt", 0f);
             for (int i = 0; i < 5; i++) yield return null;
 
+            int opaque = OpaquePixelCount(texture);
+            Assert.Greater(opaque, texture.width * texture.height / 50, "the studio rendered nothing");
+            Assert.Less(opaque, texture.width * texture.height / 2, "the background must stay transparent");
+
+            Object.Destroy(host);
+        }
+
+        /// The fix for the bug the Task 11 review caught: disabling the
+        /// camera does not reset the texture it was painting, so a `Clear`
+        /// that only stopped rendering would leave the last creature's
+        /// frame sitting in GPU memory - and `Show` hands that exact
+        /// `Texture` reference to whatever `CreatureStage` is displaying it,
+        /// so a cleared studio would keep showing a stale creature behind a
+        /// panel meant to be empty.
+        [UnityTest]
+        public IEnumerator Clear_MakesTheTextureTransparentAgain()
+        {
+            var host = new GameObject("studio-host");
+            var studio = PortraitStudio.Create(host.transform);
+            var texture = (RenderTexture)studio.Show("vetch", "carapace", "taunt", 0f);
+            for (int i = 0; i < 5; i++) yield return null;
+            Assert.Greater(OpaquePixelCount(texture), 0, "precondition: the studio must have rendered something to clear");
+
+            studio.Clear();
+            yield return null;
+
+            Assert.AreEqual(0, OpaquePixelCount(texture),
+                "Clear must blank the render texture, not just stop drawing to it");
+
+            Object.Destroy(host);
+        }
+
+        static int OpaquePixelCount(RenderTexture texture)
+        {
             var prev = RenderTexture.active;
             RenderTexture.active = texture;
             var read = new Texture2D(texture.width, texture.height, TextureFormat.RGBA32, false);
@@ -30,11 +64,8 @@ namespace Broodline.Game.PlayTests
 
             int opaque = 0;
             foreach (var p in read.GetPixels()) if (p.a > 0.5f) opaque++;
-            Assert.Greater(opaque, texture.width * texture.height / 50, "the studio rendered nothing");
-            Assert.Less(opaque, texture.width * texture.height / 2, "the background must stay transparent");
-
             Object.Destroy(read);
-            Object.Destroy(host);
+            return opaque;
         }
     }
 }

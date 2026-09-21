@@ -151,11 +151,13 @@ namespace Broodline.Game
         readonly RosterScreen _roster = new RosterScreen();
 
         /// The portrait studio - Phase 9 design §3.8. Optional, and stored
-        /// without a null check: `BootController` passes the real one, but
-        /// every existing test constructs this director for the walk logic
-        /// alone and has no scene to build one in. Tasks 14 and 16 are the
-        /// first callers that read this field; until then it is created and
-        /// carried but never shown.
+        /// without a null check: `BootController`'s is the only call site
+        /// this constructor has today, and it always passes the real one -
+        /// but Tasks 14 and 16 are the first to add the screens that will
+        /// read this field, and their tests will want to build a director
+        /// without a scene to construct a studio in. Kept nullable now so
+        /// that stays possible; until those tasks land it is carried but
+        /// never shown.
         readonly PortraitStudio _studio;
 
         bool _namingOffered;

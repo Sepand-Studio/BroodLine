@@ -67,6 +67,22 @@ namespace Broodline.Game.Shell
             if (_creature != null) Destroy(_creature);
             _creature = null;
             if (_camera != null) _camera.enabled = false;
+
+            // Disabling the camera does not reset the texture it was
+            // painting: the last frame rendered stays in GPU memory until
+            // something writes over it, and `Show` hands the same `Texture`
+            // reference out to whatever `CreatureStage` is displaying it -
+            // so without this, a cleared studio still shows the last
+            // creature. Same save-and-restore of the global
+            // `RenderTexture.active` as `CreatureBaker.Shoot`, the other
+            // place in this project that touches it directly.
+            if (_texture != null)
+            {
+                var prev = RenderTexture.active;
+                RenderTexture.active = _texture;
+                GL.Clear(true, true, new Color(0f, 0f, 0f, 0f));
+                RenderTexture.active = prev;
+            }
         }
 
         void Update()
