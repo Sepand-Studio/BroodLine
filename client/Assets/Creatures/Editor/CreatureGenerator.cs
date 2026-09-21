@@ -109,7 +109,7 @@ namespace Broodline.Creatures.Editor
                     t.localScale = Vector3.one * s.Scale;
                 }
 
-                // Task 8 adds CreatureMotion here; the component does not exist yet.
+                go.AddComponent<CreatureMotion>();
                 PrefabUtility.SaveAsPrefabAsset(go, Root + dir + "/" + r.Id + ".prefab");
             }
             finally { Object.DestroyImmediate(go); }

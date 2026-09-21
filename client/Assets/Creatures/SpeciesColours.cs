@@ -5,10 +5,10 @@ namespace Broodline.Creatures
 {
     /// Base and underside per species. THE BASE HEXES ARE MIRRORED FROM
     /// `PaletteContrast.Species` (Broodline.UI) because this assembly
-    /// references nothing. NOTHING GUARDS THAT MIRROR YET - the brief names a
-    /// `CreatureColourTests` in Broodline.Game.Tests that asserts it, but that
-    /// test does not exist; the next task owes it. Until then, an edit to
-    /// either table drifts silently from the other.
+    /// references nothing. `CreatureColourTests.SpeciesColours_MirrorThePalette`
+    /// in Broodline.Game.Tests guards the mirror - it is the one place that
+    /// sees both tables, and it fails the moment either edits without the
+    /// other.
     /// The underside is the value structure bible 10.4
     /// measured Pale as needing - darker on every species, and cooler on
     /// Pale, whose base is the palest colour in the game.
