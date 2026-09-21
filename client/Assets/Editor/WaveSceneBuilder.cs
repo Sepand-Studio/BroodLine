@@ -74,7 +74,13 @@ public static class WaveSceneBuilder
         var camera = cameraGo.AddComponent<Camera>();
         camera.orthographic = true;
         camera.clearFlags = CameraClearFlags.SolidColor;
-        camera.backgroundColor = new Color(0.07f, 0.07f, 0.09f);
+        // The field colour (LaneDressing.Field, #e8f5ec), so the lane's edges
+        // do not show black past the dressing's finite quads.
+        camera.backgroundColor = new Color(0.91f, 0.96f, 0.93f);
+        // Everything but Studio (layer 6) - CreatureBaker's isolated bake rig
+        // lives there so no scene camera sees it; this camera is a scene
+        // camera.
+        camera.cullingMask = ~(1 << 6);
 
         // orthographicSize is the VERTICAL half-extent. Screen-up is world +X,
         // so it sizes the lane's length; then check the across-screen axis has

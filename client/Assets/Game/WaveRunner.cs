@@ -184,7 +184,7 @@ namespace Broodline.Game
             _completed = new TaskCompletionSource<bool>();
 
             _view = gameObject.AddComponent<WaveView>();
-            _view.Build(_runner);
+            _view.Build(_runner, deployment, wave);
 
             BuildHud();
         }
