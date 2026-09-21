@@ -663,6 +663,14 @@ export async function submit(issuanceId: string, replay: string, key: string): P
   return app.request('/v1/wave/submit', submitInit(issuanceId, replay, key))
 }
 
+/** POST /v1/wave/abandon as the current player. Body-less; no Idempotency-Key. */
+export async function abandon(): Promise<Response> {
+  return app.request('/v1/wave/abandon', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${token}` },
+  })
+}
+
 // --- State readers. design 7: a test asserting a BALANCE (or a row, or a
 // live/settled issuance) is a real gate; a test asserting only an error code
 // would pass against a server that rejects everything.

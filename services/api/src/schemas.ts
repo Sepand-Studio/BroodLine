@@ -228,6 +228,10 @@ export const WaveSubmitResponse = z.object({
   granted: z.array(CreatureDto).optional(),
 }).openapi('WaveSubmitResponse')
 
+export const WaveAbandonResponse = z.object({
+  settled: z.boolean(),
+}).openapi('WaveAbandonResponse')
+
 export const ErrorResponse = z.object({
   code: z.string(),
   message: z.string(),

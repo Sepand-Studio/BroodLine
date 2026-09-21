@@ -7,7 +7,7 @@ import {
   NodeClaimRequest, NodeClaimResponse, RefreshRequest, RefreshResponse,
   RegionStateResponse, RosterResponse, SpliceCommitRequest, SpliceCommitResponse,
   SplicePreviewRequest, SplicePreviewResponse, SyncResponse,
-  WaveStartRequest, WaveStartResponse, WaveSubmitRequest, WaveSubmitResponse,
+  WaveAbandonResponse, WaveStartRequest, WaveStartResponse, WaveSubmitRequest, WaveSubmitResponse,
 } from './schemas.ts'
 
 const registry = new OpenAPIRegistry()
@@ -94,6 +94,17 @@ registry.registerPath({
   responses: {
     200: { description: 'The verified outcome, paid at most once', content: { 'application/json': { schema: WaveSubmitResponse } } },
     ...errors([400, 401, 409, 422, 426, 503]),
+  },
+})
+
+registry.registerPath({
+  method: 'post',
+  path: '/v1/wave/abandon',
+  operationId: 'abandonWave',
+  security: [{ [bearerAuth.name]: [] }],
+  responses: {
+    200: { description: 'Whether a live issuance was settled and its creatures released', content: { 'application/json': { schema: WaveAbandonResponse } } },
+    ...errors([401, 404]),
   },
 })
 

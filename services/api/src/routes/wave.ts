@@ -17,7 +17,7 @@ import { grantWaveBaseStock } from '../wave/base-stock.ts'
 import { rewardForWave } from '../wave/rewards.ts'
 import {
   advanceCampaign, type CreatureSpec, DEPLOYMENT_CAP, DEPLOYMENT_FLOOR,
-  type DeployedCreature, type Issuance, issueWave, loadLiveIssuance, settle,
+  type DeployedCreature, type Issuance, issueWave, loadLiveIssuance, loadUnsettledIssuance, settle,
 } from '../wave/issuance.ts'
 import { type SimulateBreach, type SimulateEcho, toInt, toTier } from '../sim/client.ts'
 
@@ -845,5 +845,35 @@ export function registerWaveRoutes(app: Hono, deps: Deps): void {
       // rather than a genuinely optional one.
       ...(outcome.granted.length ? { granted: outcome.granted } : {}),
     })
+  })
+
+  /**
+   * The forfeit. Phase 9 design §2.1: a wave started and never submitted
+   * leaves its creatures `committed_to` a row the client can only reach
+   * through a deploy screen it refuses to open while they are committed.
+   * This settles that row 'expired' - the same settlement the two-hour
+   * expiry applies, applied now - and `settle()` releases the roster.
+   *
+   * NO IDEMPOTENCY-KEY AND NO BODY. `settle()`'s `AND settled_at IS NULL`
+   * makes a repeat a no-op that answers settled:false, and nothing here
+   * pays, so the key would protect nothing. One sorted `releaseCreatures`
+   * statement, so no `lockRoster` either (see the lock-ordering rule on
+   * `consumeAndRefuse`).
+   */
+  app.post('/v1/wave/abandon', async (c) => {
+    const session = await requireSession(c)
+
+    const result = await withServer(deps.db, session.serverId, async (tx) => {
+      const playerId = await loadPlayerId(tx, session.accountId)
+      if (playerId === undefined) return null
+
+      const issuance = await loadUnsettledIssuance(tx, session.serverId, playerId)
+      if (issuance === undefined) return { settled: false }
+
+      return { settled: await settle(tx, issuance, 'expired') }
+    })
+
+    if (result === null) return fail('not_found', 'No player on this server for that account.')
+    return c.json(result)
   })
 }
