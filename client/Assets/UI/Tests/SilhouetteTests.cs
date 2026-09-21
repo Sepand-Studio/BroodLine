@@ -6,51 +6,47 @@ using UnityEngine;
 
 namespace Broodline.UI.Tests
 {
-    /// bible 10.2 rule 1, asserted before Phase 9 generates anything:
+    /// bible 10.2 rule 1, asserted against the BAKED bodies from Phase 9's
+    /// pipeline; a collision here is a collision in the recipes:
     ///
     ///   "All six species must be distinguishable as flat black shapes at
     ///    40px; if two are confusable, one is wrong."
     ///
-    /// These are interim proxies, not production art - but they are drawn from
-    /// bible 1.2's silhouette column, so if two of THEM collide, the collision
-    /// is in the DESIGN and not in the drawing. rig_proof.md section 6 routes
-    /// that finding back to the bible rather than to the art team, and section
-    /// 5 says item 7 is "the one that decides the art direction". Finding it
-    /// here costs six PNGs; finding it after Phase 9 costs the asset budget.
+    /// Through Task 8 this ran against six interim proxy PNGs, drawn from
+    /// bible 1.2's silhouette column so a collision between them would be a
+    /// collision in the DESIGN rather than in the drawing. `CreatureBaker`
+    /// retires that stand-in: the mask now comes from `CreatureAssembler`'s
+    /// actual mesh, rendered by the one fixed bake camera, so a collision
+    /// here is a collision in a RECIPE (`SpeciesRecipes`) rather than in a
+    /// hand-drawn placeholder. rig_proof.md section 6 still routes a finding
+    /// back to the bible when two recipes genuinely read the same at 40px;
+    /// it is the recipes that would need to change to fix it, not this test.
     ///
     /// The threshold is deliberately low. This is a collision detector, not a
     /// quality bar: two shapes differing on fewer than 8% of a 40x40 field are
     /// the same shape at a glance.
     ///
-    /// IT READS ALPHA, NOT COLOUR, AND THAT IS WHY THE SOURCES ARE WHITE.
-    /// The plan's Step 1 says "flat black on transparent". The card tints
-    /// these through -unity-background-image-tint-color, which MULTIPLIES -
-    /// black times any tint is black, so black sources would have rendered
-    /// all six species as one identical mark with no error anywhere. The
-    /// files fill white and this test is unaffected, because a coverage mask
-    /// is a question about alpha. "Flat black shapes" is what the RULE is
-    /// about and this is the measurement of it. CreatureCard.uss's proxy
-    /// block has the whole account.
-    ///
-    /// MEASURED MARGIN, so a later drift is readable against something. On
-    /// the six as first drawn, the closest pair is hollow/pale and the widest
-    /// is vetch/pale; every pair is comfortably clear of the 8% line and the
-    /// run logs the full ranked matrix. No pair collided on a first faithful
-    /// reading of bible 1.2, which is the finding this task was built to look
-    /// for and did not find.
+    /// ONLY VETCH IS BAKED. `SpeciesRecipes.All` and `PartRecipes.All` carry
+    /// one body and three parts until Task 15 fills in the other five
+    /// species; asserting `NoTwoSpeciesAreConfusableAsFlatBlackShapesAt40px`
+    /// against a five-species gap would be asserting against art that does
+    /// not exist. `Species` below is narrowed to `{ "vetch" }` for this task
+    /// - Task 15 restores the six, and with them the pairwise comparison.
     public class SilhouetteTests
     {
         const int Size = 40;
         const double MinDifferingFraction = 0.08;
 
-        static readonly string[] Species = { "vetch", "ember", "skitter", "hollow", "loam", "pale" };
+        // Task 15 restores the six ({ "vetch", "ember", "skitter", "hollow",
+        // "loam", "pale" }) once every species is baked.
+        static readonly string[] Species = { "vetch" };
 
-        /// 40x40 coverage mask: true where the silhouette is opaque.
+        /// 40x40 coverage mask: true where the baked body is opaque.
         static bool[] Mask(string species)
         {
-            var path = $"Assets/UI/Art/proxies/{species}.png";
+            var path = $"Assets/UI/Resources/Art/creatures/bodies/{species}.png";
             var src = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
-            Assert.IsNotNull(src, $"no proxy at {path}");
+            Assert.IsNotNull(src, $"no baked body at {path} - run generate-creatures.sh with BAKE=1");
 
             var rt = RenderTexture.GetTemporary(Size, Size, 0, RenderTextureFormat.ARGB32);
             Graphics.Blit(src, rt);
@@ -68,13 +64,27 @@ namespace Broodline.UI.Tests
         }
 
         [Test]
-        public void EverySpeciesHasAProxyThatIsNotBlank()
+        public void EveryBakedBody_IsNotBlank()
         {
             foreach (var s in Species)
             {
                 var filled = Mask(s).Count(b => b);
                 Assert.That(filled, Is.GreaterThan(Size * Size / 20),
-                    $"{s}'s proxy is blank or nearly so - a blank mask would pass the pairwise test trivially");
+                    $"{s}'s baked body is blank or nearly so - a blank mask would pass the pairwise test trivially");
+            }
+        }
+
+        [Test]
+        public void EveryBakedBody_HasATransparentBackground()
+        {
+            // A baked body on an opaque background would make every mask a
+            // filled square and pass the pairwise test trivially. The bake
+            // clears to alpha 0; this is the check that it did.
+            foreach (var s in Species)
+            {
+                var mask = Mask(s);
+                Assert.IsFalse(mask[0], s + "'s top-left corner is opaque - the bake did not clear to transparent");
+                Assert.IsFalse(mask[mask.Length - 1], s + "'s bottom-right corner is opaque");
             }
         }
 
@@ -101,12 +111,14 @@ namespace Broodline.UI.Tests
             // be a second, tighter threshold nobody agreed to, and tightening
             // this detector is how it stops detecting. `verify-uss-tokens.sh`
             // makes the same distinction - measure, print, gate on one line.
+            // With only Vetch baked, `measured` is empty and this line logs
+            // nothing to compare - Task 15's job, not this one's.
             Debug.Log("bible 10.2 rule 1, pairwise at 40px (floor " +
                       $"{MinDifferingFraction:P0}): " + string.Join(", ", measured));
 
             Assert.IsEmpty(collisions,
                 "bible 10.2 rule 1 fails on these pairs - one of each is wrong, and the fix is a " +
-                "DESIGN change to bible 1.2's silhouette column, not a redraw:\n" +
+                "DESIGN change to bible 1.2's silhouette column or to a SpeciesRecipe, not a re-bake:\n" +
                 string.Join("\n", collisions));
         }
     }

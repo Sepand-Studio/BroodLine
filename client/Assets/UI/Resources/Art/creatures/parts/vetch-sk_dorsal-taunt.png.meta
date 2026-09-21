@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 86923f2dfe39e48cf8676792f5413839
+guid: 1ff8fbe7779d34f2c8c4718f3e09be19
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -1354399590991967858
-    second: vetch_0
+      213: -7412971757055989676
+    second: vetch-sk_dorsal-taunt_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -128,7 +128,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: vetch_0
+      name: vetch-sk_dorsal-taunt_0
       rect:
         serializedVersion: 2
         x: 0
@@ -143,8 +143,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: e894df67fb4343de0800000000000000
-      internalID: -1354399590991967858
+      spriteID: 458acaa6675df1990800000000000000
+      internalID: -7412971757055989676
       vertices: []
       indices: 
       edges: []

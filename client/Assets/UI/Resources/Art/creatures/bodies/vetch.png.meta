@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 3ca7bfba81c444aa29bb1de6ca15c499
+guid: b11dff8f80b084a27a5d92183323f40d
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 3789026788329696013
-    second: hollow_0
+      213: -1354399590991967858
+    second: vetch_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -128,7 +128,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: hollow_0
+      name: vetch_0
       rect:
         serializedVersion: 2
         x: 0
@@ -143,8 +143,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: d0ba4d2f9c3559430800000000000000
-      internalID: 3789026788329696013
+      spriteID: e894df67fb4343de0800000000000000
+      internalID: -1354399590991967858
       vertices: []
       indices: 
       edges: []

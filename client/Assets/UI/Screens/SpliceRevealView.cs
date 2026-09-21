@@ -40,11 +40,12 @@ namespace Broodline.UI.Screens
     /// applied and the elevation renders, not that the flare reads well
     /// under a thumb. That is Task 16's pass.
     ///
-    /// The `silhouette` slot inside the card is filled as of Task 13 - the
-    /// interim species proxy, tinted to the child's species. Nothing on this
-    /// screen does the filling: `CreatureCard.Bind` calls `SpeciesProxy` and
-    /// every consumer of the card got it at once, which is what "the atom of
-    /// the interface" is supposed to buy.
+    /// The `silhouette` slot inside the card is filled as of Task 13 (the
+    /// interim species proxy) and re-filled as of Phase 9 Task 9 with the
+    /// baked body and part sprites. Nothing on this screen does the filling:
+    /// `CreatureCard.Bind` calls `CreatureSprites` and every consumer of the
+    /// card got it at once, which is what "the atom of the interface" is
+    /// supposed to buy.
     [UxmlElement]
     public partial class SpliceRevealView : VisualElement
     {

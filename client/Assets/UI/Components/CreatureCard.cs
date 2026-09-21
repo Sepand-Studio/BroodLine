@@ -64,14 +64,14 @@ namespace Broodline.UI.Components
             _instinct.text = creature.Instinct;
             _silhouette.tooltip = creature.Species;
 
-            // The interim proxy, tinted to the species colour by
-            // CreatureCard.uss. `Apply` clears before it adds, which is what
-            // makes this safe on the re-bind this class is built around: an
-            // add-only version would leave a recycled card wearing the
-            // previous creature's body under the new one's tint. A species
-            // outside bible 1.2's six adds nothing and the slot stays the
-            // empty paint it has carried since Phase 7 - see SpeciesProxy.
-            SpeciesProxy.Apply(_silhouette, creature.Species);
+            // The baked sprites, stacked body / dorsal / flank - Phase 9's
+            // bridge from the 3D pipeline to the flat card. `CreatureSprites`
+            // returns null on anything it does not have art for, never a
+            // guess, so an unrecognised species or an unbaked trait leaves
+            // its layer empty rather than showing the wrong creature.
+            SetLayer("silhouette", CreatureSprites.Body(creature.Species));
+            SetLayer("part-dorsal", CreatureSprites.Part(creature.Species, "sk_dorsal", creature.Trait1));
+            SetLayer("part-flank", CreatureSprites.Part(creature.Species, "sk_flank", creature.Trait2));
 
             EnableInClassList(FounderUssClassName, creature.IsFounder);
             EnableInClassList(CommittedUssClassName, creature.CommittedTo.HasValue);
@@ -88,6 +88,12 @@ namespace Broodline.UI.Components
         {
             if (trait == null) return null;
             return counters.TryGetValue(trait, out var counteredName) ? counteredName : null;
+        }
+
+        void SetLayer(string name, Texture2D texture)
+        {
+            var layer = this.Q<VisualElement>(name);
+            layer.style.backgroundImage = texture == null ? new StyleBackground(StyleKeyword.None) : new StyleBackground(texture);
         }
     }
 }

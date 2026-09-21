@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192" fill="#ffffff">
-  <!-- Vetch, bible 1.2: "Low dome, four stubby legs, no neck". Wall. -->
-  <rect x="30" y="126" width="22" height="46" rx="10"/>
-  <rect x="66" y="126" width="22" height="46" rx="10"/>
-  <rect x="104" y="126" width="22" height="46" rx="10"/>
-  <rect x="140" y="126" width="22" height="46" rx="10"/>
-  <path d="M18 142 A78 62 0 0 1 174 142 Z"/>
-</svg>

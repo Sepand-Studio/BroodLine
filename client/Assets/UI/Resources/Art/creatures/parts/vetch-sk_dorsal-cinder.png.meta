@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: f024d9c47c8c6471ab4df6522c65c742
+guid: 91c9819d7a39141c5b9b9d2c9c788669
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 3451079927212889365
-    second: pale_0
+      213: 5511376280314605327
+    second: vetch-sk_dorsal-cinder_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -128,7 +128,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: pale_0
+      name: vetch-sk_dorsal-cinder_0
       rect:
         serializedVersion: 2
         x: 0
@@ -143,8 +143,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 5155101c8e2b4ef20800000000000000
-      internalID: 3451079927212889365
+      spriteID: f0f6aa3c6875c7c40800000000000000
+      internalID: 5511376280314605327
       vertices: []
       indices: 
       edges: []

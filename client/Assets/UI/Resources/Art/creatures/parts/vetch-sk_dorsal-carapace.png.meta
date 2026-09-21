@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: d03fe23149af94a9381e24d7bce43e44
+guid: 691078c5bdddd42f6a391b83aae35de8
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -7012687989206172887
-    second: loam_0
+      213: 3426382777827462684
+    second: vetch-sk_dorsal-carapace_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -128,7 +128,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: loam_0
+      name: vetch-sk_dorsal-carapace_0
       rect:
         serializedVersion: 2
         x: 0
@@ -143,8 +143,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 92bb7babd6dedae90800000000000000
-      internalID: -7012687989206172887
+      spriteID: c1e0ce09bf4fc8f20800000000000000
+      internalID: 3426382777827462684
       vertices: []
       indices: 
       edges: []

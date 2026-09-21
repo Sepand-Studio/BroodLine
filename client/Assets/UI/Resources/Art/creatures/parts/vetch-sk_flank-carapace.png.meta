@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 13d59c60f4c684a6eafbf97af36b7820
+guid: 379749a7670fd44e5bf5969c4f8c8e25
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 4435594221877548958
-    second: ember_0
+      213: 9169265275492760373
+    second: vetch-sk_flank-carapace_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -128,7 +128,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: ember_0
+      name: vetch-sk_flank-carapace_0
       rect:
         serializedVersion: 2
         x: 0
@@ -143,8 +143,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: e9759caa1756e8d30800000000000000
-      internalID: 4435594221877548958
+      spriteID: 53bf11def26cf3f70800000000000000
+      internalID: 9169265275492760373
       vertices: []
       indices: 
       edges: []

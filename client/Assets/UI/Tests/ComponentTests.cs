@@ -178,6 +178,28 @@ namespace Broodline.UI.Tests
             StringAssert.Contains("Bramble", card.Q<Label>("name").text);
         }
 
+        [Test]
+        public void CreatureCard_StacksBodyAndBothPartsInTheSilhouetteSlot()
+        {
+            var card = new CreatureCard();
+            card.Bind(Creature("Vetch", gen: 2, name: "Ash", founder: false, trait1: "Carapace", tier1: 1, trait2: "Cinder", tier2: 1), Counters());
+            var body = card.Q<VisualElement>("silhouette");
+            var dorsal = card.Q<VisualElement>("part-dorsal");
+            var flank = card.Q<VisualElement>("part-flank");
+            Assert.IsNotNull(body.style.backgroundImage.value.texture, "the body sprite");
+            Assert.IsNotNull(dorsal.style.backgroundImage.value.texture, "combat one at the dorsal socket");
+            Assert.IsNotNull(flank.style.backgroundImage.value.texture, "combat two at the flank socket");
+            Assert.AreEqual(CreatureSprites.Part("vetch", "sk_dorsal", "carapace"), dorsal.style.backgroundImage.value.texture);
+        }
+
+        [Test]
+        public void CreatureCard_UnknownSpecies_LeavesTheSlotEmpty()
+        {
+            var card = new CreatureCard();
+            card.Bind(Creature("Ash", gen: 1, name: "X", founder: false, trait1: "Taunt", tier1: 1, trait2: "Carapace", tier2: 1), Counters());
+            Assert.IsNull(card.Q<VisualElement>("silhouette").style.backgroundImage.value.texture);
+        }
+
         // ---------------------------------------------------------------
         // TraitPip - screen_inventory_v2 11: "the single most-repeated
         // element in the app"

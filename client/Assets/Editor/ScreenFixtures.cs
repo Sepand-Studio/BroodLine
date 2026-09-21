@@ -168,8 +168,9 @@ public static class ScreenFixtures
     /// species out of it without guessing which. (The plan read it as a
     /// Skitter; it could as easily have been read as an Ember.)
     ///
-    /// It was invisible while nothing consumed the field. `SpeciesProxy` is
-    /// the first consumer, it matches the six exactly and refuses to guess,
+    /// It was invisible while nothing consumed the field. `SpeciesProxy`
+    /// (Phase 8 Task 13, retired by Phase 9 Task 9's `CreatureSprites`) was
+    /// the first consumer, it matched the six exactly and refused to guess,
     /// and with the old strings in place fourteen of the sixteen captures
     /// would have shown an empty silhouette slot and looked like a wiring
     /// bug. The same strings are still in `Broodline.UI.Tests`, where they

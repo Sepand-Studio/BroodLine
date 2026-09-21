@@ -99,7 +99,7 @@ namespace Broodline.Creatures.Tests
         public void SpeciesRecipes_AreLookedUpByLowercaseName_AndVetchExists()
         {
             Assert.IsNotNull(SpeciesRecipes.For("vetch"));
-            Assert.IsNotNull(SpeciesRecipes.For("Vetch"), "case-insensitive, like SpeciesProxy was");
+            Assert.IsNotNull(SpeciesRecipes.For("Vetch"), "case-insensitive, like CreatureSprites and the retired SpeciesProxy");
             Assert.IsNull(SpeciesRecipes.For("ash"), "an unknown species is null, never a guess");
         }
 
