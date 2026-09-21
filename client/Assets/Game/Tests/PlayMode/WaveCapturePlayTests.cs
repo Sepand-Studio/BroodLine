@@ -257,8 +257,15 @@ public class WaveCapturePlayTests
     [UnityTest]
     public IEnumerator AHostedWave_ReportsItsOutcomeAndWritesNoCapture()
     {
-        var visibility = new List<bool>();
-        var host = new WaveHost(() => Bundle, visible => visibility.Add(visible));
+        // The bool alone only proves a hide happened, not WHEN - the defect
+        // this test exists to catch (hiding before the additive load) would
+        // record the same `false` here. Pairing it with whether the wave
+        // scene is resident AT THE MOMENT the callback fires is what makes
+        // the mid-wave assertion below a real discriminator.
+        var visibility = new List<(bool Visible, bool SceneLoaded)>();
+        var host = new WaveHost(
+            () => Bundle,
+            visible => visibility.Add((visible, SceneManager.GetSceneByName(SceneName).isLoaded)));
         var run = host.RunAsync(
             WaveRunner.CaptureWaveId, WaveRunner.Deployment(), WaveRunner.Seed, inputEnabled: false);
 
@@ -269,10 +276,12 @@ public class WaveCapturePlayTests
                                  hosted.Runner != null,
                            "WaveHost never configured a runner");
 
-        // Phase 9 design §2.2: hidden AFTER the scene is resident, never
-        // before the load - and hidden by now, because the runner is.
-        CollectionAssert.AreEqual(new[] { false }, visibility,
-            "the shell must be hidden exactly once by the time the runner is configured");
+        // Phase 9 design §2.2: hidden exactly once, and the scene is ALREADY
+        // resident when it happens - `SceneLoaded: true` here is what rules
+        // out the reverted ordering (hide before the load), which would
+        // record `SceneLoaded: false` instead.
+        CollectionAssert.AreEqual(new[] { (false, true) }, visibility,
+            "the shell must be hidden exactly once, after the wave scene is already loaded");
 
         Assert.IsFalse(hosted.StandaloneCapture,
             "a hosted wave must not own the capture artifacts");
@@ -307,8 +316,14 @@ public class WaveCapturePlayTests
         Assert.IsFalse(SceneManager.GetSceneByName(SceneName).isLoaded);
         Assert.IsFalse(WaveRunner.Hosted, "the hosted latch must be cleared when the run ends");
 
-        CollectionAssert.AreEqual(new[] { false, true }, visibility,
-            "the shell must be restored when the run ends");
+        // The restore is the finally's guarded FIRST statement, ahead of
+        // UnloadAsync - so at the moment it fires the scene is still
+        // resident (`SceneLoaded: true`), and only the later, unrecorded
+        // unload takes it down. This is unchanged from before this fix; it
+        // proves the restore runs, not its ordering relative to the load,
+        // which the mid-wave assertion above already covers.
+        CollectionAssert.AreEqual(new[] { (false, true), (true, true) }, visibility,
+            "the shell must be hidden after the load, then restored before the unload, when the run ends");
     }
 
     /// THE ERROR PATH, which is the one that stranded the player.
@@ -326,8 +341,14 @@ public class WaveCapturePlayTests
     [UnityTest]
     public IEnumerator AHostedWaveThatThrows_StillUnloadsTheBattlefield()
     {
-        var visibility = new List<bool>();
-        var host = new WaveHost(() => Bundle, visible => visibility.Add(visible));
+        // Same pairing as the completion-path test above, and for the same
+        // reason: the bool alone cannot tell "hidden after the load" from
+        // "hidden before it", which is the ordering this whole task is
+        // about.
+        var visibility = new List<(bool Visible, bool SceneLoaded)>();
+        var host = new WaveHost(
+            () => Bundle,
+            visible => visibility.Add((visible, SceneManager.GetSceneByName(SceneName).isLoaded)));
         var run = host.RunAsync(999, WaveRunner.Deployment(), WaveRunner.Seed, inputEnabled: false);
 
         yield return Until(() => run.IsCompleted, "WaveHost.RunAsync never completed");
@@ -345,10 +366,14 @@ public class WaveCapturePlayTests
         Assert.IsFalse(WaveRunner.Hosted,
             "the hosted latch must be cleared on the error path too");
 
-        // The white screen the reverted fix produced is consistent with the
-        // restore never running on this path. It runs on this path.
-        CollectionAssert.AreEqual(new[] { false, true }, visibility,
-            "hidden after the load, restored by the finally, even when Configure throws");
+        // The white screen the reverted fix produced is consistent with
+        // hiding before the load AND with the restore never running on the
+        // throw path. Neither is true here: `SceneLoaded: true` on the first
+        // entry says the hide happened after the scene loaded, and the
+        // second entry says the finally's guarded restore still ran, even
+        // though `Configure` never did.
+        CollectionAssert.AreEqual(new[] { (false, true), (true, true) }, visibility,
+            "hidden after the load with the scene resident, restored by the finally, even when Configure throws");
     }
 
     /// `config.traits` from `/v1/sync`, as the shell would hand it over. The
