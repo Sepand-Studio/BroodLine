@@ -537,5 +537,23 @@ namespace Broodline.UI.Tests
             Assert.AreEqual(0, toast.Pending);
             Assert.AreEqual(DisplayStyle.None, toast.style.display.value);
         }
+
+        // ---------------------------------------------------------------
+        // AbandonedWaveSheet - Phase 9 design 2.1 part 3. The only way out
+        // of a roster committed to a wave nobody will submit.
+        // ---------------------------------------------------------------
+
+        [Test]
+        public void AbandonedWaveSheet_StatesTheSituationAndOffersOnlyForfeit()
+        {
+            var sheet = new AbandonedWaveSheet(onForfeit: () => { });
+            Assert.AreEqual(AbandonedWaveSheet.Headline, sheet.Q<Label>("headline").text);
+            Assert.AreEqual(AbandonedWaveSheet.Body, sheet.Q<Label>("body").text);
+            var buttons = sheet.Query<Button>().ToList();
+            Assert.AreEqual(1, buttons.Count, "one way out, and it is forfeit");
+            Assert.AreEqual(AbandonedWaveSheet.ForfeitLabel, buttons[0].text);
+            Assert.IsTrue(buttons[0].ClassListContains("btn-primary"));
+            Assert.IsNull(sheet.Q<VisualElement>(className: ScreenScaffold.UssClassName), "a sheet takes no scaffold");
+        }
     }
 }

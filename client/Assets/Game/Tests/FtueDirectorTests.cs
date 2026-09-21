@@ -375,6 +375,20 @@ namespace Broodline.Game.Tests
         }
 
         // ---------------------------------------------------------------
+        // Whether the roster is locked to a wave nobody will submit
+        // ---------------------------------------------------------------
+
+        [Test]
+        public void NeedsForfeit_IsTrueWhenAnyKnownCreatureIsCommitted()
+        {
+            var live = Guid.NewGuid();
+            Assert.IsFalse(FtueDirector.NeedsForfeit(new[] { Creature("Vetch"), Creature("Ember") }));
+            Assert.IsTrue(FtueDirector.NeedsForfeit(new[] { Creature("Vetch"), Creature("Ember", committedTo: live) }));
+            Assert.IsFalse(FtueDirector.NeedsForfeit(new CreatureDto[0]), "an empty roster has nothing to forfeit");
+            Assert.IsFalse(FtueDirector.NeedsForfeit(new CreatureDto[] { null }), "a null slot is skipped, as FightAsync skips it");
+        }
+
+        // ---------------------------------------------------------------
         // What a blocked beat says
         // ---------------------------------------------------------------
 

@@ -75,6 +75,14 @@ namespace Broodline.Game
         public const string SpliceStock = "The tutorial stock";
         public const string SpliceCommit = "The splice";
         public const string LoadRoster = "Your roster could not be loaded. Try again.";
+
+        /// A human playing the game found this in the first minute: starting
+        /// a wave commits the deployed creatures server-side, and quitting
+        /// before submitting leaves them committed. `AbandonedWaveSheet` is
+        /// the way out; this is what is said when Forfeit does not free the
+        /// roster - the server refused, or the call failed.
+        public const string ForfeitFailed =
+            "Your creatures are still out fighting and the wave could not be forfeited. Try again in a moment.";
     }
 
     /// The first hour, walked.
@@ -182,6 +190,7 @@ namespace Broodline.Game
                 }
 
                 if (!await LoadRosterAsync()) return;
+                if (!await ForfeitIfLockedAsync()) return;
 
                 var beat = Ftue.Derive(snapshot, _roster.Known);
 
@@ -617,6 +626,37 @@ namespace Broodline.Game
             return false;
         }
 
+        /// Phase 9 design §2.1 part 3. Shown BEFORE the beat is derived, so
+        /// `FightAsync` never meets an all-committed roster. Returns false only
+        /// when the forfeit did not free the roster - the server refused, or
+        /// the call failed - in which case the notice says so and the walk
+        /// stops on a toast rather than a blank screen.
+        async Task<bool> ForfeitIfLockedAsync()
+        {
+            if (!NeedsForfeit(_roster.Known)) return true;
+
+            await _flow.ShowSheetAsync<bool>(resume =>
+                new AbandonedWaveSheet(onForfeit: () => resume(true)));
+
+            try
+            {
+                await _api.AbandonWaveAsync();
+            }
+            catch (Exception error)
+            {
+                _notice(ServerError.From(error).PlayerMessage);
+                return false;
+            }
+
+            if (!await LoadRosterAsync()) return false;
+            if (NeedsForfeit(_roster.Known))
+            {
+                _notice(FtueNotice.ForfeitFailed);
+                return false;
+            }
+            return true;
+        }
+
         async Task<bool> ResyncAsync()
         {
             try
@@ -652,6 +692,17 @@ namespace Broodline.Game
             if (waveId <= 1) return 2;
             if (waveId == 2) return 3;
             return DeployScreen.Cap;
+        }
+
+        /// Whether any known creature is committed to a live issuance - the
+        /// state Phase 8's eyes-on pass found in its first minute, in which
+        /// `FightAsync` would find nothing to deploy and the walk would end.
+        public static bool NeedsForfeit(IReadOnlyList<CreatureDto> known)
+        {
+            if (known == null) return false;
+            foreach (var creature in known)
+                if (creature != null && creature.CommittedTo != null) return true;
+            return false;
         }
 
         /// The issuance's deployment, as the engine's own structs.
