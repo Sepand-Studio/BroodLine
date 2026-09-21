@@ -30,9 +30,10 @@ namespace Broodline.Creatures.Tests
 
         /// THE SLICE, AND WHY IT IS HERE.
         ///
-        /// Vetch's legs meet the ground at y = 0 and its shell's underside sits
-        /// at y = 0.26, so the clearance band is [0, 0.26] and 0.12 is close to
-        /// its middle - the point least sensitive to a future author nudging
+        /// Vetch's legs meet the ground at y = 0, its shell's underside sits at
+        /// y = 0.26 and its head's at 0.24, which the blend can push down to
+        /// 0.2175 - so the clearance band is [0, 0.2175] and 0.12 is close to
+        /// its middle, the point least sensitive to a future author nudging
         /// either end. `TheSliceSitsInVetchsGroundClearance` re-derives both
         /// ends from the recipe and fails with that arithmetic if it stops
         /// being true, so this constant can never quietly start slicing through
