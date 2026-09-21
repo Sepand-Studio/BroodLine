@@ -4,6 +4,7 @@ using System.Linq;
 using Broodline.Api;
 using Broodline.UI.Components;
 using NUnit.Framework;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 // UnityEngine.UIElements HAS ITS OWN `ProgressBar` (base
@@ -611,6 +612,29 @@ namespace Broodline.UI.Tests
                 "elevation on the surface itself paints a grey smudge across the card - UI Toolkit clips "
                 + "background-image to the element's own box, so the shadow has to be drawn by something larger");
             Assert.IsNotNull(surface.Q<Label>("headline"), "the content sits inside the surface, not beside it in the shadow's padding");
+        }
+
+        // ---------------------------------------------------------------
+        // CreatureStage - Phase 9 design 3.8. Shows a Texture and nothing
+        // more; the portrait studio (Broodline.Game) is the only thing in
+        // production that ever hands it one, which is what keeps this
+        // assembly free of Broodline.Creatures.
+        // ---------------------------------------------------------------
+
+        [Test]
+        public void CreatureStage_ShowsATexture_AndClearsOnNull()
+        {
+            var stage = new CreatureStage();
+            var tex = new Texture2D(4, 4);
+            stage.SetTexture(tex);
+            Assert.AreEqual(tex, stage.Q<VisualElement>("frame").style.backgroundImage.value.texture);
+            stage.SetTexture(null);
+            Assert.IsNull(stage.Q<VisualElement>("frame").style.backgroundImage.value.texture);
+
+            // `using System;` above makes the bare `Object` ambiguous between
+            // System.Object and UnityEngine.Object in this file - qualified
+            // here rather than adding another file-wide alias.
+            UnityEngine.Object.DestroyImmediate(tex);
         }
     }
 }

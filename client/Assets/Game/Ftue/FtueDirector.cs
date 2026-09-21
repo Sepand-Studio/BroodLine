@@ -150,6 +150,14 @@ namespace Broodline.Game
 
         readonly RosterScreen _roster = new RosterScreen();
 
+        /// The portrait studio - Phase 9 design §3.8. Optional, and stored
+        /// without a null check: `BootController` passes the real one, but
+        /// every existing test constructs this director for the walk logic
+        /// alone and has no scene to build one in. Tasks 14 and 16 are the
+        /// first callers that read this field; until then it is created and
+        /// carried but never shown.
+        readonly PortraitStudio _studio;
+
         bool _namingOffered;
 
         public FtueDirector(
@@ -159,7 +167,8 @@ namespace Broodline.Game
             ScreenFlow flow,
             Func<PlayerSnapshot> snapshot,
             Func<Task> resync,
-            Action<string> notice)
+            Action<string> notice,
+            PortraitStudio studio = null)
         {
             _api = api ?? throw new ArgumentNullException(nameof(api));
             _outbox = outbox ?? throw new ArgumentNullException(nameof(outbox));
@@ -168,6 +177,7 @@ namespace Broodline.Game
             _snapshot = snapshot ?? throw new ArgumentNullException(nameof(snapshot));
             _resync = resync ?? throw new ArgumentNullException(nameof(resync));
             _notice = notice ?? throw new ArgumentNullException(nameof(notice));
+            _studio = studio;
         }
 
         // ---------------------------------------------------------------

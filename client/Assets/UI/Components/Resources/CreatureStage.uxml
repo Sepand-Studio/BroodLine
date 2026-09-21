@@ -1,0 +1,4 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="CreatureStage.uss" />
+    <ui:VisualElement name="frame" class="creature-stage__frame" />
+</ui:UXML>

@@ -45,6 +45,7 @@ namespace Broodline.Game.Shell
         OutboxClient _outbox;
         OutboxPump _pump;
         WaveHost _waves;
+        PortraitStudio _studio;
         FtueDirector _ftue;
         NoticeToast _toast;
 
@@ -111,6 +112,12 @@ namespace Broodline.Game.Shell
                 () => _session.Snapshot?.Traits,
                 visible => shellRoot.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None);
 
+            // Task 11. Created before the director so it is already alive
+            // for the three hero moments the director shows it around
+            // (Tasks 14 and 16); the camera costs nothing until then - see
+            // PortraitStudio.Create.
+            _studio = PortraitStudio.Create(transform);
+
             _ftue = new FtueDirector(
                 _session.Api,
                 _outbox,
@@ -118,7 +125,8 @@ namespace Broodline.Game.Shell
                 _screenFlow,
                 () => _session.Snapshot,
                 () => _session.ColdStartAsync(),
-                OnNotice);
+                OnNotice,
+                _studio);
 
             try
             {
