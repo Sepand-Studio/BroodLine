@@ -56,13 +56,25 @@
 
 /* TWO CLASSES, to beat icons.uss's `.icon` (19px, --mute-soft) without
  * depending on which sheet the panel applies last. The handoff draws this
- * mark at 12px in the 24px disc, in a deep amber that is neither the warning
- * brown nor the tint - Tokens.uss's --amber-bright-deep note has the two
- * measurements that ruled both out. */
+ * mark at 12px in the 24px disc.
+ *
+ * --amber-text, MEASURED AGAINST THE DISC IT IS ACTUALLY DRAWN ON - fix
+ * round 1, Important 1. This used to be a seventh amber,
+ * --amber-bright-deep, reasoned from a measurement against the RAMP behind
+ * the disc rather than the disc itself; the sparkle sits inside
+ * `.mutation-banner__disc`, a --surface (#ffffff) circle, never on the ramp.
+ * On that surface --amber-bright-deep was 2.17:1, under the 3:1 floor a
+ * tinted graphic needs, where --amber-text is 6.30:1. Tokens.uss's
+ * --amber-text note has the full account, including why "reads as a
+ * caution label" is weaker than it sounds once you notice --amber-text is
+ * already this project's general amber ink (the Skitter chip, the
+ * InheritanceBar amber dot and tag) and not a warning-only brown. It is
+ * also already `.mutation-banner__text`'s own colour via `.t-warn`, so the
+ * spark and the copy beside it now read as one ink. */
 .mutation-banner .mutation-banner__spark {
     width: 12px;
     height: 12px;
-    -unity-background-image-tint-color: var(--amber-bright-deep);
+    -unity-background-image-tint-color: var(--amber-text);
 }
 
 /* --amber-text comes from `.t-warn`. `white-space: normal` so a sentence

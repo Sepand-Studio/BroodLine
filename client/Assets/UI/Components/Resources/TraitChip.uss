@@ -40,6 +40,15 @@
      * so a row of them does not leak a trailing margin. */
     margin-left: 2px;
     margin-right: 2px;
+
+    /* THE BORDER IS HERE IN BOTH STATES, AT THE SAME WIDTH - fix round 1,
+     * Minor 3, and FieldSlotRow.uss's border note already found this exact
+     * problem and said why: a base rule with no border and an `.aberrant`
+     * rule that adds one makes an aberrant chip 2px taller than every other
+     * chip in the same row, the instant tier goes null. Transparent so it
+     * costs nothing on the five chips that never turn it on. */
+    border-width: 1px;
+    border-color: rgba(0, 0, 0, 0);
 }
 
 .trait-chip__label {
@@ -82,6 +91,7 @@
  * `.trait-pip.aberrant` already uses, in the same --violet-pale, so the two
  * marks read as one idea across the two components. */
 .trait-chip.aberrant {
-    border-width: 1px;
+    /* Width is set once, on the base rule above, so turning this on never
+     * changes the chip's height - only the border's colour moves. */
     border-color: var(--violet-pale);
 }

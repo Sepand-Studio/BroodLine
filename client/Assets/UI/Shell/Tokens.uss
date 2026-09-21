@@ -93,13 +93,25 @@
      *
      * #3c7f98 IS THE DARKER OF THE TWO THE HANDOFF USES, chosen for the
      * contrast rather than by preference: measured against --teal-tint it is
-     * 4.0:1, where #4b8ba6 is 3.0:1 - and the family this token joins sits
-     * at 5.1:1 (--green-text on --green-tint). 4.0 is under WCAG AA's 4.5
+     * 3.97:1, where #4b8ba6 is 3.35:1 - and the family this token joins sits
+     * at 5.10:1 (--green-text on --green-tint). 3.97 is under WCAG AA's 4.5
      * for body text and is recorded as such; it is the best either authored
      * value offers, and inventing a third teal the handoff never drew would
      * be the drift verify-uss-tokens.sh exists to stop. Colour never carries
      * information alone here (bible 10.4) - the chip states the trait in
-     * words. */
+     * words.
+     *
+     * NOT HYPOTHETICAL - THIS IS ALREADY SHIPPING AS 10px TEXT, TWICE. Fix
+     * round 1, Important 2: this note used to frame 3.97:1 as a question for
+     * whoever owns the palette without saying where it already renders.
+     * Both live call sites are `--text-micro` (10px), under AA's floor for
+     * small text regardless of the 4.5:1 gap above:
+     *   - TraitChip.uss:71, `.trait-chip--vetch .trait-chip__label`, on the
+     *     `--teal-tint` fill TraitChip.uss:64 sets
+     *   - InheritanceBar.uss:123, `.inheritance-bar__tag--teal`, fill and
+     *     ink on one line
+     * The escalation stands unchanged - this only corrects what it has to
+     * carry. */
     --teal-text: #3c7f98;         /* not in the handoff's table - teal-on-light text */
 
     --green: #7cc492;             /* Loam, success */
@@ -109,19 +121,37 @@
     --amber: #e8b34a;             /* Apex / gold, warnings */
     --amber-bright: #ffb703;
     --amber-tint: #fdf1d8;
-    --amber-text: #7a5b12;
 
-    /* Not in the handoff. The MutationBanner's sparkle mark, and the deep
-     * end of the amber ramp behind it (Art/amber-ramp.png). The mutation
-     * window is the one amber surface in the app that is GOOD news, so its
-     * glyph must not read as the warning triangle's ink: --amber-text
-     * (#7a5b12) is a brown at 8.0:1 and looks like a caution label, and
-     * --amber (#e8b34a) on the ramp's own #f9e0a8 is 1.4:1 and disappears.
-     * The handoff draws this mark at #d19a1f; this is 36 away in summed
-     * channel distance - inside the range Tokens.uss already treats as one
-     * colour - and is the value the task brief fixed for the phase, so it
-     * is kept rather than re-split into a seventeenth amber. */
-    --amber-bright-deep: #e7a324; /* not in the handoff - MutationBanner sparkle, amber ramp end */
+    /* --amber-text ALSO CARRIES THE MutationBanner SPARKLE - fix round 1,
+     * Important 1. It did not always: this file used to add a seventh
+     * amber, --amber-bright-deep (#e7a324), reasoned from a measurement
+     * against the RAMP's own #f9e0a8 (1.4:1, disappears) and rejected
+     * --amber-text as "a brown at 8.0:1 [that] looks like a caution label".
+     * Both numbers were wrong for the same reason: the sparkle
+     * (MutationBanner.uss's `.mutation-banner__spark`) is not drawn on the
+     * ramp at all - it sits inside `.mutation-banner__disc`, a 24px
+     * `--surface` circle, inset from `.panel-amber`'s own --space-3 padding.
+     * Measured against the surface it is actually composited on, the two
+     * candidates are
+     *   --amber-bright-deep (#e7a324) on --surface = 2.17:1
+     *   --amber-text        (#7a5b12) on --surface = 6.30:1
+     * The sparkle is a tinted graphic (`-unity-background-image-tint-color`
+     * on a background image), not text, so its floor is WCAG's 3:1 for
+     * non-text UI components - and 2.17:1 fails it outright, by close to a
+     * third, not a near miss the way --teal-text's 3.97:1 is. --amber-text
+     * clears BOTH the 3:1 graphic floor and the 4.5:1 text floor with room
+     * to spare, and is already the ink `.mutation-banner__text` sets via
+     * `.t-warn` two words to the sparkle's right, so the fix also makes the
+     * banner's icon and its copy one ink instead of two. "Reads as a
+     * caution label" is a weaker argument than it first sounds, too:
+     * --amber-text is not a warning-only colour in this file - it is
+     * already the Skitter trait chip's ink and the InheritanceBar's amber
+     * dot and tag, i.e. the project's general amber ink, not a triangle's.
+     * --amber-bright-deep had no remaining reader once the sparkle moved
+     * off it, so it is deleted rather than left in the file unread -
+     * Tokens.uss's own note about --elev-2-spread spending a task unreferenced
+     * is the reason that was checked before deleting it. */
+    --amber-text: #7a5b12;
     --coral: #e5867a;             /* Ember, danger */
     --coral-deep: #d4776a;
     --coral-tint: #fbeae7;

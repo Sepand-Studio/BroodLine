@@ -199,6 +199,34 @@ namespace Broodline.UI.Tests
                 "clearing the eyebrow left its row behind");
         }
 
+        /// Step 4 took `flex-grow` off `.screen-scaffold__title` and gave it
+        /// to a new `.screen-scaffold__titles` column so the eyebrow could
+        /// sit above the title (ScreenScaffold.uss's header comment) -
+        /// nothing before this test proved the REPARENTING itself, only that
+        /// the eyebrow row collapses when empty. A mistake that left `title`
+        /// a direct child of `header` again, or that put the grow back on
+        /// the wrong element, would have passed every other test here and
+        /// only shown up as a capture that looked subtly different for the
+        /// ten screens that already compose the scaffold. Fix round 1,
+        /// Minor 6 - the sheets are already checked by eye against
+        /// RosterView.png et al.; this is what pins it in code.
+        [Test]
+        public void TheTitleLivesInsideTheTitlesColumn_WhichCarriesTheGrowTheTitleGaveUp()
+        {
+            var s = new ScreenScaffold("Roster");
+            var header = s.Q<VisualElement>("header");
+            var titles = s.Q<VisualElement>("titles");
+            var title = s.Q<Label>("title");
+
+            Assert.IsNotNull(titles, "no titles column");
+            Assert.AreSame(titles, title.parent, "the title is no longer inside the titles column");
+            Assert.AreSame(header, titles.parent, "the titles column is no longer a direct child of the header");
+            Assert.IsTrue(titles.ClassListContains("screen-scaffold__titles"),
+                "the titles column lost the class that carries flex-grow: 1");
+            Assert.IsTrue(title.ClassListContains("screen-scaffold__title"),
+                "the title lost the class that carries flex-grow: 0");
+        }
+
         [Test]
         public void EveryScreenComposesTheScaffold()
         {

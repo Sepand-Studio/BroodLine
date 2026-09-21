@@ -992,35 +992,67 @@ public static class ScreenFixtures
         chips.Add(new TraitChip("Carapace", 3, "Vetch"));
         chips.Add(new TraitChip("Cinder", 2, "Ember"));
         chips.Add(new TraitChip("Sprint", null, "Skitter"));
+        chips.Add(new TraitChip("Reach", 2, "Hollow"));
+        chips.Add(new TraitChip("Regrow", 1, "Loam"));
         chips.Add(new TraitChip("Screen", 1, "Pale"));
         Stack(chips);
 
-        Stack(ComponentCaption("HeroSlot  -  bound, tinted-but-unbaked, and live"));
+        Stack(ComponentCaption("HeroSlot  -  all six species tints, bound-but-unbaked, and live"));
 
-        // Three slots: a bound Vetch (the one species baked before Task 15,
-        // so this is the only one that can show real sprites), an Ember bound
-        // for its tint with no art behind it, and the live form. Side by side
-        // because the ring's species tint is the thing being checked and a
-        // tint is only a tint against another one.
+        // ALL SIX, NOT THREE. Fix round 1, Minor 4: the first capture showed
+        // Vetch, Ember and the live form and left four of the six
+        // `.hero-slot--*` ring and disc rules - Skitter, Hollow, Loam, Pale -
+        // never rendered anywhere in the corpus. Vetch is the one species
+        // baked before Task 15, so it is the only slot that shows real
+        // sprites; the other five are bound for their tint with no art
+        // behind them, which is the honest picture until Task 15.
+        //
+        // WRAPPED, LIKE THE CHIP ROW ABOVE, for the same reason: seven 96px
+        // slots are 672px and the content width is 366-406px. Margins are
+        // set here rather than in HeroSlot.uss because a row's layout is the
+        // caller's to arrange - StatCell.uss's closing note.
         var slots = new VisualElement();
         slots.style.flexDirection = FlexDirection.Row;
+        slots.style.flexWrap = Wrap.Wrap;
         slots.style.alignItems = Align.Center;
-        slots.style.justifyContent = Justify.SpaceBetween;
+
+        void AddSlot(HeroSlot slot)
+        {
+            slot.style.marginRight = 8;
+            slot.style.marginBottom = 8;
+            slots.Add(slot);
+        }
 
         var vetch = new HeroSlot();
         vetch.Bind(Creature("Vetch", 4, name: "Ash", founder: true,
             trait1: "Carapace", tier1: 1, trait2: "Taunt", tier2: 1));
-        slots.Add(vetch);
+        AddSlot(vetch);
 
         var ember = new HeroSlot();
         ember.Bind(Creature("Ember", 6, name: null, founder: false));
-        slots.Add(ember);
+        AddSlot(ember);
+
+        var skitter = new HeroSlot();
+        skitter.Bind(Creature("Skitter", 3, name: null, founder: false));
+        AddSlot(skitter);
+
+        var hollow = new HeroSlot();
+        hollow.Bind(Creature("Hollow", 5, name: null, founder: false));
+        AddSlot(hollow);
+
+        var loam = new HeroSlot();
+        loam.Bind(Creature("Loam", 2, name: null, founder: false));
+        AddSlot(loam);
+
+        var pale = new HeroSlot();
+        pale.Bind(Creature("Pale", 1, name: null, founder: false));
+        AddSlot(pale);
 
         // The live form, with nothing in it: no camera runs in a headless
         // capture, so what this shows is the frame around a portrait - the
         // violet ring and the transparent stage - which is exactly the part
         // of it this project owns.
-        slots.Add(new HeroSlot(new CreatureStage()));
+        AddSlot(new HeroSlot(new CreatureStage()));
         Stack(slots);
 
         Stack(ComponentCaption("InheritanceBar  ·  MutationBanner"));
