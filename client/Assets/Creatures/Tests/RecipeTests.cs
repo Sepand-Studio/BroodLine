@@ -75,8 +75,13 @@ namespace Broodline.Creatures.Tests
         /// lead OUT of the body - and the field itself is the arbiter: step
         /// along it and the signed distance must rise, step against it and it
         /// must fall. Vetch's flank socket failed this as the brief authored
-        /// it: at z = -0.5 (the right flank, since +Z is the creature's left)
+        /// it: on the right flank (negative z, since +Z is the creature's left)
         /// Euler(90,0,0) sends +Y to +Z, straight into the body.
+        ///
+        /// It is also what re-checks the three sockets after a body is
+        /// reshaped. Task 12b lowered and narrowed Vetch's shell and moved all
+        /// three onto the new surface; nothing but this says they still face
+        /// out of it.
         [Test]
         public void EverySocket_FacesOutOfTheBody()
         {
