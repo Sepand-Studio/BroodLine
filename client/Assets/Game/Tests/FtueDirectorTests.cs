@@ -167,6 +167,49 @@ namespace Broodline.Game.Tests
             Assert.Throws<ArgumentException>(() => FtueDirector.SpecsFor(new CreatureSpecDto[] { null }));
         }
 
+        [Test]
+        public void SpecsFor_AcceptsAnEmptySecondCombatSlot_AsTraitNoneAtTierZero()
+        {
+            // A creature with one combat trait arrives as trait2 "None" with a null
+            // tier, because an absent trait has no coverage. That is an ABSENCE, not
+            // an Aberrant, and it is what stopped the first hour at a fight.
+            var specs = FtueDirector.SpecsFor(new[]
+            {
+                Spec("Vetch", "Taunt", 1, "None", null, "Vanguard", 0),
+            });
+
+            Assert.AreEqual(1, specs.Length);
+            Assert.AreEqual(Trait.Taunt, specs[0].Trait1);
+            Assert.AreEqual(1, specs[0].Tier1);
+            Assert.AreEqual(Trait.None, specs[0].Trait2);
+            Assert.AreEqual(0, specs[0].Tier2, "an empty combat slot is tier zero, not a throw");
+        }
+
+        [Test]
+        public void SpecsFor_StillRefusesARealTraitWithNoCoverageTier()
+        {
+            // The guard's original purpose, kept: a null tier on a REAL trait is an
+            // Aberrant (data_model 2), which this phase's bundle does not author and
+            // the engine cannot represent.
+            var ex = Assert.Throws<ArgumentException>(() => FtueDirector.SpecsFor(new[]
+            {
+                Spec("Vetch", "Taunt", 1, "Carapace", null, "Vanguard", 0),
+            }));
+            StringAssert.Contains("Aberrant", ex.Message);
+        }
+
+        [Test]
+        public void SpecsFor_AcceptsTraitNoneWithAnExplicitTier()
+        {
+            // Don't start rejecting a shape that works today.
+            var specs = FtueDirector.SpecsFor(new[]
+            {
+                Spec("Vetch", "Taunt", 1, "None", 0, "Vanguard", 0),
+            });
+            Assert.AreEqual(Trait.None, specs[0].Trait2);
+            Assert.AreEqual(0, specs[0].Tier2);
+        }
+
         // ---------------------------------------------------------------
         // The seed
         // ---------------------------------------------------------------

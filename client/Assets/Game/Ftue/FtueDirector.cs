@@ -712,13 +712,25 @@ namespace Broodline.Game
         /// `deploymentMatches` compares the replay's deployment against the
         /// stored one in order.
         ///
-        /// A NULL TIER THROWS rather than becoming zero. `PlayerSnapshot`'s
-        /// own rule is that "zero would sort and display as 'less than tier
-        /// I'", and `data_model` section 2 makes a null tier an Aberrant -
-        /// a different thing entirely. No authored content can produce one
-        /// (design section 10 defers Aberrant traits out of this phase, so
-        /// the bundle authors none), which is exactly why the impossible
-        /// state is made loud instead of simulated as a weaker creature.
+        /// A NULL TIER ON A REAL TRAIT THROWS rather than becoming zero.
+        /// `PlayerSnapshot`'s own rule is that "zero would sort and display
+        /// as 'less than tier I'", and `data_model` section 2 makes a null
+        /// tier on a trait an Aberrant - a different thing entirely. No
+        /// authored content can produce one (design section 10 defers
+        /// Aberrant traits out of this phase, so the bundle authors none),
+        /// which is exactly why that impossible state is made loud instead
+        /// of simulated as a weaker creature.
+        ///
+        /// A NULL TIER ON `Trait.None` IS NOT THAT STATE. An absent trait
+        /// has no coverage to null out - `Trait.None` at tier 0 is the
+        /// engine's own coherent spelling of an empty combat slot, and the
+        /// server sends it exactly that way: `ftue/founder.ts`'s Founder
+        /// (Hollow, no traits at all) is granted on the first wave clear and
+        /// deployed into the second wave by design (`wave2TrioDeployment` in
+        /// the api test suite), so this is authored, tested content, not a
+        /// theoretical shape. Treating it as an Aberrant stopped the first
+        /// hour at that fight; `Tier` now tells the two apart by trait,
+        /// which is the only field that distinguishes them.
         public static CreatureSpec[] SpecsFor(ICollection<CreatureSpecDto> deployment)
         {
             if (deployment == null) throw new ArgumentNullException(nameof(deployment));
@@ -756,6 +768,13 @@ namespace Broodline.Game
         static int Tier(int? tier, string trait)
         {
             if (tier != null) return tier.Value;
+
+            // Case-insensitively, matching how Parse<TEnum> above already reads
+            // the wire's trait names (ignoreCase: true) - a null tier on
+            // `Trait.None` is an absence, not an Aberrant, and 0 is its coherent
+            // engine representation. See the comment above this method.
+            if (string.Equals(trait, "None", StringComparison.OrdinalIgnoreCase)) return 0;
+
             throw new ArgumentException(
                 "The issuance carried '" + trait + "' with no coverage tier. A null tier is an Aberrant " +
                 "(data_model 2), not a tier of zero, and this phase's bundle authors none.");
