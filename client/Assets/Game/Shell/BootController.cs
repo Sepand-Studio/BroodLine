@@ -4,6 +4,7 @@ using System.IO;
 using System.Net.Http;
 using Broodline.Model;
 using Broodline.Net;
+using Broodline.UI.Components;
 using Broodline.UI.Shell;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -45,6 +46,7 @@ namespace Broodline.Game.Shell
         OutboxPump _pump;
         WaveHost _waves;
         FtueDirector _ftue;
+        NoticeToast _toast;
 
         async void Start()
         {
@@ -64,6 +66,10 @@ namespace Broodline.Game.Shell
             var tabBarSlot = root.Q<VisualElement>("tab-bar");
             _tabBar = new TabBar();
             tabBarSlot.Add(_tabBar);
+
+            var noticeLayer = root.Q<VisualElement>("notice-layer");
+            _toast = new NoticeToast();
+            noticeLayer.Add(_toast);
 
             var screenHostElement = root.Q<VisualElement>("screen-host");
             var sheetLayer = root.Q<VisualElement>("sheet-layer");
@@ -95,6 +101,7 @@ namespace Broodline.Game.Shell
             _outbox = new OutboxClient(_session.Api, store.Load(), store);
             _pump = gameObject.AddComponent<OutboxPump>();
             _pump.Configure(_outbox);
+            _pump.OnNotice = OnNotice;
 
             // `traits` is read per run, never captured - `WaveHost`'s own
             // rule, because the snapshot it comes from is replaced wholesale
@@ -123,18 +130,14 @@ namespace Broodline.Game.Shell
             }
         }
 
-        /// Where a blocked beat's sentence goes.
-        ///
-        /// THERE IS STILL NO NOTICE SURFACE. Task 13 recorded the same gap
-        /// for the cold-start failure above, and `OutboxPump.Notices` holds
-        /// the outbox's expiry notices in a list nothing renders. Logging is
-        /// not a substitute for a toast; it is what keeps the sentence from
-        /// being silently discarded until one exists, and it is named as a
-        /// gap here rather than hidden behind a comment-free `Debug.Log`.
+        /// Where a blocked beat's sentence goes: the toast, and the log so a
+        /// capture still carries it. Phase 9 Task 4 closed the gap Phase 7
+        /// Task 13 recorded here.
         void OnNotice(string notice)
         {
             if (string.IsNullOrEmpty(notice)) return;
             Debug.LogWarning("[Ftue] " + notice);
+            _toast?.Show(notice);
         }
 
         void OnSnapshot(PlayerSnapshot snapshot)

@@ -1,0 +1,27 @@
+/* The notice surface. Sits in #notice-layer, a sibling of #shell-root, so it
+ * is drawn whether or not the shell is - a blocked beat's sentence must
+ * reach the player during a wave too. Anchored to the top, under the safe
+ * area the layer applies. */
+.notice-toast {
+    position: absolute;
+    left: var(--gutter);
+    right: var(--gutter);
+    top: var(--space-6);
+    flex-direction: column;
+}
+
+.notice-toast__rows { flex-direction: column; }
+
+.notice-toast__row {
+    background-color: var(--ink-deep);
+    color: var(--surface);
+    border-radius: var(--radius-row);
+    padding-top: var(--space-3);
+    padding-bottom: var(--space-3);
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+    margin-bottom: var(--space-2);
+    font-size: var(--text-body);
+    white-space: normal;
+    opacity: 0.96;
+}

@@ -42,6 +42,17 @@
     display: none;
 }
 
+/* Sibling of #shell-root, not a child: Task 6 hides the shell while a wave
+ * is resident, and a notice must still reach the player then. Picking is
+ * ignored so the layer never swallows a tap; only its rows are visible. */
+.notice-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
 .tab-bar-slot {
     flex-shrink: 0;
 }

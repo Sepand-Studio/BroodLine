@@ -506,5 +506,36 @@ namespace Broodline.UI.Tests
             Assert.IsNull(new EmptyState("Nothing in the Ark yet.").Q<VisualElement>("glyph"),
                 "a glyphless empty state reserved an empty icon box");
         }
+
+        // ---------------------------------------------------------------
+        // NoticeToast - design 2.1. `BootController.OnNotice` used to log
+        // and stop; `OutboxPump.Notices` filled a list nothing rendered.
+        // This is the surface both now reach.
+        // ---------------------------------------------------------------
+
+        [Test]
+        public void NoticeToast_IsHiddenUntilShown_AndStacksRows()
+        {
+            var toast = new NoticeToast();
+            Assert.AreEqual(DisplayStyle.None, toast.style.display.value, "empty toast must not occupy the layer");
+
+            toast.Show("Your roster could not be loaded. Try again.");
+            Assert.AreEqual(DisplayStyle.Flex, toast.style.display.value);
+            Assert.AreEqual(1, toast.Pending);
+            StringAssert.Contains("roster", toast.Q<Label>(className: NoticeToast.RowUssClassName).text);
+
+            toast.Show("A second sentence.");
+            Assert.AreEqual(2, toast.Pending, "a second notice stacks rather than replacing the first");
+        }
+
+        [Test]
+        public void NoticeToast_IgnoresEmptyText()
+        {
+            var toast = new NoticeToast();
+            toast.Show(null);
+            toast.Show("   ");
+            Assert.AreEqual(0, toast.Pending);
+            Assert.AreEqual(DisplayStyle.None, toast.style.display.value);
+        }
     }
 }

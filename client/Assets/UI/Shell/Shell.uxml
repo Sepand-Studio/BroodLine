@@ -10,4 +10,5 @@
         <ui:VisualElement name="sheet-layer" class="sheet-layer" />
         <ui:VisualElement name="tab-bar" class="tab-bar-slot" />
     </ui:VisualElement>
+    <ui:VisualElement name="notice-layer" class="notice-layer" picking-mode="Ignore" />
 </ui:UXML>
