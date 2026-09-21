@@ -11,7 +11,15 @@ namespace Broodline.UI.Components
     /// (#ece4fa/#6b5fa8), amber (#fbf3e0/#8e6d15), teal (#e7f3f9/#3c7f98),
     /// coral (#fbeae7/#b3564a), green (#e8f5ec/#43704f) and a neutral grey
     /// (#f2eff8/#8d86a0) - one per founder species, in the order bible 1.2
-    /// lists them. The six rules in TraitChip.uss are that table.
+    /// lists them. The six rules in TraitChip.uss are that table, THROUGH
+    /// THE TOKEN LAYER RATHER THAN VERBATIM: each rule names a `-tint` and a
+    /// `-text` token, and three of those tokens sit a step off the hex above
+    /// because Tokens.uss reconciled the handoff's per-screen values into
+    /// one palette. Teal's ink is the one that moved on PURPOSE - Phase 9
+    /// Task 14 ruled --teal-text from #3c7f98 to #336b81 because the
+    /// handoff's own value measures 3.97:1 on its own tint and this chip
+    /// renders at 10px. Tokens.uss's --teal-text note has the ruling; this
+    /// file changed nothing for it, which is the point of reading a token.
     ///
     /// IT IS NOT `TraitPip`, AND BOTH SURVIVE. A pip says what a trait
     /// COUNTERS - its dot goes green when the trait answers the raider on

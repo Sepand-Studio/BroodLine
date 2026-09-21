@@ -91,28 +91,50 @@
      * `Splice Chamber.dc.html` (#4b8ba6, plus the charge glyph and the DOM
      * tag) had nothing to reference.
      *
-     * #3c7f98 IS THE DARKER OF THE TWO THE HANDOFF USES, chosen for the
-     * contrast rather than by preference: measured against --teal-tint it is
-     * 3.97:1, where #4b8ba6 is 3.35:1 - and the family this token joins sits
-     * at 5.10:1 (--green-text on --green-tint). 3.97 is under WCAG AA's 4.5
-     * for body text and is recorded as such; it is the best either authored
-     * value offers, and inventing a third teal the handoff never drew would
-     * be the drift verify-uss-tokens.sh exists to stop. Colour never carries
-     * information alone here (bible 10.4) - the chip states the trait in
-     * words.
+     * #336b81 IS A RULING, NOT AN AUTHORED VALUE, AND THAT IS THE POINT.
+     * Both teals the handoff draws fail WCAG AA on the tint they are drawn
+     * on: #3c7f98 measures 3.97:1 against --teal-tint and #4b8ba6 measures
+     * 3.35:1, where the floor for small text is 4.5:1. This token shipped at
+     * #3c7f98 - the darker of the two - with the shortfall recorded as an
+     * open question for whoever owns the palette. Phase 9 Task 14 closed it:
+     * the user ruled that teal joins its family rather than staying faithful
+     * to a value that fails. #336b81 measures 5.22:1 on --teal-tint, which
+     * is the precedent exactly - --green-text is 5.10:1 on --green-tint and
+     * --violet-text is 4.73:1 on --violet-tint.
      *
-     * NOT HYPOTHETICAL - THIS IS ALREADY SHIPPING AS 10px TEXT, TWICE. Fix
-     * round 1, Important 2: this note used to frame 3.97:1 as a question for
-     * whoever owns the palette without saying where it already renders.
-     * Both live call sites are `--text-micro` (10px), under AA's floor for
-     * small text regardless of the 4.5:1 gap above:
+     * THE FAITHFULNESS ARGUMENT IS THE ONE THAT LOST, and it is written down
+     * because it is not a bad argument: inventing a colour the handoff never
+     * drew is the drift verify-uss-tokens.sh exists to stop, and bible 10.4
+     * ("colour never carries information alone") means the chip states its
+     * trait in words whatever the ink is. What outweighed it is that this is
+     * INK ON A TINT rather than a decorative fill - the one job where the
+     * handoff's own number is measurably unreadable - and that the same
+     * ruling settles #4b8ba6's 3.35:1, which appears seven times in
+     * `Splice Chamber.dc.html`. Task 16 inherits that rather than ruling on
+     * it again.
+     *
+     * NOT HYPOTHETICAL - THIS IS ALREADY SHIPPING AS 10px TEXT, TWICE, and
+     * that is what made the shortfall concrete rather than theoretical. Both
+     * live TEXT call sites are `--text-micro` (10px), which is under AA's
+     * floor for small text regardless of the ratio:
      *   - TraitChip.uss:80, `.trait-chip--vetch .trait-chip__label`, on the
      *     `--teal-tint` fill TraitChip.uss:73 sets
      *   - InheritanceBar.uss:123, `.inheritance-bar__tag--teal`, fill and
      *     ink on one line
-     * The escalation stands unchanged - this only corrects what it has to
-     * carry. */
-    --teal-text: #3c7f98;         /* not in the handoff's table - teal-on-light text */
+     * NEITHER FILE CHANGES FOR THIS. Both read var(--teal-text) and inherit
+     * the fix, which is the whole reason the gap was a token's to close.
+     *
+     * THREE MORE READERS ARE GRAPHICS, NOT TEXT, AND THEY MOVE TOO - listed
+     * so "two call sites" is not read as "two readers". The floor for a
+     * tinted graphic is WCAG's 3:1, which the old value already cleared, so
+     * none of them was the reason for the ruling and all three improve:
+     *   - ScreenScaffold.uss:178, the resource pill's 12px charge glyph, on
+     *     a --teal-tint disc: 3.97:1 -> 5.22:1
+     *   - CostCtaRow.uss:41, the cost row's 13px glyph, on --surface:
+     *     4.49:1 -> 5.90:1
+     *   - InheritanceBar.uss:116, `.inheritance-bar__dot--teal`, a 6px fill
+     *     whose own note records that it is not held to a text floor */
+    --teal-text: #336b81;         /* not in the handoff's table - teal-on-light text, 5.22:1 on --teal-tint */
 
     --green: #7cc492;             /* Loam, success */
     --green-deep: #5aa87a;
@@ -138,7 +160,9 @@
      * The sparkle is a tinted graphic (`-unity-background-image-tint-color`
      * on a background image), not text, so its floor is WCAG's 3:1 for
      * non-text UI components - and 2.17:1 fails it outright, by close to a
-     * third, not a near miss the way --teal-text's 3.97:1 is. --amber-text
+     * third, rather than the near miss --teal-text used to be at 3.97:1 -
+     * that comparison is historical now, since Task 14's ruling took
+     * --teal-text to 5.22:1 and it no longer misses at all. --amber-text
      * clears BOTH the 3:1 graphic floor and the 4.5:1 text floor with room
      * to spare, and is already the ink `.mutation-banner__text` sets via
      * `.t-warn` two words to the sparkle's right, so the fix also makes the
