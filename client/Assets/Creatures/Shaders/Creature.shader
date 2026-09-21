@@ -66,7 +66,12 @@ Shader "Broodline/Creature"
             }
             ENDHLSL
         }
-        UsePass "Universal Render Pipeline/Lit/DepthOnly"
+        // NO UsePass "Universal Render Pipeline/Lit/DepthOnly". Splicing Lit's
+        // DepthOnly pass in brings its own UnityPerMaterial layout with it, and
+        // two different layouts in one shader is the standard way to fall out
+        // of SRP Batcher compatibility - which a phone game budgeted for a
+        // hundred entities cannot afford. The brief called depth-only a nicety
+        // and said to drop it if it caused trouble. Shadows are not in scope.
     }
     Fallback Off
 }
