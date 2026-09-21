@@ -189,7 +189,15 @@ namespace Broodline.UI.Tests
             Assert.IsNotNull(body.style.backgroundImage.value.texture, "the body sprite");
             Assert.IsNotNull(dorsal.style.backgroundImage.value.texture, "combat one at the dorsal socket");
             Assert.IsNotNull(flank.style.backgroundImage.value.texture, "combat two at the flank socket");
+            // Carapace (dorsal) and Cinder (flank) are deliberately different
+            // traits: a regression that bound the flank layer to Trait1 (or
+            // vice versa) still produces a non-null texture here, because
+            // Carapace has its own flank sprite too - only asserting WHICH
+            // texture landed on WHICH layer catches a swap. Both layers get
+            // that check, because "both combat traits visible on the card"
+            // is the one thing this bake exists to guarantee.
             Assert.AreEqual(CreatureSprites.Part("vetch", "sk_dorsal", "carapace"), dorsal.style.backgroundImage.value.texture);
+            Assert.AreEqual(CreatureSprites.Part("vetch", "sk_flank", "cinder"), flank.style.backgroundImage.value.texture);
         }
 
         [Test]
@@ -198,6 +206,8 @@ namespace Broodline.UI.Tests
             var card = new CreatureCard();
             card.Bind(Creature("Ash", gen: 1, name: "X", founder: false, trait1: "Taunt", tier1: 1, trait2: "Carapace", tier2: 1), Counters());
             Assert.IsNull(card.Q<VisualElement>("silhouette").style.backgroundImage.value.texture);
+            Assert.IsNull(card.Q<VisualElement>("part-dorsal").style.backgroundImage.value.texture);
+            Assert.IsNull(card.Q<VisualElement>("part-flank").style.backgroundImage.value.texture);
         }
 
         // ---------------------------------------------------------------

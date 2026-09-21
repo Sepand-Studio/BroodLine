@@ -41,6 +41,17 @@ namespace Broodline.UI.Tests
         // "loam", "pale" }) once every species is baked.
         static readonly string[] Species = { "vetch" };
 
+        /// A second, independent statement of "how many species are baked right
+        /// now", asserted against `Species.Length` at the top of the pairwise
+        /// test below. With fewer than two species there are zero pairs to
+        /// compare, so `NoTwoSpeciesAreConfusableAsFlatBlackShapesAt40px`'s
+        /// `collisions` list stays empty and it PASSES whether the detector
+        /// ran a real comparison or none at all - the only trace of that was a
+        /// log line this project's own test command never shows. Bump this
+        /// alongside `Species` when Task 15 restores the six; leaving one of
+        /// the two behind fails loudly instead of the test staying quiet.
+        const int ExpectedBakedSpecies = 1;
+
         /// 40x40 coverage mask: true where the baked body is opaque.
         static bool[] Mask(string species)
         {
@@ -91,6 +102,14 @@ namespace Broodline.UI.Tests
         [Test]
         public void NoTwoSpeciesAreConfusableAsFlatBlackShapesAt40px()
         {
+            // The precondition this whole test is meaningless without: with
+            // fewer species baked than `Species` claims (or more), the loop
+            // below compares the wrong number of pairs - most dangerously,
+            // silently compares FEWER, which is how a collision would go
+            // undetected. See `ExpectedBakedSpecies`'s comment.
+            Assert.AreEqual(ExpectedBakedSpecies, Species.Length,
+                "Species and ExpectedBakedSpecies have drifted apart - update both together");
+
             var masks = Species.ToDictionary(s => s, Mask);
             var collisions = new List<string>();
             var measured = new List<string>();
@@ -105,6 +124,16 @@ namespace Broodline.UI.Tests
                     if (differing < MinDifferingFraction)
                         collisions.Add($"  {Species[i]}/{Species[j]}: {differing:P1} of the field differs");
                 }
+
+            // How many pairs `ExpectedBakedSpecies` species implies, asserted
+            // against how many the loop above actually ran - so a collision
+            // detector that silently compared zero pairs (today: 1 species,
+            // 0 pairs, by design) is at least an ASSERTED zero, not a quiet
+            // one indistinguishable from six species that all passed clean.
+            int expectedPairs = ExpectedBakedSpecies * (ExpectedBakedSpecies - 1) / 2;
+            Assert.AreEqual(expectedPairs, measured.Count,
+                $"compared {measured.Count} pairs, not the {expectedPairs} that {ExpectedBakedSpecies} baked " +
+                "species implies - the pairwise loop's bounds have drifted from Species");
 
             // The MARGIN is the interesting number and a pass throws it away.
             // Logged rather than asserted: a floor on the closest pair would

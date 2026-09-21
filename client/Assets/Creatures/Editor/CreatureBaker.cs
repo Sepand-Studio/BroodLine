@@ -106,13 +106,26 @@ namespace Broodline.Creatures.Editor
 
                 camera.Render();
                 var prev = RenderTexture.active;
-                RenderTexture.active = rt;
-                var tex = new Texture2D(Size, Size, TextureFormat.RGBA32, false);
-                tex.ReadPixels(new Rect(0, 0, Size, Size), 0, 0);
-                tex.Apply();
-                RenderTexture.active = prev;
-                File.WriteAllBytes(path, tex.EncodeToPNG());
-                Object.DestroyImmediate(tex);
+                Texture2D tex = null;
+                try
+                {
+                    RenderTexture.active = rt;
+                    tex = new Texture2D(Size, Size, TextureFormat.RGBA32, false);
+                    tex.ReadPixels(new Rect(0, 0, Size, Size), 0, 0);
+                    tex.Apply();
+                    File.WriteAllBytes(path, tex.EncodeToPNG());
+                }
+                finally
+                {
+                    // A throw anywhere above (a bad ReadPixels rect, a disk
+                    // error on WriteAllBytes) must not leave the GLOBAL
+                    // RenderTexture.active pointed at `rt` for whatever the
+                    // next Shoot or caller does next, and must not leak the
+                    // scratch Texture2D - this is the one place in the task
+                    // that touches global graphics state.
+                    RenderTexture.active = prev;
+                    if (tex != null) Object.DestroyImmediate(tex);
+                }
             }
             finally { Object.DestroyImmediate(creature); }
         }
@@ -126,28 +139,36 @@ namespace Broodline.Creatures.Editor
             int cols = PartRecipes.All.Count, rows = bodies.Count * 2;
             if (cols == 0 || rows == 0) return;
             var sheet = new Texture2D(cols * Size, rows * Size, TextureFormat.RGBA32, false);
-            int row = 0;
-            foreach (var body in bodies)
-                foreach (var socket in new[] { Sockets.Dorsal, Sockets.Flank })
-                {
-                    int col = 0;
-                    foreach (var part in PartRecipes.All)
+            try
+            {
+                int row = 0;
+                foreach (var body in bodies)
+                    foreach (var socket in new[] { Sockets.Dorsal, Sockets.Flank })
                     {
-                        var look = socket == Sockets.Dorsal
-                            ? new CreatureLook { Species = body.Id, Trait1 = part.Id }
-                            : new CreatureLook { Species = body.Id, Trait2 = part.Id };
-                        var tmp = Path.Combine(Application.temporaryCachePath, "tile.png");
-                        Shoot(rig, camera, rt, look, tmp, partOnly: null, composite: true);
-                        var tile = new Texture2D(2, 2); tile.LoadImage(File.ReadAllBytes(tmp));
-                        sheet.SetPixels(col * Size, (rows - 1 - row) * Size, Size, Size, tile.GetPixels());
-                        Object.DestroyImmediate(tile);
-                        col++;
+                        int col = 0;
+                        foreach (var part in PartRecipes.All)
+                        {
+                            var look = socket == Sockets.Dorsal
+                                ? new CreatureLook { Species = body.Id, Trait1 = part.Id }
+                                : new CreatureLook { Species = body.Id, Trait2 = part.Id };
+                            var tmp = Path.Combine(Application.temporaryCachePath, "tile.png");
+                            Shoot(rig, camera, rt, look, tmp, partOnly: null, composite: true);
+                            Texture2D tile = null;
+                            try
+                            {
+                                tile = new Texture2D(2, 2);
+                                tile.LoadImage(File.ReadAllBytes(tmp));
+                                sheet.SetPixels(col * Size, (rows - 1 - row) * Size, Size, Size, tile.GetPixels());
+                            }
+                            finally { if (tile != null) Object.DestroyImmediate(tile); }
+                            col++;
+                        }
+                        row++;
                     }
-                    row++;
-                }
-            sheet.Apply();
-            File.WriteAllBytes(Results("creature-contact-sheet.png"), sheet.EncodeToPNG());
-            Object.DestroyImmediate(sheet);
+                sheet.Apply();
+                File.WriteAllBytes(Results("creature-contact-sheet.png"), sheet.EncodeToPNG());
+            }
+            finally { Object.DestroyImmediate(sheet); }
         }
     }
 }
