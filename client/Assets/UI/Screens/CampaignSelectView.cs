@@ -193,8 +193,15 @@ namespace Broodline.UI.Screens
                 // Theme.uss's `.chip` underneath both. Widening GenChip to
                 // take arbitrary text to serve one row is the kind of
                 // contract change Task 13's vocabulary was fixed to prevent.
+                //
+                // READ OFF `GenChip` RATHER THAN TYPED AGAIN. The shared
+                // shape has a name - `GenChip.ChipUssClassName`, declared for
+                // exactly this - and the line below it in this same method
+                // already reads `ClearedChipUssClassName` for the same
+                // reason. A literal here would have been the one string in
+                // the pair that nothing keeps in step.
                 var chip = new Label(CampaignSelectScreen.ClearedLabel) { name = "cleared" };
-                chip.AddToClassList("chip");
+                chip.AddToClassList(GenChip.ChipUssClassName);
                 chip.AddToClassList(ClearedChipUssClassName);
                 chip.pickingMode = PickingMode.Ignore;
                 row.Add(chip);
