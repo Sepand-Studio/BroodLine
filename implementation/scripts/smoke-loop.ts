@@ -129,10 +129,66 @@ function begin(label: string): void {
   console.log(`\n[${step}] ${label}`)
 }
 
+/**
+ * `retries` IS OPT-IN AND THE OPT-IN IS THE POINT.
+ *
+ * Task 21d, measured: this script failed at step 6 with
+ * `503 sim_unavailable` against the deployed stack, because `wave/submit`
+ * is the first call that reaches `sim` and `sim` runs
+ * `min_instance_count = 0`. The identical run immediately after passed.
+ * `routes/wave.ts` writes "Retry." into that message itself and its comment
+ * says why it may - "A retryable 503 is honest only because nothing was
+ * consumed" - so a gate that fails on it is reading the contract wrong, not
+ * finding a defect.
+ *
+ * WHAT MAY SET IT. Only a call whose replay the server is built to absorb:
+ * a read, or a keyed mutation whose `idem` was minted by the CALLER and is
+ * therefore byte-identical on every attempt here. That last clause is the
+ * whole safety argument and it is why `randomUUID()` is never called inside
+ * this function - `Outbox.cs` keeps the same discipline on the client ("the
+ * key is generated now, when the action is taken - never regenerated on a
+ * later retry"), and a key re-minted per attempt would defeat the dedupe
+ * and could pay a wave twice.
+ *
+ * Transport failures and 5xx only. A 4xx is a verdict and this script should
+ * fail on it immediately, which is what it is for.
+ */
+const RETRY_WAITS_MS = [1_000, 3_000, 7_000]
+
 async function call(
   path: string,
-  init: { method?: string; token?: string; idem?: string; body?: unknown } = {},
+  init: {
+    method?: string; token?: string; idem?: string; body?: unknown; retries?: number
+  } = {},
 ): Promise<{ status: number; body: any; text: string }> {
+  const budget = Math.min(init.retries ?? 0, RETRY_WAITS_MS.length)
+  for (let attempt = 0; ; attempt++) {
+    const r = await callOnce(path, init, attempt < budget)
+    const coldish = r === undefined || r.status >= 500
+    if (!coldish || attempt >= budget) {
+      // UNREACHABLE, and written rather than asserted away. `callOnce`
+      // returns undefined only when it was told to tolerate a transport
+      // failure, which is only true while attempts remain - so on the last
+      // attempt it has already called `fail` itself, with the exception's
+      // own text, which is the better diagnostic. This exists because the
+      // return type admits undefined, and says so, so nobody replaces it
+      // with a second failure message competing with that one.
+      if (r === undefined) return fail(`${path} did not answer`)
+      return r
+    }
+    const why = r === undefined
+      ? 'did not answer'
+      : `answered ${r.status} ${r.body?.code ?? ''}`.trim()
+    console.log(`    … ${path} ${why}; waiting ${RETRY_WAITS_MS[attempt]}ms and asking again`)
+    await new Promise((resolve) => setTimeout(resolve, RETRY_WAITS_MS[attempt]))
+  }
+}
+
+async function callOnce(
+  path: string,
+  init: { method?: string; token?: string; idem?: string; body?: unknown },
+  tolerateTransportFailure: boolean,
+): Promise<{ status: number; body: any; text: string } | undefined> {
   const headers: Record<string, string> = {}
   if (init.body !== undefined) headers['content-type'] = 'application/json'
   if (init.token) headers['authorization'] = `Bearer ${init.token}`
@@ -147,7 +203,11 @@ async function call(
     })
   } catch (e) {
     // A connection-level failure here is the deployment, not the request:
-    // wrong URL, revision that never started, or ingress refusing us.
+    // wrong URL, revision that never started, or ingress refusing us -
+    // UNLESS the caller has budgeted a retry, in which case it is more
+    // often a container that has not finished starting. `undefined` says
+    // "no answer at all" and lets `call` decide which of those it is.
+    if (tolerateTransportFailure) return undefined
     return fail(`${path} did not answer`, e instanceof Error ? e.message : String(e))
   }
   const text = await res.text()
@@ -347,8 +407,11 @@ async function playWave(
     fail(`wave/start(${waveId}) returned no issuanceId or seed`, start.body)
   }
   const replay = buildReplayOf(waveId, BigInt(seed), claimed)
+  // THE KEY IS MINTED HERE, ONCE, AND REUSED BY EVERY ATTEMPT. That is what
+  // makes `retries` legal on the one call in this script that pays.
+  const submitKey = randomUUID()
   const sub = await call('/v1/wave/submit', {
-    token, idem: randomUUID(), body: { issuanceId, replay },
+    token, idem: submitKey, body: { issuanceId, replay }, retries: RETRY_WAITS_MS.length,
   })
   if (sub.status !== 200) {
     // 503 sim_unavailable is the interesting failure: api is fine and sim is
