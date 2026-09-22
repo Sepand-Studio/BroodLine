@@ -503,6 +503,37 @@ begin('both parents gone from the roster, the child on it')
 }
 
 // ---------------------------------------------------------------------------
+begin('a wave started and never submitted, then forfeited - the roster comes back')
+// Phase 8's eyes-on pass found this in the first minute and no suite had:
+// wave/start commits the deployment, and nothing but a settlement releases
+// it. The client forfeits through wave/abandon; this proves the route on
+// the deployed stack. Wave 1 again, because it is issuable (1 <= cleared).
+// The issuance id is deliberately NOT pushed to issuanceIds: an abandoned
+// wave stores no replay, and [C] asserts an object per id.
+{
+  const started = await call('/v1/wave/start', { token, body: { waveId: 1, deployment: pairDeployed } })
+  if (started.status !== 200) fail(`wave/start(1) for the abandon step returned ${started.status}`, started.text.slice(0, 600))
+
+  const locked = await call('/v1/roster', { token })
+  const lockedIds = (locked.body?.creatures ?? [])
+    .filter((c: Creature & { committedTo: string | null }) => c.committedTo !== null)
+    .map((c: Creature) => c.creatureId)
+  if (lockedIds.length !== pairDeployed.length) fail('wave/start did not commit the deployment', locked.body)
+
+  const ab = await call('/v1/wave/abandon', { token, method: 'POST' })
+  if (ab.status !== 200 || ab.body?.settled !== true) fail(`wave/abandon returned ${ab.status}`, ab.text.slice(0, 400))
+
+  const freed = await call('/v1/roster', { token })
+  const stillLocked = (freed.body?.creatures ?? [])
+    .filter((c: Creature & { committedTo: string | null }) => c.committedTo !== null)
+  if (stillLocked.length !== 0) fail('creatures still committed after abandon', stillLocked)
+
+  const again = await call('/v1/wave/abandon', { token, method: 'POST' })
+  if (again.body?.settled !== false) fail('a second abandon must be a no-op', again.body)
+  ok(`${lockedIds.length} creatures committed, forfeited, and free again; the repeat was a no-op`)
+}
+
+// ---------------------------------------------------------------------------
 begin('fight a wave and get paid - wave 1, replayed')
 // THE LAST TWO VERBS, and the wave is WAVE 1 AGAIN rather than wave 6 - a
 // deliberate choice, stated because the alternative is the more obvious one.
