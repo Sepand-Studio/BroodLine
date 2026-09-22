@@ -167,9 +167,33 @@
  * both ends, and it is the closest to the handoff besides. Precedent for
  * taking a token whose NAME came from elsewhere when its value is the right
  * one: --hairline is "unselected option outline" and is Pale's disc fill,
- * and --amber-text is the MutationBanner sparkle. If the palette owner wants
- * a named --violet-glow, that is a palette ruling and this is the
- * measurement it would be made against. */
+ * and --amber-text is the MutationBanner sparkle.
+ *
+ * THE REAL COST IS NOT THE NAME, IT IS THE COUPLING - flagged in review and
+ * not yet ruled on, so the value below is UNCHANGED pending that ruling.
+ * `--violet-pressed` is the secondary button's `:active` fill (Theme.uss).
+ * Reading it here means a routine interaction re-tune - nudging what the
+ * secondary button looks like pressed - silently moves the hero pool on
+ * every band screen too, because the two have no reason to be the same
+ * colour other than this borrow. The anti-drift argument above is also
+ * weaker than it reads: this file already carries two violets marked "not
+ * in the handoff" at `Tokens.uss:60` (`--violet-edge`, `#ddd3f0`) and `:66`
+ * (`--violet-pale`, `#d9cdf5`) - 15 apart in summed channel distance, i.e.
+ * this project already accepts a new violet closer together than that. A
+ * `--violet-glow: #e9e0fb` would be the handoff's OWN value, at distance 0,
+ * and would satisfy "a new value adds a token with its measurement" more
+ * cleanly than borrowing an interaction state's token for an unrelated
+ * surface. If the palette owner wants a named --violet-glow, that is a
+ * palette ruling and this note is the measurement it would be made against;
+ * this file does not make that ruling and does not add the token.
+ *
+ * NAMED AFTER AN ANIMATION IT DOES NOT PERFORM. All six handoff pools carry
+ * `animation: glow 3.xs ease-in-out infinite` (`Onboarding.dc.html:46`,
+ * `Splice Reveal:46`, `Hybrid Growth:51`, `Splice Chamber:110`, `Breeder
+ * Profile:33`, `Gene Lab Event:34`) - `glow` is in `Motion.uss`'s recorded-
+ * absent list, on the same footing as the ring's `orbit`, so this element
+ * is still for the same reason and by the same decision, not a separate
+ * drop. */
 .hero-band__glow {
     width: 196px;
     height: 196px;

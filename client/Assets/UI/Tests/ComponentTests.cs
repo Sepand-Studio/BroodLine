@@ -601,6 +601,9 @@ namespace Broodline.UI.Tests
         {
             var band = new HeroBand();
 
+            Assert.IsTrue(band.ClassListContains(HeroBand.UssClassName),
+                "the root lost `.hero-band`, so `flex-direction: column` and `flex-shrink: 0` "
+                + "no longer apply to it");
             Assert.IsTrue(band.ClassListContains("elev-2"),
                 "the band's root is the elevation wrapper, at the handoff's own 0 4px 16px");
             Assert.IsFalse(band.ClassListContains("elev-1"),
@@ -610,6 +613,33 @@ namespace Broodline.UI.Tests
             Assert.IsFalse(surface.ClassListContains("elev-2"),
                 "elevation on the surface itself paints a smudge across the band's interior");
             Assert.IsFalse(surface.ClassListContains("elev-1"));
+        }
+
+        /// THE DEFAULT FORM HAS NO CALLER IN THIS FILE UNTIL NOW, AND FOUR OF
+        /// THE SIX SCREENS THE CLASS COMMENT NAMES TAKE IT: `Gene Ark`,
+        /// `Gene Lab`, `Splice Chamber` and `Hybrid Growth` all construct
+        /// `new HeroBand()` and call neither `Fill` nor `Fix`.
+        /// `AHeroBandThatFillsGrowsItsSurfaceAndNotOnlyItsWrapper` and
+        /// `AHeroBandThatIsFixedSizesItsSurfaceAndClearsTheFill` each pin
+        /// what their own method writes; neither pins what a band that calls
+        /// NEITHER looks like. A default `flex-grow` added to `.hero-band`
+        /// or `.hero-band__surface` later would silently change four of
+        /// Tasks 16-19's screens with nothing red.
+        [Test]
+        public void ABareHeroBandLeavesGrowthUnset()
+        {
+            var band = new HeroBand();
+            var surface = band.Q<VisualElement>("surface");
+
+            Assert.AreEqual(StyleKeyword.Null, band.style.flexGrow.keyword,
+                "the content-sized form grew the wrapper by default - none of Gene Ark, Gene Lab, "
+                + "Splice Chamber or Hybrid Growth asked this band to grow");
+            Assert.AreEqual(StyleKeyword.Null, surface.style.flexGrow.keyword,
+                "the content-sized form grew the surface by default");
+            Assert.AreEqual(StyleKeyword.Null, surface.style.minHeight.keyword,
+                "the content-sized form floored its surface's height by default");
+            Assert.AreEqual(StyleKeyword.Null, surface.style.height.keyword,
+                "the content-sized form fixed its surface's height by default");
         }
 
         /// THE TASK 14b REGRESSION, PINNED. `flex-grow` on an elevation

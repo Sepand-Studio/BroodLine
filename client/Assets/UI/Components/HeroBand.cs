@@ -17,6 +17,18 @@ namespace Broodline.UI.Components
     /// tasks inventing the same band three times - which is the trade Task
     /// 13's brief was written to stop.
     ///
+    /// SIX MORE OF THE SAME FURNITURE EXIST IN OTHER TINTS, NOT COUNTED
+    /// ABOVE BECAUSE THIS PHASE HAS NO SCREEN THAT DRAWS THEM. The same
+    /// `linear-gradient(170deg, ...)` band at the same 22-26 radius also
+    /// appears on `Collector Intercept:46` and `Wave Defense:69`
+    /// (`#eef4f7 -> #e2edf3`), `Alliance Hub:50`, `Alliance Rally:45`,
+    /// `Relocate Ark:45` (`#eef4f7 -> #e4eef4`) and `Wave Defeat:31`
+    /// (`#fbeee9 -> #f6e2e4`). `.hero-band__surface` (`HeroBand.uss`)
+    /// hard-codes `band-ramp.png` and `--violet-tint` with NO TINT HOOK, so
+    /// a later task reaching for one of these six will need to add one. Not
+    /// built here - Phase 9's six are the violet ones, and that is what this
+    /// component is for now.
+    ///
     /// THE RING IS NOT THE BAND, AND THE HANDOFF IS CLEARER ABOUT THAT THAN
     /// A COUNT OF `class="spin"` IS. Three of the six band screens draw the
     /// dashed ring inside it (Onboarding, Splice Reveal, Hybrid Growth) and
@@ -50,6 +62,12 @@ namespace Broodline.UI.Components
     ///                                           Splice Chamber, Hybrid Growth
     ///     grows, floored  `band.Fill(300)`      Onboarding
     ///     fixed           `band.Fix(372)`       Splice Reveal
+    ///
+    /// `--radius-band` (26) IS THE MINORITY READING - it is Onboarding's and
+    /// Splice Reveal's own radius, but the other four want less: `Gene Ark`,
+    /// `Gene Lab` and `Hybrid Growth` are 24, `Splice Chamber` is 22. Those
+    /// four reach into `.hero-band__surface` from their own screen sheet to
+    /// override it; `--radius-band`'s note in `Tokens.uss` records all six.
     public sealed class HeroBand : VisualElement
     {
         public const string UssClassName = "hero-band";
