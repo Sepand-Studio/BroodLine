@@ -1,0 +1,16 @@
+Phase 9 EditMode baseline - Task 20, 2026-09-22, from a closed Editor.
+Sole expected failure: MainThreadAffinityTests.NoConfigureAwaitFalse_InCodeThatTouchesTheUi
+(deliberate; see that class's comment). Any other failure is a finding.
+
+total=466 passed=465 failed=1 skipped=0
+FAILED: Broodline.Game.Tests.MainThreadAffinityTests.NoConfigureAwaitFalse_InCodeThatTouchesTheUi
+    ConfigureAwait(false) in UI-facing code resumes the await off Unity's main thread, and the next VisualElement built after it throws. Remove it (Net/ is exempt - see this class's comment):
+
+Companion gates, same run window:
+  check-stylesheets.sh   44 stylesheets, all compile to at least one rule
+  check-silent-drops.sh  37 .uxml / 44 .uss, 0 defects (new this task)
+  verify-uss-tokens.sh   Token layer verified.
+  verify-unity-settings.sh  Task 2 settings verified.
+  generate-contract.sh   exit 0, no drift in openapi/ or client/Assets/Generated/
+  BAKE=1 generate-creatures.sh  21 assets + 150 sprites, no drift
+  capture-screens.sh     20 of 20 screens

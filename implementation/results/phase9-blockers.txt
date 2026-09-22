@@ -1,0 +1,185 @@
+PHASE 9 BLOCKERS - what a human must do, because an agent cannot
+Written by Task 20, 2026-09-22. Commit-tracked with `git add -f`.
+
+Everything in this file is OWED. Nothing below has been run by Task 20, and
+no result for any of it is claimed anywhere in task-20-report.md.
+
+===============================================================================
+A. THE THREE PlayMode SUITES  (Editor Test Runner, Window > General > Test
+   Runner > PlayMode)
+===============================================================================
+
+WHY AN AGENT CANNOT RUN THESE: PlayMode deadlocks in batchmode on this Editor.
+`implementation/scripts/run-unity-tests.sh:28-30` says so in its own comment
+and deliberately does not route around it. Open the Editor and press Run.
+
+Expected totals: 7 tests across 3 suites, all green.
+
+--- A1. WaveCapturePlayTests  (3 tests)  *** HIGHEST VALUE ***
+    client/Assets/Game/Tests/PlayMode/WaveCapturePlayTests.cs
+
+      PlayingTheWaveSceneWithNoHost_StillWritesACaptureOfWave
+      AHostedWave_ReportsItsOutcomeAndWritesNoCapture
+      AHostedWaveThatThrows_StillUnloadsTheBattlefield
+
+    WHY IT MATTERS MOST: `LaneStage` and the HUD chrome BOTH landed this
+    phase, and this suite is the only thing in the project that can confirm
+    the wave capture is unchanged by them. The ledger has been carrying
+    "the view's reads did not change" since Task 10 as well supported by
+    code reading and settled by nothing (progress.md:354).
+
+    A FAILURE HERE MEANS: the lane rewrite or the HUD chrome changed what the
+    capture records. That is a Phase 9 regression in the one artifact the
+    replay system depends on - treat it as blocking, not cosmetic.
+
+--- A2. PortraitStudioPlayTests  (2 tests)
+    client/Assets/Game/Tests/PlayMode/PortraitStudioPlayTests.cs
+
+      Show_ProducesANonBlankTexture_WithinAFewFrames
+      Clear_MakesTheTextureTransparentAgain
+
+    A FAILURE IN `Show_...` MEANS: portraits render blank - two of the three
+    hero screens show a portrait only sometimes, so a blank one is easy to
+    miss by eye.
+    A FAILURE IN `Clear_...` MEANS: the alpha is not actually zeroed. This is
+    the test Task 11 added and could not prove headlessly; its `Clear()` has
+    a `RenderTexture.active` save/restore with NO try/finally (a deferred
+    minor), so a throw inside it leaves the active texture dangling.
+
+--- A3. LaneStagePlayTests  (2 tests)
+    client/Assets/Game/Tests/PlayMode/LaneStagePlayTests.cs
+
+      Show_DrawsTheLaneAndTheCreatures_OnARunningFrame
+      Clear_MakesTheTextureTransparentAgain_AndItsDestroyIsDeferredHere
+
+    A FAILURE MEANS: the dressed lane does not draw, or its destroy ordering
+    regressed. `LaneStage` is new this phase and has no headless coverage.
+
+WRITE THE COUNTS BACK HERE (total/passed/failed) when you have them.
+
+===============================================================================
+B. WATCH A WAVE, WITH THE SHELL HIDDEN
+===============================================================================
+Owed since Task 10. Enter Play mode and watch one wave end to end.
+Look for: Vetch bodies seated in their pockets (not sunk, not floating), the
+dressed lane behind them, and the HUD chrome over the top. Confirm the paper
+shell is actually HIDDEN during the wave and comes back after.
+
+Known and expected, not bugs: Task 6's deferred minor has the shell restored
+BEFORE `await UnloadAsync()`, so the shell covers a still-resident wave for
+the few frames the unload takes. Deliberate - restoring after an unbounded
+await could strand the shell hidden forever.
+
+===============================================================================
+C. THE DEPLOY AND THE SMOKE LOOP - BLOCKED, AND NOT ON A DECISION
+===============================================================================
+Task 3 could not run. This is the one item here that is blocked on a SECRET
+rather than on an Editor.
+
+WHAT WAS MEASURED, 2026-09-22:
+
+  - `gcloud run services list --project broodline-508416` returns ZERO
+    services, in every region. `gcloud run services describe broodline-api`
+    answers "Cannot find service". The Cloud Run Admin API is enabled and the
+    account has access, so this is an empty list, not a permissions error.
+  - `POST $API_URL/v1/wave/abandon` returns 404 - but so does
+    `POST /v1/wave/start`, and so does `GET /`. All three return GOOGLE'S OWN
+    404 page, not the app's. The brief's "401, not 404" check cannot
+    distinguish anything while nothing is serving.
+  - `terraform output -raw api_url` still prints a URL. THE STATE IS STALE:
+    it lists `google_cloud_run_v2_service.api` and `.sim` as existing.
+  - Cloud SQL `broodline-main` IS RUNNING (POSTGRES_16, db-f1-micro). That is
+    what is billing. NOTHING WAS TORN DOWN by Task 20.
+  - `implementation/scripts/smoke-loop.sh:18-21` already says, in its own
+    header: "NEVER RUN. Nothing is deployed as this is written ... this
+    script has been parsed, not executed, and no line below has ever answered
+    against a live stack."
+
+  So the addendum's premise - "The stack is up; the new route is not on it
+  until the api image is rebuilt" - is refuted. The api and sim services do
+  not exist at all. This is not a stale revision; it is a missing service.
+
+WHY AN AGENT DID NOT PROCEED:
+
+  1. `deploy.sh` requires `TF_VAR_db_password` and refuses without it. That
+     value is the live `broodline_app` Postgres role password. Inventing one
+     ROTATES the password on a running database; the correct one exists only
+     in the user's password manager (and in Secret Manager, which an agent
+     should not be reading plaintext credentials out of).
+  2. `smoke-loop.sh` separately needs `DATABASE_URL` as an OWNER-role
+     connection through the Cloud SQL Auth Proxy - a second credential.
+  3. `terraform apply` here would not push a revision. It would RECREATE two
+     deleted Cloud Run services. That is materially larger than the action
+     that was authorised, and it changes what bills.
+
+  Per the brief: "If the deploy fails, stop and report - do not improvise
+  around it, and do not tear anything down." Nothing was torn down and
+  `smoke-loop.ts` was NOT edited, because the brief gates that edit on a 401
+  that cannot be obtained.
+
+WHAT THE HUMAN DOES:
+
+    export PROJECT_ID=broodline-508416
+    export TF_VAR_db_password='<the broodline_app role password>'
+    ./implementation/scripts/deploy.sh
+
+  Then confirm the route exists before touching the smoke loop:
+
+    API_URL="$(terraform -chdir=infra/terraform output -raw api_url)"
+    curl -s -o /dev/null -w '%{http_code}\n' -X POST "$API_URL/v1/wave/abandon"
+    # 401 (requireSession), NOT 404, and NOT Google's 404 page
+
+  THE ROUTE DOES EXIST IN CODE and its contract matches Task 3's step
+  exactly - `services/api/src/routes/wave.ts:863`, declared at
+  `services/api/src/openapi.ts:102`. It answers `{settled: true}` on the
+  first call and `{settled: false}` on a repeat (the `AND settled_at IS NULL`
+  no-op), and `requireSession` is what makes an unauthenticated POST a 401.
+  It has never been executed against a live stack by anything.
+
+  Then add Task 3 Step 2's block to `implementation/scripts/smoke-loop.ts`
+  (the brief has it verbatim) and run:
+
+    bash implementation/scripts/smoke-loop.sh 2>&1 | tail -30
+
+  Expect the new step's tick, the later replayed wave 1 still winning,
+  [A]-[C] passing, and a final PASS. Abandon pays nothing, so the ledger
+  expectations do not change.
+
+  If the api revision fails to start with a generic "container failed to
+  start", read `deploy.sh`'s PREREQUISITES block first - that message is what
+  an unresolvable JWT_SECRET looks like. The secret currently HAS one enabled
+  version, so this should not bite, but the message is misleading enough to
+  be worth naming.
+
+===============================================================================
+D. THE ART JUDGEMENTS - EYES ONLY, NO TEST CAN SETTLE THEM
+===============================================================================
+Carried out of the phase's ledger. All four are recorded trades, not
+regressions; each needs a look and a ruling.
+
+  D1. `Band.png` has outgrown one 932px frame and crops whatever sits last.
+  D2. Skitter's dorsal/flank curvature ratio is 3.08. Fixing it costs 69% of
+      every flank part's pixels - a recorded trade, and the user owns it.
+  D3. Loam's "segmented" body does not read at 40px.
+  D4. `--teal-text` is 3.97:1 on `--teal-tint`, under AA, and BOTH values come
+      from the handoff. It ships at 10px in two places. This needs a palette
+      ruling, not a component-local repaint.
+
+  Corpus to look at: implementation/results/screens/ (20 PNGs at 430x932,
+  regenerated 2026-09-22), plus creature-contact-sheet.png and cinderplate.png.
+
+===============================================================================
+E. ONE PRODUCT INCONSISTENCY WORTH A RULING BEFORE TestFlight
+===============================================================================
+The deploy screen reads "Wave 7" and the combat HUD reads "Wave 6 / 12" -
+two phases of one handoff screen disagreeing about how a wave is named.
+
+  `DeployScreen.WaveStatValue` (DeployScreen.cs:218) returns a bare numeral.
+  `WaveHudScreen.WaveOf` renders "N / 12".
+
+It is one new function and one line, but `WaveStatValue` has three callers and
+one of them is `IncomingHeading` ("INCOMING WAVE 7"), which must NOT gain
+"/ 12". Two tests pin the deploy title against it
+(WaveScreensTests.cs:1423, :1457). Deferred by Task 20 because it changes a
+rendered string on a shipped screen and wants its own capture - not because it
+is unimportant. Decide which form is right, then it is a small task.
