@@ -193,6 +193,24 @@
     --coral-tint: #fbeae7;
     --coral-text: #b3564a;
     --coral-alert: #ff6b5c;       /* breach state - hotter than --coral, HUD only */
+
+    /* THE CORAL BAND'S DEEP END, AND THE ONE VALUE `--coral-tint` CANNOT
+     * STAND IN FOR. Phase 9 Task 18. `Wave Defeat.dc.html:31` is the hero
+     * band in coral, `linear-gradient(170deg, #fbeee9, #f6e2e4)`, and this is
+     * its second stop - the colour `.hero-band--coral .hero-band__surface`
+     * fills with under `band-ramp-coral.png`, on `--violet-tint`'s own
+     * precedent in `HeroBand.uss` ("the colour under the image IS the ramp's
+     * own deep end ... what the band degrades to if the texture ever fails to
+     * import"). --coral-tint (#fbeae7) is 5+8+3 = 16 away from it in summed
+     * channel distance and is the handoff's own value for something else -
+     * the 22px disc behind the hull glyph (`Wave Defense.dc.html:34`,
+     * `Wave Defeat.dc.html:122`), which `DeployView` already reads. A ramp
+     * that ended on the disc's tint would span 6 from its own start and draw
+     * flat; this one spans 16, which is the gradient the handoff drew.
+     * The four blue-grey bands `HeroBand.cs` records need the same pair
+     * (#eef4f7 -> #e4eef4) and no screen in this phase draws one, so their
+     * tokens are not invented here. */
+    --coral-tint-deep: #f6e2e4;   /* HeroBand's coral ramp end - Wave Defeat.dc.html:31 */
     /* MOVED from the handoff's #a9b0c4 by Phase 8 Task 6, which is the only
      * value on this page that does not match the handoff table. Measured,
      * Vetch and Pale were the palette's worst pair under every viewer -

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Regenerates the seven UI textures beside this file. Run from the REPO ROOT:
+"""Regenerates the eight UI textures beside this file. Run from the REPO ROOT:
 
     python3 client/Assets/UI/Art/generate-textures.py
 
-None of them is art; all seven are arithmetic, which is why the script is
+None of them is art; all eight are arithmetic, which is why the script is
 committed with them rather than the PNGs arriving from nowhere. Needs Pillow.
 
 The nine-slice border on shadow-card.png is NOT recorded here - it is
@@ -11,10 +11,11 @@ re-asserted on every import by client/Assets/Editor/ArtImportSettings.cs,
 because a .meta can be regenerated and a silently-zeroed border turns every
 card shadow into a stretched blur.
 
-SIX OF THE SEVEN EXIST BECAUSE USS CANNOT DRAW THEM. Theme.uss's header
+SEVEN OF THE EIGHT EXIST BECAUSE USS CANNOT DRAW THEM. Theme.uss's header
 lists the four primitives the handoff asks for that USS has no property for;
 these are the answers to three of them:
-  - a gradient          -> a ramp texture, stretched (cta, amber, hybrid, band)
+  - a gradient          -> a ramp texture, stretched (cta, amber, hybrid,
+                           band, band-coral)
   - a box-shadow        -> a nine-sliced sprite (shadow-card)
   - a dashed border     -> a ring texture, stretched (hero-ring, band-ring)
 USS has `border-width` and `border-color` and no `border-style` at all, so a
@@ -104,15 +105,16 @@ shadow.save("client/Assets/UI/Art/shadow-card.png")
 
 # ---------------------------------------------------------------------- ramps
 #
-# EACH RAMP RUNS THE WAY ITS GRADIENT DOES, which is why two of the three are
+# EACH RAMP RUNS THE WAY ITS GRADIENT DOES, which is why four of the five are
 # 2x64 and one is 64x2. A ramp is stretched to fill its element, so the axis
 # it varies along IS its direction and there is no other way to say so - USS
-# has no gradient and therefore no angle. The handoff's three:
+# has no gradient and therefore no angle. The handoff's five:
 #
-#   cta      linear-gradient(180deg, #8878cf, #6f5fbb)   top -> bottom
-#   amber    linear-gradient(100deg, #fdf0d0, #f9e0a8)   left -> right
-#   hybrid   linear-gradient(170deg, #ffffff, #f4f0fb)   top -> bottom
-#   band     linear-gradient(170deg, #ffffff, #efe9fb)   top -> bottom
+#   cta         linear-gradient(180deg, #8878cf, #6f5fbb)   top -> bottom
+#   amber       linear-gradient(100deg, #fdf0d0, #f9e0a8)   left -> right
+#   hybrid      linear-gradient(170deg, #ffffff, #f4f0fb)   top -> bottom
+#   band        linear-gradient(170deg, #ffffff, #efe9fb)   top -> bottom
+#   band-coral  linear-gradient(170deg, #fbeee9, #f6e2e4)   top -> bottom
 #
 # 100deg is 10 degrees off horizontal and 170deg is 10 off vertical; CSS
 # measures a gradient line clockwise from up, so both are within 10 degrees
@@ -124,7 +126,7 @@ shadow.save("client/Assets/UI/Art/shadow-card.png")
 # THE HYBRID RAMP'S DEEP END IS NOT THE HANDOFF'S. Tokens.uss's
 # --hybrid-tint-deep has the reasoning - the handoff's #f4f0fb is a sheen on
 # the #f7f4fb page the panel sits on there, and is invisible on the white
-# SectionCard this project puts the panel on. The other five endpoints are
+# SectionCard this project puts the panel on. The other seven endpoints are
 # the handoff's own, to the digit.
 #
 # THE BAND RAMP IS NOT THE HYBRID RAMP, AND THE FIRST THING CHECKED WAS
@@ -162,6 +164,36 @@ ramp("cta-ramp.png", (0x88, 0x78, 0xcf), (0x6f, 0x5f, 0xbb))
 ramp("amber-ramp.png", (0xfd, 0xf0, 0xd0), (0xf9, 0xe0, 0xa8), horizontal=True)
 ramp("hybrid-ramp.png", (0xf7, 0xf4, 0xfb), (0xeb, 0xe4, 0xf7))
 ramp("band-ramp.png", (0xff, 0xff, 0xff), (0xf1, 0xec, 0xfa))
+
+# A SECOND BAND RAMP, BECAUSE A TINT IS A RAMP AND NOT A COLOUR. Phase 9
+# Task 18. `Wave Defeat.dc.html:31` is the band in coral -
+# `linear-gradient(170deg, #fbeee9, #f6e2e4)` at radius 26 with the same
+# `0 4px 16px` - and `HeroBand.cs` records four more of the same furniture in
+# a blue-grey. None of them is white-to-tint the way the violet six are: they
+# run pale-tint to deep-tint, so neither of the two cheap hooks reproduces one.
+#
+# WHAT WAS MEASURED AND REJECTED, so nobody re-derives it:
+#   - `-unity-background-image-tint-color` on this file's own band-ramp.png.
+#     The tint MULTIPLIES, so the top lands exactly on the tint passed and the
+#     bottom lands on --violet-tint TIMES it. For coral (tint #fbeee9) the
+#     bottom comes out #eddce4 against the handoff's #f6e2e4 - 9+6+0 = 15 in
+#     summed channel distance, which this project would accept. For the FOUR
+#     blue-grey bands (tint #eef4f7) it comes out #e1e2f2 against #e4eef4:
+#     3+12+2 = 17 summed, but the green channel carries all of it and it
+#     carries it the wrong way. The handoff's deep end is G-R = +10 (a cool
+#     blue-green); multiplied through the violet ramp it is G-R = +1 and
+#     B-G = +16, which is the violet ramp's own cast showing through. A hook
+#     that passed coral and failed the four is a hook designed for one screen.
+#   - an ALPHA ramp (white fading to transparent) over `background-color`, so
+#     the fill alone would be the hook. It cannot express these: solving
+#     white*a + deep*(1-a) = the handoff's top per channel gives a = 0.56,
+#     0.41 and 0.19 for coral's three channels. A two-stop ramp between two
+#     DIFFERENT hues is not one colour behind one alpha wash.
+#
+# So each tint is its own two-stop ramp at the handoff's own endpoints, which
+# is what every other ramp in this file already is. The fifth and sixth cost
+# one line here, one token pair and one rule in HeroBand.uss.
+ramp("band-ramp-coral.png", (0xfb, 0xee, 0xe9), (0xf6, 0xe2, 0xe4))
 
 # ----------------------------------------------------------- the two rings
 #
@@ -296,4 +328,4 @@ dotted_ring("band-ring.png",
             4.0 / 16.0)    # the handoff's `stroke-dasharray: 4 12`
 
 print("wrote shadow-card, cta-ramp, amber-ramp, hybrid-ramp, band-ramp, "
-      "hero-ring, band-ring")
+      "band-ramp-coral, hero-ring, band-ring")

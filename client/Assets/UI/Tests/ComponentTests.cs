@@ -647,6 +647,97 @@ namespace Broodline.UI.Tests
                 + "would be silently enlarged to the halo size meant for a lone founder creature");
         }
 
+        /// THE TINT HOOK - Phase 9 Task 18. `Wave Defeat.dc.html:31` is this
+        /// band in coral, and the component had no way to say so.
+        ///
+        /// THE DEFAULT ADDS NO CLASS AT ALL, which is the half that protects
+        /// the six screens written before the hook existed: a
+        /// `.hero-band--violet` modifier would have had to restate
+        /// `.hero-band__surface`'s own declarations, and every one of those
+        /// screens would then depend on a rule nothing forced anyone to keep
+        /// in step with the base one.
+        [Test]
+        public void AHeroBandsTintIsAModifierOnTheRootAndTheDefaultIsNoModifierAtAll()
+        {
+            var violet = new HeroBand();
+            Assert.AreEqual(HeroBand.Tint.Violet, violet.Tinted);
+            Assert.IsNull(HeroBand.TintUssClassName(HeroBand.Tint.Violet),
+                "the default tint named a class; the base rule would then be shadowed by a copy");
+            Assert.IsFalse(
+                violet.GetClasses().Any(c => c.StartsWith(HeroBand.UssClassName + "--")),
+                "a default band wears a tint modifier: " + string.Join(" ", violet.GetClasses()));
+
+            var coral = new HeroBand(ring: false, tint: HeroBand.Tint.Coral);
+            Assert.AreEqual(HeroBand.Tint.Coral, coral.Tinted);
+            Assert.IsTrue(coral.ClassListContains(HeroBand.TintUssClassName(HeroBand.Tint.Coral)),
+                "a coral band does not carry the class HeroBand.uss keys its ramp off");
+
+            // THE MODIFIER IS ON THE ROOT AND NOT ON THE SURFACE, which is
+            // what makes the stylesheet's descendant selector resolve. Pinned
+            // because the two are one line apart in the constructor and
+            // putting it on the surface would leave every assertion above
+            // green while the band drew violet.
+            Assert.IsFalse(
+                coral.Q<VisualElement>("surface").ClassListContains(
+                    HeroBand.TintUssClassName(HeroBand.Tint.Coral)),
+                "the tint modifier landed on the surface; `.hero-band--coral .hero-band__surface` "
+                + "is a DESCENDANT selector and would then match nothing");
+        }
+
+        /// The rule behind the class, read out of the sheet.
+        ///
+        /// IN A PANEL-LESS SUITE AN INLINE-STYLE ASSERTION CANNOT SEE A
+        /// STYLESHEET RULE - `TheDefaultFormStaysContentSizedInTheStylesheet
+        /// Itself` is the pattern and its comment carries the argument. The
+        /// class-list test above proves the band ASKS for the coral ramp;
+        /// nothing else in the project would notice if the rule it asks for
+        /// did not exist, because a modifier that matches nothing renders as
+        /// the base rule and looks exactly like a band that is meant to be
+        /// violet.
+        ///
+        /// BOTH DECLARATIONS, BECAUSE HALF OF THIS RULE IS THE FAILURE MODE.
+        /// `.hero-band__surface` sets a background-image AND a background-
+        /// colour, and its own note says the colour is what the band degrades
+        /// to when a texture fails to import. A tint that swapped the image
+        /// and left `--violet-tint` underneath would be correct in every
+        /// screenshot and wrong on the one device where the import failed.
+        [Test]
+        public void TheCoralTintSwapsBothTheRampAndTheFillItDegradesTo()
+        {
+            var path = Path.GetFullPath(Path.Combine(
+                UnityEngine.Application.dataPath, "UI/Components/Resources/HeroBand.uss"));
+            Assert.IsTrue(File.Exists(path), $"HeroBand.uss not found at {path}");
+
+            var stripped = StripBlockComments(File.ReadAllText(path));
+            var body = BlockOf(stripped, ".hero-band--coral .hero-band__surface");
+
+            StringAssert.Contains("band-ramp-coral.png", body,
+                "the coral tint does not name its own ramp, so it draws the violet one");
+            StringAssert.Contains("--coral-tint-deep", body,
+                "the coral tint leaves --violet-tint as the fill under its ramp - correct in every "
+                + "capture and violet on any device where the texture fails to import");
+
+            // THE FAILURE MODE, CONSTRUCTED. Both assertions above would pass
+            // against the BASE rule's own body if the selector had silently
+            // stopped matching what it names, so the base rule is read too and
+            // must NOT be the coral one.
+            var baseBody = BlockOf(stripped, ".hero-band__surface");
+            StringAssert.DoesNotContain("band-ramp-coral.png", baseBody,
+                "the base rule draws the coral ramp - every violet band in the bundle just turned");
+        }
+
+        /// The declarations of the first rule whose selector is exactly
+        /// `selector`. `GrowsOrSizesItself` does the same match inline; this is
+        /// that match with the body returned rather than tested, because two
+        /// tests now want to read a block instead of asking one question of it.
+        static string BlockOf(string strippedUss, string selector)
+        {
+            var pattern = @"(?<![\w-])" + Regex.Escape(selector) + @"(?![\w-])\s*\{([^}]*)\}";
+            var m = Regex.Match(strippedUss, pattern);
+            Assert.IsTrue(m.Success, $"selector `{selector}` not found in HeroBand.uss");
+            return m.Groups[1].Value;
+        }
+
         /// A band with nothing in it is a real state, not a broken one: the
         /// handoff's splice chamber opens with neither parent picked, and
         /// `Gene Ark` draws its band around a scene that has not loaded. The

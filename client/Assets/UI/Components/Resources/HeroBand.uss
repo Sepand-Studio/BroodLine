@@ -60,6 +60,33 @@
     overflow: hidden;
 }
 
+/* THE TINT HOOK, AND IT SWAPS A RAMP RATHER THAN A COLOUR. Phase 9 Task 18.
+ * `HeroBand.Tint`'s own comment has the measurement in full; the short form is
+ * that the five other-tinted bands in the bundle do NOT run white-to-tint the
+ * way the violet six do - `Wave Defeat.dc.html:31` runs `#fbeee9 -> #f6e2e4`
+ * - so multiplying this file's own ramp through
+ * `-unity-background-image-tint-color` reproduces coral to 15 in summed channel
+ * distance and the four blue-grey ones to 17 WITH THE SIGN OF `G - R`
+ * REVERSED, which is the violet ramp's cast coming through a wash. Each tint
+ * is therefore its own two-stop texture at the handoff's own endpoints, which
+ * is what every other ramp in `generate-textures.py` already is.
+ *
+ * TWO CLASSES, AND THE ROOT CARRIES THE MODIFIER. `.hero-band--coral` goes on
+ * the band (HeroBand's constructor) and this reaches DOWN to the surface
+ * inside it - the direction StatCell.uss's closing note allows. Two classes
+ * also beats the one-class base rule above however the panel orders the sheet,
+ * which is the rule every override in this phase follows.
+ *
+ * BOTH DECLARATIONS MOVE TOGETHER OR NEITHER DOES. The base rule's own note
+ * three paragraphs up says the fill under the image IS the ramp's deep end and
+ * is what the band degrades to when a texture fails to import; a tint that
+ * changed the image and left `--violet-tint` underneath would degrade to the
+ * WRONG band, silently, in exactly the case nobody is looking. */
+.hero-band--coral .hero-band__surface {
+    background-image: url("project:///Assets/UI/Art/band-ramp-coral.png");
+    background-color: var(--coral-tint-deep);
+}
+
 /* A full-bleed layer whose only job is to centre the ring, because USS has
  * no way to say "65% of my parent's width, square". There is no `calc()` and
  * no `aspect-ratio` on 6000.6.0f1, so a percentage width cannot produce a

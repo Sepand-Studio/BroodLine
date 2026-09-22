@@ -25,10 +25,13 @@ namespace Broodline.UI.Components
     /// (`#eef4f7 -> #e4eef4`), and `Wave Defeat:31`
     /// (`#fbeee9 -> #f6e2e4`, radius 26, `box-shadow: 0 4px 16px` - the
     /// `.elev-2` pair, so it is this band in coral and nothing else).
-    /// `.hero-band__surface` (`HeroBand.uss`) hard-codes `band-ramp.png` and
-    /// `--violet-tint` with NO TINT HOOK, so a later task reaching for one of
-    /// these five will need to add one. Not built here - Phase 9's six are
-    /// the violet ones, and that is what this component is for now.
+    /// THE TINT HOOK EXISTS AS OF PHASE 9 TASK 18 AND `Wave Defeat` IS ITS
+    /// FIRST READER. `.hero-band__surface` hard-coded `band-ramp.png` and
+    /// `--violet-tint` with nowhere to say "the same band in another tint";
+    /// `Tint` is that, and its own comment has the two cheaper hooks that were
+    /// measured and rejected. `Coral` is built; the four blue-grey ones are
+    /// one tint between them and are three lines away, written down under
+    /// `Tint` rather than pre-built, because no screen in this phase draws one.
     ///
     /// SIX UNTIL PHASE 9 TASK 17 MEASURED THE LIST, AND THE ONE THAT LEFT IT
     /// WAS `Wave Defense:69`. Two things were wrong about it and both were
@@ -116,6 +119,69 @@ namespace Broodline.UI.Components
         /// `Splice Reveal`) rather than in each screen's own sheet.
         public const string SubjectHaloedUssClassName = "hero-band__subject--haloed";
 
+        /// PUBLIC-SHAPE ADDITION, DECLARED RATHER THAN SLIPPED IN - Phase 9
+        /// Task 18, and it is the hook the class comment above says a later
+        /// task would need. Task 19 reaches this component too.
+        ///
+        /// A TINT IS A RAMP AND NOT A COLOUR, WHICH IS THE WHOLE SHAPE OF THIS
+        /// TYPE. The violet six run white to `--violet-tint`; the five in
+        /// other tints run PALE-TINT to DEEP-TINT - `Wave Defeat:31` is
+        /// `#fbeee9 -> #f6e2e4` and the four blue-grey ones are
+        /// `#eef4f7 -> #e2edf3`/`#e4eef4`. Two hooks that WOULD have been
+        /// cheaper were measured and rejected in `generate-textures.py`'s ramp
+        /// block: tinting `band-ramp.png` through
+        /// `-unity-background-image-tint-color` lands coral's deep end 15 away
+        /// in summed channel distance (acceptable) and the blue-grey's 17 away
+        /// with the sign of `G - R` reversed (not - it is the violet ramp's own
+        /// cast showing through), and an alpha ramp over one `background-color`
+        /// cannot express a two-stop gradient between two different hues at
+        /// all. So a tint NAMES A RAMP, and each one costs a `ramp()` line, a
+        /// token pair and one rule in `HeroBand.uss`.
+        ///
+        /// THE FIVE ARE TWO TINTS, NOT FIVE, at this precision: `#e2edf3` and
+        /// `#e4eef4` are 4 apart in summed channel distance, so `Collector
+        /// Intercept:46`, `Alliance Hub:50`, `Alliance Rally:45` and `Relocate
+        /// Ark:45` are one blue-grey between them. Only `Coral` is built here,
+        /// because only `Wave Defeat` is drawn in this phase and an enum member
+        /// with no USS rule behind it renders as violet in silence - the same
+        /// reason this component shipped with the violet six alone. The
+        /// recipe for the other is written down rather than pre-built:
+        ///   1. `ramp("band-ramp-mist.png", (0xee,0xf4,0xf7), (0xe3,0xed,0xf3))`
+        ///   2. `--mist-tint-deep: #e3edf3` in `Tokens.uss`, with its handoff
+        ///      line - it is the midpoint of the two the four screens draw.
+        ///   3. `.hero-band--mist .hero-band__surface` beside the coral rule.
+        ///   4. `Mist` here, and a frame in the `Band` fixture.
+        public enum Tint
+        {
+            /// The six violet bands - `band-ramp.png`, and the state every
+            /// band built before this task is in. No modifier class at all, so
+            /// `.hero-band__surface`'s own declarations are what render.
+            Violet,
+
+            /// `Wave Defeat.dc.html:31`.
+            Coral,
+        }
+
+        /// The modifier a tint puts on the ROOT, so `HeroBand.uss` can reach
+        /// the surface inside it. On the root and not on the surface because
+        /// USS on 6000.6.0f1 has no way to write "the surface of a coral band"
+        /// from a class on the surface without inventing a second class for
+        /// every tint, and because `Tint` is a property of the BAND.
+        ///
+        /// Returns null for `Violet`, which is not a special case being
+        /// smuggled in: the violet ramp is `.hero-band__surface`'s own
+        /// declaration, so the default tint is the absence of a modifier and
+        /// a `.hero-band--violet` rule would restate the base rule verbatim.
+        public static string TintUssClassName(Tint tint)
+        {
+            return tint == Tint.Coral ? UssClassName + "--coral" : null;
+        }
+
+        /// Which ramp this instance draws. Read-only after construction: the
+        /// tint is a fact about which handoff screen the band belongs to, and
+        /// no screen in the bundle changes it at runtime.
+        public Tint Tinted { get; }
+
         readonly VisualElement _surface;
 
         /// Where the screen's own content goes, deliberately not `this` and
@@ -128,10 +194,19 @@ namespace Broodline.UI.Components
         /// `ring: true` is the default because the band's canonical instance
         /// has one - `Onboarding.dc.html:43` is the fullest of the six and is
         /// what every measurement in `HeroBand.uss` is taken from.
-        public HeroBand(bool ring = true)
+        ///
+        /// `tint` DEFAULTS TO VIOLET, so every call site written before Phase 9
+        /// Task 18 keeps its exact behaviour and its exact class list - the
+        /// default adds no modifier at all. See `Tint`.
+        public HeroBand(bool ring = true, Tint tint = Tint.Violet)
         {
             AddToClassList(UssClassName);
             AddToClassList(ElevationUssClassName);
+
+            Tinted = tint;
+            var modifier = TintUssClassName(tint);
+            if (modifier != null) AddToClassList(modifier);
+
             Resources.Load<VisualTreeAsset>("HeroBand").CloneTree(this);
 
             _surface = this.Q<VisualElement>("surface");
