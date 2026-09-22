@@ -80,7 +80,19 @@
 /* --amber-text comes from `.t-warn`. `white-space: normal` so a sentence
  * wraps rather than running off the strip: the copy is authored by the
  * server and this component cannot know its length, which is exactly the
- * mistake `.screen-scaffold__footer-note` records making once. */
+ * mistake `.screen-scaffold__footer-note` records making once.
+ *
+ * AND `t-num` IS ON THE LABEL AS OF PHASE 9 TASK 16, WHICH COSTS NOTHING
+ * HERE AND IS NOT DECORATION. The sentence this banner carries in this app
+ * is `SpliceScreen.MutationLine` - "Mutation 9% - of which Aberrant 1%." -
+ * which is splice_confirm_spec 2's two-numbers requirement and is therefore
+ * exactly what bible 10.6's tabular face and 11px floor are for. The size
+ * below IS --text-secondary already, so the marker changes no pixel; what it
+ * changes is that the floor is now enforceable on this label and that
+ * `ScreenBindingTests` can still read the marker it has asserted since
+ * Phase 8. The banner's own public shape is untouched: no class name moved,
+ * no constructor changed, and a caller that puts a wordier sentence in it
+ * gets the same 11px it got before. */
 .mutation-banner__text {
     flex-grow: 1;
     flex-shrink: 1;

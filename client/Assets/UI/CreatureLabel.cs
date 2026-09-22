@@ -74,5 +74,59 @@ namespace Broodline.UI
             var roman = Tier(tier);
             return roman.Length == 0 ? trait : trait + " " + roman;
         }
+
+        /// bible 1.2's Role column - "Wall" for a Vetch, "Sniper" for a
+        /// Hollow. The one word that says what a species is FOR.
+        ///
+        /// THE HANDOFF ASKS FOR THIS LINE AND THE DTO DOES NOT CARRY IT.
+        /// `Splice Chamber.dc.html:65` draws a muted line under each parent's
+        /// name ("Armored · Slow") and `Creature Roster.dc.html:64` draws the
+        /// same shape on every card ("Warform · on duty"); `CreatureDto` has a
+        /// species and an instinct and no role field at all. bible 1.2's table
+        /// is where that word actually lives, so this is a LOOKUP OF A
+        /// PUBLISHED TABLE rather than a derivation - the six rows are
+        /// `broodline_bible.md:42-48`, in the order that file lists them.
+        ///
+        /// EMPTY FOR ANYTHING ELSE, NEVER A GUESS, on `CreatureSprites`' rule
+        /// and `HeroSlot.SetSpecies`'s. A display name like "Ember Skitter"
+        /// names two of the six and nothing can pick between them, so the line
+        /// it produces is empty and `RoleLine` collapses to whatever else it
+        /// has - which is visible, and therefore findable.
+        public static string SpeciesRole(string species)
+        {
+            switch ((species ?? string.Empty).Trim().ToLowerInvariant())
+            {
+                case "vetch":   return "Wall";
+                case "ember":   return "Splash";
+                case "skitter": return "Swarm";
+                case "hollow":  return "Sniper";
+                case "loam":    return "Support";
+                case "pale":    return "Control";
+                default:        return string.Empty;
+            }
+        }
+
+        /// "Wall · Forage" - the muted line under a creature's name.
+        ///
+        /// TWO FACTS THE PLAYER ALREADY OWNS, not a third invented one. The
+        /// handoff's own line is two descriptors joined by a middle dot; ours
+        /// are the species' role (bible 1.2) and the creature's Instinct,
+        /// which is a field on the DTO and is the other thing bible 1.2 makes
+        /// a breeding target ("Instinct inherits independently of the body").
+        ///
+        /// EITHER HALF MAY BE MISSING AND THE JOINER GOES WITH IT, because a
+        /// line reading " · Forage" is a hole where a fact should be. Both
+        /// missing collapses to empty, and both callers hide the row on that.
+        public static string RoleLine(CreatureDto creature)
+        {
+            if (creature == null) return string.Empty;
+
+            var role = SpeciesRole(creature.Species);
+            var instinct = (creature.Instinct ?? string.Empty).Trim();
+
+            if (role.Length == 0) return instinct;
+            if (instinct.Length == 0) return role;
+            return role + " · " + instinct;
+        }
     }
 }

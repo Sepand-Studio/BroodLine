@@ -181,6 +181,134 @@ namespace Broodline.UI
         /// splice_confirm_spec section 5: "Then show the lineage." The button
         /// says where it goes, because beat 8 is the point of the session.
         public const string NextLabel = "See the lineage";
+
+        // ---------------------------------------------------------------
+        // Phase 9 Task 16 - `Splice Reveal.dc.html`'s own words. Every
+        // eyebrow below ships UPPERCASE for the reason
+        // `FounderNamingScreen.Eyebrow` states in full: the handoff gets it
+        // from `.lbl { text-transform: uppercase }`, UI Toolkit has no
+        // `text-transform`, and the user ruled the casing lives in the
+        // NAMED CONSTANT and nowhere else.
+        // ---------------------------------------------------------------
+
+        /// The kicker over the headline - `Splice Reveal.dc.html:123`'s
+        /// revealed arm, verbatim. It states the cost in the past tense,
+        /// which is splice_confirm_spec 5's whole point: the reveal
+        /// CONFIRMS what the chamber already said rather than disclosing it.
+        public const string Eyebrow = "SPLICE COMPLETE · CHARGE SPENT";
+
+        /// The traits card's eyebrow and its right-hand note -
+        /// `Splice Reveal.dc.html:125` and `:126`, revealed arm. "final" is
+        /// lowercase in the handoff and is not a `.lbl`, so it is not
+        /// uppercased here - the pair reads "these are odds no longer".
+        public const string TraitsHeading = "INHERITED TRAITS";
+        public const string TraitsNote = "final";
+
+        /// Which parent brought one of the child's traits, or null when
+        /// neither did - which is what a mutation is.
+        ///
+        /// THE CREATURE AND NOT ITS SPECIES, WHICH `SpliceScreen.TraitOwner`
+        /// RETURNS AND IS THE RIGHT ANSWER THERE. The chamber needs a colour
+        /// family and two parents of one species would colour alike either
+        /// way; the reveal needs to NAME the parent, and "From Ash" and
+        /// "From Bramble" are two different sentences from one species. Two
+        /// callers, two questions, and neither is the other's helper.
+        ///
+        /// A IS CHECKED FIRST, and where both carry the trait either answer
+        /// names a real source - the tie is broken by order rather than by
+        /// inventing a rule, which is the same call `TraitOwner` makes.
+        public static CreatureDto SourceOf(string trait, CreatureDto parentA, CreatureDto parentB)
+        {
+            if (string.IsNullOrEmpty(trait)) return null;
+            if (Holds(parentA, trait)) return parentA;
+            if (Holds(parentB, trait)) return parentB;
+            return null;
+        }
+
+        /// What a trait row says brought it - `Splice Reveal.dc.html:127-129`.
+        ///
+        /// THE PLAYER'S NAME WHERE THERE IS ONE, on `CreatureLabel
+        /// .DisplayName`'s rule and not the handoff's bare species. bible 3.3
+        /// makes the Founder's name the thing that carries weight, and "From
+        /// Ash" on the screen that just consumed Ash is the whole lesson of
+        /// the beat; "From Vetch" is a fact about stock.
+        ///
+        /// "Mutation" WHEN NEITHER PARENT CARRIES IT, which is the handoff's
+        /// own third row at `:129` and is the definition the reveal's note
+        /// states in words ("it isn't in either parent", `:137`).
+        public static string SourceLabel(string trait, CreatureDto parentA, CreatureDto parentB)
+        {
+            var source = SourceOf(trait, parentA, parentB);
+            if (source == null) return MutationLabel;
+            var name = CreatureLabel.DisplayName(source);
+            return name.Length == 0 ? MutationLabel : "From " + name;
+        }
+
+        /// What a trait row says when NEITHER parent brought it -
+        /// `Splice Reveal.dc.html:129`.
+        public const string MutationLabel = "Mutation";
+
+        /// Which of the child's two combat traits is the mutation, or null.
+        ///
+        /// A SET DIFFERENCE OVER THREE DTOs, NOT A RE-DERIVED FORECAST, and
+        /// the distinction matters because `SpliceConfirmTests` is built on
+        /// this assembly never computing odds. A mutation is DEFINED as a
+        /// trait that is in neither parent - the reveal's own note says so in
+        /// as many words ("it isn't in either parent",
+        /// `Splice Reveal.dc.html:137`) - so with both parents and the child
+        /// in hand, naming it is a lookup. Nothing here decides WHETHER a
+        /// mutation happened: that is `mutated`, and it arrives from
+        /// `GET /v1/lineage`.
+        ///
+        /// NULL IS A REAL ANSWER AND HAS TWO CAUSES, both handled the same
+        /// way by the caller: either parent missing (the reveal already says
+        /// so through `NoParentsMessage`), or a `mutated` child whose two
+        /// traits both appear in a parent - which is reachable, because the
+        /// flag comes from the tree and the tree records the ROLL rather than
+        /// the slot it landed in. In both cases the pill states that a
+        /// mutation rolled without naming a trait it cannot identify.
+        public static string MutatedTrait(CreatureDto child, CreatureDto parentA, CreatureDto parentB)
+        {
+            if (child == null || parentA == null || parentB == null) return null;
+            if (IsNew(child.Trait1, parentA, parentB)) return child.Trait1;
+            if (IsNew(child.Trait2, parentA, parentB)) return child.Trait2;
+            return null;
+        }
+
+        static bool IsNew(string trait, CreatureDto parentA, CreatureDto parentB)
+        {
+            if (string.IsNullOrEmpty(trait)) return false;
+            return !Holds(parentA, trait) && !Holds(parentB, trait);
+        }
+
+        static bool Holds(CreatureDto creature, string trait)
+        {
+            if (creature == null) return false;
+            return string.Equals(creature.Trait1, trait, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(creature.Trait2, trait, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// The gold pill on the hero card - `Splice Reveal.dc.html:62`'s
+        /// `MUTATION ROLLED · ASHVEIL`.
+        ///
+        /// UPPERCASE INCLUDING THE TRAIT, which is the one place in this file
+        /// a runtime value is upper-cased rather than typed that way. The
+        /// handoff's pill is a `letter-spacing: .06em` label in the same
+        /// uppercase voice as every `.lbl`, and the trait is part of the
+        /// label rather than a value beside it. `ToUpperInvariant`, not the
+        /// current culture: a Turkish locale lower-cases `I` to a dotless
+        /// glyph, and a trait id is an identifier.
+        ///
+        /// WITHOUT A TRAIT IT STILL SAYS THE EVENT HAPPENED. `MutatedTrait`
+        /// returns null for a reachable state, and "MUTATION ROLLED" alone is
+        /// true; a pill that vanished would drop the rarest outcome in the
+        /// game off the screen built to celebrate it.
+        public static string MutationPill(string trait)
+        {
+            const string Rolled = "MUTATION ROLLED";
+            return string.IsNullOrEmpty(trait)
+                ? Rolled : Rolled + " · " + trait.ToUpperInvariant();
+        }
     }
 
     /// Beat 8 - the two-generation tree that closes session one.

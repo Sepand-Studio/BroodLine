@@ -3,5 +3,5 @@
     <ui:VisualElement name="disc" class="mutation-banner__disc">
         <ui:VisualElement name="spark" class="icon icon--sparkle mutation-banner__spark" />
     </ui:VisualElement>
-    <ui:Label name="text" class="mutation-banner__text t-warn" />
+    <ui:Label name="text" class="mutation-banner__text t-warn t-num" />
 </ui:UXML>

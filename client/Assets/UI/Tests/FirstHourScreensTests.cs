@@ -528,6 +528,162 @@ namespace Broodline.UI.Tests
                 "Motion.uss's reveal transition is applied to nothing, so the payoff snaps in");
         }
 
+        /// THE HERO CARD IS A `HeroBand` AS OF PHASE 9 TASK 16, AND THAT IS
+        /// WHY THE TEST ABOVE STILL PASSES WITHOUT A `.elev-2` IN THIS
+        /// SCREEN'S MARKUP. `Splice Reveal.dc.html:43` is the band's
+        /// canonical fixed instance - radius 26 (`--radius-band` exactly),
+        /// `0 4px 16px` (`.elev-2` exactly), `overflow: hidden`, a dashed
+        /// ring and a filled pool, and `height: 372px`, which is the literal
+        /// example in `HeroBand`'s own class comment. This pins the swap so
+        /// that a future edit replacing the band with a plain wrapper loses a
+        /// test rather than losing the gradient, the ring and the pool
+        /// silently.
+        [Test]
+        public void SpliceReveal_TheHeroCardIsAHeroBandFixedAtTheHandoffsOwnHeight()
+        {
+            var view = BoundReveal(mutated: true, Creature("Vetch", id: A), Creature("Ember", id: B));
+
+            var band = view.Q<HeroBand>("child");
+            Assert.IsNotNull(band, "the reveal's hero card is not a HeroBand");
+
+            // `Fix` writes the height to the SURFACE and never to the
+            // elevation wrapper - the distinction that cost Task 14b a
+            // capture. Read off the surface for that reason: a height on the
+            // root would size the shadow and leave the fill at its content
+            // height, which is the defect rather than the fix.
+            var surface = band.Q<VisualElement>("surface");
+            Assert.AreEqual(372f, surface.style.height.value.value,
+                "the band is not fixed at Splice Reveal.dc.html:43's own 372px");
+
+            // `ring: true`, which is what the handoff's `:45` dashed circle
+            // and `:46` pool are. `HeroBand` REMOVES the halo when there is
+            // no ring, so its presence is the discriminator.
+            Assert.IsNotNull(band.Q<VisualElement>("halo"),
+                "the reveal's band has no ring, so its subject sits on bare gradient");
+        }
+
+        /// A PORTRAIT TURNS ON THE SCREEN BUILT TO CELEBRATE IT - design
+        /// section 3.8's third hero moment. The two `HeroSlot` forms are told
+        /// apart by `Q("body")`, which that component documents: a live slot
+        /// REMOVES its three sprite layers rather than leaving them empty
+        /// behind the stage, so a slot answering to both names would be one
+        /// no test could distinguish.
+        [Test]
+        public void SpliceReveal_WithAPortrait_FramesTheLiveStageAndDropsTheSpriteStack()
+        {
+            var child = Creature("Hollow", generation: 2, id: C);
+            var view = new SpliceRevealView();
+            var texture = new UnityEngine.Texture2D(4, 4);
+            try
+            {
+                view.Bind(CommitOf(child), Creature("Vetch", id: A), Creature("Ember", id: B),
+                    mutated: false, next: () => { }, onBack: null, portrait: texture);
+
+                var slot = view.Q<HeroSlot>(C.ToString());
+                Assert.IsNotNull(slot, "the child has no hero slot");
+                Assert.IsNotNull(slot.Q<CreatureStage>(),
+                    "a reveal handed a portrait is still drawing baked sprites");
+                Assert.IsNull(slot.Q<VisualElement>("body"),
+                    "the sprite layers were left behind the live stage");
+                Assert.IsTrue(slot.ClassListContains(HeroSlot.LiveUssClassName));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(texture);
+            }
+        }
+
+        /// AND NO PORTRAIT IS A REAL ANSWER, which is the complement that
+        /// makes the test above mean something: `FtueDirector` may hold no
+        /// studio, the EditMode suite has no camera, and `ScreenFixtures`
+        /// captures this screen in batch mode. All three want the same
+        /// screen with a baked creature in it.
+        [Test]
+        public void SpliceReveal_WithoutAPortrait_FallsBackToTheBakedSpriteStack()
+        {
+            var view = BoundReveal(mutated: false, Creature("Vetch", id: A), Creature("Ember", id: B));
+
+            var slot = view.Q<HeroSlot>(C.ToString());
+            Assert.IsNotNull(slot);
+            Assert.IsNotNull(slot.Q<VisualElement>("body"));
+            Assert.IsNull(slot.Q<CreatureStage>());
+        }
+
+        /// THE PILL IS THE RAREST OUTCOME IN THE GAME AND IT SAYS SO EVEN
+        /// WHEN IT CANNOT NAME THE TRAIT. `MutatedTrait` is a set difference
+        /// over the child and its two parents, and it returns null for a
+        /// reachable state - a `mutated` child whose two traits both appear
+        /// in a parent, because the flag comes from the tree and the tree
+        /// records the ROLL rather than the slot it landed in.
+        [Test]
+        public void SpliceReveal_AMutationShowsItsPill_AndAPlainSpliceDoesNot()
+        {
+            var parentA = Creature("Vetch", id: A);
+            var parentB = Creature("Ember", id: B);
+
+            var mutated = BoundReveal(mutated: true, parentA, parentB);
+            var pill = mutated.Q<VisualElement>("mutation-pill");
+            Assert.IsNotNull(pill, "the mutation pill is not on the screen at all");
+            Assert.AreEqual(DisplayStyle.Flex, pill.style.display.value);
+            StringAssert.StartsWith("MUTATION ROLLED", pill.Q<Label>("pill-text").text);
+
+            var plain = BoundReveal(mutated: false, parentA, parentB);
+            Assert.AreEqual(DisplayStyle.None,
+                plain.Q<VisualElement>("mutation-pill").style.display.value,
+                "a splice with no mutation still celebrates one");
+        }
+
+        /// A TRAIT THE CHILD HAS AND NEITHER PARENT DOES IS A MUTATION, AND
+        /// THE ROW SAYS SO BY NAME. This is the assertion that the reveal
+        /// reads its three creatures rather than the `mutated` flag alone:
+        /// the flag says THAT one happened, the set difference says WHICH.
+        [Test]
+        public void SpliceReveal_NamesWhichParentBroughtEachTrait_AndMarksTheOneNeitherDid()
+        {
+            var parentA = Creature("Vetch", name: "Ash", founder: true, id: A);
+            var parentB = Creature("Ember", id: B);
+
+            // Both fixture parents carry Chill/Taunt, so a child holding
+            // Chill and "Ashveil" has exactly one inherited trait and one
+            // that is in neither - which is what a mutation IS.
+            var child = Creature("Vetch", generation: 2, id: C);
+            child.Trait2 = "Ashveil";
+            child.Tier2 = null;
+
+            var view = new SpliceRevealView();
+            view.Bind(CommitOf(child), parentA, parentB, mutated: true, next: () => { });
+
+            Assert.AreEqual(SpliceRevealScreen.SourceLabel("Chill", parentA, parentB),
+                view.Q<VisualElement>("Chill").Q<Label>("source").text);
+            StringAssert.Contains("Ash", view.Q<VisualElement>("Chill").Q<Label>("source").text);
+
+            Assert.AreEqual(SpliceRevealScreen.MutationLabel,
+                view.Q<VisualElement>("Ashveil").Q<Label>("source").text);
+
+            Assert.AreEqual("Ashveil",
+                SpliceRevealScreen.MutatedTrait(child, parentA, parentB));
+            StringAssert.Contains("ASHVEIL",
+                view.Q<VisualElement>("mutation-pill").Q<Label>("pill-text").text);
+        }
+
+        /// THE EYEBROW SHIPS UPPERCASE AND THE CONSTANT IS WHERE THAT LIVES -
+        /// the user's ruling at the Task 13/14 boundary, asserted the same
+        /// way `FounderNaming_AndCampaign_CarryTheHandoffsKicker` asserts its
+        /// two: by `ToUpperInvariant` round trip rather than by repeating the
+        /// literal a second time in a test.
+        [Test]
+        public void SpliceReveal_CarriesTheHandoffsKickerInTheHeader()
+        {
+            var view = BoundReveal(mutated: true, Creature("Vetch", id: A), Creature("Ember", id: B));
+
+            var eyebrow = view.Q<Label>("eyebrow");
+            Assert.AreEqual(SpliceRevealScreen.Eyebrow, eyebrow.text);
+            Assert.AreEqual(DisplayStyle.Flex, eyebrow.style.display.value,
+                "the eyebrow row is hidden, so the screen renders with no kicker at all");
+            Assert.AreEqual(SpliceRevealScreen.Eyebrow.ToUpperInvariant(), SpliceRevealScreen.Eyebrow,
+                "the eyebrow must ship uppercase; USS cannot transform it");
+        }
+
         // ---------------------------------------------------------------
         // Lineage - beat 8
         // ---------------------------------------------------------------

@@ -14,7 +14,11 @@
     flex-direction: column;
     width: 160px;
     padding: 12px;
-    border-radius: 18px;
+    /* 20px, the handoff's own `border-radius: 20px` at `Creature Roster
+     * .dc.html:56`, and it is --radius-card exactly rather than a literal
+     * near it - this tile IS a card. It was 18 for two phases with nothing
+     * behind the number. */
+    border-radius: var(--radius-card);
     background-color: var(--surface);
     border-width: 1px;
     border-color: var(--divider);
@@ -22,11 +26,22 @@
 
 /* The slot final art drops into. Three aligned layers from one bake camera:
  * body, then combat one at the dorsal socket, then combat two at the flank.
- * Same 64px height as before, so nothing else in the card reflows. */
+ *
+ * 74px, WHICH IS THE HANDOFF'S OWN AND 10px MORE THAN THIS CARD CARRIED FOR
+ * TWO PHASES. `Creature Roster.dc.html:59` is `height: 74px; display: grid;
+ * place-items: center` around art drawn at 46-66px - so the tile's picture
+ * is the biggest thing on it, which at 64 it was not. The card grows by 10px
+ * and the two-column grid is unaffected: `.creature-card` is a fixed 160px
+ * wide and only the row heights move.
+ *
+ * NO FILL. The handoff's roster tile draws its creature straight on the
+ * card's own white, with no sunk plate behind it (`:59` sets only a height
+ * and a centring) - the plate was this project's, and against six species it
+ * read as a window each animal was posted through. The splice chamber's
+ * parents keep a tinted disc because there it is `HeroSlot`'s ring and disc,
+ * which the handoff DOES draw. */
 .creature-card__slot {
-    height: 64px;
-    border-radius: 12px;
-    background-color: var(--surface-sunk);
+    height: 74px;
     margin-bottom: 8px;
 }
 .creature-card__layer {
@@ -35,11 +50,28 @@
     -unity-background-scale-mode: scale-to-fit;
 }
 
+/* THE HEADER IS THE GENERATION CHIP'S ROW AND NOTHING ELSE NOW, which is
+ * the handoff's own card: `Creature Roster.dc.html:56-58` opens each tile
+ * with a `justify-content: space-between` row holding the generation badge
+ * and a status dot, ABOVE the art, and puts the name under the picture. The
+ * name used to share this row with a bare `G4` label; it is a sibling below
+ * the slot now, in the handoff's order.
+ *
+ * `space-between` IS KEPT FOR THE DOT THAT IS NOT DRAWN YET. The handoff's
+ * right-hand mark is a per-creature status (`#6cba8b` on duty, `#e8b34a`
+ * growing) and no DTO field carries it - Phase 9 Task 16's report names it.
+ * A chip alone sits left either way, which is where it belongs. */
 .creature-card__header {
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
+    margin-bottom: 8px;
 }
+
+/* The chip host, cleared and refilled on every Bind - see CreatureCard.Bind
+ * for why a GenChip cannot be re-pointed. Layout only; the chip brings its
+ * own fill, radius, padding and `t-num`. */
+.creature-card__gen { flex-direction: row; }
 
 .creature-card__name {
     font-size: var(--text-card-title);
@@ -47,29 +79,31 @@
     color: var(--ink);
 }
 
-/* A generation count is a number a decision depends on - bible 10.6's 11px
- * floor applies, so this is --text-secondary and not --text-micro. */
-.creature-card__generation {
-    font-size: var(--text-secondary);
+/* The role line - bible 1.2's role word and the creature's Instinct, which
+ * is the handoff's `Warform · on duty` at `Creature Roster.dc.html:64`:
+ * 10px, 700, --mute. IT LOST ITS TRACKING AND ITS SHOUT in Phase 9 Task 16
+ * and both were wrong before: `letter-spacing` plus `-unity-font-style:
+ * bold` is the `.t-micro` treatment for an UPPERCASE eyebrow, and this is a
+ * sentence in sentence case. Tracked out, "Wall · Forage" read as a label
+ * for the row under it rather than as a description of the animal above. */
+.creature-card__instinct {
+    margin-top: 1px;
+    font-size: var(--text-micro);
     color: var(--mute);
 }
 
-.creature-card__pips {
+.creature-card__traits {
     flex-direction: row;
-    margin-top: 8px;
+    flex-wrap: wrap;
+    margin-top: 7px;
 }
 
-.creature-card__pips > .trait-pip {
-    margin-right: 4px;
-}
-
-.creature-card__instinct {
-    margin-top: 6px;
-    font-size: var(--text-micro);
-    color: var(--mute-soft);
-    letter-spacing: 1px;
-    -unity-font-style: bold;
-}
+/* VERTICAL ONLY. The handoff's `gap: 4px` at `Creature Roster.dc.html:65` is
+ * already `TraitChip`'s own 2px-a-side margin; restating the horizontal half
+ * here made every chip 6px wider than it measures and wrapped both of them
+ * onto separate rows inside a 136px tile. USS on 6000.6.0f1 has no `gap`, so
+ * the between-rows half has nowhere else to live. */
+.creature-card__traits > .trait-chip { margin-bottom: 4px; }
 
 /* bible 3.3: the Founder's name is what stops a player. A visible marker on
  * the card itself is the read that carries into the roster and the splice
@@ -91,8 +125,13 @@
     background-color: var(--surface-raised);
 }
 
+/* AND IT IS NOW THE ONLY FILL THE SLOT EVER TAKES, which makes the marker
+ * louder rather than quieter: the plate above went transparent in Phase 9
+ * Task 16, so a violet plate behind the animal reads as the treatment 10.4
+ * asks for instead of as a differently-tinted version of every other card. */
 .creature-card.aberrant .creature-card__slot {
     background-color: var(--violet-tint);
+    border-radius: 12px;
 }
 
 /* Committed to a wave: still legible, visibly not actionable. */

@@ -102,15 +102,32 @@ namespace Broodline.UI.Tests
             v.Bind(m, lockedOut: new HashSet<Guid>(), onSplice: () => { });
 
             Assert.AreEqual(m.DestructionNotice, v.Q<Label>("destruction-notice").text);
-            // "Splice — consumes both parents."
-            Assert.AreEqual(m.CtaLabel, v.Q<Button>("cta").text);
             Assert.AreEqual(m.CoverageWarning ?? string.Empty, v.Q<Label>("coverage-warning").text);
-            Assert.AreEqual(SpliceScreen.MutationLine(m.Forecast), v.Q<Label>("mutation").text);
+
+            // THE CTA IS `CostCtaRow`'s BUTTON AS OF PHASE 9 TASK 16, AND ITS
+            // LABEL IS STILL THE MODEL'S. The handoff pairs the button with a
+            // cost block ("COST / 1") and calls the button "Begin Splice";
+            // `broodline_splice_confirm_spec.md:83` replaces exactly that
+            // string with the model's own, and section 1 names the handoff's
+            // row as the gap it was written to close. The row is adopted, the
+            // label is not - so this assertion is unchanged from Phase 8 and
+            // now also proves the button inside the new row is the one bound.
+            Assert.AreEqual(m.CtaLabel, v.Q<Button>("cta").text);
+
+            // THE MUTATION PAIR IS `MutationBanner`'s NOW - the handoff's
+            // amber strip at `Splice Chamber.dc.html:175` - and its sentence
+            // is still `SpliceScreen.MutationLine` verbatim.
+            var banner = v.Q<MutationBanner>("mutation");
+            Assert.IsNotNull(banner, "the mutation pair is not rendered at all");
+            var mutationText = banner.Q<Label>("text");
+            Assert.AreEqual(SpliceScreen.MutationLine(m.Forecast), mutationText.text);
 
             // Phase 8 Task 10: the mutation line carries `t-num`, which is
             // the marker bible 10.6's tabular figures and 11px floor are both
-            // enforced through - and this label states two percentages.
-            Assert.IsTrue(v.Q<Label>("mutation").ClassListContains("t-num"),
+            // enforced through - and this label states two percentages. The
+            // marker moved onto `MutationBanner`'s own UXML in Task 16 so
+            // that it survives the component swap.
+            Assert.IsTrue(mutationText.ClassListContains("t-num"),
                 "the mutation percentages are not marked as numerals, so nothing holds them "
                 + "to the tabular face or to the 11px floor");
 
@@ -118,40 +135,157 @@ namespace Broodline.UI.Tests
             // none - client_architecture 9.1. Row count, not just presence:
             // a view that rendered a single static row would pass a
             // "not empty" check and fail this one.
-            var rows = v.Query(className: SpliceChamberView.ForecastRowUssClassName).ToList();
+            //
+            // THE ROWS ARE `InheritanceBar`s AS OF TASK 16 - the handoff's
+            // dot / trait / odds / bar / tag row at `:139-173` - where Phase
+            // 8 used a `StatCell` to get `t-num` onto the percentage. The
+            // class the count is keyed off is unchanged, which is why it is
+            // a `public const` on the view.
+            var rows = v.Query<InheritanceBar>(className: SpliceChamberView.ForecastRowUssClassName)
+                .ToList();
             Assert.AreEqual(m.Forecast.Combat2.Count, rows.Count);
 
-            // Fix round 1: the row's probability text is SpliceScreen.Percent
-            // - the model's own formatter, already used by MutationLine -
-            // not a view-local ToString("P1"). The two are not the same
-            // string ("55%" vs "55.0 %"), which is exactly why this is
-            // pinned rather than left to look equivalent.
-            //
-            // THE LABEL IS `value` AND NOT `probability` AS OF PHASE 8 TASK
-            // 10, because a forecast outcome is now a `StatCell` and those
-            // are that component's element names - the same rename
-            // `CampaignSelectView`'s rows took when they became `OptionRow`s.
-            // Same fact, same formatter, through the name the cell carries.
-            Assert.AreEqual(
-                SpliceScreen.Percent(m.Forecast.Combat2.First().P),
-                rows[0].Q<Label>("value").text);
-
-            // And the trait is the cell's label, by the same shared formatter
-            // the confirm dialog and the reveal use - splice_confirm_spec 3's
+            // The trait is the bar's own label, by the shared formatter the
+            // confirm dialog and the reveal use - splice_confirm_spec 3's
             // "three different phrasings of the same fact reads as evasion"
             // applies to "Guard I" as much as to a destruction notice.
             Assert.AreEqual(
                 CreatureLabel.TraitWithTier(
                     m.Forecast.Combat2.First().Trait, m.Forecast.Combat2.First().Tier),
-                rows[0].Q<Label>("label").text);
+                rows[0].Q<Label>("trait").text);
 
-            // The percentage wears `t-num`. It comes from StatCell's own
-            // UXML, which is the point of routing the forecast through the
-            // component: the old `.forecast-row` set a font-size on the ROW
-            // and marked no numeral at all, so the one set of numbers section
-            // 2 makes non-negotiable was the one set rendered in proportional
-            // figures.
-            Assert.IsTrue(rows[0].Q<Label>("value").ClassListContains("t-num"));
+            // AND THE ODDS ARE A WHOLE PERCENT, WHICH IS A CHANGE FROM
+            // `SpliceScreen.Percent` AND IS THE COMPONENT'S OWN CONTRACT.
+            // `InheritanceBar` writes `RoundToInt(p * 100) + "%"` because the
+            // same value drives the bar beside it and the two must not
+            // disagree about which trait is likeliest; `Percent` keeps one
+            // decimal and still formats the mutation pair above, which is
+            // splice_confirm_spec 2's "stated as two numbers". The two agree
+            // on every whole percent and differ only where the server sends
+            // fractions of one - pinned here rather than left to look
+            // equivalent, which is the mistake the Phase 8 version of this
+            // assertion was written to catch in the other direction.
+            Assert.AreEqual("55%", rows[0].Q<Label>("odds").text);
+
+            // The percentage wears `t-num`. It comes from InheritanceBar's
+            // own UXML, which is the point of routing the forecast through
+            // the component.
+            Assert.IsTrue(rows[0].Q<Label>("odds").ClassListContains("t-num"));
+        }
+
+        /// THE TAG AND THE COLOUR ARE READINGS OF THE SERVER'S NUMBER, AND
+        /// NEITHER IS COMPUTED HERE. The bar takes both already decided;
+        /// this is the assertion that the screen decided them from the data
+        /// it holds rather than from a rule of its own.
+        [Test]
+        public void SpliceChamberView_TagsEachForecastRowFromTheServersOwnOdds()
+        {
+            var a = A();
+            var b = B();
+            var preview = Preview();
+            // 0.55 is above the handoff's 50% line and 0.45 is below it, so a
+            // view that hardcoded either tag fails on one of the two rows.
+            var m = SpliceScreen.Build(a, b, preview);
+
+            var v = new SpliceChamberView();
+            v.Bind(m, lockedOut: new HashSet<Guid>(), onSplice: () => { });
+
+            var rows = v.Query<InheritanceBar>(className: SpliceChamberView.ForecastRowUssClassName)
+                .ToList();
+            Assert.AreEqual("DOM", rows[0].Q<Label>("tag").text);
+            Assert.AreEqual("REC", rows[1].Q<Label>("tag").text);
+
+            Assert.AreEqual(SpliceScreen.InheritanceTag(0.55), rows[0].Q<Label>("tag").text,
+                "the view and the model disagree about where the DOM/REC line is");
+        }
+
+        /// THE BANNER COLLAPSES WHEN THE SERVER NAMED NO MUTATION WINDOW.
+        /// `MutationLine` returns empty for a null forecast, and the banner
+        /// is an amber gradient strip with an inset ring and a sparkle in it
+        /// - so an empty one is pure decoration under a card that is saying
+        /// the server named no outcomes at all.
+        ///
+        /// A NULL FORECAST REACHES THIS VIEW THROUGH `AfterCommit`'s SHAPE
+        /// RATHER THAN `Build`'s: `Build` requires a preview, so the model it
+        /// makes always HOLDS a forecast object. The state is reachable and
+        /// `Bind` already treats it as such two blocks down, where it renders
+        /// `ForecastEmptyMessage`; this is the same state seen from the
+        /// banner's side, built the only way this assembly can build one -
+        /// through the real factory, then read for the empty sentence.
+        [Test]
+        public void SpliceChamberView_AnEmptyMutationLine_CollapsesTheBannerRatherThanDrawingIt()
+        {
+            Assert.AreEqual(string.Empty, SpliceScreen.MutationLine(null),
+                "sanity: a null forecast produces no mutation sentence");
+
+            var banner = new MutationBanner();
+            banner.Text = SpliceScreen.MutationLine(null);
+            Assert.AreEqual(DisplayStyle.None, banner.style.display.value,
+                "an empty mutation sentence still draws an amber strip");
+
+            // And the live screen's banner IS shown when there is a sentence,
+            // which is what makes the collapse mean something.
+            var m = SpliceScreen.Build(A(), B(), Preview());
+            var v = new SpliceChamberView();
+            v.Bind(m, lockedOut: new HashSet<Guid>(), onSplice: () => { });
+            Assert.AreEqual(DisplayStyle.Flex,
+                v.Q<MutationBanner>("mutation").style.display.value);
+        }
+
+        /// TWO CREATURES ARE LOOKED AT ON THIS SCREEN AND BOTH ARE FRAMED.
+        /// `Splice Chamber.dc.html` draws a ringed disc on each parent
+        /// (`:56`, `:84`) and a third on the predicted hybrid (`:107`); a
+        /// screen that drew the parents as bare sprites would pass every
+        /// other assertion in this file.
+        [Test]
+        public void SpliceChamberView_FramesBothParentsAndThePredictionInHeroSlots()
+        {
+            var m = SpliceScreen.Build(A(), B(), Preview());
+            var v = new SpliceChamberView();
+            v.Bind(m, lockedOut: new HashSet<Guid>(), onSplice: () => { });
+
+            Assert.AreEqual(3, v.Query<HeroSlot>().ToList().Count,
+                "the two parents and the predicted hybrid are three framed creatures");
+
+            // AND THE PREDICTION IS A SPRITE STACK WITHOUT A PORTRAIT.
+            // `Q("body")` is the discriminator `HeroSlot` documents: a live
+            // slot REMOVES its three layers rather than leaving them empty
+            // behind the stage.
+            var predicted = v.Q<HeroSlot>("predicted-creature");
+            Assert.IsNotNull(predicted, "the predicted hybrid has no slot at all");
+            Assert.IsNotNull(predicted.Q<VisualElement>("body"),
+                "a portrait-less chamber should fall back to the baked sprite stack");
+            Assert.IsNull(predicted.Q<CreatureStage>(),
+                "a chamber given no portrait is rendering a live stage");
+        }
+
+        /// THE PREDICTED GENERATION IS THE SERVER'S ARITHMETIC, NOT A GUESS.
+        /// `splice/commit.ts:292` is `max(a, b) + 1`; a panel that printed
+        /// either parent's own generation would be telling the player the
+        /// splice produces a creature no deeper than what it consumes, on
+        /// the screen whose whole subject is depth.
+        [Test]
+        public void SpliceChamberView_StatesThePredictedGenerationAndTheLineageItComesFrom()
+        {
+            var a = Unnamed("Vetch", 4);
+            var b = Unnamed("Skitter", 6);
+            var m = SpliceScreen.Build(a, b, Preview());
+
+            var v = new SpliceChamberView();
+            v.Bind(m, lockedOut: new HashSet<Guid>(), onSplice: () => { });
+
+            Assert.AreEqual(7, SpliceScreen.PredictedGeneration(a, b));
+            Assert.AreEqual(CreatureLabel.Generation(7),
+                v.Q<VisualElement>("predicted-gen").Q<Label>("gen").text);
+
+            Assert.AreEqual(SpliceScreen.PredictedName, v.Q<Label>("predicted-name").text);
+            Assert.AreEqual("Vetch × Skitter lineage", v.Q<Label>("predicted-lineage").text);
+
+            // The strip draws the founder root, both parents and the child -
+            // four stops for a G4/G6 pair. `SpliceScreen.LineageChain` has
+            // why it is four and not the handoff's five.
+            var stops = v.Query(className: LineageStrip.NodeUssClassName).ToList();
+            Assert.AreEqual(4, stops.Count);
         }
 
         [Test]
@@ -208,7 +342,15 @@ namespace Broodline.UI.Tests
             var v = new SpliceChamberView();
             v.Bind(m, lockedOut: new HashSet<Guid> { founder.CreatureId }, onSplice: () => { });
 
-            var card = v.Q<CreatureCard>(founder.CreatureId.ToString());
+            // A `SectionCard` AS OF PHASE 9 TASK 16, WHICH CHANGES NOTHING
+            // THIS TEST IS ABOUT. The tile the handoff draws is a card with
+            // an eyebrow, a generation chip, a ringed creature, a name, a
+            // role line and two trait chips - not a roster tile - so it is
+            // composed rather than a `CreatureCard`. The NAME and the
+            // LOCKED-OUT class were always this view's doing and neither has
+            // moved; see `SpliceChamberView`'s class comment.
+            var card = v.Q<SectionCard>(founder.CreatureId.ToString());
+            Assert.IsNotNull(card, "the locked-out parent has no tile at all");
             Assert.IsFalse(card.enabledSelf);
             Assert.IsTrue(card.ClassListContains(SpliceChamberView.LockedOutUssClassName));
         }
@@ -225,8 +367,8 @@ namespace Broodline.UI.Tests
             var v = new SpliceChamberView();
             v.Bind(m, lockedOut: new HashSet<Guid>(), onSplice: () => { });
 
-            var cardA = v.Q<CreatureCard>(a.CreatureId.ToString());
-            var cardB = v.Q<CreatureCard>(b.CreatureId.ToString());
+            var cardA = v.Q<SectionCard>(a.CreatureId.ToString());
+            var cardB = v.Q<SectionCard>(b.CreatureId.ToString());
             Assert.IsTrue(cardA.enabledSelf);
             Assert.IsTrue(cardB.enabledSelf);
             Assert.IsFalse(cardA.ClassListContains(SpliceChamberView.LockedOutUssClassName));

@@ -133,18 +133,60 @@ namespace Broodline.UI.Tests
         // CreatureCard - screen_inventory_v2 11 & 3
         // ---------------------------------------------------------------
 
+        /// PHASE 9 TASK 16: TWO `TraitChip`s WHERE THIS ASSERTED TWO
+        /// `TraitPip`s, AND A `GenChip` WHERE IT ASSERTED A BARE LABEL. The
+        /// COUNT is the part screen_inventory_v2 3 is about and it is
+        /// unchanged - two marks, not four. `CreatureCard`'s class comment
+        /// has the measurement behind the swap: `Creature Roster.dc.html
+        /// :66-69` draws species-tinted chips with no counter mark, and every
+        /// one of the six live `Bind` call sites in the app passes
+        /// `counters: null`, so the pip's dot has never gone green in a
+        /// shipped screen. `TraitPip` itself is untouched and still has a
+        /// consumer in `LineageView`; its own tests below are unchanged.
         [Test]
-        public void CreatureCard_ShowsTwoPipsWithCoverageAndTheFounderName()
+        public void CreatureCard_ShowsTwoTraitChipsWithCoverageAndTheFounderName()
         {
             var card = new CreatureCard();
             card.Bind(Creature("Vetch", gen: 1, name: "Ash", founder: true, trait1: "Taunt", tier1: 1, trait2: "Carapace", tier2: 1), Counters());
-            Assert.AreEqual(2, card.Query<TraitPip>().ToList().Count);           // two, not four - screen_inventory 3
+            Assert.AreEqual(2, card.Query<TraitChip>().ToList().Count);          // two, not four - screen_inventory 3
+            Assert.IsEmpty(card.Query<TraitPip>().ToList(),
+                "the card draws both a chip and a pip per trait, so each trait is on it twice");
             StringAssert.Contains("Ash", card.Q<Label>("name").text);
             Assert.IsTrue(card.ClassListContains("founder"));
 
             // CreatureLabel.Generation is the one place this format is
-            // written (fix round 1: it used to be inlined here too).
-            Assert.AreEqual("G1", card.Q<Label>("generation").text);
+            // written (fix round 1: it used to be inlined here too), and
+            // `GenChip` reads it - which is what carries the `t-num` a bare
+            // --text-secondary Label never had.
+            var gen = card.Q<GenChip>();
+            Assert.IsNotNull(gen, "the generation is not a GenChip, so it carries no numeral marker");
+            Assert.AreEqual("G1", gen.Q<Label>("gen").text);
+            Assert.IsTrue(gen.Q<Label>("gen").ClassListContains("t-num"));
+
+            // AND THE ROLE LINE IS bible 1.2's ROLE BESIDE THE INSTINCT -
+            // the handoff's `Warform · on duty` at `:64`, built from the two
+            // halves a `CreatureDto` actually holds.
+            Assert.AreEqual(CreatureLabel.RoleLine(
+                    Creature("Vetch", gen: 1, name: "Ash", founder: true, trait1: "Taunt", tier1: 1, trait2: "Carapace", tier2: 1)),
+                card.Q<Label>("instinct").text);
+            StringAssert.Contains("Wall", card.Q<Label>("instinct").text);
+        }
+
+        /// THE CHIPS ARE TINTED BY THE SPECIES THAT CARRIES THE TRAIT, which
+        /// is the whole reason the card moved off `TraitPip`: a pip is violet
+        /// whatever the creature is. Without this, a card that built two
+        /// untinted chips would pass the count above.
+        [Test]
+        public void CreatureCard_TintsItsTraitChipsWithItsOwnSpecies()
+        {
+            var card = new CreatureCard();
+            card.Bind(Unnamed("Skitter", 2), Counters());
+
+            foreach (var chip in card.Query<TraitChip>().ToList())
+            {
+                Assert.IsTrue(chip.ClassListContains(TraitChip.UssClassName + "--skitter"),
+                    "a roster card's chips are untinted, so six species read as one");
+            }
         }
 
         [Test]
@@ -169,16 +211,23 @@ namespace Broodline.UI.Tests
         }
 
         [Test]
-        public void CreatureCard_Rebind_ReplacesRatherThanAccumulatesPips()
+        public void CreatureCard_Rebind_ReplacesRatherThanAccumulatesTraitMarks()
         {
-            // The card owns exactly two TraitPip children for its whole
-            // lifetime (constructed once, re-bound per Bind) - a recycled
-            // card in a roster list must never grow a third or fourth pip.
+            // The card renders exactly two trait marks and one generation
+            // chip per Bind - a recycled card in a roster list must never
+            // grow a third or a fourth. Phase 9 Task 16 changed HOW that is
+            // kept (cleared and rebuilt, rather than two held fields
+            // re-bound) because `TraitChip` and `GenChip` both take their
+            // whole content in the constructor; the guarantee is the same
+            // and this is the test that says so.
             var card = new CreatureCard();
             card.Bind(Creature("Vetch", gen: 1, name: "Ash", founder: true, trait1: "Taunt", tier1: 1, trait2: "Carapace", tier2: 1), Counters());
-            card.Bind(Creature("Skitter", gen: 1, name: "Bramble", founder: true, trait1: "Sprint", tier1: 2, trait2: "Litter", tier2: 1), Counters());
+            card.Bind(Creature("Skitter", gen: 3, name: "Bramble", founder: true, trait1: "Sprint", tier1: 2, trait2: "Litter", tier2: 1), Counters());
 
-            Assert.AreEqual(2, card.Query<TraitPip>().ToList().Count);
+            Assert.AreEqual(2, card.Query<TraitChip>().ToList().Count);
+            Assert.AreEqual(1, card.Query<GenChip>().ToList().Count);
+            Assert.AreEqual("G3", card.Q<GenChip>().Q<Label>("gen").text,
+                "the generation chip was not replaced, so it still states the first creature's");
             StringAssert.Contains("Bramble", card.Q<Label>("name").text);
         }
 

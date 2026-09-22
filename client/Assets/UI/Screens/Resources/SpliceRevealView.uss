@@ -1,28 +1,23 @@
-/* Beat 7 - the payoff, composed onto ScreenScaffold. The hybrid is the warm
- * thing on a recessive ground (bible 10.1), so this is the one screen that
- * centres and enlarges.
+/* Beat 7 - the payoff, composed onto ScreenScaffold and brought to
+ * `Splice Reveal.dc.html` in Phase 9 Task 16. The hybrid is the warm thing
+ * on a recessive ground (bible 10.1), so this is the one screen that centres
+ * and enlarges.
  *
- * SIX RULES' WORTH OF TREATMENT LEFT THIS FILE IN PHASE 8 TASK 10 AND NONE
- * WAS REPLACED BY A COPY HERE:
- *   - the root's `padding: var(--gutter)` is the scaffold's content region.
- *   - `__headline`'s font-size, colour and weight are Theme's `.t-hero`,
- *     which is the same 28px this file was restating.
- *   - `__child-line`'s and `__consumption`'s colour and size are
- *     `.t-secondary`. The child line moves 12px -> 11px in the process,
- *     which is deliberate rather than incidental: it is a muted supporting
- *     sentence sitting under the hero card, exactly what the consumption
- *     line below it already is, and the two had no reason to be different
- *     sizes. 11px is bible 10.6's floor, not below it.
- *   - `__next`'s top margin is the CTA row's own padding and its width is
- *     what a column CTA row already stretches its children to; the button's
- *     whole treatment is Theme's `.btn-primary`.
+ * WHAT THIS SHEET IS FOR: geometry the handoff gives THIS screen, the
+ * arrangement of the components in it, and the two overrides `HeroBand`'s
+ * own comment says a band screen is expected to make. Nothing here restates
+ * a `.panel-*`, a `.t-*`, an `.elev-*` or a component's internals.
  *
- * THE HERO WRAPPER IS `.elev-2 .reveal-flare` IN THE UXML, not rules here.
- * Both are existing vocabulary and this screen is the consumer each was
- * written for - Theme.uss's raised elevation is the heavier of the handoff's
- * two drops, and Motion.uss's reveal transition is one of the four classes
- * that file lists as "matching nothing today". A rule in THIS file would be
- * a third copy of a treatment that already has one place to live.
+ * WHAT LEFT IN PHASE 8 TASK 10 AND HAS NOT COME BACK: the root's gutter (the
+ * scaffold's content region), `__headline`'s type (`.t-hero`),
+ * `__child-line`'s and `__consumption`'s colour and size (`.t-secondary`),
+ * and `__next`'s whole treatment (`.btn-primary`).
+ *
+ * WHAT LEFT IN THIS TASK: `.splice-reveal-view__child`'s `.elev-2` is
+ * `HeroBand`'s own now - the band adds it - so the one declaration this file
+ * used to carry for the hero card (a margin) went with the hand-rolled
+ * wrapper. The consumption line's panel fill is `.panel-amber`/
+ * `.panel-violet`, switched in `Bind` rather than declared here.
  */
 .splice-reveal-view { flex-grow: 1; }
 
@@ -31,25 +26,237 @@
  * `unity-scroll-view__content-container`, so `align-items` on any ancestor
  * above it does nothing. Reaching a descendant from a screen's own sheet is
  * the legal direction (CampaignSelectView.uss's note): a COMPONENT's sheet
- * cannot style the container it was put in, which is upward. */
-.splice-reveal-view .unity-scroll-view__content-container { align-items: center; }
+ * cannot style the container it was put in, which is upward.
+ *
+ * `stretch` FOR THE TWO FULL-WIDTH SURFACES, AND THAT IS WHY THIS IS NOT
+ * `center` ANY MORE. Through Phase 8 every child of this column was
+ * content-sized and centring them was the whole layout. The band and the
+ * traits card are full-bleed in the handoff (`:43` and `:71` are both
+ * `margin: <n>px 12px` on a 430 frame), and a centred flex child shrinks to
+ * its content - so `center` here would have drawn a 372px band around
+ * whatever width its subject came to. The headline centres its own text
+ * instead, one rule down. */
+.splice-reveal-view .unity-scroll-view__content-container { align-items: stretch; }
 
 /* A mutation is the rare outcome and the reason the screen exists. Violet is
  * the brand colour and this is where it earns the emphasis. Two classes, so
  * it outranks `.t-hero`'s --ink. */
 .splice-reveal-view.mutated .splice-reveal-view__headline { color: var(--violet-text); }
 
-.splice-reveal-view__headline { white-space: normal; margin-bottom: var(--space-3); }
+/* `:40` - `text-align: center; padding: 10px 24px 0` over a 26px Baloo
+ * headline. Ours is `.t-hero`'s 28px, two over, which is the nearest thing
+ * on the scale; --text-card-hero (26) is exact but is Task 14b's founder
+ * CARD heading and this is a page-level line. */
+.splice-reveal-view__headline {
+    white-space: normal;
+    -unity-text-align: middle-center;
+    margin-bottom: var(--space-3);
+}
 
-.splice-reveal-view__child { margin-bottom: var(--space-3); }
+/* -------------------------------------------------------- the hero band */
 
-.splice-reveal-view__child-line { white-space: normal; margin-bottom: var(--space-1); }
+/* THE BAND IS `HeroBand` AND IT NEEDS NO RADIUS OVERRIDE, which is the one
+ * instance of six that can say so: `Splice Reveal.dc.html:43` is 26 and
+ * `--radius-band` IS 26. Its height comes from `HeroBand.Fix(372)` in C#,
+ * where both halves of the fix (the surface, never the elevation wrapper)
+ * are written from one method - see that component's class comment for the
+ * 160px of shadow-around-bare-paper that rule exists to prevent.
+ *
+ * NO MARGIN HERE EITHER. `.elev-2` already pads by --elev-2-spread so the
+ * drop has somewhere to fall, and the card below it carries its own
+ * `margin-bottom` from `SectionCard`. */
+
+/* `:45` is `r 140` - a 280px ring against `--band-ring`'s 264 - and `:46` is
+ * `r 106`, a 212px pool against the component's 196. Both are stretched
+ * textures, so a different diameter is the same 52 dashes at a different
+ * scale (generate-textures.py's band-ring block has the arithmetic and says
+ * so in as many words). `Tokens.uss`'s own note names 280 as one of the two
+ * band rings that are NOT the token, which is exactly this. 106 is half of
+ * 212. */
+.splice-reveal-view__child .hero-band__ring { width: 280px; height: 280px; }
+.splice-reveal-view__child .hero-band__glow {
+    width: 212px;
+    height: 212px;
+    border-radius: 106px;
+}
+
+/* `:57` - the child is drawn at 186x186 inside the 212px pool, leaving 13px
+ * of violet visible on each side. `HeroBand.uss` sizes a HALOED subject's
+ * slot to 160 by default and says what is left: "Remaining room on the 61%
+ * is HeroSlot's disc size, traded against pool visibility." This screen has
+ * the handoff's own number for that trade, so it takes it: 186 of 280 is
+ * 66%, against the component's 160-of-264 61%.
+ *
+ * THE SLOT'S OWN RING IS ALREADY HIDDEN by `.hero-band__subject--haloed` -
+ * the band's ring replaces it - so only the slot and its disc move. 93 is
+ * half of 186. Three rules, the same three `HeroBand.uss` writes, because
+ * `--hero-slot` and `.hero-slot__disc` are both flat numbers in the
+ * component's sheet and moving one without the other overflows the disc. */
+.splice-reveal-view__child .hero-band__subject--haloed .hero-slot {
+    width: 186px;
+    height: 186px;
+}
+.splice-reveal-view__child .hero-band__subject--haloed .hero-slot__disc {
+    width: 186px;
+    height: 186px;
+    border-radius: 93px;
+    /* AND IT IS TRANSPARENT, BECAUSE THE POOL IS ALREADY THE BACKDROP.
+     * `Splice Reveal.dc.html:57-58` draws the child as a bare 186px art slot
+     * with NOTHING behind it - `:46`'s `r 106` violet circle IS what it sits
+     * on - where `HeroSlot`'s disc is a species tint sized for a slot
+     * standing alone on paper. Left opaque, a 186px teal circle covered all
+     * but 13px of the pool and put Vetch's own colour where the screen's
+     * brand violet belongs; it is in the first capture of this screen.
+     * `HeroSlot.uss` makes exactly this call one level down, for exactly
+     * this reason, when a `CreatureStage` is placed in the disc. rgba rather
+     * than a hex so verify-uss-tokens.sh's check 1 sees a colour that is not
+     * a colour. */
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.splice-reveal-view__child-slot { align-items: center; }
+
+/* `:60` - `display: inline-flex; border-radius: 999px; padding: 6px 13px;
+ * margin-top: 14px`, a 12px sparkle beside an 11px uppercase label.
+ *
+ * 14px IS HALF THE MEASURED HEIGHT AND NOT `--radius-pill`, which does not
+ * exist and must not: 6 + 6 of padding around an 11px line box (~16 at this
+ * face's line height) is ~28, and half of 28 is 14. That coincides with
+ * --radius-row and is not it - a row radius that moved would take this pill
+ * with it for no reason the two share.
+ *
+ * `.panel-amber` BRINGS THE FILL AND THE PADDING; this overrides the radius
+ * and the horizontal padding and adds the ramp and the ring. THE RAMP AND
+ * THE RING LOOK LIKE `MutationBanner`'s AND ARE NOT A RESTATEMENT OF IT:
+ * that component is a full-width strip with a 24px white disc in it, its
+ * rules are all scoped to `.mutation-banner`, and it cannot be a centred
+ * pill. What is shared is the ASSET - amber-ramp.png, the handoff's own
+ * `linear-gradient(100deg, #fdf0d0, #f9e0a8)` - which is a texture two
+ * places may read, and --amber for the handoff's `rgba(196,150,45,.3)`
+ * inset ring, which USS cannot express as a shadow and draws as a border
+ * (`.option--selected` makes the same substitution).
+ *
+ * `align-self: center` because the column is `stretch` now; the pill is the
+ * one child in the band that is content-width. */
+.splice-reveal-view__pill {
+    flex-direction: row;
+    align-items: center;
+    align-self: center;
+    flex-shrink: 0;
+    border-radius: 14px;
+    padding-left: 13px;
+    padding-right: 13px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+    margin-top: 14px;
+    background-image: url("project:///Assets/UI/Art/amber-ramp.png");
+    -unity-background-scale-mode: stretch-to-fill;
+    border-width: 1px;
+    border-color: var(--amber);
+}
+
+/* TWO CLASSES, to beat icons.uss's 19px and --mute-soft without depending on
+ * sheet order. The handoff draws this mark at 12px; --amber-text is the ink
+ * `MutationBanner` measured to 6.30:1 on white and is already this project's
+ * general amber, not a warning-only brown. */
+.splice-reveal-view .splice-reveal-view__pill-spark {
+    width: 12px;
+    height: 12px;
+    margin-right: 7px;
+    -unity-background-image-tint-color: var(--amber-text);
+}
+
+/* `:62` - 11px, 800, `letter-spacing: .06em`. `.t-micro` is 10px with the
+ * tracking and `.t-warn` is --amber-text; only the size is restated, and up
+ * rather than down, so bible 10.6's floor is untouched. */
+.splice-reveal-view .splice-reveal-view__pill-text { font-size: var(--text-secondary); }
+
+/* `:64` - 30px Baloo, 8px under the pill. `.t-hero` is 28. `:65` is 11.5px
+ * muted, 1px under it. */
+.splice-reveal-view__child-name {
+    margin-top: var(--space-2);
+    -unity-text-align: middle-center;
+    white-space: normal;
+}
+.splice-reveal-view__child-line {
+    margin-top: 1px;
+    -unity-text-align: middle-center;
+    white-space: normal;
+}
+
+/* ------------------------------------------------------- the traits card */
+
+/* The handoff's two-sided card header - `:72-75`. Same construction and same
+ * reason as the chamber's; `SpliceChamberView.CardHeader` carries the note,
+ * including why this is `center` rather than the handoff's `baseline`. */
+.splice-reveal-view__card-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+}
+.splice-reveal-view__note { flex-shrink: 0; }
+
+.splice-reveal-view__traits { margin-top: 10px; }
+
+/* `:77` - `display: flex; align-items: center; gap: 9px`.
+ *
+ * THE HAIRLINE BETWEEN ROWS IS AN ELEMENT AND NOT A BORDER, because USS on
+ * 6000.6.0f1 HAS NO STRUCTURAL PSEUDO-CLASSES - `:first-child` and
+ * `:not(...)` are not in its grammar, so "a top border on every row but the
+ * first" cannot be written and a rule that tried would be dropped or refused
+ * at import. `Bind` inserts Theme's own `.divider` between the rows instead,
+ * which is `height: 1px; background: var(--divider); margin: 8px 0` - the
+ * handoff's `:82` declaration property for property. */
+.splice-reveal-view__trait-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* `:80` - 10.5px, 800, tinted per source. The tint is the trait's owner's
+ * ink in the handoff and --mute here: the chip beside it already carries the
+ * species colour, and a second tinted thing on the same row would make the
+ * row read as two chips. Named in the report. */
+.splice-reveal-view__trait-source { flex-shrink: 0; margin-left: var(--space-2); }
+
+/* `:95` - the note strip under the rows. The FILL and the RADIUS come from
+ * `.panel-amber`/`.panel-violet`, switched in `Bind`; this is the gap above
+ * it and the wrap a sentence needs. */
+.splice-reveal-view__consumption { white-space: normal; margin-top: 11px; }
+
+/* --------------------------------------------------------- the two parents */
 
 /* The two consumed parents, still whole. bible 2.1 makes this the FTUE's
  * whole lesson, so they are shown at full strength and the consumption line
- * below carries the fact instead of the parents being greyed out. */
-.splice-reveal-view__parents { flex-direction: row; justify-content: center; margin-top: var(--space-3); }
+ * in the card above carries the fact instead of the parents being greyed
+ * out. NOT IN THE HANDOFF AT ALL - this view's class comment has why the
+ * spec wins over the mock here. */
+.splice-reveal-view__parents {
+    flex-direction: row;
+    justify-content: center;
+    margin-top: var(--space-3);
+}
 
 .splice-reveal-view__parent { margin-left: var(--space-1); margin-right: var(--space-1); }
 
-.splice-reveal-view__consumption { white-space: normal; margin-top: var(--space-3); }
+/* AND THE PARENT TILES DROP THEIR TRAIT CHIPS ON THIS SCREEN ONLY.
+ *
+ * splice_confirm_spec 3's rule about repetition is the reason, not the
+ * height: the card directly above these two tiles states every trait the
+ * child holds AND names which parent brought it, by name - so a second,
+ * fuller copy of each parent's trait list 40px below it is the "three
+ * different phrasings of the same fact" that section warns reads as evasion.
+ * What this row is for is the other half of bible 2.1's lesson: THESE TWO
+ * CREATURES ARE GONE. The picture, the name and the generation say that.
+ *
+ * IT ALSO COSTS 90px, WHICH IS WHY THE CAPTURE IS WHAT FOUND IT. Two chips
+ * wrap to two rows in a 160px tile and each chip row renders ~39px tall, so
+ * the pair pushed this row - the one the handoff does not draw at all - a
+ * further 90px below a fold it was already under. The residual that remains
+ * is named in the task report.
+ *
+ * A SCREEN'S SHEET REACHING A COMPONENT'S DESCENDANT IS THE LEGAL DIRECTION
+ * (StatCell.uss's closing note); `display: none` rather than a `Bind`
+ * parameter because `CreatureCard` is shared by five screens and none of the
+ * other four wants this. */
+.splice-reveal-view__parent .creature-card__traits { display: none; }

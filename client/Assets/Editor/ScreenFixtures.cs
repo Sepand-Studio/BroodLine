@@ -242,6 +242,29 @@ public static class ScreenFixtures
         return r;
     }
 
+    /// The chamber's forecast, drawn from the two parents' OWN traits.
+    ///
+    /// THREE ROWS AND NOT TWO, WHICH IS THE COUNT THE CARD IS SIZED FOR.
+    /// `combatPool` is the two parents' four combat slots and `merged()`
+    /// collapses duplicate (trait, tier) pairs, so three distinct outcomes is
+    /// the ceiling and is what the handoff draws (`Splice Chamber.dc.html
+    /// :139-173`). A two-row fixture could not show what three bars look like
+    /// stacked, which is the whole point of the component.
+    ///
+    /// AND THE ODDS STRADDLE THE DOM/REC LINE - 0.78, 0.54 and 0.31 are the
+    /// handoff's own three numbers, so the capture shows two `DOM` tags and
+    /// one `REC` rather than three of a kind.
+    static SplicePreviewResponse Preview(CreatureDto a, CreatureDto b)
+    {
+        var r = new SplicePreviewResponse();
+        r.Forecast = new SpliceForecast { Mutation = 0.09, Aberrant = 0.01 };
+        r.Forecast.Combat2.Add(new CombatOutcomeDto { Trait = a.Trait1, Tier = a.Tier1, P = 0.78 });
+        r.Forecast.Combat2.Add(new CombatOutcomeDto { Trait = b.Trait1, Tier = b.Tier1, P = 0.54 });
+        r.Forecast.Combat2.Add(new CombatOutcomeDto { Trait = b.Trait2, Tier = b.Tier2, P = 0.31 });
+        r.Forecast.Instinct.Add(new Instinct { Instinct1 = "Forage", P = 1.0 });
+        return r;
+    }
+
     // ---------------------------------------------------------------
     // Screens
     // ---------------------------------------------------------------
@@ -365,12 +388,34 @@ public static class ScreenFixtures
                 // body sits beside the Founder's amber border and a Hollow's
                 // violet body sits above the violet CTA. It does; see
                 // implementation/results/species-collision.md.
-                Creature("Vetch", 4, name: "Ash", founder: true),
-                Creature("Skitter", 6, name: null, founder: false),
-                Creature("Hollow", 5, name: null, founder: false),
-                Creature("Ember", 3, name: null, founder: false),
-                Creature("Loam", 2, name: null, founder: false),
-                Creature("Pale", 1, name: null, founder: false),
+                // AND EACH CARRIES ITS OWN SPECIES' TRAITS AS OF PHASE 9
+                // TASK 16, which the default "Chill"/"Guard" pair did not.
+                // Two things depended on it and neither was visible before:
+                // `CreatureSprites.Part` returns null for a trait the bake
+                // has no part for, so five of the six cards were drawing a
+                // bare body; and the card's marks are `TraitChip`s now, which
+                // are tinted by the species that carries the trait - so a
+                // roster of six identical "Chill I / Guard I" pairs would
+                // have rendered the one thing the chip exists to show as six
+                // copies of the same thing. The pairs are bible 1.2's own
+                // table (`broodline_bible.md:42-48`).
+                Creature("Vetch", 4, name: "Ash", founder: true,
+                    trait1: "Carapace", tier1: 3, trait2: "Taunt", tier2: 1),
+                Creature("Skitter", 6, name: null, founder: false,
+                    trait1: "Sprint", tier1: 2, trait2: "Litter", tier2: 1),
+                Creature("Hollow", 5, name: null, founder: false,
+                    trait1: "Reach", tier1: 2, trait2: "Pierce", tier2: 3),
+                Creature("Ember", 3, name: null, founder: false,
+                    trait1: "Cinder", tier1: 1, trait2: "Splash", tier2: 2),
+                Creature("Loam", 2, name: null, founder: false,
+                    trait1: "Regrow", tier1: 1, trait2: "Burrow", tier2: 2),
+                // AN ABERRANT, WHICH NO FIXTURE HAD. data_model 2 makes a
+                // null coverage tier exactly an Aberrant, and it is the
+                // state `CreatureCard.aberrant` and `TraitChip.aberrant`
+                // both draw - so until this the two treatments existed in
+                // the Vocabulary catalogue and in no screen.
+                Creature("Pale", 1, name: null, founder: false,
+                    trait1: "Screen", tier1: null, trait2: "Chill", tier2: 2),
             },
         });
 
@@ -381,9 +426,18 @@ public static class ScreenFixtures
 
     static VisualElement SpliceChamber()
     {
-        var a = Creature("Vetch", 4, name: "Ash", founder: true, id: ParentAId);
-        var b = Creature("Skitter", 6, name: null, founder: false, id: ParentBId);
-        var model = SpliceScreen.Build(a, b, Preview());
+        // THE HANDOFF'S OWN PAIR, IN SPECIES AND IN GENERATION: `Splice
+        // Chamber.dc.html` splices a G4 Vetch carrying Carapace III and Root
+        // Anchor against a G6 Ember carrying Cinder Spit and Sprint II. Ours
+        // is the Vetch/Skitter pair the rest of this harness uses (so the
+        // roster and the reveal show the same animals), with each parent's
+        // traits its own species' - which is what makes the two tiles' chips
+        // tint differently and the inheritance bars' dots disagree.
+        var a = Creature("Vetch", 4, name: "Ash", founder: true, id: ParentAId,
+            trait1: "Carapace", tier1: 3, trait2: "Taunt", tier2: 1);
+        var b = Creature("Skitter", 6, name: null, founder: false, id: ParentBId,
+            trait1: "Sprint", tier1: 2, trait2: "Litter", tier2: 1);
+        var model = SpliceScreen.Build(a, b, Preview(a, b));
 
         var view = new SpliceChamberView();
         view.Bind(model, lockedOut: new HashSet<Guid>(), onSplice: () => { });
@@ -392,9 +446,21 @@ public static class ScreenFixtures
 
     static VisualElement SpliceReveal()
     {
-        var a = Creature("Vetch", 4, name: "Ash", founder: true, id: ParentAId);
-        var b = Creature("Skitter", 6, name: null, founder: false, id: ParentBId);
-        var child = Creature("Vetch", 5, name: null, founder: false, id: ChildId);
+        // THE SAME PAIR THE CHAMBER SPLICED, AND A CHILD THAT ACTUALLY
+        // MUTATED. One trait carries from parent A (Carapace III) and the
+        // other is in NEITHER parent (Cinder I), which is what a mutation is
+        // - `SpliceRevealScreen.MutatedTrait` is a set difference over these
+        // three creatures, so a fixture whose child only held its parents'
+        // traits would render the `mutated: true` pill with no trait to name
+        // and both rows reading "From ...". The generation is the server's
+        // own `max(4, 6) + 1` (`splice/commit.ts:292`), which the chamber's
+        // predicted panel states one screen earlier.
+        var a = Creature("Vetch", 4, name: "Ash", founder: true, id: ParentAId,
+            trait1: "Carapace", tier1: 3, trait2: "Taunt", tier2: 1);
+        var b = Creature("Skitter", 6, name: null, founder: false, id: ParentBId,
+            trait1: "Sprint", tier1: 2, trait2: "Litter", tier2: 1);
+        var child = Creature("Vetch", 7, name: null, founder: false, id: ChildId,
+            trait1: "Carapace", tier1: 3, trait2: "Cinder", tier2: 1);
         var committed = new SpliceCommitResponse
         {
             Child = child,

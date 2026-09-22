@@ -105,7 +105,292 @@ namespace Broodline.UI
 
         /// The forecast card's heading. Section 2's own word for what the
         /// table is: the odds shown BEFORE the charge is spent.
+        ///
+        /// SUPERSEDED ON THE SCREEN BY `InheritanceHeading` IN PHASE 9 TASK
+        /// 16 and kept here rather than deleted: it is a `public const` on a
+        /// model class, the phrase section 2 actually uses, and the eyebrow
+        /// that replaced it is the HANDOFF's word for the same card. If the
+        /// two ever have to be reconciled, the losing one should still be
+        /// readable beside the winner.
         public const string ForecastHeading = "Trait forecast";
+
+        // ---------------------------------------------------------------
+        // Phase 9 Task 16 - `Splice Chamber.dc.html`'s own words.
+        //
+        // EVERY EYEBROW BELOW SHIPS UPPERCASE AND NOTHING RENDERS IT SO.
+        // The handoff puts all of them through `.lbl { text-transform:
+        // uppercase }` (`Splice Chamber.dc.html:16`) and UI Toolkit has no
+        // `text-transform` at all - Task 13 established that and the user
+        // ruled at the Task 13/14 boundary that the casing is baked into the
+        // NAMED CONSTANT and never scattered as a literal in markup or in a
+        // test. `FounderNamingScreen.Eyebrow` and `CostCtaRow.CostEyebrow`
+        // are the same constant for the same reason.
+        // ---------------------------------------------------------------
+
+        /// The kicker over the title - `Splice Chamber.dc.html:38`, which
+        /// says where in the app the player is standing rather than what the
+        /// screen does.
+        public const string Eyebrow = "GENE LAB";
+
+        /// The two parent tiles' eyebrows - `Splice Chamber.dc.html:52`
+        /// and `:80`.
+        public const string ParentAEyebrow = "PARENT A";
+        public const string ParentBEyebrow = "PARENT B";
+
+        /// The predicted-hybrid band's eyebrow - `Splice Chamber.dc.html:103`.
+        public const string PredictedHeading = "PREDICTED HYBRID";
+
+        /// What the child is called before it exists - `Splice Chamber
+        /// .dc.html:117`. NOT a name the server will use: bible 3.3 makes
+        /// naming a Founder-only affordance today and `only_founders_named`
+        /// refuses a named non-Founder, so this is a placeholder that says it
+        /// is one.
+        public const string PredictedName = "Unnamed Hybrid";
+
+        /// The inheritance card's eyebrow and its right-hand note -
+        /// `Splice Chamber.dc.html:135` and `:136`. The note is lowercase in
+        /// the handoff and is NOT a `.lbl`, so it is not uppercased here.
+        public const string InheritanceHeading = "TRAIT INHERITANCE";
+        public const string OddsNote = "odds";
+
+        /// The lineage card's eyebrow - `Splice Chamber.dc.html:185`.
+        public const string LineageHeading = "LINEAGE";
+
+        /// What one splice costs, as the cost row states it.
+        ///
+        /// "1", NOT THE HANDOFF'S "2". `Splice Chamber.dc.html:222` draws a
+        /// 2; `splice_monetization_spec` and `SpliceCommitAsync`'s own
+        /// balance arithmetic are one charge per splice, and the balance the
+        /// header pill shows is decremented by one. A cost row that said 2
+        /// beside a pill that fell by 1 would be the screen disagreeing with
+        /// itself about the only number the decision is about.
+        ///
+        /// A STRING BECAUSE `CostCtaRow` TAKES ONE, and it is the whole
+        /// value: no currency symbol, because the glyph beside it is the
+        /// currency.
+        public const string ChargeCost = "1";
+
+        /// The muted cap on the header's charge pill - `Splice Chamber
+        /// .dc.html:45`'s `/5`. The 5 is the Splicing Chamber's charge
+        /// ceiling and is the server's; this is only how it is written.
+        public const string ChargeCap = "/5";
+
+        /// The mark between the two parent tiles - `Splice Chamber
+        /// .dc.html:74`'s `<path d="M6 6 l12 12M18 6 L6 18">`, which is a
+        /// multiplication cross.
+        ///
+        /// A CHARACTER AND NOT AN ICON, WHICH THE CAPTURE DECIDED. The first
+        /// pass put `icon--splice` in the disc; that sheet's glyph is the
+        /// NAV BAR's flask - "the lab" - and at 18px it read as a small
+        /// violet blob rather than as "these two cross". `icons.uss` has no
+        /// cross, and adding one means a new PNG through
+        /// `generate-textures.py` for a mark the text face already draws.
+        /// U+00D7 is the same character `LineageLine` puts between the two
+        /// species one panel below, so the two say the same thing the same
+        /// way - and it is already proven to render in Nunito-Bold SDF,
+        /// because that line does.
+        public const string JoinMark = "×";
+
+        /// The tag beside an inheritance bar. splice_confirm_spec 2 shows
+        /// the odds before the charge; this is the one-word reading of them.
+        ///
+        /// THE 50% LINE IS THE HANDOFF'S, READ OFF ITS OWN THREE ROWS:
+        /// `Splice Chamber.dc.html` tags 78% and 54% `DOM` and 31% `REC`
+        /// (lines 148, 160, 172), so the boundary sits between 54 and 31 and
+        /// a half is the only round number in that gap. It is a READING of a
+        /// published probability and not a re-derivation of one - nothing
+        /// here computes dominance, which is `splice/distribution.ts`'s and
+        /// stays there.
+        public static string InheritanceTag(double odds01)
+        {
+            return odds01 > 0.5 ? "DOM" : "REC";
+        }
+
+        /// Which parent brings a forecast trait, by NAME MATCH against the
+        /// two creatures the screen already holds.
+        ///
+        /// NOT A RE-DERIVATION, AND THE DISTINCTION IS THE ONE
+        /// `SpliceConfirmTests` IS BUILT ON. The server decides the odds; a
+        /// trait's OWNER is not a probability at all - `combatPool`
+        /// (`services/api/src/splice/distribution.ts`) is literally the two
+        /// parents' four combat slots, so every trait in `combat2` came from
+        /// one of the two creatures in this model. Asking which is a lookup.
+        ///
+        /// A IS CHECKED FIRST AND THAT IS ARBITRARY WHERE BOTH CARRY IT.
+        /// Both parents holding the same trait is exactly the case
+        /// `coverageLost` is about, and either answer names a real owner - so
+        /// the tie is broken by order rather than by inventing a rule.
+        ///
+        /// NULL WHEN NEITHER HAS IT, which a mutation would be. The bar then
+        /// takes the neutral modifier, which is what the handoff's own third
+        /// row draws (`:164`, `#b3adc2`).
+        public static string TraitOwner(string trait, CreatureDto parentA, CreatureDto parentB)
+        {
+            if (string.IsNullOrEmpty(trait)) return null;
+            if (Carries(parentA, trait)) return parentA.Species;
+            if (Carries(parentB, trait)) return parentB.Species;
+            return null;
+        }
+
+        private static bool Carries(CreatureDto creature, string trait)
+        {
+            if (creature == null) return false;
+            return string.Equals(creature.Trait1, trait, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(creature.Trait2, trait, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// bible 1.2's six species as the COLOUR-FAMILY names `ProgressBar`
+        /// and `InheritanceBar` take - `teal`, `coral`, `amber`, `violet`,
+        /// `green`, `mute`.
+        ///
+        /// HERE RATHER THAN IN A COMPONENT BECAUSE THIS IS THE ONLY SCREEN
+        /// THAT NEEDS THE TRANSLATION. `TraitChip`, `HeroSlot` and
+        /// `LineageStrip` all take a SPECIES and map it in their own
+        /// stylesheets (`.trait-chip--vetch` and so on), which is the right
+        /// arrangement and is untouched. `InheritanceBar` is the one
+        /// component in the vocabulary that takes a colour family instead,
+        /// because its dot, fill and tag are one colour decision the caller
+        /// makes once - so somebody has to spell bible 1.2's colour column in
+        /// C#, and it is the screen that composes the bar. If a second screen
+        /// needs this, it lifts out; one caller is not a shared table yet.
+        ///
+        /// PALE IS `mute` AND NOT A SEVENTH FAMILY. bible 1.2 gives Pale
+        /// `#c6cede` (`--slate`), and `InheritanceBar.uss` has no slate rule
+        /// - its neutral is `--mute` over `--hairline`, which is the same
+        /// quiet end of the palette `HeroSlot.uss` puts Pale's disc on. A
+        /// slate bar is a palette ruling, not a screen-local repaint.
+        ///
+        /// AN UNKNOWN SPECIES IS `mute`, NOT VIOLET. `InheritanceBar` would
+        /// default an unknown modifier to violet, which is Hollow's colour -
+        /// so "we do not know whose trait this is" would render as "this is a
+        /// Hollow's". Neutral is the honest answer and it is also what the
+        /// handoff draws for its own unowned row.
+        public static string ColourFamily(string species)
+        {
+            switch ((species ?? string.Empty).Trim().ToLowerInvariant())
+            {
+                case "vetch":   return "teal";
+                case "ember":   return "coral";
+                case "skitter": return "amber";
+                case "hollow":  return "violet";
+                case "loam":    return "green";
+                default:        return "mute";
+            }
+        }
+
+        /// The generation the child would be.
+        ///
+        /// THE SERVER'S OWN ARITHMETIC, QUOTED: `splice/commit.ts:292` is
+        /// `Math.max(a.generation, b.generation) + 1`. This is the one number
+        /// on the predicted panel the client can state without the server
+        /// having said it, because the rule is a published constant rather
+        /// than a distribution - and the panel that states it is a PREDICTION
+        /// by name.
+        ///
+        /// THE CEILING IS NOT APPLIED HERE. `commit.ts:298` refuses a splice
+        /// that would exceed the Splicing Chamber's generation ceiling, and
+        /// that refusal is the server's to make with its own tier in hand.
+        /// Capping the number locally would show a player a generation the
+        /// commit will not produce, which is worse than showing the one the
+        /// rule gives.
+        public static int PredictedGeneration(CreatureDto parentA, CreatureDto parentB)
+        {
+            var a = parentA == null ? 0 : parentA.Generation;
+            var b = parentB == null ? 0 : parentB.Generation;
+            return (a > b ? a : b) + 1;
+        }
+
+        /// "Vetch × Skitter lineage" - `Splice Chamber.dc.html:118`.
+        ///
+        /// THE SPECIES AND NOT THE DISPLAY NAME, which is the opposite call
+        /// from `DestructionNoticeFor`. That sentence is about two INDIVIDUAL
+        /// creatures being destroyed and the name is what stops a player; a
+        /// lineage is about which STOCKS meet, and "Ash × Skitter lineage"
+        /// would name one creature and one species in the same breath.
+        public static string LineageLine(CreatureDto parentA, CreatureDto parentB)
+        {
+            if (parentA == null || parentB == null) return string.Empty;
+            return parentA.Species + " × " + parentB.Species + " lineage";
+        }
+
+        /// The lineage card's right-hand note - `Splice Chamber.dc.html:186`'s
+        /// "7 generations", which is the depth the child would reach.
+        public static string LineageNote(int generations)
+        {
+            return generations.ToString(CultureInfo.InvariantCulture)
+                + (generations == 1 ? " generation" : " generations");
+        }
+
+        /// The chain the lineage strip draws: the founder root, the two
+        /// parents, and the child.
+        ///
+        /// THIS SCREEN DECIDES THE SEQUENCE BECAUSE NOBODY ELSE CAN.
+        /// `LineageStrip` states its own contract - "IT TAKES THE CHAIN, IT
+        /// DOES NOT WALK ONE ... picking the path through it that a player
+        /// thinks of as 'the line' belongs to whoever has the tree" - and the
+        /// Splice Chamber has NO TREE. `SpliceScreenModel` holds two parents
+        /// and a preview; `GET /v1/lineage` is not called until after the
+        /// commit (`FtueDirector.SpliceAsync`), by design, because the flag
+        /// the reveal needs comes from the same read.
+        ///
+        /// SO WHAT IS DRAWN IS WHAT IS KNOWN, AND EVERY STOP IS A FACT:
+        ///   G1        every line starts at a Founder - generation 1 is the
+        ///             root by definition of the field, not an assumption.
+        ///             Dropped when a parent IS a G1, so the rail never draws
+        ///             the same generation twice in a row.
+        ///   parents   their own generations, oldest first, each tinted by
+        ///             its own species.
+        ///   child     `PredictedGeneration`, marked `current` because it is
+        ///             what the screen is about.
+        ///
+        /// WHAT IT IS NOT is the handoff's G1-G3-G4-G6-G7, which has an
+        /// intermediate generation nobody on this screen has. That gap is a
+        /// missing lineage read, not a missing rule, and it is named in the
+        /// task report rather than filled with a number.
+        ///
+        /// NEVER EMPTY while both parents exist, so the strip's own collapse
+        /// is reachable only from a caller that has neither.
+        public static IReadOnlyList<(int gen, string species, bool current)> LineageChain(
+            CreatureDto parentA, CreatureDto parentB, CreatureDto bodyParent)
+        {
+            var chain = new List<(int gen, string species, bool current)>(4);
+            if (parentA == null || parentB == null) return chain;
+
+            var older = parentA.Generation <= parentB.Generation ? parentA : parentB;
+            var younger = ReferenceEquals(older, parentA) ? parentB : parentA;
+
+            // The founder root, and only when it is not already one of the
+            // two stops below it.
+            if (older.Generation > 1) chain.Add((1, null, false));
+
+            chain.Add((older.Generation, older.Species, false));
+            if (younger.Generation != older.Generation)
+            {
+                chain.Add((younger.Generation, younger.Species, false));
+            }
+
+            var body = bodyParent ?? parentA;
+            chain.Add((PredictedGeneration(parentA, parentB), body.Species, true));
+            return chain;
+        }
+
+        /// The header pill's charge count, or null when the client does not
+        /// know it.
+        ///
+        /// -1 IS "UNKNOWN" AND MUST NOT RENDER AS A NUMBER.
+        /// `SpliceScreenModel.ChargesRemaining` is -1 until a commit has
+        /// answered, because "the cached balance is a label, not a number the
+        /// client does arithmetic on" (client_architecture 7) - so the
+        /// preview-built model this screen is always shown from has no
+        /// balance at all. `ScreenScaffold.SetResourcePill` removes the pill
+        /// outright for a null or empty value, which is the honest rendering
+        /// of "we have not been told"; printing "-1/5" beside a charge glyph
+        /// is not.
+        public static string ChargesLabel(int chargesRemaining)
+        {
+            return chargesRemaining < 0
+                ? null : chargesRemaining.ToString(CultureInfo.InvariantCulture);
+        }
 
         /// What the forecast card says when the server named no outcomes.
         ///

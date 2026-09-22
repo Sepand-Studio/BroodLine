@@ -16,12 +16,58 @@
  */
 .roster-view { flex-grow: 1; }
 
+/* THE ONE EYEBROW IN THE APP THAT CARRIES DECISION-BEARING NUMBERS, and the
+ * one place a screen's own sheet has to reach into the scaffold's header.
+ *
+ * `HATCHERY · 14 OF 20 SLOTS` (`Creature Roster.dc.html:29`) is how full the
+ * Hatchery is, which is what `RosterScreen.IsFull` answers and what decides
+ * whether a claim can be taken at all - bible 10.6's own test for a figure
+ * that needs the tabular face and the 11px floor. `RosterView`'s constructor
+ * adds `t-num` to the label for the face; this rule is the floor, and it has
+ * to be here because `.t-micro` is DECLARED AFTER `.t-num` in Theme.uss, so
+ * at equal specificity the 10px wins and the marker alone would change the
+ * font and not the size. That is the hole `verify-uss-tokens.sh`'s check 2
+ * documents at its own foot: the gate reads for --text-micro under a
+ * `.t-num` SELECTOR and cannot see a class that loses the cascade.
+ *
+ * TWO CLASSES, so this beats `.screen-scaffold__eyebrow`'s own colour rule
+ * without depending on sheet order - the same specificity trick
+ * `CostCtaRow.uss` uses for its three size overrides.
+ *
+ * 11 AGAINST THE HANDOFF'S 9. LineageStrip.uss already recorded this exact
+ * trade for its 8.5px generation labels and made the same call: the floor
+ * wins, and the 2px is written down rather than argued with silently. */
+.roster-view .screen-scaffold__eyebrow { font-size: var(--text-secondary); }
+
 /* Two 160px CreatureCards on a 430 frame with a 12px gutter: 406 of space for
  * 320 of card, so `space-between` is what puts the pair against both edges
  * and an odd third card at the left where the next row starts. */
 .roster-view__cards { flex-direction: row; flex-wrap: wrap; justify-content: space-between; }
 
-.roster-view__card { margin-bottom: var(--space-3); }
+/* 198px, WHICH IS THE HANDOFF'S GRID AND NOT `CreatureCard`'s OWN WIDTH.
+ * `Creature Roster.dc.html:54` is `grid-template-columns: 1fr 1fr; gap: 9px`
+ * inside the 12px gutter - so on this project's own 406px content column
+ * each tile is (406 - 9) / 2 = 198.5, rounded down. The component ships at a
+ * fixed 160 because that is what it is in a horizontal strip (the reveal's
+ * consumed pair, the post-wave drop), and 160 in a 406 column left 46px of
+ * dead paper down the middle AND squeezed two trait chips onto two rows
+ * where the handoff fits them on one. Both are visible in the first capture
+ * of this screen.
+ *
+ * A SCREEN'S SHEET REACHING A COMPONENT IT COMPOSED is the legal direction
+ * (StatCell.uss's closing note); `CreatureCard`'s own 160 does not move, and
+ * the four other screens that place one are untouched. */
+/* TWO CLASSES, AND THE FIRST CAPTURE OF THIS RULE IS WHY. `.creature-card`
+ * sets `width: 160px` and is ALSO a single class, so at equal specificity the
+ * winner is whichever sheet the panel applies last - and `CreatureCard.uss`
+ * is attached inside the card's own subtree, which is deeper than this
+ * screen's, so it applies later and wins. Written with one class the rule
+ * compiled, passed both gates, and changed nothing: the capture came back
+ * byte-identical to the one before it. A screen's sheet reaches a component
+ * it composed, but it has to outrank the component's own rule to do it -
+ * which is the same two-class move `CostCtaRow.uss` and `MutationBanner.uss`
+ * make against `icons.uss` and say so. */
+.roster-view__cards > .roster-view__card { width: 198px; margin-bottom: var(--space-3); }
 
 /* The empty case is one element in a row that lays out tiles, so it has to be
  * told to take the whole line - a CreatureCard is a fixed 160px and an

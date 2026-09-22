@@ -1,14 +1,14 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
     <ui:Style src="CreatureCard.uss" />
+    <ui:VisualElement name="header" class="creature-card__header">
+        <ui:VisualElement name="gen" class="creature-card__gen" />
+    </ui:VisualElement>
     <ui:VisualElement name="slot" class="creature-card__slot">
         <ui:VisualElement name="silhouette" class="creature-card__layer" />
         <ui:VisualElement name="part-dorsal" class="creature-card__layer" />
         <ui:VisualElement name="part-flank" class="creature-card__layer" />
     </ui:VisualElement>
-    <ui:VisualElement name="header" class="creature-card__header">
-        <ui:Label name="name" class="creature-card__name" />
-        <ui:Label name="generation" class="creature-card__generation" />
-    </ui:VisualElement>
-    <ui:VisualElement name="pips" class="creature-card__pips" />
+    <ui:Label name="name" class="creature-card__name" />
     <ui:Label name="instinct" class="creature-card__instinct" />
+    <ui:VisualElement name="traits" class="creature-card__traits" />
 </ui:UXML>
