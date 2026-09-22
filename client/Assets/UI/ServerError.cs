@@ -334,11 +334,17 @@ namespace Broodline.UI
             // 21g had already written the ruling down at the one call site it
             // touched (`FtueNotice.WalkThrew`: "`PlayerMessage` degrades to
             // the raw `Exception.Message` ... a stack trace wearing a
-            // sentence's clothes") and left the other EIGHT able to do it.
-            // Counted, not estimated: nine production sites read
-            // `PlayerMessage`, all of them in `FtueDirector`, and eight of
-            // those are not the one that comment sat on. It is settled here
-            // instead, once, where every one of them meets it.
+            // sentence's clothes") and left ALL NINE OF THEM able to do it.
+            // Counted again in fix round 1, because the first count was wrong
+            // three different ways in one commit: nine production sites read
+            // `PlayerMessage`, every one of them in `FtueDirector`, and NONE of
+            // them is the site that comment sat on - `RunAsync`'s outermost
+            // catch deliberately does not read `PlayerMessage` at all, which is
+            // the whole of what 21g did about it. `RosterScreen` reads none
+            // either; it RETURNS a `ServerError` and the director reads it. So
+            // the ruling was written down beside one caller and applied to
+            // nothing, and it is settled here instead, once, where all nine
+            // meet it.
             //
             // TWO SENTENCES BECAUSE THERE ARE TWO SITUATIONS, AND THE SPLIT IS
             // `Retry.IsTransient`'s RATHER THAN A SECOND ONE OF THIS FILE'S.

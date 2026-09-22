@@ -44,6 +44,14 @@ namespace Broodline.Game
                 case OutboxOutcome.Unavailable:
                     return action + " needs a connection. Try again when you are back online.";
                 case OutboxOutcome.Rejected:
+                    // NO `Diagnostics.Defect` HERE, AND IT IS THE ONE EXEMPTION
+                    // AMONG THE NINE READERS OF `PlayerMessage`. `error` is a
+                    // `BroodlineApiException`, which `ServerError.From` answers
+                    // on one of its two API branches and never on the transport
+                    // branch this task changed - so nothing is lost to log, and
+                    // the status and the server's own sentence are already in
+                    // `PlayerMessage`. It is also `static` and reached from the
+                    // outbox rather than from a catch.
                     var why = error == null ? string.Empty : ServerError.From(error).PlayerMessage;
                     return string.IsNullOrEmpty(why)
                         ? action + " was refused."
@@ -200,8 +208,10 @@ namespace Broodline.Game
         /// THE RULING IS NOW INSIDE `PlayerMessage` AND THIS IS DEFINED FROM
         /// IT - Phase 9 Task 21h. `ServerError.From(Exception)`'s transport
         /// branch no longer surfaces a raw `Exception.Message` at all, so the
-        /// EIGHT other readers of `PlayerMessage` in this file get the same
-        /// treatment this constant gave itself. A player caught by a defect at
+        /// NINE readers of `PlayerMessage` in this file get the same treatment
+        /// this constant gave itself - nine and not eight, corrected in fix
+        /// round 1: the catch this constant is said from reads `PlayerMessage`
+        /// nowhere, so it was never one of them. A player caught by a defect at
         /// the call that made it and a player caught by one thrown out of the
         /// whole walk are in the same situation, so they get the same sentence,
         /// from one definition.
@@ -425,7 +435,7 @@ namespace Broodline.Game
                     // LOGGED WITH THE EXCEPTION AND SAID WITHOUT IT. See
                     // `FtueNotice.WalkThrew` for why the player does not get
                     // `ServerError.From(error).PlayerMessage` here.
-                    UnityEngine.Debug.LogError("[FtueDirector] the walk threw: " + error);
+                    Diagnostics.Defect("the walk threw", error);
                     _notice(FtueNotice.WalkThrew);
                 }
 
@@ -672,6 +682,11 @@ namespace Broodline.Game
                 }
                 catch (Exception error)
                 {
+                    // AT THE CALL SITE RATHER THAN INSIDE `StartFailureNotice`,
+                    // which is pure and public precisely so a test can drive it
+                    // - a log inside it would be a side effect in the one
+                    // helper this file promises has none.
+                    Diagnostics.Defect("wave/start failed", error);
                     _notice(StartFailureNotice(error));
 
                     // **RETURNING `true` HERE IS THE OTHER HALF OF THE FIX,
@@ -710,7 +725,7 @@ namespace Broodline.Game
                 // whatever `config.waves` sends.
                 //
                 // Unguarded, all four escape `RunAsync` into `BootController`'s
-                // `Debug.LogError` and leave the player on a Deploy screen whose
+                // outermost catch and leave the player on a Deploy screen whose
                 // Start button no longer resumes anything, with nothing said.
                 // That is the awaited-screen model's own failure class: an
                 // exception between the screen and its continuation strands the
@@ -739,8 +754,7 @@ namespace Broodline.Game
                     // `TimeoutException` from `WaveHost` or a
                     // `WaveCompositionException` from `WaveDef.ForId`, with
                     // nothing else anywhere going to write it down.
-                    UnityEngine.Debug.LogError(
-                        "[FtueDirector] the wave produced no report: " + error);
+                    Diagnostics.Defect("the wave produced no report", error);
                     _notice(ServerError.From(error).PlayerMessage);
                     return false;
                 }
@@ -837,7 +851,7 @@ namespace Broodline.Game
                 }
                 catch (Exception error)
                 {
-                    UnityEngine.Debug.LogError("[FtueDirector] LaneStage.Clear threw: " + error);
+                    Diagnostics.Defect("LaneStage.Clear threw", error);
                 }
             }
         }
@@ -1115,7 +1129,7 @@ namespace Broodline.Game
                 }
                 catch (Exception error)
                 {
-                    UnityEngine.Debug.LogError("[FtueDirector] PortraitStudio.Clear threw: " + error);
+                    Diagnostics.Defect("PortraitStudio.Clear threw", error);
                 }
             }
         }
@@ -1181,6 +1195,7 @@ namespace Broodline.Game
             }
             catch (Exception error)
             {
+                Diagnostics.Defect("the splice preview did not arrive", error);
                 _notice(ServerError.From(error).PlayerMessage);
                 return false;
             }
@@ -1262,7 +1277,7 @@ namespace Broodline.Game
                 }
                 catch (Exception error)
                 {
-                    UnityEngine.Debug.LogError("[FtueDirector] PortraitStudio.Clear threw: " + error);
+                    Diagnostics.Defect("PortraitStudio.Clear threw", error);
                 }
             }
         }
@@ -1341,6 +1356,7 @@ namespace Broodline.Game
                 // a failed splice, so this says so and still shows the
                 // reveal - unmutated, because the only source of that fact
                 // is the read that just failed.
+                Diagnostics.Defect("the lineage read after a commit failed", error);
                 _notice(ServerError.From(error).PlayerMessage);
             }
 
@@ -1415,6 +1431,7 @@ namespace Broodline.Game
                 }
                 catch (Exception error)
                 {
+                    Diagnostics.Defect("the lineage read failed", error);
                     _notice(ServerError.From(error).PlayerMessage);
                     return;
                 }
@@ -1479,6 +1496,13 @@ namespace Broodline.Game
         {
             var error = await _roster.LoadAsync(_api);
             if (error == null) return true;
+
+            // THE `ServerError` RATHER THAN AN EXCEPTION, because this is the
+            // one of the nine that never holds one - `RosterScreen.LoadAsync`
+            // catches it and hands back the classified refusal. Its
+            // `ToString()` is where `Diagnostic` surfaces, so the transport
+            // message this task stopped showing a player still reaches the log.
+            Diagnostics.Defect("the roster would not load", error);
             _notice(error.PlayerMessage);
             return false;
         }
@@ -1501,6 +1525,7 @@ namespace Broodline.Game
             }
             catch (Exception error)
             {
+                Diagnostics.Defect("wave/abandon failed", error);
                 _notice(ServerError.From(error).PlayerMessage);
                 return false;
             }
@@ -1523,6 +1548,7 @@ namespace Broodline.Game
             }
             catch (Exception error)
             {
+                Diagnostics.Defect("the resync failed", error);
                 _notice(ServerError.From(error).PlayerMessage);
                 return false;
             }

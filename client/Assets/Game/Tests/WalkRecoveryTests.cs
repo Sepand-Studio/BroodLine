@@ -494,20 +494,29 @@ namespace Broodline.Game.Tests
             // THE PROPERTY, RATHER THAN ONE MORE SIGHTING OF IT - Phase 9 Task
             // 21h. The case above asserts the exact sentence for the one
             // exception the device met; this asserts the shape for the whole
-            // class, because `ServerError.From(Exception)`'s transport branch
-            // is reached by `FtueDirector`'s other ten `PlayerMessage` call
-            // sites too and by `RosterScreen`'s.
+            // class, because `ServerError.From(Exception)`'s transport branch is
+            // reached by all NINE of `FtueDirector`'s `PlayerMessage` readers.
             //
-            // THE FOUR INPUTS ARE THE FOUR THAT ARE ACTUALLY REACHABLE THERE,
-            // all named in comments elsewhere in the tree: `WaveHost`'s
-            // timeout, `WaveDef.ForId`'s refusal to compose a wave this build
-            // does not author (`FightAsync`'s guard names it), the
-            // `HttpRequestException` `RetryTests` records as Mono's real shape
-            // for a dropped connection, and a plain defect.
+            // FOUR REPRESENTATIVES, NOT AN ENUMERATION - fix round 1 corrected
+            // this comment, which claimed to be "the four that are actually
+            // reachable there" and was not. At `FightAsync`'s `_play` catch
+            // alone the reachable shapes are `WaveHost`'s timeout, BOTH of
+            // `WaveHost.FindRunner`'s throws, `WaveDef.ForId`'s
+            // `WaveCompositionException`, and `SpecsFor`'s and `SeedOf`'s - six
+            // before the other eight readers are counted. What is asserted is a
+            // PROPERTY of the branch, which holds for any input, so four
+            // representatives spanning both of its arms is the right shape and
+            // a list claiming completeness was not.
+            //
+            // AND THE TWO REAL MESSAGES ARE READ FROM THE THINGS THAT THROW
+            // THEM. The second one used to be hand-copied - as "[WaveHost] a
+            // WaveRunner is missing from the Wave scene.", which is not the text
+            // `WaveHost.RunnerMissing` carries - inside the very case that
+            // exists to stop fixtures sanitising what ships.
             var shapes = new List<Exception>
             {
                 new TimeoutException(WaveHost.CompletionTimedOut),
-                new InvalidOperationException("[WaveHost] a WaveRunner is missing from the Wave scene."),
+                new InvalidOperationException(WaveHost.RunnerMissing),
                 new HttpRequestException("An error occurred while sending the request."),
                 new NullReferenceException(),
             };

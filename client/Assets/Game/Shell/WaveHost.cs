@@ -76,6 +76,31 @@ namespace Broodline.Game.Shell
             }
         }
 
+        /// The message `FindRunner` throws when the scene loaded and has no
+        /// runner in it.
+        ///
+        /// NAMED FOR `CompletionTimedOut`'s SECOND REASON AND NOT ITS FIRST -
+        /// Phase 9 Task 21h, fix round 1. It is a developer's line like that
+        /// one, and it reaches a player through the same `_play` catch, so the
+        /// same rule applies to it. What earned it a name is that a test had
+        /// ALREADY hand-copied an approximation of it while asserting the
+        /// property that such copies must stop - "a WaveRunner is missing from
+        /// the Wave scene", which is not this text at all. A test that wants to
+        /// know what a player is shown for this throw reads it from here.
+        ///
+        /// ITS SIBLING TWO THROWS UP - the scene that did not load at all - is
+        /// deliberately left inline: nothing copies it, and naming a string on
+        /// the chance that something might is how a file accumulates constants
+        /// with one caller.
+        public static string RunnerMissing
+        {
+            get
+            {
+                return "[" + nameof(WaveHost) + "] no " + nameof(WaveRunner) + " in " + SceneName +
+                    " - rebuild it with Broodline > Build Wave Scene.";
+            }
+        }
+
         /// Loads the wave scene, plays `waveId` with `deployment`, and
         /// unloads.
         ///
@@ -240,8 +265,7 @@ namespace Broodline.Game.Shell
                 if (runner != null) return runner;
             }
 
-            throw new InvalidOperationException(
-                "[WaveHost] no WaveRunner in " + SceneName + " - rebuild it with Broodline > Build Wave Scene.");
+            throw new InvalidOperationException(RunnerMissing);
         }
 
         /// An `AsyncOperation` as an awaitable.

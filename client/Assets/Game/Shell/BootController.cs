@@ -41,11 +41,6 @@ namespace Broodline.Game.Shell
         ScreenHost _screenHost;
         ScreenFlow _screenFlow;
         TabBar _tabBar;
-        /// The shell's safe-area owners. Nothing READS this - the binders stay
-        /// reachable through the GeometryChangedEvent closure BindSafeAreas
-        /// registers on the root - and it is here so a reader can see at the
-        /// field list that the shell has owners at all, and how many.
-        IReadOnlyList<SafeAreaBinder> _safeAreas;
         OutboxClient _outbox;
         OutboxPump _pump;
         WaveHost _waves;
@@ -56,6 +51,10 @@ namespace Broodline.Game.Shell
 
         /// Gives the panel root AND the notice toast the safe-area inset, and
         /// hands back the binders so nothing re-derives them.
+        ///
+        /// THE BINDERS COME BACK SO A TEST CAN RE-DRIVE THEM, and production
+        /// drops them: they stay alive in the `GeometryChangedEvent` closure
+        /// registered below, so there is nothing for a caller to hold.
         ///
         /// TWO BINDERS, AND THE SECOND ONE IS THE WHOLE OF PHASE 9 TASK 21h's
         /// D2. On an iPhone 17 the notice toast drew with its first line behind
@@ -133,7 +132,11 @@ namespace Broodline.Game.Shell
 
             // AFTER THE TOAST EXISTS, BECAUSE THE TOAST IS ONE OF THE TWO
             // THINGS THAT NEEDS THE INSET. See BindSafeAreas.
-            _safeAreas = BindSafeAreas(root, _toast);
+            // THE RETURN IS DROPPED ON PURPOSE. `BindSafeAreas` keeps both
+            // binders alive inside the `GeometryChangedEvent` closure it
+            // registers on `root`, so a field holding them would be read by
+            // nothing - which is what the field here used to be.
+            BindSafeAreas(root, _toast);
 
             var screenHostElement = root.Q<VisualElement>("screen-host");
             var sheetLayer = root.Q<VisualElement>("sheet-layer");
@@ -198,7 +201,7 @@ namespace Broodline.Game.Shell
                 // toast can throw again; this one is reached when the NETWORK
                 // failed, with `_toast` already built above and nothing
                 // having touched it since.
-                Debug.LogError("[BootController] cold start failed: " + e);
+                Diagnostics.Defect("the cold start failed", e);
                 OnNotice(FtueNotice.ColdStartFailed);
             }
 
@@ -266,9 +269,9 @@ namespace Broodline.Game.Shell
                 //
                 // SO IT SAYS SOMETHING RATHER THAN ONLY LOGGING. A toast is
                 // four seconds and a relaunch is genuinely the remedy, which
-                // is what the sentence names. `Debug.LogError` alone is what
-                // a tester holding a device cannot read, and that gap is the
-                // one Task 4 closed everywhere else.
+                // is what the sentence names. A log line alone is what a
+                // tester holding a device cannot read, and that gap is the one
+                // Task 4 closed everywhere else.
                 //
                 // THE TOAST IS GUARDED, AND THE REASON IS THE ONLY ROUTE THAT
                 // GETS HERE. That route is a throw out of the recovery screen
@@ -278,14 +281,14 @@ namespace Broodline.Game.Shell
                 // of an `async void Start` that this catch exists to prevent,
                 // and it would take the log line with it. The log runs FIRST
                 // so the developer keeps the stack either way.
-                Debug.LogError("[BootController] the first hour stopped: " + e);
+                Diagnostics.Defect("the first hour stopped", e);
                 try
                 {
                     OnNotice(FtueNotice.WalkUnrecoverable);
                 }
                 catch (Exception unsayable)
                 {
-                    Debug.LogError("[BootController] and it could not be said: " + unsayable);
+                    Diagnostics.Defect("and it could not be said", unsayable);
                 }
             }
         }
