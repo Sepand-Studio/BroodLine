@@ -236,9 +236,40 @@
     flex-grow: 1;
 }
 
+/* `min-height: 100%` IS WHAT MAKES THE CONTENT REGION FILLABLE, AND WITHOUT
+ * IT NO SCREEN'S `flex-grow` DOES ANYTHING.
+ *
+ * A ScrollView's content container is sized BY ITS CONTENT - that is how it
+ * can exceed the viewport and have something to scroll - so a child carrying
+ * `flex-grow: 1` had no free space to take and every short screen ended in a
+ * band of bare --paper below its last card. Measured at about 180px on
+ * founder naming, where the handoff's own hero is `flex: 1; min-height:
+ * 300px` (Onboarding.dc.html:43) and absorbs exactly that slack.
+ *
+ * THE PERCENTAGE RESOLVES AGAINST THE VIEWPORT, NOT THE SCREEN. This
+ * element's parent is Unity's `unity-content-viewport`, which is
+ * `flex-grow: 1` inside a ScrollView that is itself `flex-grow: 1` in the
+ * scaffold's column - so 100% is "as tall as the visible region", which is
+ * the number a screen wanting to fill it actually means.
+ *
+ * IT DOES NOT STOP ANYTHING SCROLLING. A MINIMUM is not a height: content
+ * taller than the viewport still sizes the container past 100% and still
+ * scrolls, which the Scaffold fixture's short frame is the standing check on.
+ *
+ * TEN SCREENS SEE THIS AND ONLY ONE MOVES. A taller container changes no
+ * pixel unless a direct child of `Content` carries `flex-grow`, because the
+ * column is `justify-content: flex-start` and this element has no fill of its
+ * own. `.founder-naming-view__hero` is the only such child in the project;
+ * the corpus was re-captured in full to say so rather than to assume it.
+ *
+ * NOT `height: 100%`. That would CAP the container at the viewport and clip
+ * every screen whose content is taller - the roster, the chamber, the
+ * Scaffold fixture's own short frame - which is the failure this rule is one
+ * character away from. */
 .screen-scaffold__content .unity-scroll-view__content-container {
     padding-left: var(--gutter);
     padding-right: var(--gutter);
+    min-height: 100%;
 }
 
 .screen-scaffold__cta-row {

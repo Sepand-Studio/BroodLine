@@ -206,22 +206,36 @@ namespace Broodline.UI.Tests
         public void FounderNaming_WearsTheOnboardingStepFrame()
         {
             // `Onboarding.dc.html` step 1: five progress marks with the first
-            // lit, and a counter beside them. The pips are in the scaffold's
-            // header slot rather than in a band of their own -
-            // FounderNamingView.uss's `__progress` note has why - so this
-            // also proves the re-parent happened, which nothing else would
-            // notice if the row were left behind in the screen's own tree.
+            // lit, and a counter beside them. Lines 34-40 draw them as a
+            // full-width row above the hero, which is where they are now -
+            // a direct child of the scaffold's CONTENT region. Task 14 had
+            // them in the header slot because a title column was growing
+            // beside them; there is no header on this screen any more.
             var view = BoundNaming(Creature("Hollow", founder: true), _ => { }, () => { });
-            var slot = view.Q<VisualElement>("header-slot");
+            var progress = view.Q<VisualElement>("progress");
+            Assert.IsNotNull(progress, "the step frame is not on the screen at all");
 
-            var pips = slot.Query<VisualElement>(className: "progress-pip").ToList();
+            var pips = progress.Query<VisualElement>(className: "progress-pip").ToList();
             Assert.AreEqual(5, pips.Count, "onboarding is five steps");
 
             var lit = pips.Where(p => p.ClassListContains("progress-pip--current")).ToList();
             Assert.AreEqual(1, lit.Count, "beat 4 is step 1 of 5, so exactly one pip is lit");
             Assert.AreSame(pips[0], lit[0], "the lit pip is the first one");
 
-            Assert.AreEqual(FounderNamingScreen.Step, slot.Q<Label>("step").text);
+            Assert.AreEqual(FounderNamingScreen.Step, progress.Q<Label>("step").text);
+
+            // THE RE-PARENT ITSELF, which nothing else would notice if the
+            // row were left behind in the screen's own tree or stranded in a
+            // header that no longer renders. Asked of each container rather
+            // than of `progress.parent`, because `Content` is a ScrollView
+            // and the row lands two levels down inside its viewport and
+            // content container rather than directly under it.
+            var scaffold = view.Q<VisualElement>(className: ScreenScaffold.UssClassName);
+            Assert.IsNull(view.Q<VisualElement>("header-slot").Q<VisualElement>("progress"),
+                "the pips are still in the header slot, on a screen whose header is hidden - "
+                + "so the step frame does not render at all");
+            Assert.IsNotNull(scaffold.Q<ScrollView>("content").Q<VisualElement>("progress"),
+                "the pips are not inside the scaffold's content region");
 
             // The caveat that makes `SkipLabel` a real answer. It was the
             // scaffold's footer note until Task 14 and is now the violet tip
@@ -230,6 +244,61 @@ namespace Broodline.UI.Tests
             // sentence rather than a literal in the markup.
             Assert.AreEqual(FounderNamingScreen.Note, view.Q<Label>("note-text").text);
             Assert.IsNotEmpty(FounderNamingScreen.Note);
+        }
+
+        /// THE COMPOSITION TASK 14b CORRECTED, pinned so the four screen
+        /// tasks after it copy the right one.
+        ///
+        /// `Onboarding.dc.html` has no page header: line 33 starts the column
+        /// with the progress row, and lines 158-169 put the kicker, the 26px
+        /// title, the body and the note in ONE white card. Task 14 split that
+        /// across two containers - kicker and title in the scaffold's header,
+        /// body in a card - which is what made a 21px page title and a 19px
+        /// card line read as two competing display lines.
+        ///
+        /// THE HEADER ASSERTION READS THE INLINE STYLE, NOT `resolvedStyle`.
+        /// These trees have no panel, and `Flex` is also the default computed
+        /// value - so a `resolvedStyle` read would pass on a scaffold that had
+        /// never set anything, which is the whole regression. `style.display
+        /// .value` is the property `ScreenScaffold`'s constructor actually
+        /// writes.
+        [Test]
+        public void FounderNaming_HasNoPageHeader_AndCarriesItsKickerAndTitleInTheCard()
+        {
+            var view = BoundNaming(Creature("Hollow", founder: true), _ => { }, () => { });
+
+            Assert.AreEqual(DisplayStyle.None, view.Q<VisualElement>("header").style.display.value,
+                "the founder screen drew a page header; the handoff's onboarding has none, and a "
+                + "21px page title beside a 26px card title is the type ladder this task removed");
+            Assert.AreEqual(string.Empty, view.Q<Label>("title").text,
+                "the scaffold was given a page title as well as a card title");
+
+            var kicker = view.Q<Label>("kicker");
+            var heading = view.Q<Label>("card-title");
+            Assert.AreEqual(FounderNamingScreen.Eyebrow, kicker.text);
+            Assert.AreEqual(FounderNamingScreen.Title, heading.text);
+            Assert.IsTrue(kicker.ClassListContains("t-micro"),
+                "the kicker lost the 10px uppercase treatment the handoff's `.lbl` is");
+
+            // ONE CARD, AND THAT IS THE STRUCTURAL CLAIM. Four elements, one
+            // `SectionCard` body, in the handoff's order.
+            var body = heading.parent;
+            Assert.IsTrue(body.ClassListContains("section-card__body"),
+                "the card's type ladder is not inside a SectionCard body");
+            foreach (var named in new[] { "kicker", "card-title", "prompt", "name", "blocker", "note" })
+            {
+                Assert.AreSame(body, view.Q<VisualElement>(named).parent,
+                    "`" + named + "` is not in the same card as the rest of the step; the handoff "
+                    + "draws all of it in one white surface");
+            }
+            Assert.AreEqual(0, body.IndexOf(kicker), "the kicker is not the card's first line");
+            Assert.AreEqual(1, body.IndexOf(heading), "the title does not follow the kicker");
+            Assert.AreEqual(2, body.IndexOf(view.Q<Label>("prompt")), "the body copy does not follow the title");
+
+            // AND THE HERO IS STILL A CARD OF ITS OWN, above that one. The
+            // handoff's hero is a separate surface at `flex: 1`.
+            Assert.AreNotSame(body, view.Q<VisualElement>("founder").parent,
+                "the founder was folded into the words card; the handoff draws it in a band of its own");
         }
 
         [Test]
@@ -276,14 +345,30 @@ namespace Broodline.UI.Tests
             // Asserted against the CONSTANT and never against a repeated
             // literal - a test holding "YOUR GENE ARK" would still pass if
             // the screen stopped reading the model.
+            // TWO SCREENS, TWO DIFFERENT KICKERS, AND THEY ARE NOT IN THE
+            // SAME PLACE ANY MORE. Campaign select has a page header and its
+            // kicker is the scaffold's eyebrow row; founder naming has no
+            // header at all and carries its kicker inside the card, which is
+            // what `Onboarding.dc.html` does. The constants are shared; the
+            // containers are not.
             var naming = BoundNaming(Creature("Hollow", founder: true), _ => { }, () => { });
-            var eyebrow = naming.Q<Label>("eyebrow");
-            Assert.AreEqual(FounderNamingScreen.Eyebrow, eyebrow.text);
-            Assert.AreEqual(DisplayStyle.Flex, eyebrow.resolvedStyle.display,
-                "the eyebrow row is hidden, so the screen renders with no kicker at all");
+            Assert.AreEqual(FounderNamingScreen.Eyebrow, naming.Q<Label>("kicker").text);
 
             var campaign = BoundCampaign(highestWaveCleared: 2);
-            Assert.AreEqual(CampaignSelectScreen.Eyebrow, campaign.Q<Label>("eyebrow").text);
+            var eyebrow = campaign.Q<Label>("eyebrow");
+            Assert.AreEqual(CampaignSelectScreen.Eyebrow, eyebrow.text);
+
+            // `style.display.value`, NOT `resolvedStyle.display`, AND THE
+            // DIFFERENCE IS WHETHER THIS LINE MEANS ANYTHING. These trees
+            // have no panel, and `Flex` is ALSO the default computed value -
+            // so the resolvedStyle form this test used to carry would have
+            // passed on a scaffold whose `Eyebrow` setter never ran, which is
+            // exactly the regression the message claims to catch. The inline
+            // style is the property that setter writes, and
+            // `ScaffoldTests.AScaffoldWithNoEyebrowReservesNoRowForOne` reads
+            // it the same way for the same reason.
+            Assert.AreEqual(DisplayStyle.Flex, eyebrow.style.display.value,
+                "the eyebrow row is hidden, so the screen renders with no kicker at all");
 
             // And the casing is a property of the constants rather than
             // something that happened to be typed once. `ToUpperInvariant`

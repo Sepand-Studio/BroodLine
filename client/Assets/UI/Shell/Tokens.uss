@@ -302,8 +302,41 @@
     --motion-screen: 220ms;    /* Motion.uss: push, pop, sheet, reveal */
 
     /* ---- Type scale (bible 10.6: 11px floor on decision-bearing numbers) ---- */
+    /* --text-card-hero IS THE HEADING OF A CARD THAT IS CARRYING THE SCREEN,
+     * on a screen that has no page header of its own to carry it.
+     *
+     * MEASURED, AND AT THE LINE: `Onboarding.dc.html:161` sets the step
+     * card's title `font-family: 'Baloo 2'; font-weight: 700; font-size:
+     * 26px; line-height: 1.1; letter-spacing: -.01em`, directly under the
+     * `.lbl` kicker on line 160 and directly over the 13px body on line 162.
+     * That screen draws no header at all - its first row is the progress
+     * pips - so the 26 is NOT a page title and must not be confused with one.
+     *
+     * NOT A ONE-OFF, WHICH IS WHY IT IS A SCALE STEP RATHER THAN A LITERAL.
+     * `Splice Reveal.dc.html:40` sets its headline at the same 26px Baloo
+     * 700 with the same `line-height: 1.1; letter-spacing: -.01em`, and
+     * `Splice World Map v2.dc.html:240` sets a region name at 26/1.12. The
+     * steps either side are --text-hero (28) and --text-screen-title (21),
+     * so rounding to one of them would move the handoff's own number by 2
+     * or 5.
+     *
+     * COUNTED HONESTLY: the bundle holds four more 26px Baloo lines and they
+     * are NOT headings - `Alliance Hub.dc.html:239` is the stat "18",
+     * `Gene Lab Event.dc.html:195` is "$6.99",
+     * `Splice World Map v2.dc.html:244` is a multiplier, and
+     * `Broodline Index.dc.html:61/78` are the doc index's own cards rather
+     * than a game screen. Numerals in this project take Nunito and `.t-num`,
+     * never the display face, so none of those four is a reader of this
+     * token.
+     *
+     * IT IS NOT --text-screen-title AND DOES NOT REPLACE IT. Every handoff
+     * screen that HAS a page header titles it at 20-21px -
+     * `Creature Roster.dc.html:31` is 21px, and `Gene Ark`, `Splice Chamber`
+     * and `Wave Defense` agree - which is exactly --text-screen-title. Four
+     * of this project's screens already match it. */
     --text-screen-title: 21px;
     --text-hero: 28px;
+    --text-card-hero: 26px;
     --text-section: 19px;
     --text-card-title: 13px;
     --text-body: 12px;

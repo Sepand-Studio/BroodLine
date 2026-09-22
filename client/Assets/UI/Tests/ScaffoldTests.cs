@@ -199,6 +199,43 @@ namespace Broodline.UI.Tests
                 "clearing the eyebrow left its row behind");
         }
 
+        /// A SCREEN WITH NO TITLE HAS NO PAGE HEADER, which is one handoff
+        /// screen and one only.
+        ///
+        /// `Onboarding.dc.html` starts its column with the progress row (line
+        /// 33) and puts its 26px Baloo heading inside the white card (line
+        /// 161). Every other screen in the bundle has a header and titles it
+        /// at 20-21px - `Creature Roster.dc.html:31` is 21 - which is what
+        /// `--text-screen-title` already is. So this is about the presence of
+        /// a header, never about the size of a title.
+        ///
+        /// THE SECOND HALF IS WHAT KEEPS IT FREE FOR THE OTHER NINE SCREENS.
+        /// All nine pass a non-empty literal, so none can reach the hidden
+        /// branch; asserted rather than reasoned about.
+        ///
+        /// `style.display.value` RATHER THAN `resolvedStyle`: no panel here,
+        /// and `Flex` is also the default computed value, so a resolvedStyle
+        /// read would pass on a scaffold that had never set anything.
+        [Test]
+        public void AScaffoldWithNoTitleDrawsNoPageHeaderAtAll()
+        {
+            var bare = new ScreenScaffold(title: null);
+            Assert.AreEqual(DisplayStyle.None, bare.Q<VisualElement>("header").style.display.value,
+                "a titleless scaffold still drew the header row, so a screen composing the handoff's "
+                + "headerless onboarding gets a band of empty chrome above its first card");
+            Assert.AreEqual(string.Empty, bare.Q<Label>("title").text);
+
+            // Empty reads the same as null. A screen saying `""` means the
+            // same thing and must not get a different frame for it.
+            Assert.AreEqual(DisplayStyle.None,
+                new ScreenScaffold(string.Empty).Q<VisualElement>("header").style.display.value);
+
+            var titled = new ScreenScaffold("Gene Ark");
+            Assert.AreEqual(DisplayStyle.Flex, titled.Q<VisualElement>("header").style.display.value,
+                "a titled scaffold lost its header; nine screens draw their whole chrome there");
+            Assert.AreEqual("Gene Ark", titled.Q<Label>("title").text);
+        }
+
         /// Step 4 took `flex-grow` off `.screen-scaffold__title` and gave it
         /// to a new `.screen-scaffold__titles` column so the eyebrow could
         /// sit above the title (ScreenScaffold.uss's header comment) -

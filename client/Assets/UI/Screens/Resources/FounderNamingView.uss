@@ -1,7 +1,12 @@
 /* Beat 4, against `Onboarding.dc.html` step 1. Composed onto ScreenScaffold
  * and out of Task 13's components; what is left here is the onboarding STEP
- * FRAME - the progress pips and the tip note - plus the three pieces of
- * layout no component can know.
+ * FRAME - the progress pips and the tip note - the card's own type ladder,
+ * and the layout no component can know.
+ *
+ * NO PAGE HEADER. The handoff's step screen starts with the pips (line 33)
+ * and its 26px Baloo heading (line 161) is inside the white card on line 158.
+ * The scaffold is constructed with `title: null` and hides its header row;
+ * FounderNamingView's class comment has what that costs.
  *
  * THIS FILE GREW IN PHASE 9 TASK 14 AND THAT IS NOT A COMPOSITION FAILURE.
  * The brief expected it to shrink, on the general rule that a screen reaching
@@ -21,9 +26,12 @@
  * REPLACED BY A COPY HERE, which is the whole test of whether a screen is
  * composing the layer or re-deriving it:
  *   - the root's `padding: var(--gutter)` is the scaffold's content region.
- *   - `__prompt`'s font-size/colour/weight is `t-section` in the UXML; the
- *     screen TITLE moved to the scaffold's header, so the prompt is no
- *     longer also acting as one.
+ *   - `__prompt`'s colour and weight are Theme's own `Label` rule. Its SIZE
+ *     is set below, because the handoff's body copy is 13px and the default
+ *     Label is 12. It carried `.t-section` (19px Baloo) until Task 14b, on
+ *     the understanding that the screen title had moved to the scaffold's
+ *     header - which the handoff does not do. The title is `__card-title`
+ *     in the same card now and the prompt is the body line under it.
  *   - `__blocker`'s fill, radius and padding are Theme's `.panel-coral` and
  *     its ink is `.t-danger`.
  *   - `__skip`'s whole treatment was a verbatim second copy of Theme's
@@ -35,25 +43,31 @@
 
 /* ------------------------------------------------------- the step frame */
 
-/* THE PIPS LIVE IN THE SCAFFOLD'S HEADER SLOT, WHICH IS NOT WHERE THE
- * HANDOFF PUTS THEM, AND THE SIZE IS THE REASON. `Onboarding.dc.html` draws
- * five `flex: 1` bars across the full 430 with the step label at the right -
- * a row of its own above the hero region. This project has no such row: the
- * scaffold's header IS the top of every screen, and adding a sixth structural
- * band to it for one screen would move the header for the other nine. The
- * slot is what the scaffold offers instead ("for a currency header or an
- * avatar, per screen"), so the pips become five fixed 8px marks rather than
- * five stretching ones. Same five, same order, same current-step colour,
- * same counter beside them; they read as a progress meter rather than as a
- * full-width rule.
+/* THE PIPS ARE A FULL-WIDTH ROW ABOVE THE HERO, WHICH IS WHERE THE HANDOFF
+ * DRAWS THEM. `Onboarding.dc.html:34-40` is a row of five `flex: 1` bars with
+ * the step label at the end, `padding: 10px 16px 12px`, with nothing above it
+ * but the status bar.
  *
- * `flex-shrink: 0` because the titles column beside this one carries
- * `flex-grow: 1` and a long title would otherwise crush the meter rather
- * than wrap. */
+ * TASK 14 PUT THEM IN THE SCAFFOLD'S HEADER SLOT AND SHRANK THEM TO FIT.
+ * That was the right call while this screen still had a page header - a
+ * titles column carrying `flex-grow: 1` was beside them, so five stretching
+ * bars had nothing to stretch into and became five fixed 8px marks. With no
+ * header there is no column to compete with: the row is a child of the
+ * content region and the pips take the handoff's own `flex: 1`.
+ *
+ * `flex-shrink: 0` SO IT KEEPS ITS HEIGHT. This is a child of a column whose
+ * other children grow; a 4px row is the first thing a shrink pass would take.
+ *
+ * --space-2 IS 8px AGAINST THE HANDOFF'S 10px TOP PADDING, and --space-1 is
+ * 4 against its 12px below - the hero's elevation wrapper contributes 6px of
+ * its own above the card's white edge, so the measured gap is 10. Both on the
+ * scale. */
 .founder-naming-view__progress {
     flex-direction: row;
     align-items: center;
     flex-shrink: 0;
+    margin-top: var(--space-2);
+    margin-bottom: var(--space-1);
 }
 
 /* 2px is half of --space-1 (4px), which is this element's own height - the
@@ -68,12 +82,24 @@
  * project already uses for exactly this job - an inactive outline on paper.
  * Inventing a second near-identical grey-violet to be faithful to one
  * gradient stop is the drift verify-uss-tokens.sh exists to stop. */
+/* `flex-grow` AND A ZERO BASIS IS THE HANDOFF'S `flex: 1`, WRITTEN OUT.
+ * USS has no `flex` shorthand's three-value form to lean on here and a bar
+ * with an `auto` basis would size to nothing and then distribute, which
+ * happens to give the same answer only because these five have no content.
+ * Stated so a sixth pip with a label in it cannot quietly change the widths.
+ *
+ * --space-2 IS THE GAP, 8px against the handoff's 9. On the scale. It is on
+ * every pip including the last, which is also the gap to the step counter -
+ * the handoff's own row has one uniform 9px gap the whole way across, so the
+ * counter sets no left margin of its own. */
 .progress-pip {
-    width: var(--space-2);
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 0;
     height: var(--space-1);
     border-radius: 2px;
     background-color: var(--hairline);
-    margin-right: var(--space-1);
+    margin-right: var(--space-2);
 }
 
 /* The handoff lights every bar up to and including the current step. Beat 4
@@ -85,10 +111,22 @@
  * exactly; the size comes from `.t-num` at --text-secondary (11px), because
  * bible 10.6 puts an 11px floor under any number a decision depends on and
  * "how much of this is left" is one. The half-pixel is recorded here rather
- * than argued with, on StatCell.uss's precedent. */
+ * than argued with, on StatCell.uss's precedent.
+ *
+ * NO LEFT MARGIN, AND THAT IS A DELETION RATHER THAN AN OMISSION. It carried
+ * --space-1 while the last pip carried --space-1 on its right; both together
+ * made 8px in a row whose gaps were 4. The pips now carry --space-2 and the
+ * handoff's row has ONE uniform gap across all six children, so a second
+ * margin here would make the counter's gap twice every other one.
+ *
+ * `flex-shrink: 0` IS REACHABLE NOW IN A WAY IT WAS NOT BEFORE. The pips
+ * carry `flex-basis: 0`, so on a frame narrow enough for the row to overflow
+ * they have nothing left to give and the shrink falls entirely on this label.
+ * With the old fixed-width pips the same overflow was shared. Four glyphs
+ * that say which step this is must not be what gives way. */
 .founder-naming-view__step {
     color: var(--mute);
-    margin-left: var(--space-1);
+    flex-shrink: 0;
 }
 
 /* ----------------------------------------------------------- the screen */
@@ -103,15 +141,17 @@
  * Without this the founder sat in a 130px strip and read as a list thumbnail
  * on a screen whose whole job is to look at one creature.
  *
- * `flex-grow` IS THE `flex: 1` HALF AND IT MAY WELL DO NOTHING HERE. The
- * scaffold's content region is a ScrollView, and a ScrollView's content
- * container is sized by its content so that it can exceed the viewport -
- * which means a growing child inside it has nothing to grow into. It is left
- * in because it costs nothing, because it is what the handoff says, and
- * because the day the content container gains a `min-height: 100%` this
- * screen should take the space rather than need a second edit. The
- * `min-height` is what actually renders today, and it is quoted rather than
- * chosen.
+ * `flex-grow` IS THE `flex: 1` HALF AND IT IS LIVE AS OF TASK 14b. It was
+ * dead when it was written: the scaffold's content region is a ScrollView,
+ * and a ScrollView's content container is sized by its content so that it can
+ * exceed the viewport, so a growing child inside it had nothing to grow into
+ * and this screen ended in ~180px of bare --paper. That was a scaffold fault
+ * and it was fixed in the scaffold - `.screen-scaffold__content
+ * .unity-scroll-view__content-container` now carries `min-height: 100%`, and
+ * that rule's note has why a minimum rather than a height. This declaration
+ * is the handoff's `flex: 1`, not a speculative marker: the hero takes
+ * whatever the column has left, and the band closes because the hero grew
+ * into it rather than because anything was padded out to hide it.
  *
  * `justify-content: center` ON THE SURFACE, so the slot sits in the middle
  * of the band rather than at the top of it. This reaches into SectionCard's
@@ -120,7 +160,26 @@
  */
 .founder-naming-view__hero { flex-grow: 1; }
 
+/* THE SURFACE HAS TO GROW TOO, AND THE FIRST CAPTURE AFTER THE SCAFFOLD FIX
+ * IS WHAT SAID SO. `flex-grow` on the rule above is on the component ROOT,
+ * which is the `.elev-1` WRAPPER - so the wrapper stretched to ~460px and the
+ * white surface stayed at its 300px minimum, leaving the nine-sliced shadow
+ * drawn around 160px of bare --paper. Measured in that capture: x=10 held the
+ * falloff's 245,242,249 all the way to y=505 while x=215 was 247,244,251
+ * - paper - from y=352 down.
+ *
+ * `.section-card` IS A COLUMN, so a growing child fills it. This reaches into
+ * SectionCard's own element, which is the direction a screen's sheet is
+ * allowed to reach - downward into its descendants, never upward (StatCell
+ * .uss's closing note).
+ *
+ * THE `min-height` STAYS AND IS NOT NOW REDUNDANT. It is the handoff's floor
+ * (Onboarding.dc.html:43, `flex: 1; min-height: 300px`) and it is what this
+ * band measures on any frame short enough that there is no slack to grow
+ * into - a smaller phone, or this screen with the checklist and reward cards
+ * the handoff draws under its own step card. */
 .founder-naming-view__hero .section-card__surface {
+    flex-grow: 1;
     min-height: 300px;
     justify-content: center;
 }
@@ -133,7 +192,61 @@
  * it used to centre became a HeroSlot. */
 .founder-naming-view__founder { align-items: center; }
 
+/* ------------------------------------------ the card's own type ladder */
+
+/* THREE LINES IN ONE SURFACE, WHICH IS THE CORRECTION TASK 14b EXISTS FOR.
+ * `Onboarding.dc.html` lines 160-162 are a 9px uppercase `.lbl` kicker, a
+ * 26px Baloo 700 title 3px under it, and 13px 700 body copy 7px under that -
+ * all three inside the white card on line 158. Task 14 put the first two in
+ * the scaffold's page header and left the third here, so a 21px page title
+ * and a 19px card line competed across two containers. One ladder, one card.
+ *
+ * THE KICKER HAS NO RULE IN THIS FILE, AND THAT IS THE POINT. `.t-micro` in
+ * the UXML is the whole of it - 10px against the handoff's 9, --mute is
+ * #a29bb5 to the digit, and the 1px `letter-spacing` is its `.1em`. It is the
+ * card's first child, so it needs no margin either. A `flex-shrink: 0` was
+ * written here and taken out again: this is a column whose height nothing
+ * constrains, so it changed no pixel, which is this project's own test for a
+ * rule that was only ever restating the layout engine.
+ *
+ * TWO CLASSES ON THE CARD TITLE, to beat `.t-section`'s own `font-size`
+ * deterministically
+ * rather than by sheet order - the override form every component sheet in
+ * this project uses. What is taken from `.t-section` is the Baloo 2 face,
+ * --ink and the bold flag; only the SIZE is this screen's.
+ *
+ * --text-card-hero IS 26px AND IS NOT A BIGGER PAGE TITLE. Tokens.uss has
+ * the measurement and the source line. The scaffold's --text-screen-title
+ * stays at 21px, which is what every handoff screen that HAS a header sets
+ * its own title to; this screen has none.
+ *
+ * `white-space: normal` because "Name your Founder" fits on one line at 26px
+ * in a 366px card and a longer title from a later build would not. */
+.founder-naming-view .founder-naming-view__card-title {
+    font-size: var(--text-card-hero);
+    margin-top: var(--space-1);
+    white-space: normal;
+}
+
+/* THE BODY LINE. The handoff sets it at 13px weight 700 in #5d5670;
+ * --text-card-title is 13px to the digit and the face and weight are Theme's
+ * own `Label` rule (Nunito-Bold, which IS the 700 face - that file's note has
+ * why no `-unity-font-style: bold` goes with it).
+ *
+ * --ink RATHER THAN THE HANDOFF'S #5d5670, AND IT IS A REAL DIFFERENCE
+ * RATHER THAN A ROUNDING. #5d5670 is 88 from --ink and 207 from --mute in
+ * summed channel distance - it is a near-neutral step BETWEEN them that the
+ * token layer does not hold. Recorded as a residual rather than closed with a
+ * new colour: the same near-neutral is the handoff's `noteText` (line 245)
+ * and Task 14 already took --violet-text there for the same reason, so
+ * inventing it now would be one token for two call sites that both already
+ * read a token. --ink is one step darker, which on 13px body copy inside a
+ * white card is the safe direction.
+ *
+ * --space-2 is 8px against the handoff's 7px `margin-top`. On the scale. */
 .founder-naming-view__prompt {
+    font-size: var(--text-card-title);
+    margin-top: var(--space-2);
     margin-bottom: var(--space-3);
     white-space: normal;
 }

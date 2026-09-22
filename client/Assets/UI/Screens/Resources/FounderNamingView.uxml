@@ -9,7 +9,9 @@
         <ui:Label name="step" class="founder-naming-view__step t-num" />
     </ui:VisualElement>
     <ui:VisualElement name="founder" class="founder-naming-view__founder" />
-    <ui:Label name="prompt" class="founder-naming-view__prompt t-section" />
+    <ui:Label name="kicker" class="founder-naming-view__kicker t-micro" />
+    <ui:Label name="card-title" class="founder-naming-view__card-title t-section" />
+    <ui:Label name="prompt" class="founder-naming-view__prompt" />
     <ui:TextField name="name" class="founder-naming-view__name" />
     <ui:Label name="blocker" class="founder-naming-view__blocker panel-coral t-danger" />
     <ui:VisualElement name="note" class="founder-naming-view__note panel-violet">

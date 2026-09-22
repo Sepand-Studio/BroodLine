@@ -15,6 +15,10 @@ namespace Broodline.UI.Components
     /// bar (client_architecture section 9); this renders a chevron when told
     /// to and calls back.
     ///
+    /// A NULL OR EMPTY `title` MEANS "NO PAGE HEADER", which one handoff
+    /// screen genuinely is (`Onboarding.dc.html`) and nine are not. The
+    /// constructor has the full note, including what it costs the nine.
+    ///
     /// COMPOSED, NOT INHERITED, and the sweep in ScaffoldTests is why. UQuery
     /// searches an element's descendants and not the element itself, so
     /// `screen.Q(className: UssClassName)` finds a scaffold a screen ADDED as
@@ -120,6 +124,40 @@ namespace Broodline.UI.Components
             _pushed = pushed;
             _header = this.Q<VisualElement>("header");
             _back = this.Q<Button>("back");
+
+            // A SCREEN WITH NO TITLE HAS NO PAGE HEADER AT ALL, AND ONE
+            // HANDOFF SCREEN IS BUILT THAT WAY. `Onboarding.dc.html` runs
+            // status bar -> progress row -> hero -> card: there is nothing
+            // above the pips, and its 26px heading is a CARD heading inside
+            // the white surface rather than a page title. Every other screen
+            // in the bundle does have a header, and every one of those titles
+            // measures 20-21px (`Creature Roster.dc.html:31`,
+            // `Gene Ark.dc.html`, `Splice Chamber.dc.html`,
+            // `Wave Defense.dc.html`) - which is `--text-screen-title`, so
+            // the scaffold's own title size is right and is not what this
+            // change is about.
+            //
+            // WHAT IT COSTS THE OTHER NINE SCREENS: nothing, and that is
+            // checkable rather than asserted. All nine pass a non-empty
+            // string literal as `title`, so none can reach this branch by
+            // accident; `ScaffoldTests` constructs the scaffold eight times
+            // and every one of those passes a title too.
+            //
+            // HIDDEN RATHER THAN REMOVED, which is the opposite of the back
+            // chevron two methods down and for a reason that does not apply
+            // to it: `HeaderSlot` is a PUBLIC handle into this subtree, so a
+            // removed header would leave `SetResourcePill` and every
+            // `HeaderSlot.Add` writing into a detached element and failing
+            // silently. `display: none` keeps the tree whole and keeps
+            // `Q("header")` answering - the same trade `Eyebrow` and
+            // `FooterNote` already make one level down.
+            //
+            // A SCREEN THAT WANTS A HEADER SLOT MUST HAVE A TITLE. The slot
+            // is inside the row this hides, so a headerless screen puts its
+            // per-screen furniture in `Content` instead - which is where
+            // `Onboarding.dc.html` draws its progress row anyway.
+            _header.style.display = string.IsNullOrEmpty(title)
+                ? DisplayStyle.None : DisplayStyle.Flex;
 
             var glyph = new VisualElement();
             glyph.AddToClassList("icon");

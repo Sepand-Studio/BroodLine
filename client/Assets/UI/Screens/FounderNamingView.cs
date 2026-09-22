@@ -21,14 +21,24 @@ namespace Broodline.UI.Screens
     /// see that class's `DefaultFor` for why the default lives on the model
     /// rather than here.
     ///
-    /// PHASE 9 TASK 14 BROUGHT IT TO `Onboarding.dc.html` STEP 1, and the
-    /// shape of that is three things: the step frame (five pips and a
-    /// counter, in the scaffold's header slot), the founder in a `HeroSlot`
-    /// above the field, and the caveat moved off the scaffold's footer onto a
-    /// violet tip panel inside the card - which is where the handoff draws
-    /// its own note. This is the first screen in the project to compose Task
-    /// 13's vocabulary, so the arrangement here is the one the four screens
-    /// after it follow.
+    /// PHASE 9 TASK 14 BROUGHT IT TO `Onboarding.dc.html` STEP 1 AND TASK 14b
+    /// CORRECTED THE COMPOSITION. The handoff's step screen is four bands and
+    /// no page header: a full-width progress row, a hero that takes the rest
+    /// of the column, one white card carrying kicker / title / body / note,
+    /// and the CTAs. Task 14 put the kicker and title in the scaffold's
+    /// HEADER and the body in the card, which left a 21px page title and a
+    /// 19px card line competing across two containers; they are one type
+    /// ladder in one surface again.
+    ///
+    /// THIS IS THE ONLY SCREEN IN THE PROJECT WITH NO PAGE HEADER, and the
+    /// handoff is the whole reason - every other screen in the bundle has one
+    /// and titles it at 20-21px, which is what `--text-screen-title` already
+    /// is. The 26px here is a CARD heading (`--text-card-hero`), not a bigger
+    /// page title.
+    ///
+    /// This is the first screen in the project to compose Task 13's
+    /// vocabulary, so the arrangement here is the one the four screens after
+    /// it follow.
     [UxmlElement]
     public partial class FounderNamingView : VisualElement
     {
@@ -68,6 +78,25 @@ namespace Broodline.UI.Screens
             this.Q<Label>("step").text = FounderNamingScreen.Step;
             this.Q<Label>("note-text").text = FounderNamingScreen.Note;
 
+            // THE EYEBROW AND THE TITLE ARE THE CARD'S, NOT THE HEADER'S,
+            // AND THAT IS THIS SCREEN'S WHOLE COMPOSITION.
+            //
+            // UPPERCASE ALREADY, AND NOTHING HERE MAKES IT SO. UI Toolkit has
+            // no `text-transform`, so the handoff's
+            // `.lbl { text-transform: uppercase }` has no property to land in
+            // and the casing is baked into the constant. Read, never
+            // repeated - `FounderNamingScreen.Eyebrow` has the full note.
+            var kicker = this.Q<Label>("kicker");
+            kicker.text = FounderNamingScreen.Eyebrow;
+            // `card-title`, NOT `heading`: `SectionCard` already owns an element
+            // named `heading` (it removes it when the card is built
+            // without one, which is how both cards here are built), and a
+            // second element answering that name inside the same card is a
+            // `Q<Label>("heading")` that means whichever one a future edit
+            // happens to create first.
+            var title = this.Q<Label>("card-title");
+            title.text = FounderNamingScreen.Title;
+
             // THE FRAME, COMPOSED AND NOT INHERITED. ScreenScaffold's class
             // comment has the reason in full: `ScaffoldTests`' sweep asks
             // each screen for a DESCENDANT carrying `screen-scaffold`, and
@@ -79,46 +108,53 @@ namespace Broodline.UI.Screens
             // pushed: false - beat 4 is a top-level destination, so no back
             // chevron. ScreenHost.Show, never Push.
             //
-            // THE EYEBROW IS ALREADY UPPERCASE AND NOTHING HERE MAKES IT SO.
-            // UI Toolkit has no `text-transform`, so the handoff's
-            // `.lbl { text-transform: uppercase }` has no property to land in
-            // and the casing is baked into the constant. Read, never
-            // repeated - `FounderNamingScreen.Eyebrow` has the full note.
-            var scaffold = new ScreenScaffold(
-                FounderNamingScreen.Title, eyebrow: FounderNamingScreen.Eyebrow);
+            // `title: null` IS THE HANDOFF, NOT AN OMISSION, and it is the
+            // one screen in the project that reads that way. `Onboarding
+            // .dc.html` has NO page header: line 33 starts the column with a
+            // full-width row of five `flex: 1` progress bars and the step
+            // label, with nothing above it but the status bar, and its 26px
+            // Baloo title (line 161) is a CARD heading inside the white
+            // surface on line 158. `ScreenScaffold`'s own note has what an
+            // empty title costs the other nine screens - nothing, because all
+            // nine pass a literal - and why it hides the row rather than
+            // removing it.
+            var scaffold = new ScreenScaffold(title: null);
 
             // The UXML declares the screen's own furniture as children of
             // this element; the scaffold's slots take them over here. A
             // re-parent rather than a second tree, so there is exactly one
             // place each element is authored.
             //
-            // THE HEADER SLOT IS WHERE THE STEP FRAME GOES, which is the
-            // scaffold's own answer to "something else per screen" beside the
-            // title. FounderNamingView.uss's `__progress` note has why the
-            // handoff's full-width bar row could not be reproduced literally.
-            scaffold.HeaderSlot.Add(progress);
+            // THE PIPS ARE THE FIRST THING IN THE CONTENT REGION, WHICH IS
+            // WHERE THE HANDOFF DRAWS THEM - a full-width row above the hero,
+            // not a badge beside a title. They were in the scaffold's header
+            // slot until this task, squeezed to five fixed 8px marks because
+            // a title column was growing beside them; with no header there is
+            // no column to compete with and `.progress-pip` takes the
+            // handoff's own `flex: 1`. The content container's --gutter is
+            // 12px against the handoff's 16px side padding, on the scale.
+            scaffold.Content.Add(progress);
 
             // TWO CARDS, NOT ONE, AND THE SPLIT IS THE HANDOFF'S. Step 1
             // draws the creature in a tall panel of its own and the words in
-            // a card beneath it; the only thing this collapses is the height,
-            // because a `HeroSlot` is 96px where the handoff's hero region is
-            // 300+ and a card padded out to that would be mostly empty paper.
+            // a card beneath it. The hero now GROWS into whatever the column
+            // has left, which is the handoff's `flex: 1; min-height: 300px`
+            // both halves working - see FounderNamingView.uss's `__hero`.
             var hero = new SectionCard();
             hero.AddToClassList(HeroCardUssClassName);
             hero.Body.Add(_founder);
 
-            // THE PROMPT IS INSIDE THE CARD, AND THE BRIEF COULD BE READ
-            // EITHER WAY. It says the hero slot goes "above the prompt" and
-            // separately that the name field goes in a SectionCard, which
-            // leaves open whether the prompt is a bare line between the two
-            // cards or the card's first child. The handoff settles it: its
-            // card is kicker, title, body, note in one white surface, and the
-            // kicker and title have already moved to the scaffold's header -
-            // so the body copy and the note belong to the same card, with the
-            // field between them. A bare `t-section` line floating between
-            // two elevated cards is a STRUCTURAL difference from the handoff,
-            // which is the class of gap this task exists to close.
+            // ONE WHITE CARD CARRIES EVERYTHING ELSE, IN THE HANDOFF'S OWN
+            // ORDER: kicker, title, body, field, note. `Onboarding.dc.html`
+            // lines 158-169 are exactly that stack in one surface, and Task
+            // 14 split it across two containers - the kicker and title in the
+            // scaffold's header, the body in a card - which is what made a
+            // 21px page title and a 19px card line read as two competing
+            // display lines. They are one ladder again: 10px kicker, 26px
+            // title, 13px body.
             var card = new SectionCard();
+            card.Body.Add(kicker);
+            card.Body.Add(title);
             card.Body.Add(_prompt);
             card.Body.Add(_name);
             card.Body.Add(_blocker);
