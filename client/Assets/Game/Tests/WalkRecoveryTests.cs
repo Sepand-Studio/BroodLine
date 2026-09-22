@@ -81,15 +81,39 @@ namespace Broodline.Game.Tests
     {
         string _outboxPath;
 
+        /// Every walk this case started, so `TearDown` can OBSERVE them.
+        readonly List<Walk> _started = new List<Walk>();
+
         [SetUp]
         public void SetUp()
         {
+            _started.Clear();
             _outboxPath = Path.Combine(Path.GetTempPath(), "walk-recovery-" + Guid.NewGuid().ToString("N") + ".bin");
         }
 
         [TearDown]
         public void TearDown()
         {
+            // READING `Exception` IS WHAT OBSERVES THE TASK, and an unobserved
+            // one is why this loop exists. `RunAsync()` is started and never
+            // awaited here - a walk that is still running is the pass
+            // condition - so a faulted one would otherwise sit until
+            // finalization and surface as a `TaskScheduler
+            // .UnobservedTaskException` inside whatever unrelated case
+            // happened to be running then. Pristine output is a gate in this
+            // project, and a failure attributed to the wrong test is worse
+            // than a loud one attributed to the right test.
+            //
+            // ASSERTED RATHER THAN SWALLOWED. Nothing in these cases can
+            // legitimately fault: `RunAsync` catches everything `WalkAsync`
+            // throws, and only `AnotherTryAsync` can throw past it. So a
+            // fault here is a real defect and says so.
+            foreach (var walk in _started)
+            {
+                var fault = walk.Running == null ? null : walk.Running.Exception;
+                Assert.IsNull(fault, "the walk faulted out of RunAsync, which nothing is supposed to be able to do: " + fault);
+            }
+
             if (File.Exists(_outboxPath)) File.Delete(_outboxPath);
             var temp = _outboxPath + ".tmp";
             if (File.Exists(temp)) File.Delete(temp);
@@ -111,8 +135,22 @@ namespace Broodline.Game.Tests
                 "the walk finished - which is the defect: nothing is going to put a screen up now");
             Assert.IsNotNull(walk.Interrupted,
                 "the walk stopped without presenting anything with a control on it");
-            Assert.IsTrue(walk.Retry.enabledSelf, "the recovery screen's only control is disabled");
-            Assert.AreEqual(FtueNotice.LoadRoster, walk.Reason,
+
+            // WIRED, NOT MERELY ENABLED. This line used to read
+            // `Assert.IsTrue(walk.Retry.enabledSelf)`, which nothing in
+            // `InterruptedView` can make false - a could-not-fail assertion,
+            // which is a repeat failure class in this phase. `Subscribed`
+            // reads the handler list off the button's `Clickable`, so
+            // deleting the `clicked +=` in that screen's constructor reddens
+            // this and every case that follows it.
+            Assert.IsNotNull(Subscribed(walk.Retry),
+                "the recovery screen's only control has nothing behind it");
+
+            // NOT `LoadRoster`, WHICH IS WHAT THIS EXIT SAID UNTIL FIX ROUND
+            // 1: nothing has been asked of `/v1/roster` by this point, and
+            // this task turned every stop's sentence from four seconds of
+            // toast into the persistent explanation on the screen.
+            Assert.AreEqual(FtueNotice.ColdStartEmpty, walk.Reason,
                 "the screen is not showing the sentence the walk actually stopped on");
         }
 
@@ -130,6 +168,18 @@ namespace Broodline.Game.Tests
             Assert.IsFalse(walk.Running.IsCompleted);
             Assert.IsNotNull(walk.Interrupted);
             Assert.AreEqual(refusal, walk.Reason);
+
+            // AND THE CONTROL ON THIS PARTICULAR SCREEN RECOVERS, which is
+            // more than "a button exists": the roster starts answering, the
+            // tap re-enters the walk, and the beat the player was owed
+            // arrives. A recovery screen whose button re-presented itself
+            // forever would satisfy every other assertion in this file.
+            walk.Answering("/v1/roster", HttpStatusCode.OK, RosterJson(Creature(), Creature()));
+            RaiseClicked(walk.Retry);
+
+            Assert.IsInstanceOf<DeployView>(walk.Presented,
+                "the tap did not get the player back to the beat they were owed");
+            Assert.IsFalse(walk.Running.IsCompleted);
         }
 
         [Test]
@@ -284,6 +334,21 @@ namespace Broodline.Game.Tests
             Assert.IsFalse(walk.Running.IsCompleted);
             Assert.IsNotNull(walk.Interrupted);
             Assert.AreEqual(hung, walk.Reason);
+
+            // AND THE RETRY LANDS SOMEWHERE CORRECT, NOT MERELY SOMEWHERE
+            // ALIVE. `wave/start` committed the deployment server-side before
+            // the wave was abandoned, so the roster comes back locked - which
+            // is why the route is re-stubbed rather than left alone. The tap
+            // must therefore reach `AbandonedWaveSheet`, Phase 9 design
+            // §2.1's designed way out, rather than a deploy screen the server
+            // would refuse. This was reasoned about in the first report and
+            // is asserted here instead.
+            walk.Answering("/v1/roster", HttpStatusCode.OK, RosterJson(Creature(committedTo: Guid.NewGuid())));
+            RaiseClicked(walk.Retry);
+
+            Assert.IsNotNull(walk.Sheets.Q<Button>("forfeit"),
+                "a player who backgrounded the app mid-wave is not being offered the forfeit that frees their roster");
+            Assert.IsFalse(walk.Running.IsCompleted);
         }
 
         [Test]
@@ -445,7 +510,9 @@ namespace Broodline.Game.Tests
 
             // STARTED, NOT AWAITED. A walk that is still running is the pass
             // condition, so awaiting this would hang every case in the file.
+            // Recorded so `TearDown` can observe it - see there.
             walk.Running = director.RunAsync();
+            _started.Add(walk);
             return walk;
         }
 
@@ -615,7 +682,22 @@ namespace Broodline.Game.Tests
         /// reason, so neither can rot into a silent no-op.
         static void RaiseClicked(Button button)
         {
-            Assert.IsNotNull(button, "there is no button here to click");
+            var raise = Subscribed(button);
+            Assert.IsNotNull(raise, "nothing is subscribed to this button, so the screen wired no handler");
+            raise();
+        }
+
+        /// What is subscribed to a `Button`'s `clicked`, or null if nothing
+        /// is - the falsifiable half of "there is a live control here".
+        ///
+        /// SPLIT OUT OF `RaiseClicked` IN FIX ROUND 1, because the exit cases
+        /// wanted the CHECK without the side effect. Asserting a recovery
+        /// button is `enabledSelf` proves nothing - no reachable change to
+        /// `InterruptedView` makes it false - whereas this goes red the
+        /// moment that screen stops wiring its constructor subscription.
+        static Action Subscribed(Button button)
+        {
+            Assert.IsNotNull(button, "there is no button here at all");
 
             var clickable = button.clickable;
             Assert.IsNotNull(clickable, "the Button has no Clickable manipulator to raise");
@@ -644,9 +726,7 @@ namespace Broodline.Game.Tests
                     + "new hook rather than a weaker assertion.");
             }
 
-            var raise = (Action)field.GetValue(clickable);
-            Assert.IsNotNull(raise, "nothing is subscribed to this button, so the screen wired no handler");
-            raise();
+            return (Action)field.GetValue(clickable);
         }
     }
 }

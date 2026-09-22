@@ -75,7 +75,32 @@ namespace Broodline.Game
         public const string NameFounder = "Naming";
         public const string SpliceStock = "The tutorial stock";
         public const string SpliceCommit = "The splice";
-        public const string LoadRoster = "Your roster could not be loaded. Try again.";
+        /// The cold start left no snapshot behind, so the walk has nothing to
+        /// derive a beat from.
+        ///
+        /// IT USED TO BE CALLED `LoadRoster` AND USED TO SAY "Your roster
+        /// could not be loaded" - Phase 9 Task 21g, fix round 1. Nothing has
+        /// been asked of `/v1/roster` at that point in the walk; the sentence
+        /// named a subsystem that had not been touched. It survived as long as
+        /// it did because it was four seconds of toast on a screen the player
+        /// was about to leave. Task 21g promoted every stop's sentence into
+        /// the persistent, authoritative explanation on `InterruptedView` -
+        /// and this is the stop an offline launch is MOST likely to reach, so
+        /// it became the most-read wrong sentence in the build.
+        ///
+        /// REPLACED RATHER THAN JOINED BY A NEW ONE, because the old constant
+        /// had exactly one call site: the null-snapshot exit below.
+        /// `LoadRosterAsync` says the SERVER's own sentence
+        /// (`error.PlayerMessage`), never this. Adding a fourth constant would
+        /// have left `LoadRoster` behind with no callers and a sentence nobody
+        /// had validated, for the next person to reach for.
+        ///
+        /// IT NAMES THE BUTTON RATHER THAN A RELAUNCH, which is the whole
+        /// difference from `ColdStartFailed` below. That one is said by
+        /// `BootController`, where there is no button to name; this one is
+        /// said where there is one.
+        public const string ColdStartEmpty =
+            "Your progress could not be read from the server. Try again.";
 
         /// A human playing the game found this in the first minute: starting
         /// a wave commits the deployed creatures server-side, and quitting
@@ -407,7 +432,13 @@ namespace Broodline.Game
                     // derive a beat from, and inventing a fresh-account
                     // snapshot here would re-run beat 1 for a player who has
                     // simply lost their connection.
-                    _notice(FtueNotice.LoadRoster);
+                    //
+                    // THE SENTENCE AND THE COMMENT AGREE NOW, AND THEY DID
+                    // NOT. This said `LoadRoster` - "Your roster could not be
+                    // loaded" - beside a comment saying the COLD START is
+                    // what produced nothing, with `/v1/roster` untouched.
+                    // See `FtueNotice.ColdStartEmpty`.
+                    _notice(FtueNotice.ColdStartEmpty);
                     return;
                 }
 

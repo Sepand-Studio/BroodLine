@@ -100,15 +100,21 @@ namespace Broodline.Game.Shell
             }
             catch (Exception e)
             {
-                // No error screen exists yet - that is later-task work. This
-                // keeps a failed cold start from vanishing as an unobserved
-                // exception out of this async void Start.
+                // This keeps a failed cold start from vanishing as an
+                // unobserved exception out of this async void Start.
                 //
                 // AND IT IS SAID ON THE SCREEN, not only in a log nobody on a
-                // device can read. The walk below does reach
-                // `FtueNotice.LoadRoster` when the snapshot is null, but only
-                // if the director gets that far, and a log line is not
-                // something a tester can report.
+                // device can read. The walk below reaches
+                // `FtueNotice.ColdStartEmpty` when the snapshot is null - the
+                // same event, said a second time on a screen with a button -
+                // but only if the director gets that far, and a log line is
+                // not something a tester can report.
+                //
+                // "NO ERROR SCREEN EXISTS YET" OPENED THIS COMMENT UNTIL
+                // PHASE 9 TASK 21g. One does now (`InterruptedView`), and it
+                // is deliberately NOT shown from here: the shell has not
+                // finished composing at this point, and the walk below puts
+                // that screen up on this same failure a few lines later.
                 Debug.LogError("[BootController] cold start failed: " + e);
                 OnNotice(FtueNotice.ColdStartFailed);
             }
@@ -180,8 +186,24 @@ namespace Broodline.Game.Shell
                 // is what the sentence names. `Debug.LogError` alone is what
                 // a tester holding a device cannot read, and that gap is the
                 // one Task 4 closed everywhere else.
+                //
+                // THE TOAST IS GUARDED, AND THE REASON IS THE ONLY ROUTE THAT
+                // GETS HERE. That route is a throw out of the recovery screen
+                // - the screen machinery failing - and `OnNotice` turns round
+                // and asks the same machinery for a toast. Unguarded, a
+                // second throw here is precisely the unobserved exception out
+                // of an `async void Start` that this catch exists to prevent,
+                // and it would take the log line with it. The log runs FIRST
+                // so the developer keeps the stack either way.
                 Debug.LogError("[BootController] the first hour stopped: " + e);
-                OnNotice(FtueNotice.WalkUnrecoverable);
+                try
+                {
+                    OnNotice(FtueNotice.WalkUnrecoverable);
+                }
+                catch (Exception unsayable)
+                {
+                    Debug.LogError("[BootController] and it could not be said: " + unsayable);
+                }
             }
         }
 
