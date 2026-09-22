@@ -35,9 +35,16 @@ namespace Broodline.Game.Tests
     {
         /// "vetch" is the species `PortraitStudioPlayTests` uses and one of
         /// the six `SpeciesRecipes` carries. A species with no recipe answers
-        /// with a magenta sphere AND a `Debug.LogError`, which Unity's Test
-        /// Framework fails a test on - so an unauthored body would redden
-        /// these for a reason that has nothing to do with the stage.
+        /// with a magenta sphere AND a `Debug.LogError`.
+        ///
+        /// THAT ERROR WOULD NOT REDDEN ANYTHING HERE, and the reason matters
+        /// enough to state: `EditModeRunner` drives NUnit by plain reflection
+        /// and installs no log handler, so this suite has no log scope at all
+        /// - `LogAssert` throws "No log scope is available" in it. The claim
+        /// that the Test Framework fails a test on `LogError` is true in
+        /// PlayMode, where this comment came from, and false here. The species
+        /// choice is still right, but it buys a readable picture rather than a
+        /// red test.
         const string Species = "vetch";
 
         static void RequireGraphics()
@@ -73,6 +80,14 @@ namespace Broodline.Game.Tests
                 var texture = (RenderTexture)stage.Show(1, new List<CreatureLook>(), new List<int>());
                 Assert.IsNotNull(texture, "wave 1 is authored; Show returned no texture for it");
                 var empty = ReadPixels(texture);
+
+                // THE OPACITY CHECK COMES FIRST, and it is not decoration: the
+                // unlike-the-field count below reads the same on a painted lane and
+                // on a texture `Clear()` left transparent, because transparent black
+                // is unlike the field too. Without this line the threshold only
+                // makes the inversion harder to see.
+                Assert.Greater(OpaquePixelCount(empty), 0,
+                    "the texture is still the blank Clear() left - no frame was painted at all");
                 Assert.Greater(PixelsUnlikeTheField(empty), texture.width * texture.height / 50,
                     "the stage rendered nothing but its clear colour - the lane itself is not drawing");
 
@@ -110,13 +125,43 @@ namespace Broodline.Game.Tests
                     new List<CreatureLook> { new CreatureLook { Species = Species } },
                     new List<int> { 0 });
 
-                Assert.Greater(PixelsUnlikeTheField(ReadPixels(texture)), 0,
+                // OPAQUE COUNT, NOT UNLIKE-THE-FIELD. This assertion used to read
+                // `PixelsUnlikeTheField(...) > 0` and COULD NOT FAIL: `Show` calls
+                // `Clear()` first, which `GL.Clear`s to (0,0,0,0), and transparent
+                // black is maximally unlike the field colour - so an unpainted
+                // texture scored every one of its 345,600 pixels and passed. The
+                // message described exactly the case it could not detect.
+                // Only a real render writes alpha 1, because the camera clears to
+                // `LaneDressing.Field`, so opacity is what separates painted from
+                // blanked.
+                Assert.Greater(OpaquePixelCount(ReadPixels(texture)), 0,
                     "nothing was painted, so Show is still relying on a player loop this suite does not run");
 
                 var camera = host.GetComponentInChildren<Camera>(includeInactive: true);
                 Assert.IsNotNull(camera, "the stage built no camera");
                 Assert.IsFalse(camera.enabled,
                     "the camera is left enabled, so it repaints a 720x480 target every frame of the fight");
+
+                // AND IT IS AIMED WHERE `Aim` SAYS, not merely aimed.
+                // `EveryPocketOfEveryAuthoredWaveStandsInsideTheFrame` proves the
+                // ARITHMETIC of centring on the pocket span, but it re-derives the
+                // centre rather than calling `Aim` - so reverting `Show` to the lane
+                // midpoint would leave it green while putting tile 20 a quarter of a
+                // unit inside the frame. This reads the camera the stage actually
+                // built, which is the only thing that closes that gap.
+                var lane = WaveDef.ForId(1).Lane;
+                int min = lane.PocketTiles[0], max = min;
+                for (var p = 1; p < lane.PocketCount; p++)
+                {
+                    if (lane.PocketTiles[p] < min) min = lane.PocketTiles[p];
+                    if (lane.PocketTiles[p] > max) max = lane.PocketTiles[p];
+                }
+                var spanCentre = (min + max) * 0.5f * WaveView.TileSize;
+                var laneMidpoint = WaveRunner.LaneTiles * 0.5f * WaveView.TileSize;
+                Assert.AreNotEqual(spanCentre, laneMidpoint,
+                    "wave 1's pocket span is centred on the lane, so this test cannot tell the two apart");
+                Assert.AreEqual(spanCentre, camera.transform.position.x, 0.01f,
+                    "the camera is at the LANE's midpoint rather than the pocket span's centre");
             }
             finally
             {
