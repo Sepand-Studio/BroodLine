@@ -454,6 +454,28 @@ TextField:focus > * {
  * measures one is NOT instrumented here and is not claimed; what is
  * measured is that a height on the chip makes both shapes one box.
  *
+ * *** TASK 20 INSTRUMENTED IT, AND IT IS NOT TWO LINE BOXES. ***
+ * `LabelBoxProbe` (implementation/scripts/probe-label-box.sh) reads
+ * resolvedStyle off a real panel: Unity's DEFAULT RUNTIME THEME gives every
+ * Label padding 4/4 and margin 4/2. So at --text-micro the inner Label's
+ * border box is 4 + 14 + 4 = 22 and its MARGIN box is 4 + 22 + 2 = 28. That
+ * is one 14px line box inside 14px of fixed chrome - and 28 is what the
+ * measurements above read as "TWO line boxes", because 2 x 13.6 = 27.2 sits
+ * 0.8px away from it.
+ *
+ * IT REPRODUCES BOTH NUMBERS ABOVE EXACTLY. A Label WEARING `.chip` gets the
+ * chip's own 4+4 around its 14px line box = 22. A CONTAINER wearing `.chip`
+ * gets 4+4 around the inner Label's 28px margin box = 36, plus TraitChip's
+ * 1px border a side = 38. Being a constant, the chrome also cannot scale
+ * with font-size, which is the non-linearity Task 18 recorded at StatCell.
+ *
+ * THE RULE ABOVE IS UNAFFECTED AND STILL RIGHT - a height on the box wins
+ * whatever the child's chrome does. The cheaper general fix, if one is ever
+ * wanted, is zeroing the Label's own padding and margin: the probe shows
+ * that takes `TraitPip` from 34px to exactly `TraitChip`'s 20. NOT DONE
+ * HERE - it would move every Label in the application, which is the same
+ * objection this note already makes about the font asset's metrics.
+ *
  * THE VERTICAL PADDING IS GONE RATHER THAN LEFT BESIDE THE HEIGHT. `height`
  * in UI Toolkit is border-box - Yoga sizes padding and border INSIDE it -
  * so with a height those two declarations could only shrink the content box
