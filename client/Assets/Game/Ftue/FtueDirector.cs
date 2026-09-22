@@ -573,9 +573,114 @@ namespace Broodline.Game
 
             var model = SpliceScreen.Build(parentA, parentB, preview);
 
-            var chamber = new SpliceChamberView();
-            await _flow.ShowAsync(chamber, resume => chamber.Bind(model, lockedOut, onSplice: resume));
+            // THE STUDIO IS OPEN FOR THE WHOLE OF THE BEAT AND CLEARED ONCE,
+            // IN A `finally`, WHICH IS `NameFounderAsync`'s SHAPE AND
+            // `WaveHost.RunAsync`'s BEFORE IT. The reasoning is identical and
+            // that method's comment carries it in full; what differs here is
+            // that this beat has TWO turns rather than one, and the cleanup
+            // is still one `finally` because `PortraitStudio.Show` calls
+            // `Clear` itself on the way in - the second creature replaces the
+            // first with no gap, so there is nothing to clean up BETWEEN the
+            // turns and everything to clean up after the last one.
+            //
+            // THE FIRST `Show` IS INSIDE THE `try`, not above it: it builds a
+            // creature, reparents it and enables a camera, so a throw partway
+            // through leaves a half-shown studio that only a `finally` above
+            // it can still clean up.
+            //
+            // THE KNOWN GAP IS UNCHANGED AND NOT MADE WORSE. Task 14b's fix
+            // shortens the window in which a cleared studio is still on
+            // screen without closing it, because `ScreenFlow.ShowAsync`
+            // passes `after: null` and nothing hides a resolved view. Here
+            // the last `Clear` runs after `CampaignAsync`, by which time
+            // `ScreenHost.Show` has replaced the reveal twice over - so this
+            // beat's cleanup lands further from its own screen than the
+            // founder beat's does, not nearer.
+            try
+            {
+                // THE PREDICTED HYBRID TURNS WHILE IT IS BEING DECIDED -
+                // Phase 9 design section 3.8's second of three hero moments.
+                //
+                // `growth01: 0.3f` BECAUSE IT IS NOT BORN YET. The founder
+                // turns at 0 (an adult) and the reveal below turns at 0 too;
+                // a prediction is the one of the three that is explicitly
+                // about a creature that does not exist, and the handoff draws
+                // it smaller than the reveal's (112px against 186).
+                //
+                // THE TRAITS ARE THE FORECAST'S, IN THE SERVER'S OWN ORDER,
+                // AND THE BRIEF'S `model.Forecast?.Trait1` DOES NOT EXIST.
+                // `SpliceForecast` (`Generated/Api/BroodlineApiClient.cs
+                // :2480-2493`) carries `combat2`, `instinct`, `mutation` and
+                // `aberrant` - a LIST of outcomes and two probabilities, with
+                // no trait fields on it at all. `PredictedTrait` reads that
+                // list by index without re-sorting it, and falls back to the
+                // parent slot the body comes from, which is what the brief's
+                // own `?? parentA.Trait1` intended.
+                var predicted = _studio == null ? null : _studio.Show(
+                    parentA.Species,
+                    PredictedTrait(model.Forecast, 0, parentA.Trait1),
+                    PredictedTrait(model.Forecast, 1, parentB.Trait2),
+                    0.3f);
 
+                var chamber = new SpliceChamberView();
+                await _flow.ShowAsync(chamber, resume =>
+                    chamber.Bind(model, lockedOut, onSplice: resume, predicted: predicted));
+
+                return await CommitAndRevealAsync(model, parentA, parentB, locked);
+            }
+            finally
+            {
+                // THE FIRST STATEMENT OF THE `finally`, IN ITS OWN
+                // try/catch - `WaveHost.RunAsync`'s shape, for
+                // `WaveHost`'s reason: a throw out of the cleanup would
+                // REPLACE the exception on its way out of the try and the
+                // original failure would never be seen.
+                //
+                // `!= null` RATHER THAN `?.`, AND THAT IS NOT STYLE.
+                // `PortraitStudio` is a MonoBehaviour and `?.` is a
+                // reference-null test the compiler emits directly - it does
+                // not run UnityEngine.Object's overloaded `==`, which is what
+                // reports a DESTROYED object as null. `NameFounderAsync`'s
+                // own note has the long form.
+                try
+                {
+                    if (_studio != null) _studio.Clear();
+                }
+                catch (Exception error)
+                {
+                    UnityEngine.Debug.LogError("[FtueDirector] PortraitStudio.Clear threw: " + error);
+                }
+            }
+        }
+
+        /// One published outcome's trait, by position, or a fallback.
+        ///
+        /// BY POSITION AND NOT BY PROBABILITY, WHICH IS THE WHOLE POINT.
+        /// `combat2` arrives ordered by `merged()`
+        /// (`services/api/src/splice/distribution.ts`) and re-sorting it here
+        /// would be this client deciding which outcome is likeliest - the one
+        /// thing `SpliceConfirmTests` exists to forbid. Read in the order it
+        /// was sent, and where it is shorter than two, the parent slot the
+        /// body is coming from.
+        static string PredictedTrait(SpliceForecast forecast, int index, string fallback)
+        {
+            if (forecast == null || forecast.Combat2 == null) return fallback;
+
+            var i = 0;
+            foreach (var outcome in forecast.Combat2)
+            {
+                if (i++ != index) continue;
+                return string.IsNullOrEmpty(outcome.Trait) ? fallback : outcome.Trait;
+            }
+            return fallback;
+        }
+
+        /// The rest of beat 6 and the whole of beat 7, split out so that
+        /// `SpliceAsync`'s `try`/`finally` around the studio reads as one
+        /// thing rather than wrapping sixty lines of round trips.
+        async Task<bool> CommitAndRevealAsync(
+            SpliceScreenModel model, CreatureDto parentA, CreatureDto parentB, SpliceLock locked)
+        {
             // splice_confirm_spec section 4's ordering, and the reason
             // `SpliceChamberView.Bind` carries one callback and no per-dialog
             // handles: "wiring ConfirmDialog in front of this callback
@@ -628,9 +733,22 @@ namespace Broodline.Game
             var child = committed.Response.Child;
             var mutated = MutatedIn(lineage, child == null ? Guid.Empty : child.CreatureId);
 
+            // THE CHILD TURNS ON THE SCREEN BUILT TO CELEBRATE IT - design
+            // section 3.8's third hero moment, and the one the whole first
+            // hour ends on. `growth01: 0f` because it is a finished creature
+            // now; `Show` clears the predicted hybrid on its way in, so the
+            // band never holds two.
+            //
+            // A NULL CHILD KEEPS THE BAKED STACK, which is the same fallback
+            // the other two turns take: `SpliceRevealView.Bind` branches on a
+            // null portrait and `Child` is required on the wire anyway.
+            var portrait = _studio == null || child == null ? null
+                : _studio.Show(child.Species, child.Trait1, child.Trait2, 0f);
+
             var reveal = new SpliceRevealView();
             await _flow.ShowAsync(reveal, resume =>
-                reveal.Bind(committed.Response, parentA, parentB, mutated, next: resume));
+                reveal.Bind(committed.Response, parentA, parentB, mutated, next: resume,
+                    portrait: portrait));
 
             // splice_confirm_spec section 5: "Then show the lineage." Shown
             // from the response already in hand rather than re-fetched, so
