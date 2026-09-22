@@ -37,6 +37,37 @@
  */
 .post-wave-view { flex-grow: 1; }
 
+/* THE KICKER, AND IT IS IN THE CONTENT COLUMN BECAUSE THIS SCREEN HAS NO PAGE
+ * HEADER AS OF PHASE 9 TASK 21e - `PostWaveScreen.Headline`'s note has the
+ * ruling in full. The short form: the header's only content was the title
+ * "Post-Wave", which is design section 5.1's own SECTION NAME rather than
+ * copy, and the exit gate's walk of the packaged app read it as one. The
+ * verdict underneath already says what happened.
+ *
+ * THE SAME MOVE `SpliceRevealView` MADE IN TASK 16b, AND FOR THE SAME REASON
+ * RATHER THAN BY IMITATION: `#header` is where the scaffold's eyebrow lives,
+ * so a screen that goes headerless and leaves its kicker there loses it
+ * silently. `.t-micro` is the type the scaffold's own eyebrow wears (10px,
+ * --mute, `.1em` tracking), so the line renders as it did; what changed is
+ * where it sits.
+ *
+ * CENTRED, UNLIKE THE SCAFFOLD'S EYEBROW AND LIKE THE HEADLINE IT NOW SITS
+ * OVER. In the header it was the first line of a left-aligned titles column;
+ * here its only neighbour is a centred verdict, and a flush-left kicker over
+ * a centred headline reads as a mistake. `SpliceRevealView`'s does the same.
+ *
+ * 10px AND 2px ARE `SpliceRevealView`'s OWN, FROM `Splice Reveal.dc.html:38`
+ * and `:40` - a kicker/headline pair at the top of a headerless content
+ * column, which is exactly this pair. Quoted rather than re-derived: the
+ * handoff draws no post-wave screen at all (`PostWaveScreen.Headline`), so
+ * the nearest measured instance of this shape is the right source, and the
+ * two screens are one beat apart. */
+.post-wave-view__kicker {
+    -unity-text-align: middle-center;
+    margin-top: 10px;
+    margin-bottom: 2px;
+}
+
 
 /* A sentence, not a label, so it wraps - "Wave not cleared." fits on one line
  * at 28px on a 430 frame and a longer verdict from a later server would not. */

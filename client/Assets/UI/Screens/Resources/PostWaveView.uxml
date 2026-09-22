@@ -1,5 +1,13 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
     <ui:Style src="PostWaveView.uss" />
+    <!-- THE KICKER, IN THE CONTENT COLUMN, BECAUSE THIS SCREEN HAS NO PAGE
+         HEADER AS OF PHASE 9 TASK 21e. It was the scaffold's eyebrow until
+         the header went; `#header` is also where the eyebrow lives, so a
+         headerless screen that left it there would silently lose it.
+         `SpliceRevealView` did exactly this in Task 16b and its kicker's USS
+         note has the shape. -->
+    <ui:Label name="kicker" class="post-wave-view__kicker t-micro" />
+
     <!-- NO VERDICT COLOUR HERE. This is the one screen that renders both a
          win and a loss, so the colour is Bind's to set - see PostWaveView. -->
     <ui:Label name="headline" class="post-wave-view__headline t-hero" />

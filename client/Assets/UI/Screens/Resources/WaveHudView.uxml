@@ -40,14 +40,29 @@
                 <ui:VisualElement name="integrity-text" class="wave-hud-view__pill-text">
                     <ui:Label name="integrity-label" class="wave-hud-view__pill-label t-micro" />
                     <!-- STILL NAMED `integrity`, STILL A Label, STILL CARRYING
-                         `t-num`. `WaveCapturePlayTests` reads this element by
-                         name off the live wave scene and asserts its text
-                         advances; three EditMode tests compare it to
-                         `WaveHudScreen.Integrity` verbatim. -->
+                         `t-num`. Three EditMode tests compare it to
+                         `WaveHudScreen.Integrity` verbatim, and
+                         `WaveCapturePlayTests` reads it by name off the live
+                         wave scene to prove the readout comes from the live
+                         runner. What it NO LONGER carries is the tick - see
+                         `#tick` below and `WaveHudScreen.Integrity`'s note. -->
                     <ui:Label name="integrity" class="wave-hud-view__integrity t-num" />
                 </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
+
+        <!-- THE LIVE TICK, OUT OF THE INTEGRITY PILL AND ON ITS OWN LINE -
+             Phase 9 Task 21e. It was appended to the pill's VALUE, which read
+             as "2 tick 155" under the caption "ARK INTEGRITY" on the exit
+             gate's walk. `WaveHudScreen.Tick`'s comment has the two
+             mechanisms that require a live tick to be ON SCREEN, neither of
+             which requires it to be on the integrity string.
+
+             INSIDE `#chrome`, WHICH IS LOAD-BEARING. `WaveHudView.Place`
+             reserves a band off `#chrome`'s own `layout` so a clamped bar
+             never lands on the readouts; a tick drawn outside that element
+             would be a readout the reservation does not cover. -->
+        <ui:Label name="tick" class="wave-hud-view__tick t-num" />
     </ui:VisualElement>
 
     <ui:VisualElement name="bars" class="wave-hud-view__bars" />

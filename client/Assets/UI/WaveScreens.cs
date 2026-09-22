@@ -359,9 +359,9 @@ namespace Broodline.UI
         /// "Ark breached" in two. `Wave Defeat.dc.html:41` is the shape both
         /// halves of this beat want: a verdict at hero size, and the sentence
         /// that explains it underneath at reading size. Post-Wave has no
-        /// handoff screen of its own (`PostWaveScreen.Title`'s note), so it
-        /// takes the defeat screen's, which is what makes the pair read as one
-        /// beat rather than two designs.
+        /// handoff screen of its own (see the note where this screen's title
+        /// used to be), so it takes the defeat screen's, which is what makes
+        /// the pair read as one beat rather than two designs.
         ///
         /// NO FULL STOP, for the same reason: a headline is not a sentence,
         /// and the one across the branch has none.
@@ -375,35 +375,69 @@ namespace Broodline.UI
             return result == WinResult ? "Wave held" : "Wave not held";
         }
 
-        /// The kicker, in the scaffold's own eyebrow slot - which this screen
-        /// keeps because, unlike Wave Defeat, it has a page header to hang it
-        /// under. `PostWaveScreen.Title`'s note has why the header stays.
+        /// The kicker. IN THE CONTENT COLUMN AS OF PHASE 9 TASK 21e, and not
+        /// in the scaffold's eyebrow slot: that slot is inside `#header`,
+        /// which this screen no longer draws. The note where this screen's
+        /// title used to be has why, and `PostWaveView.uxml`'s `#kicker` is
+        /// where it went. Wave Defeat made the same move in Task 18 and put
+        /// its kicker in the hero band; this screen has no band, so it goes at
+        /// the top of the column the way `SpliceRevealView`'s does.
         public static string Eyebrow(int waveId) => WaveCampaign.Eyebrow(waveId);
 
         public const string NextLabel = "Continue";
 
-        /// The scaffold's header.
+        /// THERE IS NO TITLE AND THERE IS NO PAGE HEADER - PHASE 9 TASK 21e.
         ///
-        /// NOT "Wave cleared", WHICH IS WHAT TASK 11 STEP 2 ASKS FOR, and
-        /// this one is not a matter of taste: "Wave cleared" is
-        /// `Headline(WinResult)` MINUS ITS FULL STOP. Putting it in the
-        /// header would print the same three words twice on one screen, and
-        /// - the half that actually matters - it would assert the verdict as
-        /// a CONSTANT. The header is set at construction and the verdict
-        /// arrives at `Bind`, from the server; `Headline`'s own comment and
-        /// `PostWave_TheHeadlineFollowsTheServersVerdictAndNotTheClients`
-        /// both exist because a non-win response can reach this screen, and a
-        /// header reading "Wave cleared" over a headline reading "Wave not
-        /// cleared." is the client contradicting the server in its own
-        /// chrome.
+        /// THIS CONST WAS `"Post-Wave"` AND A PLAYER READ IT AS ONE. Design
+        /// section 5.1's SECTION NAME was rendered as the screen's page title
+        /// because there was nothing else to render: this is the one wave
+        /// screen the handoff does not draw - it ends at Wave Defense and
+        /// Wave Defeat, and Task 18 confirmed `Wave Defense.dc.html` has no
+        /// `won` phase at all - so there was no heading to take and the
+        /// previous ruling here was `DeployScreen.Title`'s ("use the word the
+        /// design already uses rather than invent copy"). That rule is right
+        /// for "Deploy", which is a word a player uses. "Post-Wave" is a word
+        /// a SPEC uses, and the exit gate's walk of the packaged app named it
+        /// as a defect in those terms. It is the same shape as the HUD's
+        /// "2 tick 155" and the granted card's `"None"` chips: an internal
+        /// value reaching the player unedited.
         ///
-        /// SO IT NAMES THE SCREEN, per `FounderNamingScreen.Title`'s rule,
-        /// and the name is design section 5.1's own - this is the one wave
-        /// screen the handoff does not draw (it ends at Wave Defense and Wave
-        /// Defeat), so there is no section heading to take, and
-        /// `DeployScreen.Title` already settled what to do then: use the word
-        /// the design already uses rather than invent copy for a header.
-        public const string Title = "Post-Wave";
+        /// THE ANSWER IS NO TITLE, NOT A BETTER ONE, AND THE SCREEN ALREADY
+        /// PROVED IT. `Headline` is directly underneath and states the
+        /// verdict in the player's own words ("Wave held"), in --green-text,
+        /// at 28px; a title above it either repeats that or says nothing. The
+        /// old note here spent its length arguing that "Wave cleared" must
+        /// not go in the header because the header is a CONSTANT and the
+        /// verdict is the SERVER's - which is the same argument one step
+        /// short of its conclusion. A header whose only possible honest
+        /// content is already on the screen is a header the screen does not
+        /// want.
+        ///
+        /// AND THE OTHER ARM OF THIS BRANCH IS ALREADY HEADERLESS.
+        /// `WaveDefeatView` passes `title: null` (Task 18, `Wave Defeat
+        /// .dc.html:26-31`: status bar, then hero band, no header row) and
+        /// `KeptStatLabel`'s note already states the principle these two
+        /// screens are held to - "the same fact stated on both arms of one
+        /// branch". A win that carries a page header and a loss that does not
+        /// is that principle broken in chrome.
+        ///
+        /// WHAT THE HEADER TOOK WITH IT, AND WHERE EACH WENT. The row also
+        /// holds the eyebrow, the back chevron and the resource pill
+        /// (`ScreenScaffold`'s own note). The eyebrow is now `#kicker` in the
+        /// content column, the way `SpliceRevealView`'s went in Task 16b. The
+        /// chevron was never drawn - `PostWaveView.Bind`'s `onBack` is null
+        /// at every call site and `ScreenScaffold.OnBack` removes the button
+        /// when it is. No caller has ever set a resource pill on this screen.
+        ///
+        /// THE CONST IS DELETED RATHER THAN KEPT, WHICH IS THE OPPOSITE OF
+        /// WHAT THE OTHER TWO HEADERLESS SCREENS DID AND IS DELIBERATE.
+        /// `SpliceRevealScreen.Title` ("Splice Reveal") and
+        /// `WaveDefeatScreen.Title` ("Wave Defeat") both survive their own
+        /// screens going headerless, with notes saying why: each is the
+        /// handoff's own heading for a screen it actually draws, so each is a
+        /// real piece of copy that a later header could take back. "Post-Wave"
+        /// is not copy and never was. Leaving it here as a dead literal is
+        /// leaving the defect where the next task can reach it.
 
         /// The two facts the stat row states.
         ///
@@ -515,23 +549,22 @@ namespace Broodline.UI
         /// never been handed it.
         public const string IntegrityLabel = DeployScreen.IntegrityLabel;
 
-        /// What `WaveHud.DrawIntegrity` drew, minus the rich-text markup:
-        /// the loss condition and the live tick. The tick is here because the
-        /// tracked-capture procedure reads it off the screen - DeviceReplay
-        /// Tests' re-capture message says so in as many words: "The HUD
-        /// prints the live tick beside Integrity."
+        /// The integrity pool, and NOTHING ELSE ON THE LINE - Phase 9 Task
+        /// 21e.
         ///
-        /// THE WORD "Integrity" LEFT THE SENTENCE IN PHASE 9 TASK 18 AND THE
-        /// TICK DID NOT. The line is now the VALUE of a pill whose caption is
-        /// `IntegrityLabel` ("ARK INTEGRITY"), so the word was being printed
-        /// twice, 14px apart. The tick stays for two reasons and the second is
-        /// the load-bearing one: the device procedure reads it off this line,
-        /// and `WaveCapturePlayTests:162-165` asserts that
-        /// `Q<Label>("integrity").text` CHANGES within its frame budget.
-        /// Integrity is a pool that moves a handful of times in a wave
-        /// (`HudSnapshot.Integrity`: "a pool, not a life count"), so a line
-        /// carrying integrity alone would sit still for hundreds of frames and
-        /// that test would fail on a timeout rather than on a wrong value.
+        /// THE TICK WAS ON THIS LINE AND A PLAYER READ IT AS A BUG. Phase 9
+        /// Task 18 made this string the VALUE of a pill whose caption is
+        /// `IntegrityLabel` ("ARK INTEGRITY") and left the tick appended to
+        /// it, so the exit gate's walk of the packaged app read
+        /// "2 tick 155" under "ARK INTEGRITY" - a frame counter presented as
+        /// part of the number the loss condition is measured in. It is the
+        /// same defect as `PostWaveScreen`'s old "Post-Wave" title and the
+        /// `"None"` trait chip: an internal value reaching the player
+        /// unedited.
+        ///
+        /// THE TICK IS NOT DELETED, IT IS MOVED, AND `Tick` BELOW SAYS WHY.
+        /// Two mechanisms depend on a live tick being ON SCREEN, and neither
+        /// depends on it being on THIS string.
         ///
         /// NO PER CENT SIGN, for `WaveDefeatScreen.IntegrityStatValue`'s
         /// reason: the handoff draws "82%" over a percentage and wave 6 is
@@ -539,8 +572,43 @@ namespace Broodline.UI
         public static string Integrity(HudSnapshot snapshot)
         {
             if (snapshot == null) return string.Empty;
-            return snapshot.Integrity.ToString(CultureInfo.InvariantCulture) +
-                   "   tick " + snapshot.Tick.ToString(CultureInfo.InvariantCulture);
+            return snapshot.Integrity.ToString(CultureInfo.InvariantCulture);
+        }
+
+        /// The live tick, on a readout of its own.
+        ///
+        /// IT STAYS ON SCREEN BECAUSE TWO MECHANISMS READ IT OFF THE SCREEN,
+        /// AND THIS IS WHY IT IS A SEPARATE ELEMENT RATHER THAN A DELETION:
+        ///
+        ///   - THE DEVICE RE-CAPTURE PROCEDURE AIMS A TAP BY IT.
+        ///     `DeviceReplayTests.ReCaptureOwed` tells the capturer to aim at
+        ///     ticks 184..207 and to expect about ten ticks of reaction lag,
+        ///     which is unreadable without a live counter in front of them.
+        ///     That message names the element this now lives on; the two were
+        ///     changed together.
+        ///   - `WaveCapturePlayTests` ASSERTS A HUD READOUT ADVANCES within a
+        ///     frame budget, and that assertion has to watch a number that
+        ///     MOVES. Integrity is a pool, not a life count
+        ///     (`HudSnapshot.Integrity`), and wave 6 holds a constant 2 for
+        ///     roughly 500 of its 540 ticks - so a watch on the integrity
+        ///     line would fail on a TIMEOUT rather than on a wrong value.
+        ///     That test now watches this element. PlayMode deadlocks in
+        ///     batchmode here, so it was changed in the same commit and the
+        ///     report names it as owed to the developer's Editor pass.
+        ///
+        /// SO IT READS AS AN INSTRUMENT AND NOT AS A STAT. The word leads,
+        /// lower case, in --mute at --text-secondary under the pills rather
+        /// than inside one - see `.wave-hud-view__tick`. A player who does
+        /// not know what a tick is reads a small grey diagnostic; a capturer
+        /// who needs one reads it at a glance.
+        ///
+        /// InvariantCulture for `DeployScreen.WaveStatValue`'s reason: a
+        /// locale that groups digits must not make the capturer's number read
+        /// differently from the engine's.
+        public static string Tick(HudSnapshot snapshot)
+        {
+            if (snapshot == null) return string.Empty;
+            return "tick " + snapshot.Tick.ToString(CultureInfo.InvariantCulture);
         }
 
         /// The tag hanging under a bar, or null for a body with nothing to

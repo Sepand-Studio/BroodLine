@@ -281,6 +281,55 @@
     -unity-text-align: middle-left;
 }
 
+/* THE LIVE TICK, AND IT IS DRESSED AS AN INSTRUMENT RATHER THAN AS A STAT -
+ * Phase 9 Task 21e. It used to be appended to `.wave-hud-view__integrity`,
+ * which put a frame counter inside the VALUE of a pill captioned "ARK
+ * INTEGRITY" and read, to the person who walked the packaged app, as
+ * "2 tick 155".
+ *
+ * UNDER THE PILL, NOT IN ONE, WHICH IS THE WHOLE POINT. The pill is the
+ * handoff's stat anatomy - tinted disc, caption, value - and anything inside
+ * it claims to BE the stat. Outside it, in its own small scrim, at a third of
+ * the value's size, it is plainly a separate readout.
+ * `WaveHudScreen.Tick` has why it is on screen at all.
+ *
+ * ITS OWN SCRIM, BECAUSE IT IS NOT INSIDE ANYTHING ELSE'S. Both other pieces
+ * of chrome on this screen carry white ink on --hud-scrim - the band at :129
+ * and the pill at :208 - and they can, because each is a filled box. This
+ * Label is a direct child of `#chrome`, so with no fill of its own it would
+ * be white text laid straight on a pale-green battlefield. Same recipe as the
+ * band, one step smaller in padding because it holds one short line rather
+ * than a two-line column, and `align-items: flex-start` on `#chrome` already
+ * shrink-wraps it.
+ *
+ * --text-secondary IS `t-num`'s OWN SIZE AND IS NOT RESTATED HERE. 11px is
+ * bible 10.6's floor, and the tick IS a number a decision depends on - the
+ * capturer times a tap by it - so it sits ON the floor rather than under it:
+ * the smallest thing this file is allowed to draw, which is the right size
+ * for the least important number on the screen. `t-num` also brings the
+ * tabular digits, without which a counter advancing thirty times a second
+ * would jitter as its glyph widths changed.
+ *
+ * HEIGHT ON THE BOX WITH `middle-left`, THIS FILE'S OWN RULE - see
+ * `.wave-hud-view__pill-label`'s note four rules up, which has the
+ * measurement. 11px x 1.36 = 14.96 -> 15, rounded UP because a height under
+ * the line box clips descenders.
+ *
+ * 6px MATCHES `.wave-hud-view__pills`' OWN TOP MARGIN, which is the handoff's
+ * measured distance between two stacked chrome rows on this screen. */
+.wave-hud-view .wave-hud-view__tick {
+    height: 15px;
+    color: var(--surface);
+    -unity-text-align: middle-left;
+    background-color: var(--hud-scrim);
+    border-radius: var(--radius-row);
+    padding-top: var(--space-1);
+    padding-bottom: var(--space-1);
+    padding-left: var(--space-2);
+    padding-right: var(--space-2);
+    margin-top: 6px;
+}
+
 .wave-hud-view__bars {
     position: absolute;
     left: 0;

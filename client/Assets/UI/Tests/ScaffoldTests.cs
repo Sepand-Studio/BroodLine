@@ -211,9 +211,11 @@ namespace Broodline.UI.Tests
         /// 21 - which is what `--text-screen-title` already is. So this is
         /// about the presence of a header, never about the size of a title.
         ///
-        /// THE SECOND HALF IS WHAT KEEPS IT FREE FOR THE OTHER EIGHT
-        /// SCREENS. All eight pass a non-empty literal, so none can reach
-        /// the hidden branch; asserted rather than reasoned about.
+        /// THE SECOND HALF IS WHAT KEEPS IT FREE FOR THE TITLED SCREENS.
+        /// All six pass a non-empty literal, so none can reach the hidden
+        /// branch; asserted rather than reasoned about. (This said EIGHT
+        /// while the sweep below asserted seven - a number written twice and
+        /// maintained once. It reads off the sweep now.)
         ///
         /// `style.display.value` RATHER THAN `resolvedStyle`: no panel here,
         /// and `Flex` is also the default computed value, so a resolvedStyle
@@ -326,7 +328,20 @@ namespace Broodline.UI.Tests
             // `Wave Defeat.dc.html` is the third: `:26` is the status bar and
             // `:31` is the hero band, with no header row between them, and its
             // kicker moved into the band for the same reason.
-            // THE OTHER SEVEN pass a non-empty `const string Title` and must
+            //
+            // `PostWaveView` IS THE FOURTH AND ARRIVED IN PHASE 9 TASK 21e,
+            // and it is the one that came from a WALK rather than from a
+            // handoff file - the handoff has no post-wave screen to read. Its
+            // header carried the title "Post-Wave", design section 5.1's own
+            // section name, and a person walking the packaged app read it as
+            // a screen name printed at a player. The note where
+            // `PostWaveScreen.Title` used to be has the ruling; the shape that
+            // matters here is that it is the other arm of Wave Defeat's own
+            // branch, and one arm with a page header and one without was the
+            // inconsistency. Its kicker moved into the content column, the way
+            // `SpliceRevealView`'s did.
+            //
+            // THE OTHER SIX pass a non-empty `const string Title` and must
             // still get a header - and with it the back chevron, the eyebrow
             // and the resource pill, all of which live inside the row the
             // headerless branch hides.
@@ -343,7 +358,8 @@ namespace Broodline.UI.Tests
             // whichever is nearest would lose the distinction that makes
             // this sweep worth running.
             var noScaffold = new[] { "CodexSheet", "WaveHudView" };
-            var headerless = new[] { "FounderNamingView", "SpliceRevealView", "WaveDefeatView" };
+            var headerless = new[]
+                { "FounderNamingView", "SpliceRevealView", "WaveDefeatView", "PostWaveView" };
 
             var titled = typeof(Broodline.UI.Screens.RosterView).Assembly
                 .GetTypes()
@@ -355,8 +371,8 @@ namespace Broodline.UI.Tests
                             && !headerless.Contains(t.Name))
                 .ToList();
 
-            Assert.That(titled.Count, Is.EqualTo(7),
-                "seven screens pass a non-empty title; if this moved, decide which list the " +
+            Assert.That(titled.Count, Is.EqualTo(6),
+                "six screens pass a non-empty title; if this moved, decide which list the " +
                 "new screen belongs in rather than widening one silently");
 
             var lost = titled

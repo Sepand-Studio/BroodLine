@@ -610,25 +610,53 @@ namespace Broodline.UI.Tests
             Assert.AreEqual(DisplayStyle.Flex, dropped.Q<VisualElement>("granted").resolvedStyle.display);
         }
 
-        /// THE HEADER MUST NOT ASSERT THE VERDICT, which is the whole reason
-        /// the title is not "Wave cleared": it is set at construction and the
-        /// verdict arrives at `Bind`, from the server. A constant header over
-        /// a server headline reading "Wave not cleared." is the client
-        /// contradicting the server in its own chrome.
+        /// THERE IS NO PAGE HEADER AND THAT IS PHASE 9 TASK 21e.
+        ///
+        /// It used to draw one titled "Post-Wave" - design section 5.1's
+        /// SECTION NAME, printed at the player because the handoff draws no
+        /// post-wave screen and there was no heading to take. The exit gate's
+        /// walk of the packaged app named it as a defect: a screen name is not
+        /// copy. The note where `PostWaveScreen.Title` used to be has the full
+        /// ruling and `ScaffoldTests.EveryTitledScreenStillDrawsItsPageHeader`
+        /// holds the roster.
+        ///
+        /// THE OLD TEST'S CLAIM SURVIVES IN A STRONGER FORM. It asserted the
+        /// header does not state the verdict, because a header is set at
+        /// CONSTRUCTION and the verdict arrives at `Bind` from the server - so
+        /// a constant "Wave cleared" over a server headline reading "Wave not
+        /// held" is the client contradicting the server in its own chrome. A
+        /// header that does not exist cannot do that, and the assertion below
+        /// says so directly rather than by inspecting a string.
+        ///
+        /// CONSTRUCTED AS A FAILURE FIRST: restoring `new ScreenScaffold(
+        /// PostWaveScreen.Title, ...)` - or any non-empty literal - reddens
+        /// the display assertion, because `ScreenScaffold` only hides the row
+        /// for a null or empty title.
         [Test]
-        public void PostWave_ComposesTheScaffoldAndItsHeaderDoesNotStateTheVerdict()
+        public void PostWave_ComposesTheScaffoldAndDrawsNoPageHeaderAtAll()
         {
             var lost = BoundPostWave(Submitted("Loss", "shards", 150));
 
             Assert.IsNotNull(lost.Q(className: ScreenScaffold.UssClassName), "no scaffold");
-            Assert.AreEqual(PostWaveScreen.Title, lost.Q<Label>("title").text);
-            StringAssert.DoesNotContain("cleared", lost.Q<Label>("title").text);
+
+            var header = lost.Q<VisualElement>("header");
+            Assert.IsNotNull(header, "the scaffold's header row was removed rather than hidden");
+            Assert.AreEqual(DisplayStyle.None, header.style.display.value,
+                "post-wave drew a page header again - its only possible content is the screen's "
+                + "own name, which is what the exit gate's walk called a defect");
+            Assert.AreEqual(string.Empty, lost.Q<Label>("title").text);
         }
 
         /// The three-cell row, and the kicker that says which wave it is
-        /// about. Post-Wave keeps its page header (`PostWaveScreen.Title`'s
-        /// note), so its kicker goes in the scaffold's own eyebrow slot rather
-        /// than into a band the way the defeat screen's does.
+        /// about.
+        ///
+        /// `#kicker`, NOT `#eyebrow`, AS OF PHASE 9 TASK 21e. The eyebrow slot
+        /// is inside `#header`, and this screen no longer draws one - so the
+        /// kicker is its own element at the top of the content column, the way
+        /// `SpliceRevealView`'s has been since Task 16b. Reading `#eyebrow`
+        /// here would now find the scaffold's own hidden Label and assert
+        /// against a line nobody sees, which is the could-not-fail shape this
+        /// phase has found three times.
         [Test]
         public void PostWave_StatesThreeCellsAndItsKickerNamesTheWave()
         {
@@ -639,19 +667,29 @@ namespace Broodline.UI.Tests
             Assert.AreEqual(3, view.Query<StatCell>().ToList().Count);
             Assert.AreEqual("5", ValueOf(view.Q<StatCell>("kept")));
 
-            var eyebrow = view.Q<Label>("eyebrow");
-            Assert.AreEqual(PostWaveScreen.Eyebrow(7), eyebrow.text);
-            Assert.AreEqual(DisplayStyle.Flex, eyebrow.style.display.value);
+            var kicker = view.Q<Label>("kicker");
+            Assert.AreEqual(PostWaveScreen.Eyebrow(7), kicker.text);
+            Assert.AreEqual(DisplayStyle.Flex, kicker.style.display.value);
+
+            // AND IT IS NOT THE SCAFFOLD'S OWN EYEBROW, which is still in the
+            // tree behind a hidden header. Without this, a Bind that wrote to
+            // `ScreenScaffold.Eyebrow` instead would satisfy nothing above but
+            // would leave the line invisible on the real screen, and a later
+            // edit could quietly restore it.
+            Assert.AreNotSame(kicker, view.Q<Label>("eyebrow"));
+            Assert.AreEqual(string.Empty, view.Q<Label>("eyebrow").text,
+                "the kicker was written to the hidden header's eyebrow slot, where no player "
+                + "can read it");
 
             // THE TWO SCREENS OF THIS BEAT SAY IT THE SAME WAY, which is what
             // `WaveCampaign.Eyebrow` exists for - one sentence, not two that
             // happen to agree today.
-            Assert.AreEqual(WaveDefeatScreen.Eyebrow(7), eyebrow.text);
+            Assert.AreEqual(WaveDefeatScreen.Eyebrow(7), kicker.text);
 
             // A caller that does not know the wave hides the row rather than
             // printing "WAVE  OF 12".
             Assert.AreEqual(DisplayStyle.None,
-                BoundPostWave(Submitted("Win", "shards", 150)).Q<Label>("eyebrow")
+                BoundPostWave(Submitted("Win", "shards", 150)).Q<Label>("kicker")
                     .style.display.value);
         }
 
@@ -704,7 +742,7 @@ namespace Broodline.UI.Tests
         }
 
         [Test]
-        public void WaveHud_ShowsTheIntegrityAndTickLineVerbatim_AndItMoves()
+        public void WaveHud_ShowsTheIntegrityAndTickReadoutsVerbatim_AndBothMove()
         {
             var first = Hud(2, 10, Raider(1f, 100, 100));
             var snapshot = first;
@@ -712,17 +750,100 @@ namespace Broodline.UI.Tests
             view.Bind(() => snapshot);
 
             Assert.AreEqual(WaveHudScreen.Integrity(first), view.Q<Label>("integrity").text);
+            Assert.AreEqual(WaveHudScreen.Tick(first), view.Q<Label>("tick").text);
 
-            // The tracked-capture procedure reads the tick off this line, so
-            // a line that freezes at its first value is a capture aimed with
+            // The tracked-capture procedure reads the tick off the HUD, so a
+            // readout that freezes at its first value is a capture aimed with
             // a stopped clock.
+            //
+            // BOTH NUMBERS MOVE HERE, AND THEY MOVE INDEPENDENTLY, which is
+            // the property this test gained in Phase 9 Task 21e. The tick left
+            // the integrity Label for one of its own, and `Refresh` gained a
+            // guard per readout; a guard that still tested `Integrity != drawn
+            // || Tick != drawn` would pass every assertion in the old version
+            // of this test, because the old one only ever moved both at once.
+            // 2 -> 1 and 10 -> 200 below is the both-move arm; the two
+            // one-moves-alone arms are `WaveHud_MovingOneReadout_LeavesTheOther`.
             var second = Hud(1, 200, Raider(1f, 100, 100));
             snapshot = second;
             view.Refresh();
 
             Assert.AreEqual(WaveHudScreen.Integrity(second), view.Q<Label>("integrity").text);
+            Assert.AreEqual(WaveHudScreen.Tick(second), view.Q<Label>("tick").text);
             Assert.AreNotEqual(WaveHudScreen.Integrity(first), WaveHudScreen.Integrity(second),
-                "sanity: the two lines must differ, or the check above proves nothing");
+                "sanity: the two integrity readouts must differ, or the check above proves nothing");
+            Assert.AreNotEqual(WaveHudScreen.Tick(first), WaveHudScreen.Tick(second),
+                "sanity: the two tick readouts must differ, or the check above proves nothing");
+        }
+
+        /// THE SPLIT GUARD, ONE ARM AT A TIME - Phase 9 Task 21e.
+        ///
+        /// `Refresh` used to hold ONE guard over both numbers, which was right
+        /// while they shared a Label and is wrong now that they do not: a
+        /// shared guard would rewrite BOTH strings whenever EITHER moved,
+        /// which is the allocation
+        /// `WaveHud_RedrawingAFrameWhoseNumbersHaveNotMoved_WritesNoString`
+        /// exists to keep off this screen, and it would do it 30 times a
+        /// second because the tick moves every simulation step.
+        ///
+        /// CONSTRUCTED AS A FAILURE FIRST. Reverting `Refresh` to the single
+        /// `||` guard leaves every other HUD assertion in this file green -
+        /// the sibling test above moves both numbers together, so it cannot
+        /// tell the two shapes apart - and reddens only this one, on the
+        /// second `AreEqual`: with a shared guard the integrity Label is
+        /// rewritten when only the TICK moved, which is harmless to read and
+        /// is exactly the write that must not happen. Swapping the two
+        /// `_drawn*` assignments reddens it too.
+        [Test]
+        public void WaveHud_MovingOneReadout_LeavesTheOtherAlone()
+        {
+            var snapshot = Hud(2, 10, Raider(1f, 100, 100));
+            var view = new WaveHudView();
+            view.Bind(() => snapshot);
+
+            var integrity = view.Q<Label>("integrity");
+            var tick = view.Q<Label>("tick");
+
+            // The tick alone.
+            snapshot = Hud(2, 11, Raider(1f, 100, 100));
+            view.Refresh();
+            Assert.AreEqual(WaveHudScreen.Tick(snapshot), tick.text, "the tick did not follow its own number");
+            Assert.AreEqual(WaveHudScreen.Integrity(snapshot), integrity.text,
+                "the integrity readout must still read the pool, whatever the tick did");
+
+            // The pool alone.
+            snapshot = Hud(1, 11, Raider(1f, 100, 100));
+            view.Refresh();
+            Assert.AreEqual(WaveHudScreen.Integrity(snapshot), integrity.text,
+                "the integrity readout did not follow the pool");
+            Assert.AreEqual(WaveHudScreen.Tick(snapshot), tick.text,
+                "the tick readout must still read the tick, whatever the pool did");
+        }
+
+        /// THE DEFECT THE EXIT GATE'S WALK NAMED, PINNED - Phase 9 Task 21e.
+        ///
+        /// `WaveHudScreen.Integrity` returned the pool with `"   tick " + Tick`
+        /// appended, and that string is the VALUE of a pill whose caption is
+        /// `WaveHudScreen.IntegrityLabel` ("ARK INTEGRITY"), so the packaged
+        /// app printed "2 tick 155" where the loss condition belongs.
+        ///
+        /// ASSERTED ON THE ELEMENT AND NOT ONLY ON THE FUNCTION, because the
+        /// function is only half the claim: a future edit could restore the
+        /// concatenation in `WaveHudView.Refresh` instead and this screen
+        /// would read exactly the way it did on the walk. Re-appending the
+        /// tick in either place reddens this.
+        [Test]
+        public void WaveHud_TheIntegrityPillCarriesThePoolAndNothingElse()
+        {
+            var view = new WaveHudView();
+            view.Bind(() => Hud(2, 155, Raider(1f, 100, 100)));
+
+            Assert.AreEqual("2", view.Q<Label>("integrity").text,
+                "the ARK INTEGRITY pill's value must be the pool alone - a tick beside it reads "
+                + "as part of the number the loss condition is measured in");
+            StringAssert.DoesNotContain("tick", view.Q<Label>("integrity").text);
+            Assert.AreNotSame(view.Q<Label>("integrity"), view.Q<Label>("tick"),
+                "sanity: the two readouts must be different elements");
         }
 
         [Test]
@@ -749,6 +870,7 @@ namespace Broodline.UI.Tests
             var bars = BarsOf(view);
             Assert.AreEqual(2, bars.Count);
             Assert.Contains(view.Q<Label>("integrity"), elements);
+            Assert.Contains(view.Q<Label>("tick"), elements);
             foreach (var bar in bars)
             {
                 Assert.Contains(bar, elements);
@@ -852,6 +974,8 @@ namespace Broodline.UI.Tests
 
             Assert.AreEqual(2, BarsOf(view).Count);
             Assert.AreEqual(WaveHudScreen.Integrity(Hud(9, 99)), view.Q<Label>("integrity").text);
+            Assert.AreEqual(WaveHudScreen.Tick(Hud(9, 99)), view.Q<Label>("tick").text,
+                "the tick readout's own memo must be cleared by a second Bind too");
         }
 
         [Test]
@@ -1103,7 +1227,9 @@ namespace Broodline.UI.Tests
         /// already on screen, on the one view with a per-frame budget worth
         /// defending. Two places did it before Phase 9 Task 18 -
         /// `WaveHudScreen.Integrity` (two `ToString`s and a concat) and
-        /// `BarTag`'s "RALLY 42".
+        /// `BarTag`'s "RALLY 42". Task 21e made that concat two readouts,
+        /// `Integrity` and `Tick`, each behind its own guard, so there are
+        /// three strings here now.
         ///
         /// MEASURED IN GEN-0 COLLECTIONS AND NOT IN BYTES, and the first
         /// version of this test is why. It read
@@ -1166,8 +1292,9 @@ namespace Broodline.UI.Tests
             for (var i = 0; i < frames; i++) view.Refresh();
             var frozen = GC.CollectionCount(0) - mark;
 
-            // THE CONTROL: exactly the two strings the guards skip, and
-            // nothing else. `sink` is accumulated rather than discarded so no
+            // THE CONTROL: exactly the three strings the guards skip, and
+            // nothing else. It was two until Phase 9 Task 21e split the tick
+            // off the integrity line; the control follows the guards. `sink` is accumulated rather than discarded so no
             // optimiser can decide the calls are dead.
             var rallied = Rallied(1f, 42);
             var sink = 0;
@@ -1176,13 +1303,14 @@ namespace Broodline.UI.Tests
             for (var i = 0; i < frames; i++)
             {
                 sink += WaveHudScreen.Integrity(snapshot).Length;
+                sink += WaveHudScreen.Tick(snapshot).Length;
                 sink += WaveHudScreen.BarTag(rallied).Length;
             }
             var unguarded = GC.CollectionCount(0) - mark;
 
             Assert.Greater(sink, 0, "sanity: the control loop's work was optimised away");
             Assert.Greater(unguarded, 0,
-                "writing both readouts " + frames + " times unguarded triggered no gen-0 "
+                "writing all three readouts " + frames + " times unguarded triggered no gen-0 "
                 + "collection, so either this runtime is not counting them or the trigger is "
                 + "above the regression's own allocation - and the assertion below would then "
                 + "prove nothing (frozen=" + frozen + ", unguarded=" + unguarded + ")");

@@ -104,6 +104,7 @@ namespace Broodline.UI.Screens
         const float BarWidth = 52f;
 
         readonly Label _integrity;
+        readonly Label _tick;
         readonly Label _waveNumber;
         readonly VisualElement _waveLine;
         readonly VisualElement _bars;
@@ -113,18 +114,23 @@ namespace Broodline.UI.Screens
         /// there, and the UXML's own beside `#chrome`.
         readonly VisualElement _chrome;
 
-        /// The last integrity and tick the readout was written for, so an
+        /// The last integrity and tick each readout was written for, so an
         /// unchanged frame does not rebuild its string.
         ///
         /// THIS IS A CORRECTNESS FIX AND NOT A TIDY-UP. `Refresh` runs every
-        /// frame of the one scene with a defended per-frame budget, and
-        /// `WaveHudScreen.Integrity` is a concatenation of two `ToString`s -
-        /// three managed allocations per frame, handed to the collector for a
-        /// line that only changes when the simulation ticks. The simulation
-        /// ticks at a fixed 30Hz and the renderer does not, so at 60fps at
-        /// least half of them were for an identical string. `int.MinValue`
-        /// rather than 0 because 0 is a tick and an integrity a wave really
-        /// reaches; the sentinel has to be a value the snapshot cannot carry.
+        /// frame of the one scene with a defended per-frame budget, and each
+        /// of these strings is a `ToString` - managed allocations per frame,
+        /// handed to the collector for lines that only change when the
+        /// simulation ticks. The simulation ticks at a fixed 30Hz and the
+        /// renderer does not, so at 60fps at least half of them were for an
+        /// identical string. `int.MinValue` rather than 0 because 0 is a tick
+        /// and an integrity a wave really reaches; the sentinel has to be a
+        /// value the snapshot cannot carry.
+        ///
+        /// TWO SENTINELS AND, AS OF PHASE 9 TASK 21e, TWO GUARDS - see
+        /// `Refresh`. The tick moved off the integrity Label onto one of its
+        /// own, so the two numbers are written independently and at their own
+        /// rates.
         int _drawnIntegrity = int.MinValue;
         int _drawnTick = int.MinValue;
 
@@ -196,7 +202,7 @@ namespace Broodline.UI.Screens
         /// `WaveHudView.uss`'s header recorded it as owed because the obvious
         /// route - a fourth field on the snapshot - reaches Broodline.Model,
         /// `WaveRunner`'s per-frame snapshot builder and
-        /// `WaveHudScreen.Integrity`'s sentence, which the device re-capture
+        /// `WaveHudScreen.Tick`'s line, which the device re-capture
         /// procedure reads off the screen to time a tap. None of that is
         /// needed: the wave id is fixed for the whole run, so it is not
         /// per-frame data. `Camera` is the same shape for the same reason and
@@ -252,6 +258,7 @@ namespace Broodline.UI.Screens
 
             _chrome = this.Q<VisualElement>("chrome");
             _integrity = this.Q<Label>("integrity");
+            _tick = this.Q<Label>("tick");
             _waveNumber = this.Q<Label>("wave-number");
             _waveLine = this.Q<VisualElement>("wave-line");
             _bars = this.Q<VisualElement>("bars");
@@ -306,11 +313,27 @@ namespace Broodline.UI.Screens
             // two `ToString`s and the frame rate is not the tick rate, so an
             // unguarded write handed the collector three objects a frame for a
             // string that had not changed.
-            if (snapshot.Integrity != _drawnIntegrity || snapshot.Tick != _drawnTick)
+            // TWO GUARDS NOW, NOT ONE, BECAUSE THE TWO NUMBERS MOVE AT VERY
+            // DIFFERENT RATES - Phase 9 Task 21e. While the tick was appended
+            // to the integrity string, one `||` was right: either number
+            // moving rebuilt the one Label, and the tick moves 30 times a
+            // second, so the integrity string was rebuilt 30 times a second
+            // too. Split, integrity is rewritten the handful of times a wave
+            // that the pool actually moves (`HudSnapshot.Integrity`: "a pool,
+            // not a life count") and the per-frame cost drops to the tick's
+            // own single `ToString` and concat. A shared guard here would
+            // have been strictly worse than before, not merely unchanged:
+            // it would rebuild BOTH strings whenever EITHER moved.
+            if (snapshot.Integrity != _drawnIntegrity)
             {
                 _drawnIntegrity = snapshot.Integrity;
-                _drawnTick = snapshot.Tick;
                 _integrity.text = WaveHudScreen.Integrity(snapshot);
+            }
+
+            if (snapshot.Tick != _drawnTick)
+            {
+                _drawnTick = snapshot.Tick;
+                _tick.text = WaveHudScreen.Tick(snapshot);
             }
 
             var bodies = snapshot.Bodies;

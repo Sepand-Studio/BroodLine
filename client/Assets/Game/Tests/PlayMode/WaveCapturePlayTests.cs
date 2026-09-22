@@ -157,13 +157,35 @@ public class WaveCapturePlayTests
         yield return Until(() => BarsIn(root).Count > 5, "the Courser never appeared on the HUD");
 
         // And the readout ADVANCES. `DeviceReplayTests` tells the capturer to
-        // aim a tap by reading the live tick off this line; a line that froze
+        // aim a tap by reading the live tick off the HUD; a readout that froze
         // at its first value is a capture aimed with a stopped clock, and the
         // scheduled per-frame redraw is only reachable with a real panel.
+        //
+        // THE TICK IS ITS OWN ELEMENT AS OF PHASE 9 TASK 21e AND THIS BLOCK
+        // FOLLOWED IT. It was appended to `#integrity`, whose caption is
+        // "ARK INTEGRITY", so the packaged app printed "2 tick 155" as the
+        // value of the loss condition and the exit gate's walk named it a
+        // defect. Watching `#integrity` for a CHANGE would now fail on a
+        // TIMEOUT rather than on a wrong value - integrity is a pool that
+        // moves a handful of times in a wave, and this one holds a constant 2
+        // for roughly 500 of 540 ticks - so the watch is on `#tick`, which is
+        // the element that actually advances and the element the re-capture
+        // message now names.
+        //
+        // ASSERTED TO EXIST BEFORE IT IS WATCHED. A `Q` that missed would
+        // return null and the `Until` below would throw on the first frame
+        // rather than time out, which is a slower and less obvious way to say
+        // the same thing.
         var integrity = root.Q<Label>("integrity");
-        var before = integrity.text;
+        Assert.IsNotNull(integrity, "the HUD has no #integrity readout");
+        var tick = root.Q<Label>("tick");
+        Assert.IsNotNull(tick,
+            "the HUD has no #tick readout - the device re-capture procedure reads the live "
+            + "tick off this element to time a tap (WaveHudScreen.Tick)");
+
+        var before = tick.text;
         Assert.IsNotEmpty(before);
-        yield return Until(() => integrity.text != before, "the HUD's tick readout never advanced");
+        yield return Until(() => tick.text != before, "the HUD's tick readout never advanced");
 
         // WHAT IS *NOT* ASSERTED HERE, deliberately: that the text equals
         // `WaveHudScreen.Integrity(...)` of the runner's current tick. The
@@ -191,8 +213,9 @@ public class WaveCapturePlayTests
         // integrity 2, and nothing touches integrity until that Courser
         // breaches at ~tick 540 - so for ~500 of 540 ticks the value is a
         // constant 2, a stale frame reads the same 2, and the comparison
-        // needs no tolerance. Asserted on the PREFIX for the same reason: the
-        // tick that follows it on the line is the part that is one frame out.
+        // needs no tolerance. It was asserted on the PREFIX while the tick
+        // followed it on the same line; Task 21e moved the tick off this
+        // element, so the assertion below is an equality.
         var live = runner.Runner.Integrity;
         // CONTRASTIVE, and the reason the prefix check above means anything:
         // a transposed Snapshot() prints the TICK where integrity belongs, so
@@ -201,26 +224,39 @@ public class WaveCapturePlayTests
         // here is what stops a future edit moving this block earlier, to a
         // tick of 2, and quietly making it vacuous.
         Assert.AreNotEqual(live, runner.Runner.Tick,
-            "integrity and tick must differ here or the prefix assertion below cannot tell them apart");
+            "integrity and tick must differ here or the equality below cannot tell them apart");
         // THE WORD "Integrity" LEFT THIS LINE IN PHASE 9 TASK 18 and this
-        // assertion did not follow it. `WaveHudScreen.Integrity` now returns
-        // "2   tick 104" - the value of a pill whose caption is
-        // `IntegrityLabel` ("ARK INTEGRITY"), because the word was being
-        // printed twice, 14px apart. That function's own comment records the
-        // change AND CITES THIS FILE at :162-165 as the reason the tick
-        // stays, so the task that made it read this test and still missed the
-        // line below: PlayMode deadlocks in batchmode here, so nothing could
-        // run it. Found by the human's Editor pass, which is what that pass
-        // is for.
+        // assertion did not follow it; THE TICK LEFT IT IN TASK 21e and this
+        // one did. Both were missed the same way and it is worth the sentence:
+        // PlayMode deadlocks in batchmode on this Editor, so no task that
+        // changes the HUD can run this file, and the only thing standing
+        // between a stale assertion here and a wasted device trip is the
+        // author reading it. Task 18's was caught by the human's Editor pass.
         //
-        // The prefix still carries the whole claim - the readout opens with
-        // the live integrity - and the contrastive guard above is what keeps
-        // it honest now that the word is gone and the line opens with a bare
-        // numeral.
-        StringAssert.StartsWith(live.ToString(CultureInfo.InvariantCulture), integrity.text,
+        // `#integrity` IS NOW EXACTLY THE INTEGRITY, so this is an equality
+        // rather than a prefix. The prefix form existed because the tick used
+        // to follow the number on the same line and is the half that races -
+        // the redraw is scheduled on the panel and the runner steps in
+        // `Update`, so a tick read from this coroutine is one frame out about
+        // half the time. Integrity does not race: wave 6 is one Courser
+        // against integrity 2 and nothing touches it until that Courser
+        // breaches at ~tick 540, so a stale frame reads the same 2 and the
+        // comparison needs no tolerance. The contrastive guard above is what
+        // keeps this honest - a transposed `Snapshot()` would print the tick
+        // here, and the two provably differ at this point in the wave.
+        Assert.AreEqual(live.ToString(CultureInfo.InvariantCulture), integrity.text,
             "the HUD's integrity readout must come from the live runner - WaveRunner.Snapshot()");
-        StringAssert.Contains("tick", integrity.text,
-            "the tick must stay on this line - the device re-capture procedure reads it off the screen");
+
+        // AND THE TICK IS STILL ON SCREEN, on its own element. Not asserted
+        // against the runner's current tick, for the race named above; what is
+        // asserted is that the readout the re-capture message points a person
+        // at exists, names itself, and carries digits. The `Until` above
+        // already proved it advances.
+        StringAssert.Contains("tick", tick.text,
+            "the tick readout must name itself - the device re-capture procedure tells a person "
+            + "to read the live tick off the HUD to aim a tap");
+        StringAssert.IsMatch(@"\d", tick.text,
+            "the tick readout carries the word but no number, so there is nothing to aim by");
 
         yield return Until(() => runner.Runner.Done, "the wave never terminated");
         yield return null;   // the Update that writes the artifacts

@@ -32,6 +32,7 @@ namespace Broodline.UI.Screens
         public const string GrantUssClassName = "post-wave-view__grant";
 
         readonly ScreenScaffold _scaffold;
+        readonly Label _kicker;
         readonly Label _headline;
         readonly VisualElement _granted;
         readonly Button _next;
@@ -48,6 +49,7 @@ namespace Broodline.UI.Screens
             var tree = Resources.Load<VisualTreeAsset>("PostWaveView");
             tree.CloneTree(this);
 
+            _kicker = this.Q<Label>("kicker");
             _headline = this.Q<Label>("headline");
             _granted = this.Q<VisualElement>("granted");
             _next = this.Q<Button>("next");
@@ -91,7 +93,23 @@ namespace Broodline.UI.Screens
             // Gene Ark and Wave Defeat from Wave Defense "(on loss)", so the
             // screen on the other arm of that branch is pushed too. The
             // CHEVRON follows `Bind`'s `onBack` and not this flag; see below.
-            _scaffold = new ScreenScaffold(PostWaveScreen.Title, pushed: true);
+            //
+            // `title: null` IS THE FOURTH HEADERLESS SCREEN AND IT IS PHASE 9
+            // TASK 21e. The header's only content was the title "Post-Wave",
+            // which is design section 5.1's section NAME and which the exit
+            // gate's walk read as a screen name printed at a player. The note
+            // where `PostWaveScreen.Title` used to be has the full ruling; the
+            // short form is that `Headline` states the verdict directly
+            // underneath, in the player's own words and at 28px, so a title
+            // above it can only repeat it or say nothing - and `WaveDefeatView`,
+            // the other arm of this same branch, has been headerless since
+            // Task 18.
+            //
+            // `pushed: true` STAYS AND COSTS NOTHING. `ScreenScaffold.OnBack`
+            // removes the chevron when the callback is null, which it is at
+            // every call site (see `Bind`), and `WaveDefeatView` passes exactly
+            // this pair for exactly this reason.
+            _scaffold = new ScreenScaffold(title: null, pushed: true);
 
             // The UXML authors this screen's furniture as children of this
             // element and the scaffold's slots take them over here - a
@@ -100,6 +118,12 @@ namespace Broodline.UI.Screens
             var summary = new SectionCard { name = "summary" };
             summary.Body.Add(stats);
 
+            // THE KICKER IS THE FIRST THING IN THE CONTENT COLUMN, because
+            // `#header` is also where the scaffold's eyebrow lives and a
+            // headerless screen that left it there would lose it silently.
+            // `SpliceRevealView` made this move in Task 16b and its
+            // constructor has the same note.
+            _scaffold.Content.Add(_kicker);
             _scaffold.Content.Add(_headline);
             _scaffold.Content.Add(summary);
             _scaffold.Content.Add(_granted);
@@ -135,17 +159,21 @@ namespace Broodline.UI.Screens
 
             _scaffold.OnBack = onBack;
 
-            // THE KICKER GOES IN THE SCAFFOLD'S OWN SLOT HERE AND IN THE BAND
-            // ON THE DEFEAT SCREEN, which is not an inconsistency: this screen
-            // keeps its page header (`PostWaveScreen.Title`'s note) and that
-            // one has none, because the handoff draws none. Null hides the
-            // row, which is `ScreenScaffold.Eyebrow`'s own contract.
-            _scaffold.Eyebrow = wave == null ? null : PostWaveScreen.Eyebrow(wave.Value);
+            // THE KICKER IS THIS SCREEN'S OWN ELEMENT AND NO LONGER THE
+            // SCAFFOLD'S EYEBROW - Phase 9 Task 21e took the page header with
+            // the title, and the eyebrow slot is inside it. `Collapsing` is
+            // the same null contract `ScreenScaffold.Eyebrow` kept: a caller
+            // that does not know the wave says nothing rather than printing
+            // "WAVE  OF 12" with a hole in it, and an empty Label still
+            // carries --text-micro tracking and a margin, so it has to be
+            // removed from the layout rather than blanked. `WaveDefeatView`
+            // collapses its own relocated kicker the same way.
+            Collapsing(_kicker, wave == null ? null : PostWaveScreen.Eyebrow(wave.Value));
 
             // The verdict is the SERVER's, and it is the one line on this
             // screen that changes between a win and anything else - which is
-            // why the scaffold's header does not repeat it.
-            // `PostWaveScreen.Title`'s comment has that argument in full.
+            // why there is no page header over it at all. The note where
+            // `PostWaveScreen.Title` used to be has that argument in full.
             Collapsing(_headline, PostWaveScreen.Headline(response.Result));
 
             // AND ITS COLOUR, because this screen renders both verdicts. The
