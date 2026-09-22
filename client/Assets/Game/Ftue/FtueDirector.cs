@@ -389,64 +389,120 @@ namespace Broodline.Game
                 return;
             }
 
-            // THE FOUNDER TURNS WHILE IT IS BEING NAMED - Phase 9 design
-            // section 3.8's first of three hero moments. The studio renders
-            // one creature into one RenderTexture; the screen frames that
-            // texture in a `HeroSlot` and knows nothing about the camera.
+            // THE CLEAR SPANS THE WHOLE BEAT, NOT THE TURN, AND THAT IS THE
+            // DEFECT THIS `try` FIXES.
             //
-            // NULL IS A REAL ANSWER AND THE SCREEN HANDLES IT. `_studio` is
-            // an optional constructor argument - `BootController` supplies
-            // one, `FtueDirectorTests` does not, and a batch-mode capture has
-            // no camera to turn - so `Bind`'s trailing `portrait` is
-            // optional and falls back to the baked sprite stack. A director
-            // without a studio shows exactly the screen it showed before.
-            var portrait = _studio == null
-                ? null
-                : _studio.Show(founder.Species, founder.Trait1, founder.Trait2, 0f);
-
-            var view = new FounderNamingView();
-            var chosen = await _flow.ShowAsync<string>(view, resume => view.Bind(
-                founder,
-                FounderNamingScreen.DefaultFor(founder),
-                onName: name => resume(name),
-                onSkip: () => resume(null),
-                portrait: portrait));
-
-            // CLEARED THE MOMENT THE TURN RESOLVES, BEFORE ANY BRANCH BELOW
-            // CAN RETURN PAST IT. `Show` leaves a camera enabled and a
-            // creature rotating every frame; the skip path returns two lines
-            // down, so a Clear placed after that branch would leave the
-            // studio running for the rest of the session on the one answer
-            // the player is most likely to give. `Clear` is also what blanks
-            // the render texture - the studio's own note has why disabling
-            // the camera is not enough.
+            // `ScreenFlow.ShowAsync(screen, bind)` is `TurnAsync(screen,
+            // bind, _host.Show, after: null)` - NOTHING HIDES THE VIEW WHEN
+            // THE TURN RESOLVES. It stays presented until the next
+            // `ScreenHost.Show`. And the turn's TaskCompletionSource is
+            // completed with a plain `TrySetResult` (no
+            // RunContinuationsAsynchronously), so the continuation runs
+            // SYNCHRONOUSLY inside the `Button.clicked` handler - in the same
+            // frame as the tap.
             //
-            // `!= null` RATHER THAN `?.`, AND THAT IS NOT STYLE. The brief
-            // wrote `_studio?.Clear()`. `PortraitStudio` is a MonoBehaviour,
-            // and `?.` is a reference-null test the compiler emits directly -
-            // it does not run UnityEngine.Object's overloaded `==`, which is
-            // what reports a DESTROYED object as null. On a studio whose
-            // GameObject has gone (a scene change mid-beat), `?.` would call
-            // through to a dead native object; `!= null` does not. The `Show`
-            // line above already tests `_studio == null` for the same reason.
-            if (_studio != null) _studio.Clear();
-
-            // SET BEFORE the await's outcome is acted on and regardless of
-            // which answer came back: the beat has been offered either way,
-            // and that is what the latch records.
-            _namingOffered = true;
-
-            if (chosen == null) return;
-
-            var named = await _outbox.NameCreatureAsync(founder.CreatureId, chosen);
-            if (named.Outcome != OutboxOutcome.Sent)
+            // Cleared there, on the accept path, the founder vanished from
+            // the hero disc for the whole of `NameCreatureAsync` below,
+            // leaving a dotted ring around an empty teal disc on a screen
+            // still showing it. `PortraitStudio.Clear`'s own note says the
+            // GL.Clear is deliberate: disabling the camera is not enough,
+            // because `CreatureStage` is still displaying the same texture
+            // reference. That is the ring-with-nothing-in-it 1157ed2 just
+            // fixed on Pale's hero slot, arrived at from the other side.
+            //
+            // THE OPPOSITE HAZARD IS ALSO REAL AND THE PREVIOUS COMMENT
+            // ARGUED ONLY IT: `Show` leaves a camera enabled and a creature
+            // rotating every frame, and the skip path returns early, so a
+            // Clear written below that branch would leave the studio running
+            // for the rest of the session on the answer the player is most
+            // likely to give. A `finally` around the whole beat gets both -
+            // the `return` runs it, the accept path runs it after the round
+            // trip rather than before - and covers the case the old placement
+            // missed entirely: an exception out of `ShowAsync` skipped the
+            // Clear and left the studio running with nothing to say so.
+            //
+            // `Show` IS INSIDE THE `try`, not above it. It builds a creature,
+            // reparents it and enables a camera; a throw partway through
+            // leaves a half-shown studio that only a `finally` above it can
+            // still clean up. `WaveHost.RunAsync` keeps its one unthrowable
+            // assignment outside and everything that can fail inside, which
+            // is the same line drawn in the same place.
+            try
             {
-                // SAID, NOT STOPPED. bible 3.3 makes the name optional and
-                // renameable from the Roster, so a name that could not be
-                // sent is a disappointment rather than a broken session -
-                // and `creature/name` does not queue (it is
-                // server-authoritative), so there is nothing to wait for.
-                _notice(FtueNotice.For(named.Outcome, FtueNotice.NameFounder, named.Error));
+                // THE FOUNDER TURNS WHILE IT IS BEING NAMED - Phase 9 design
+                // section 3.8's first of three hero moments. The studio
+                // renders one creature into one RenderTexture; the screen
+                // frames that texture in a `HeroSlot` and knows nothing about
+                // the camera.
+                //
+                // NULL IS A REAL ANSWER AND THE SCREEN HANDLES IT. `_studio`
+                // is an optional constructor argument - `BootController`
+                // supplies one, `FtueDirectorTests` does not, and a
+                // batch-mode capture has no camera to turn - so `Bind`'s
+                // trailing `portrait` is optional and falls back to the baked
+                // sprite stack. A director without a studio shows exactly the
+                // screen it showed before.
+                var portrait = _studio == null
+                    ? null
+                    : _studio.Show(founder.Species, founder.Trait1, founder.Trait2, 0f);
+
+                var view = new FounderNamingView();
+                var chosen = await _flow.ShowAsync<string>(view, resume => view.Bind(
+                    founder,
+                    FounderNamingScreen.DefaultFor(founder),
+                    onName: name => resume(name),
+                    onSkip: () => resume(null),
+                    portrait: portrait));
+
+                // SET BEFORE the await's outcome is acted on and regardless
+                // of which answer came back: the beat has been offered either
+                // way, and that is what the latch records.
+                _namingOffered = true;
+
+                if (chosen == null) return;
+
+                var named = await _outbox.NameCreatureAsync(founder.CreatureId, chosen);
+                if (named.Outcome != OutboxOutcome.Sent)
+                {
+                    // SAID, NOT STOPPED. bible 3.3 makes the name optional
+                    // and renameable from the Roster, so a name that could
+                    // not be sent is a disappointment rather than a broken
+                    // session - and `creature/name` does not queue (it is
+                    // server-authoritative), so there is nothing to wait for.
+                    _notice(FtueNotice.For(named.Outcome, FtueNotice.NameFounder, named.Error));
+                }
+            }
+            finally
+            {
+                // THE FIRST STATEMENT OF THE `finally`, IN ITS OWN
+                // try/catch, which is `WaveHost.RunAsync`'s shape and is
+                // there for `WaveHost`'s reason: a throw out of the cleanup
+                // would REPLACE the exception on its way out of the try and
+                // the original failure would never be seen. Logged rather
+                // than swallowed silently.
+                //
+                // `!= null` RATHER THAN `?.`, AND THAT IS NOT STYLE.
+                // `PortraitStudio` is a MonoBehaviour, and `?.` is a
+                // reference-null test the compiler emits directly - it does
+                // not run UnityEngine.Object's overloaded `==`, which is what
+                // reports a DESTROYED object as null. On a studio whose
+                // GameObject has gone (a scene change mid-beat), `?.` would
+                // call through to a dead native object; `!= null` does not.
+                // The `Show` line above tests `_studio == null` for the same
+                // reason.
+                //
+                // NO `await` HERE. `WaveHost`'s finally awaits its unload;
+                // `Clear` is synchronous, and an await in this finally would
+                // put a resumption point on the exception path of a UI beat
+                // for no gain.
+                try
+                {
+                    if (_studio != null) _studio.Clear();
+                }
+                catch (Exception error)
+                {
+                    UnityEngine.Debug.LogError("[FtueDirector] PortraitStudio.Clear threw: " + error);
+                }
             }
         }
 
