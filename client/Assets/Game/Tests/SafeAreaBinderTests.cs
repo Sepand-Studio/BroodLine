@@ -134,5 +134,76 @@ namespace Broodline.Game.Tests
             Assert.IsTrue(binder.ApplyIfChanged());
             Assert.AreEqual(120f, root.style.paddingTop.value.value); // 900 - 780
         }
+
+        // ---------------------------------------------------------------
+        // Who gets the inset - Phase 9 Task 21h, D2
+        // ---------------------------------------------------------------
+
+        [Test]
+        public void BindSafeAreas_PadsTheNoticeToast_AndNotOnlyThePanelRoot()
+        {
+            // THE DEFECT, MEASURED ON AN iPHONE 17: the notice toast drew with
+            // its first line behind the Dynamic Island - "did not finish
+            // within" cut through by the black pill - on a build where every
+            // other screen cleared the inset.
+            //
+            // ONE BINDER WAS NOT ENOUGH AND THE REASON IS A LAYOUT RULE.
+            // `#notice-layer` is a sibling of `#shell-root` and is
+            // `position: absolute`; UI Toolkit offsets an absolutely
+            // positioned child from its parent's BORDER box rather than its
+            // padding box, so the inset on the panel root reached
+            // `#shell-root` (an in-flow child) and did not reach the layer.
+            // `.notice-toast` is absolute inside the layer too, so padding on
+            // the LAYER would not have reached it either - it has to go on the
+            // toast, whose rows are in-flow children of it.
+            //
+            // THE NUMBERS ARE THE DEVICE'S. The walk was captured at 402x874
+            // and this is that frame's real inset pair: 60 at the top for the
+            // island, 34 at the bottom for the home indicator.
+            var root = new VisualElement { name = "root" };
+            var shell = new VisualElement { name = "shell-root" };
+            var toast = new VisualElement { name = "notice-toast" };
+            root.Add(shell);
+            root.Add(toast);
+
+            var safeArea = new Rect(0, 34, 402, 780);   // yMin=34, yMax=814
+            var screenHeight = 874f;
+            var bound = BootController.BindSafeAreas(root, toast, element => new SafeAreaBinder(element,
+                isReady: () => true,
+                getSafeArea: () => safeArea,
+                getScreenWidth: () => 402f,
+                getScreenHeight: () => screenHeight,
+                screenYToPanelY: y => y));
+
+            Assert.AreEqual(2, bound.Count, "something other than the root and the toast is being bound");
+            Assert.AreEqual(60f, root.style.paddingTop.value.value);      // 874 - 814
+            Assert.AreEqual(34f, root.style.paddingBottom.value.value);   // yMin
+
+            // THE ASSERTION THE DEFECT FAILS. Before this task nothing gave
+            // the toast an inset of its own, so this read 0.
+            Assert.AreEqual(60f, toast.style.paddingTop.value.value,
+                "the notice toast has no safe-area inset, so it draws under the Dynamic Island");
+
+            // AND THE BINDERS HANDED BACK ARE THE LIVE ONES, so the
+            // GeometryChangedEvent registration re-applies to BOTH rather than
+            // to a root whose toast has been forgotten. Driven directly
+            // because dispatching a real `GeometryChangedEvent` needs a
+            // `Panel` - see this file's header.
+            safeArea = new Rect(0, 34, 402, 750);       // the island grew: yMax=784
+            for (var i = 0; i < bound.Count; i++) Assert.IsTrue(bound[i].ApplyIfChanged());
+            Assert.AreEqual(90f, root.style.paddingTop.value.value);      // 874 - 784
+            Assert.AreEqual(90f, toast.style.paddingTop.value.value);
+        }
+
+        [Test]
+        public void BindSafeAreas_RefusesToBindNothing()
+        {
+            // A null here is a shell that composed in the wrong order, and it
+            // would be a silently un-inset element rather than a visible
+            // failure - the class of defect D2 is.
+            var element = new VisualElement();
+            Assert.Throws<System.ArgumentNullException>(() => BootController.BindSafeAreas(null, element));
+            Assert.Throws<System.ArgumentNullException>(() => BootController.BindSafeAreas(element, null));
+        }
     }
 }

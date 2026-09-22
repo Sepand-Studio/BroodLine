@@ -28,6 +28,18 @@ namespace Broodline.UI.Components
             "Your creatures are still out there. Forfeit the wave to bring them home - nothing is lost but the fight.";
         public const string ForfeitLabel = "Forfeit";
 
+        /// What the control says while the forfeit is in flight - Phase 9 Task
+        /// 21h, and the same defect as `InterruptedView.RetryingLabel`, one
+        /// step later in the same walk.
+        ///
+        /// MEASURED ON THE DEVICE: "Forfeit" was tapped at 15:27:42 and landed
+        /// roughly two minutes later, with the sheet unchanged throughout.
+        /// `ForfeitIfLockedAsync` makes TWO calls behind this one tap -
+        /// `POST /v1/wave/abandon` and then a roster reload - and neither is
+        /// wrapped in `Retry`, so the wait is however long the transport takes
+        /// and the sheet said nothing about any of it.
+        public const string ForfeitingLabel = "Forfeiting...";
+
         public AbandonedWaveSheet(Action onForfeit)
         {
             AddToClassList(UssClassName);
@@ -39,7 +51,21 @@ namespace Broodline.UI.Components
 
             var forfeit = this.Q<Button>("forfeit");
             forfeit.text = ForfeitLabel;
-            if (onForfeit != null) forfeit.clicked += onForfeit;
+
+            // GUARDED AS BEFORE: with no callback this button does nothing, and
+            // a button that went busy for nothing would be a worse lie than the
+            // one it already is. Busy BEFORE the invoke for the reason
+            // `InterruptedView`'s own subscription gives - the callback is
+            // `ScreenFlow`'s resume and the walk runs on from inside it.
+            if (onForfeit != null)
+            {
+                forfeit.clicked += () =>
+                {
+                    forfeit.SetEnabled(false);
+                    forfeit.text = ForfeitingLabel;
+                    onForfeit();
+                };
+            }
         }
     }
 }

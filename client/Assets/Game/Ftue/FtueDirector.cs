@@ -196,8 +196,16 @@ namespace Broodline.Game
         /// reference not set to an instance of an object" is a stack trace
         /// wearing a sentence's clothes. The exception goes to the log where
         /// a developer can use it; the player gets this.
-        public const string WalkThrew =
-            "The game hit an unexpected problem. Try again.";
+        ///
+        /// THE RULING IS NOW INSIDE `PlayerMessage` AND THIS IS DEFINED FROM
+        /// IT - Phase 9 Task 21h. `ServerError.From(Exception)`'s transport
+        /// branch no longer surfaces a raw `Exception.Message` at all, so the
+        /// EIGHT other readers of `PlayerMessage` in this file get the same
+        /// treatment this constant gave itself. A player caught by a defect at
+        /// the call that made it and a player caught by one thrown out of the
+        /// whole walk are in the same situation, so they get the same sentence,
+        /// from one definition.
+        public const string WalkThrew = ServerError.UnexpectedProblem;
 
         /// The last resort, in `BootController`, when even the recovery
         /// screen could not be put up.
@@ -716,6 +724,23 @@ namespace Broodline.Game
                 }
                 catch (Exception error)
                 {
+                    // LOGGED WITH THE EXCEPTION AND SAID WITHOUT IT, which is
+                    // `RunAsync`'s rule applied at the site the four throws
+                    // above are actually thrown from - Phase 9 Task 21h.
+                    // `PlayerMessage` no longer carries `Exception.Message`
+                    // (see `ServerError`'s transport branch), and this is the
+                    // one catch in this file where that message was the only
+                    // record of the failure anywhere. Every other one wraps a
+                    // server CALL, so what it catches is either a
+                    // `BroodlineApiException` carrying a status and a body or
+                    // one of the transport shapes `Retry.IsTransient` names -
+                    // both of which are legible from the outside. This one
+                    // wraps the WAVE, and what it catches is a
+                    // `TimeoutException` from `WaveHost` or a
+                    // `WaveCompositionException` from `WaveDef.ForId`, with
+                    // nothing else anywhere going to write it down.
+                    UnityEngine.Debug.LogError(
+                        "[FtueDirector] the wave produced no report: " + error);
                     _notice(ServerError.From(error).PlayerMessage);
                     return false;
                 }

@@ -41,7 +41,11 @@ namespace Broodline.Game.Shell
         ScreenHost _screenHost;
         ScreenFlow _screenFlow;
         TabBar _tabBar;
-        SafeAreaBinder _safeArea;
+        /// The shell's safe-area owners. Nothing READS this - the binders stay
+        /// reachable through the GeometryChangedEvent closure BindSafeAreas
+        /// registers on the root - and it is here so a reader can see at the
+        /// field list that the shell has owners at all, and how many.
+        IReadOnlyList<SafeAreaBinder> _safeAreas;
         OutboxClient _outbox;
         OutboxPump _pump;
         WaveHost _waves;
@@ -50,20 +54,74 @@ namespace Broodline.Game.Shell
         FtueDirector _ftue;
         NoticeToast _toast;
 
+        /// Gives the panel root AND the notice toast the safe-area inset, and
+        /// hands back the binders so nothing re-derives them.
+        ///
+        /// TWO BINDERS, AND THE SECOND ONE IS THE WHOLE OF PHASE 9 TASK 21h's
+        /// D2. On an iPhone 17 the notice toast drew with its first line behind
+        /// the Dynamic Island: "did not finish within" was cut through by the
+        /// black pill. One binder on the panel root is not enough, and the
+        /// reason is a layout rule rather than a missing call.
+        ///
+        /// `#notice-layer` is a SIBLING of `#shell-root` (deliberately - Task
+        /// 6 hides the shell while a wave is resident and a notice must still
+        /// reach the player) and Shell.uss gives it `position: absolute` with
+        /// `top: 0`. UI Toolkit offsets an absolutely positioned child from its
+        /// parent's BORDER box, not its padding box, so the inset this method
+        /// puts on the panel root reaches `#shell-root`, which is an in-flow
+        /// child, and does not reach the notice layer or anything inside it.
+        /// `.notice-toast` is itself `position: absolute` with `top:
+        /// var(--space-6)`, so padding on the LAYER would not have reached it
+        /// either - the padding has to go on the toast, whose own rows are
+        /// in-flow children of it. THE DEVICE IS WHAT ESTABLISHED THIS: every
+        /// other screen cleared the inset on the same frame the toast did not,
+        /// which is only true if the root's padding is being applied and is not
+        /// reaching the absolutely positioned layer.
+        ///
+        /// Applied now (in case a panel is already live) and re-applied on
+        /// every layout change of the root - client_architecture section 10's
+        /// "size- and aspect-tolerant by construction" needs the second half
+        /// too: an iPad in Split View or Slide Over resizes the window with no
+        /// rotation involved, so a one-shot apply at Start goes stale the first
+        /// time that happens. See SafeAreaBinder.
+        ///
+        /// STATIC, PUBLIC AND SEAMED FOR `FtueDirector.StartLeavesTheWalkAlive`'s
+        /// REASON: `Start()` is `async void` and nothing in EditMode can drive
+        /// it, so a decision left inside it is a decision that is read and
+        /// never executed by a test - on the startup path, against the user's
+        /// standing rule. `bind` is what makes it drivable, the same
+        /// arrangement `BroodlineClient.ColdStartAsync` uses for its
+        /// `onRetry`/`wait`; production leaves it defaulted.
+        ///
+        /// THE TOAST'S BOTTOM INSET IS INERT AND THAT IS ACCEPTED.
+        /// `SafeAreaBinder` sets paddingTop and paddingBottom together, so the
+        /// toast becomes taller than its rows by the bottom inset. It is
+        /// anchored by `top` alone, and the toast, its row container and the
+        /// whole layer are all `PickingMode.Ignore`, so the extra box neither
+        /// moves anything nor swallows a tap. Splitting the binder in two to
+        /// avoid it would be a second safe-area mechanism for one element.
+        public static IReadOnlyList<SafeAreaBinder> BindSafeAreas(
+            VisualElement root, VisualElement toast, Func<VisualElement, SafeAreaBinder> bind = null)
+        {
+            if (root == null) throw new ArgumentNullException(nameof(root));
+            if (toast == null) throw new ArgumentNullException(nameof(toast));
+            if (bind == null) bind = SafeAreaBinder.ForRuntimePanel;
+
+            var bound = new List<SafeAreaBinder> { bind(root), bind(toast) };
+            Action apply = () =>
+            {
+                for (var i = 0; i < bound.Count; i++) bound[i].ApplyIfChanged();
+            };
+
+            apply();
+            root.RegisterCallback<GeometryChangedEvent>(_ => apply());
+            return bound;
+        }
+
         async void Start()
         {
             var document = GetComponent<UIDocument>();
             var root = document.rootVisualElement;
-
-            // Applied now (in case a panel is already live) and re-applied on
-            // every layout change - client_architecture section 10's
-            // "size- and aspect-tolerant by construction" needs the second
-            // half too: an iPad in Split View or Slide Over resizes the
-            // window with no rotation involved, so a one-shot apply at Start
-            // goes stale the first time that happens. See SafeAreaBinder.
-            _safeArea = SafeAreaBinder.ForRuntimePanel(root);
-            _safeArea.ApplyIfChanged();
-            root.RegisterCallback<GeometryChangedEvent>(_ => _safeArea.ApplyIfChanged());
 
             var tabBarSlot = root.Q<VisualElement>("tab-bar");
             _tabBar = new TabBar();
@@ -72,6 +130,10 @@ namespace Broodline.Game.Shell
             var noticeLayer = root.Q<VisualElement>("notice-layer");
             _toast = new NoticeToast();
             noticeLayer.Add(_toast);
+
+            // AFTER THE TOAST EXISTS, BECAUSE THE TOAST IS ONE OF THE TWO
+            // THINGS THAT NEEDS THE INSET. See BindSafeAreas.
+            _safeAreas = BindSafeAreas(root, _toast);
 
             var screenHostElement = root.Q<VisualElement>("screen-host");
             var sheetLayer = root.Q<VisualElement>("sheet-layer");

@@ -49,6 +49,35 @@ namespace Broodline.UI.Screens
 
         public const string RetryLabel = "Try again";
 
+        /// What the control says while the walk it restarted is still running,
+        /// and the reason it says anything at all - Phase 9 Task 21h.
+        ///
+        /// THE CONTROLLER CONCLUDED THIS BUTTON WAS BROKEN AND TAPPED IT
+        /// AGAIN. On an iPhone 17, "Try again" was tapped at 15:25:43 and the
+        /// next screen arrived at 15:27:17 - ninety-four seconds in which the
+        /// screen did not change in any way: no spinner, no disabled control,
+        /// no sentence. `ScreenFlow`'s "a second answer is ignored" swallowed
+        /// the extra taps and nothing broke, but the person who wrote the brief
+        /// for this screen's own fix still read it as dead. A tester will not be
+        /// more patient and will report that the app froze.
+        ///
+        /// A DISABLED, RELABELLED BUTTON RATHER THAN A SPINNER. `Theme.uss`
+        /// already draws `Button:disabled` as a grey fill with muted text, so
+        /// the state is visible without authoring anything; the handoff has no
+        /// spinner and `InterruptedView`'s own header records why this screen
+        /// does not invent visual language. The label is what carries the
+        /// meaning, and "..." is the punctuation `FtueNotice.ServerWakingUp`
+        /// already uses for the same situation.
+        ///
+        /// IT IS HONEST ABOUT A HANG RATHER THAN MISLEADING ABOUT ONE. If the
+        /// call in flight never answers, the player is now stuck on a control
+        /// that says so instead of one that looks ready. That is not a loss of
+        /// capability - the extra taps were already being discarded - and what
+        /// bounds the wait is `HttpClient.Timeout`, which nothing in this build
+        /// sets. Task 21h's report carries the measurement and the argument for
+        /// leaving that number alone.
+        public const string RetryingLabel = "Trying again...";
+
         /// `icons.uss`'s own vocabulary - see `EmptyState`'s note on why a
         /// name outside that file renders as an empty box with no error.
         public const string Glyph = "warning";
@@ -107,7 +136,20 @@ namespace Broodline.UI.Screens
             // avoids is a second handler stacking behind the first on a
             // re-bind. It matters more here than elsewhere: two handlers on
             // this button would re-enter the walk twice from one tap.
-            _retry.clicked += () => _onRetry?.Invoke();
+            //
+            // BUSY BEFORE THE INVOKE, NOT AFTER, AND THE ORDER IS LOAD-BEARING.
+            // `onRetry` is `ScreenFlow`'s resume: it completes the turn this
+            // screen is parked on, and the walk's continuation runs from inside
+            // this call - far enough, on a healthy path, to replace this screen
+            // entirely. Setting the state afterwards would dress a view that
+            // has already been dropped, and would leave the live one untouched
+            // for however long the first network call takes. See `RetryingLabel`.
+            _retry.clicked += () =>
+            {
+                _retry.SetEnabled(false);
+                _retry.text = RetryingLabel;
+                _onRetry?.Invoke();
+            };
         }
 
         /// `reason` is what the walk said before it stopped; null or empty
@@ -126,6 +168,15 @@ namespace Broodline.UI.Screens
             var said = new EmptyState(string.IsNullOrEmpty(reason) ? UnexplainedReason : reason, Glyph);
             said.style.flexGrow = 1;
             _reason.Add(said);
+
+            // A BIND FULLY DETERMINES THIS SCREEN'S STATE, which is the same
+            // rule `_reason.Clear()` above follows. Nothing re-binds an
+            // instance today - `AnotherTryAsync` constructs one per stop - but
+            // Task 21g's concern 5 contemplates reusing it, and a recycled
+            // screen arriving with the previous stop's spent control would be
+            // the dead button this screen exists to end.
+            _retry.SetEnabled(true);
+            _retry.text = RetryLabel;
 
             _onRetry = onRetry;
         }

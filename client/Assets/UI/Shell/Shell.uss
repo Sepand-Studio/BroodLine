@@ -7,10 +7,20 @@
  * only exposes TryGetValue, verified against UnityEngine.UIElementsModule.dll
  * for this Editor version), so BootController does not actually write through
  * these variables. It computes the safe-area inset from Screen.safeArea via
- * RuntimePanelUtils.ScreenToPanel and applies it as concrete padding on
- * #shell-root directly, which is inline style and wins the cascade over the
- * rule below regardless. These two lines stay as the spec'd fallback and as
- * documentation of the intent.
+ * RuntimePanelUtils.ScreenToPanel and applies it as concrete inline padding,
+ * which wins the cascade over the rule below regardless. These two lines stay
+ * as the spec'd fallback and as documentation of the intent.
+ *
+ * ON THE PANEL ROOT, NOT ON #shell-root - THIS PARAGRAPH SAID #shell-root AND
+ * IT WAS FALSE. BootController.BindSafeAreas pads `document.rootVisualElement`,
+ * which is the PARENT of both #shell-root and #notice-layer. The distinction is
+ * not pedantry: #shell-root is an in-flow child and is pushed down by that
+ * padding, while #notice-layer is `position: absolute` below and UI Toolkit
+ * offsets an absolutely positioned child from its parent's border box rather
+ * than its padding box - so the layer and everything in it sat OUTSIDE the
+ * inset, which is how the notice toast came to draw under an iPhone 17's
+ * Dynamic Island. BindSafeAreas pads the toast itself for that reason and its
+ * header carries the whole account.
  */
 :root {
     --safe-top: 0;

@@ -47,6 +47,35 @@ namespace Broodline.Game.Shell
         /// minutes is not a number a wave that is still playing can reach.
         public const double CompletionTimeoutSeconds = 120;
 
+        /// The message the abandonment throws, named rather than written
+        /// inline at the `throw`.
+        ///
+        /// IT IS A DEVELOPER'S LINE AND IT IS SUPPOSED TO BE. A bracketed
+        /// subsystem tag, the runner's type name and "the scene is unloaded"
+        /// are what a developer reading a device console needs. What it is
+        /// not is a sentence for a player, and for most of Phase 9 it was
+        /// one: `FtueDirector`'s guarded `_play` catch said
+        /// `ServerError.From(error).PlayerMessage`, whose transport branch
+        /// handed `Exception.Message` through verbatim, and Task 21g promoted
+        /// that from four seconds of toast to the permanent explanation on
+        /// `InterruptedView`. `ServerError`'s transport branch is where that
+        /// is fixed.
+        ///
+        /// NAMED SO THE TEST CANNOT DRIFT FROM IT, which is the other half.
+        /// `WalkRecoveryTests` had hand-copied an approximation of this string
+        /// - no tag, no scene name, only the first sentence, and thrown as the
+        /// wrong exception type - so the fixture was blind to the exact text
+        /// the defect lived in. It now throws THIS.
+        public static string CompletionTimedOut
+        {
+            get
+            {
+                return "[" + nameof(WaveHost) + "] " + SceneName + " did not finish within " +
+                    CompletionTimeoutSeconds + "s of wall clock. Its " + nameof(WaveRunner) +
+                    " stopped signalling; the scene is unloaded and the wave abandoned.";
+            }
+        }
+
         /// Loads the wave scene, plays `waveId` with `deployment`, and
         /// unloads.
         ///
@@ -158,10 +187,7 @@ namespace Broodline.Game.Shell
             {
                 var expired = Task.Delay(TimeSpan.FromSeconds(CompletionTimeoutSeconds), giveUp.Token);
                 if (await Task.WhenAny(completed, expired) != completed)
-                    throw new TimeoutException(
-                        "[WaveHost] " + SceneName + " did not finish within " +
-                        CompletionTimeoutSeconds + "s of wall clock. Its WaveRunner stopped " +
-                        "signalling; the scene is unloaded and the wave abandoned.");
+                    throw new TimeoutException(CompletionTimedOut);
 
                 // So the timer does not sit in the queue for the rest of the
                 // bound after every wave that ends normally. A cancelled

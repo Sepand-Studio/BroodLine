@@ -12,6 +12,7 @@ using Broodline.Game.Shell;
 using Broodline.Model;
 using Broodline.Net;
 using Broodline.UI;
+using Broodline.UI.Components;
 using Broodline.UI.Screens;
 using Broodline.UI.Shell;
 using Newtonsoft.Json;
@@ -333,20 +334,47 @@ namespace Broodline.Game.Tests
             // CLOCK, so a player who backgrounds the app mid-wave for two
             // minutes comes back to a wave the host has abandoned. That is
             // exactly how Task 21f reproduced the dead screen on an iPhone
-            // 17, and the message below is the one its console printed.
+            // 17.
             //
             // THE TIMEOUT ITSELF IS STILL A DEFECT and is deliberately out of
             // this task's scope - a suspended app is not a hung one. What
             // changed is what the player meets afterwards.
-            const string hung = "Wave did not finish within 120s of wall clock.";
-            var walk = Healthy(play: (wave, specs, seed, input) => throw new InvalidOperationException(hung));
+            //
+            // THE REAL THROW, TAKEN FROM THE THING THAT THROWS IT - Phase 9
+            // Task 21h, AND THIS LINE IS WHY THE WORST DEFECT OF THE PHASE
+            // WAS INVISIBLE HERE. The fixture used to be
+            //
+            //     const string hung = "Wave did not finish within 120s of wall clock.";
+            //     ... => throw new InvalidOperationException(hung)
+            //
+            // and the claim above it was that this "is the one its console
+            // printed". It was not. `WaveHost.CompletionTimedOut` is
+            // "[WaveHost] Wave did not finish within 120s of wall clock. Its
+            // WaveRunner stopped signalling; the scene is unloaded and the
+            // wave abandoned." - a bracketed tag, the scene name, an internal
+            // type name and a second sentence, thrown as a `TimeoutException`
+            // rather than an `InvalidOperationException`. The fixture had
+            // sanitised away every part of the string the defect lived in, so
+            // it asserted that a developer's log line reached the player and
+            // called that passing.
+            //
+            // DERIVED, NOT COPIED, so it cannot drift again: if that message
+            // changes, this case throws the new one.
+            var hung = WaveHost.CompletionTimedOut;
+            var walk = Healthy(play: (wave, specs, seed, input) => throw new TimeoutException(hung));
             walk.Answering("/v1/wave/start", HttpStatusCode.OK, StartJson());
 
             RaiseClicked(walk.Presented.Q<Button>("start"));
 
             Assert.IsFalse(walk.Running.IsCompleted);
             Assert.IsNotNull(walk.Interrupted);
-            Assert.AreEqual(hung, walk.Reason);
+
+            // NOT `hung`, WHICH IS THE POINT. A `TimeoutException` is not a
+            // refusal and not a transport failure, so `ServerError`'s
+            // transport branch answers with the defect sentence and keeps the
+            // developer's line in `Diagnostic` and the device log.
+            Assert.AreEqual(ServerError.UnexpectedProblem, walk.Reason);
+            NoDeveloperLineReachedThePlayer(walk.Reason);
 
             // AND THE RETRY LANDS SOMEWHERE CORRECT, NOT MERELY SOMEWHERE
             // ALIVE. `wave/start` committed the deployment server-side before
@@ -460,6 +488,135 @@ namespace Broodline.Game.Tests
             Assert.AreEqual("Something specific.", bare.Q<Label>("message").text);
         }
 
+        [Test]
+        public void EVERYSentenceThisWalkCanStopOn_ReadsAsASENTENCE_NotAsALogLine()
+        {
+            // THE PROPERTY, RATHER THAN ONE MORE SIGHTING OF IT - Phase 9 Task
+            // 21h. The case above asserts the exact sentence for the one
+            // exception the device met; this asserts the shape for the whole
+            // class, because `ServerError.From(Exception)`'s transport branch
+            // is reached by `FtueDirector`'s other ten `PlayerMessage` call
+            // sites too and by `RosterScreen`'s.
+            //
+            // THE FOUR INPUTS ARE THE FOUR THAT ARE ACTUALLY REACHABLE THERE,
+            // all named in comments elsewhere in the tree: `WaveHost`'s
+            // timeout, `WaveDef.ForId`'s refusal to compose a wave this build
+            // does not author (`FightAsync`'s guard names it), the
+            // `HttpRequestException` `RetryTests` records as Mono's real shape
+            // for a dropped connection, and a plain defect.
+            var shapes = new List<Exception>
+            {
+                new TimeoutException(WaveHost.CompletionTimedOut),
+                new InvalidOperationException("[WaveHost] a WaveRunner is missing from the Wave scene."),
+                new HttpRequestException("An error occurred while sending the request."),
+                new NullReferenceException(),
+            };
+
+            foreach (var shape in shapes)
+            {
+                var said = ServerError.From(shape).PlayerMessage;
+                NoDeveloperLineReachedThePlayer(said);
+                Assert.IsTrue(
+                    said == ServerError.UnreachableServer || said == ServerError.UnexpectedProblem,
+                    "a transport failure said something this build did not author: " + said);
+            }
+
+            // AND THE SERVER'S OWN SENTENCE IS STILL THE SERVER'S. The fix is
+            // on the transport branch alone; a typed refusal must be untouched
+            // by it, or every "shows the SERVER's own sentence" case in this
+            // file is passing for the wrong reason.
+            var refused = new BroodlineApiException<ErrorResponse>(
+                "Error", 409, "{}", new Dictionary<string, IEnumerable<string>>(),
+                new ErrorResponse { Code = "wave_locked", Message = "That wave is locked." }, null);
+            Assert.AreEqual("That wave is locked.", ServerError.From(refused).PlayerMessage);
+        }
+
+        /// A sentence a player is shown carries no bracketed subsystem tag and
+        /// names no type this build declares.
+        ///
+        /// SPELT OUT RATHER THAN REGEX'D, and the type names are the ones that
+        /// actually leaked: `WaveHost` put its own tag and `WaveRunner`'s name
+        /// on `InterruptedView` for most of Phase 9.
+        static void NoDeveloperLineReachedThePlayer(string said)
+        {
+            Assert.IsNotNull(said, "the player was shown nothing at all");
+            Assert.IsNotEmpty(said, "the player was shown an empty sentence");
+            StringAssert.DoesNotContain("[", said, "a bracketed subsystem tag reached the player: " + said);
+            StringAssert.DoesNotContain(nameof(WaveHost), said, "an internal type name reached the player: " + said);
+            StringAssert.DoesNotContain(nameof(WaveRunner), said, "an internal type name reached the player: " + said);
+            StringAssert.DoesNotContain("Exception", said, "an exception type name reached the player: " + said);
+        }
+
+        // ---------------------------------------------------------------
+        // What the player sees while a call is in flight - Task 21h, D3
+        // ---------------------------------------------------------------
+
+        [Test]
+        public void ARetryWhoseCallHasNotAnswered_LeavesAControlThatSaysSo_NotOneThatLooksUntapped()
+        {
+            // MEASURED ON A DEVICE, NOT IMAGINED: "Try again" tapped at
+            // 15:25:43, the next screen at 15:27:17. Ninety-four seconds in
+            // which the screen did not change in any way, on a control that
+            // HAD worked. The controller - who wrote the brief for this
+            // screen's own fix - concluded twice that the button was broken
+            // and tapped it again. `ScreenFlow`'s "a second answer is ignored"
+            // swallowed the extra taps, so nothing broke and nothing said so.
+            var walk = Healthy(play: (wave, specs, seed, input) =>
+                throw new TimeoutException(WaveHost.CompletionTimedOut));
+            walk.Answering("/v1/wave/start", HttpStatusCode.OK, StartJson());
+            RaiseClicked(walk.Presented.Q<Button>("start"));
+
+            var retry = walk.Retry;
+            Assert.IsNotNull(retry, "the recovery screen is not up, so this case is not testing what it says");
+            Assert.AreEqual(InterruptedView.RetryLabel, retry.text);
+            Assert.IsTrue(retry.enabledSelf, "the control was not live before it was tapped");
+
+            // The roster call the tap makes never answers - which is the
+            // device's ninety-four seconds, held open.
+            walk.Hanging("/v1/roster");
+            RaiseClicked(retry);
+
+            Assert.IsFalse(walk.Running.IsCompleted, "the walk ended instead of waiting on the call");
+            Assert.AreSame(retry, walk.Retry,
+                "the screen was replaced, so this is not reading the control the player is looking at");
+            Assert.IsFalse(retry.enabledSelf, "the control still looks untapped while its call is in flight");
+            Assert.AreEqual(InterruptedView.RetryingLabel, retry.text,
+                "the control says nothing about the work it started");
+        }
+
+        [Test]
+        public void AForfeitWhoseCallHasNotAnswered_DoesNotLeaveTheSheetLookingUntapped()
+        {
+            // The SECOND wait the device measured: Forfeit tapped at 15:27:42,
+            // landing roughly two minutes later. `ForfeitIfLockedAsync` makes
+            // two un-retried calls behind that one tap.
+            //
+            // WHAT A PLAYER ACTUALLY SEES HERE IS A DEVICE QUESTION AND THE
+            // REPORT SAYS SO. `ScreenFlow` runs `after` - `HideSheet` - BEFORE
+            // it publishes the turn's result, so the sheet is dismissed before
+            // the forfeit call is made and this state may be on screen for a
+            // frame or for none. It is asserted because it is correct either
+            // way and because the control must not be the thing that looks
+            // untapped if the sheet DOES stay up; what covers the wait when
+            // the sheet goes is the recovery screen revealed under it, which
+            // the case above holds.
+            var walk = Run(new Walk { Snapshot = Fresh() }
+                .Answering("/v1/roster", HttpStatusCode.OK, RosterJson(Creature(committedTo: Guid.NewGuid()))));
+
+            var forfeit = walk.Sheets.Q<Button>("forfeit");
+            Assert.IsNotNull(forfeit, "the abandoned-wave sheet is not up, so this case is not testing what it says");
+            Assert.AreEqual(AbandonedWaveSheet.ForfeitLabel, forfeit.text);
+            Assert.IsTrue(forfeit.enabledSelf, "the control was not live before it was tapped");
+
+            walk.Hanging("/v1/wave/abandon");
+            RaiseClicked(forfeit);
+
+            Assert.IsFalse(walk.Running.IsCompleted, "the walk ended instead of waiting on the call");
+            Assert.IsFalse(forfeit.enabledSelf, "the control still looks untapped while its call is in flight");
+            Assert.AreEqual(AbandonedWaveSheet.ForfeitingLabel, forfeit.text,
+                "the control says nothing about the work it started");
+        }
+
         // ---------------------------------------------------------------
         // The harness
         // ---------------------------------------------------------------
@@ -481,6 +638,15 @@ namespace Broodline.Game.Tests
             public Walk Answering(string path, HttpStatusCode status, string body)
             {
                 Server.Routes[path] = new Reply { Status = status, Body = body };
+                return this;
+            }
+
+            /// A route that is reached and never answers - the device's
+            /// ninety-four seconds, held open for as long as the assertions
+            /// need, with no `Task.Delay` anywhere near it.
+            public Walk Hanging(string path)
+            {
+                Server.Hanging.Add(path);
                 return this;
             }
 
@@ -634,6 +800,19 @@ namespace Broodline.Game.Tests
         sealed class StubServer : HttpMessageHandler
         {
             public readonly Dictionary<string, Reply> Routes = new Dictionary<string, Reply>();
+
+            /// Paths that are reached and never answered. See `Walk.Hanging`.
+            ///
+            /// A `TaskCompletionSource` NEVER COMPLETED, NOT A DELAY. This
+            /// file's class comment forbids a real `Task.Delay` - its
+            /// continuation resumes on a pool thread and the director touches
+            /// `VisualElement`s after the await - and a task that is never
+            /// completed suspends the director's state machine exactly where a
+            /// slow network does without ever resuming anywhere. It never
+            /// faults either, so it leaves nothing for `TearDown` to observe.
+            public readonly HashSet<string> Hanging = new HashSet<string>(StringComparer.Ordinal);
+            readonly List<TaskCompletionSource<HttpResponseMessage>> _held =
+                new List<TaskCompletionSource<HttpResponseMessage>>();
             readonly List<string> _calls = new List<string>();
 
             public int CallsTo(string path)
@@ -648,6 +827,13 @@ namespace Broodline.Game.Tests
             {
                 var path = request.RequestUri.AbsolutePath;
                 _calls.Add(path);
+
+                if (Hanging.Contains(path))
+                {
+                    var never = new TaskCompletionSource<HttpResponseMessage>();
+                    _held.Add(never);
+                    return never.Task;
+                }
 
                 // AN UNSTUBBED PATH IS A 404 WITH A BODY, not a throw: a
                 // route this suite forgot should show up as the wrong
@@ -704,10 +890,20 @@ namespace Broodline.Game.Tests
         /// is - the falsifiable half of "there is a live control here".
         ///
         /// SPLIT OUT OF `RaiseClicked` IN FIX ROUND 1, because the exit cases
-        /// wanted the CHECK without the side effect. Asserting a recovery
-        /// button is `enabledSelf` proves nothing - no reachable change to
-        /// `InterruptedView` makes it false - whereas this goes red the
-        /// moment that screen stops wiring its constructor subscription.
+        /// wanted the CHECK without the side effect. It goes red the moment
+        /// that screen stops wiring its constructor subscription.
+        ///
+        /// "ASSERTING `enabledSelf` PROVES NOTHING" WAS TRUE AND IS NO LONGER
+        /// - Phase 9 Task 21h. The reason it was true is that nothing
+        /// reachable in `InterruptedView` called `SetEnabled(false)`; the
+        /// in-flight state does, on the tap, so `enabledSelf` is now a
+        /// falsifiable reading of whether the control has been spent. The two
+        /// D3 cases above rely on that and would have been vacuous before it.
+        ///
+        /// WHAT IT STILL DOES NOT PROVE, said so nobody reads more into it:
+        /// `RaiseClicked` invokes the backing `Action` directly, so it fires
+        /// on a DISABLED button too. UI Toolkit's own refusal to dispatch to a
+        /// disabled element is not exercised by anything in EditMode.
         static Action Subscribed(Button button)
         {
             Assert.IsNotNull(button, "there is no button here at all");
