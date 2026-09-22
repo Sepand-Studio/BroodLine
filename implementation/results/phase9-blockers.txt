@@ -231,6 +231,40 @@ WHAT THE HUMAN DOES:
   be worth naming.
 
 ===============================================================================
+B-FINDING. THE CLIENT DOES NOT RETRY A COLD BACKEND, AND A HUMAN PROVED IT
+===============================================================================
+Observed 2026-09-22 during step B, by the developer, against the deployed
+stack. NOT a build defect - a product gap, and it will meet a TestFlight
+tester on their first session.
+
+  TWICE, IN TWO DIFFERENT SHAPES, BOTH FIXED BY A SECOND ATTEMPT:
+  1. The smoke loop's first wave/submit returned 503 sim_unavailable - sim
+     is .NET and had just been recreated. An identical second run passed.
+  2. The developer pressed Start on the deploy screen and NOTHING HAPPENED.
+     The log shows FtueDirector.FightAsync:371 catching
+     "An error occurred while sending the request" - HttpClient's TRANSPORT
+     failure, no HTTP status at all - from DeployScreen.StartAsync:497.
+     Pressing Start a second time worked.
+
+  WHY IT MATTERS MORE THAN A FLAKE: wave.ts:572 answers
+  "Verification is temporarily unavailable. Retry." and the comment above it
+  reads "A retryable 503 is honest only because nothing was consumed" - so
+  THE SERVER'S CONTRACT ASSUMES THE CLIENT RETRIES. Task 3 recorded that the
+  client CLASSIFIES the code (ServerError.cs:139 -> SimUnavailable) but left
+  "whether it actually retries" as an open question.
+  IT DOES NOT. The developer's own session is the evidence: one tap, a
+  notice, and no wave. Cloud Run runs this service at minScale=0, so every
+  session that begins after an idle period pays this.
+
+  Two distinct failures reach the player identically - a clean 503 from sim
+  and a transport error from the api - and neither is retried.
+
+  NOT FIXED. It is a product decision (retry policy, and what the player is
+  told) rather than a Phase 9 regression, and Phase 9 did not introduce it.
+  Ruling wanted before TestFlight: a tester whose first tap does nothing
+  usually taps once.
+
+===============================================================================
 D. THE ART JUDGEMENTS - EYES ONLY, NO TEST CAN SETTLE THEM
 ===============================================================================
 Carried out of the phase's ledger. All four are recorded trades, not
