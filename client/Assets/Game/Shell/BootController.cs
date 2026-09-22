@@ -112,9 +112,30 @@ namespace Broodline.Game.Shell
                 //
                 // "NO ERROR SCREEN EXISTS YET" OPENED THIS COMMENT UNTIL
                 // PHASE 9 TASK 21g. One does now (`InterruptedView`), and it
-                // is deliberately NOT shown from here: the shell has not
-                // finished composing at this point, and the walk below puts
-                // that screen up on this same failure a few lines later.
+                // is deliberately NOT shown from here.
+                //
+                // NOT BECAUSE THE SHELL IS UNBUILT - AN EARLIER DRAFT OF THIS
+                // PARAGRAPH SAID THAT AND IT IS FALSE. `_toast`, `_tabBar`,
+                // `_screenHost` and `_screenFlow` are all constructed above,
+                // so the screen machinery is ready right here. What is
+                // unbuilt is the outbox, the pump, `WaveHost`, the studio,
+                // the stage and the DIRECTOR.
+                //
+                // AND THE DIRECTOR IS THE REASON. `ScreenFlow.ShowAsync`
+                // completes only when the bound `resume` fires, so showing
+                // that screen here would park this `async void Start` on a
+                // turn whose button has nothing to resume - the walk it would
+                // be offering to retry does not exist yet. The walk below
+                // puts the same screen up on this same failure a few lines
+                // later, with something behind the button.
+                //
+                // THE TOAST BELOW IS DELIBERATELY UNGUARDED, unlike the one
+                // in the second catch, and that asymmetry is not an
+                // oversight to tidy up. That one is reached only when the
+                // screen machinery itself has thrown, so asking it for a
+                // toast can throw again; this one is reached when the NETWORK
+                // failed, with `_toast` already built above and nothing
+                // having touched it since.
                 Debug.LogError("[BootController] cold start failed: " + e);
                 OnNotice(FtueNotice.ColdStartFailed);
             }

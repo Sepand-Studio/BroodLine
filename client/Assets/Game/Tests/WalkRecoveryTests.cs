@@ -108,15 +108,28 @@ namespace Broodline.Game.Tests
             // legitimately fault: `RunAsync` catches everything `WalkAsync`
             // throws, and only `AnotherTryAsync` can throw past it. So a
             // fault here is a real defect and says so.
+            //
+            // COLLECTED, THEN CLEANED UP, THEN REPORTED - IN THAT ORDER, AND
+            // THE ORDER IS THE POINT. `Assert` throws, so asserting inside
+            // the loop would leave any LATER walk unobserved - the exact
+            // thing this teardown exists to prevent - and would skip the file
+            // cleanup below, leaking an outbox store into the system temp
+            // directory on every failing case. The failing case is the one a
+            // developer re-runs, so it is the one that must not litter.
+            var faults = new List<string>();
             foreach (var walk in _started)
             {
                 var fault = walk.Running == null ? null : walk.Running.Exception;
-                Assert.IsNull(fault, "the walk faulted out of RunAsync, which nothing is supposed to be able to do: " + fault);
+                if (fault != null) faults.Add(fault.ToString());
             }
 
             if (File.Exists(_outboxPath)) File.Delete(_outboxPath);
             var temp = _outboxPath + ".tmp";
             if (File.Exists(temp)) File.Delete(temp);
+
+            Assert.IsEmpty(faults,
+                "a walk faulted out of RunAsync, which nothing is supposed to be able to do:\n  "
+                + string.Join("\n  ", faults));
         }
 
         // ---------------------------------------------------------------

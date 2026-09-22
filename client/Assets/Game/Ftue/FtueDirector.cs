@@ -99,6 +99,13 @@ namespace Broodline.Game
         /// difference from `ColdStartFailed` below. That one is said by
         /// `BootController`, where there is no button to name; this one is
         /// said where there is one.
+        ///
+        /// AND IT IS TRUE, WHICH IS MORE THAN "BETTER THAN THE LAST ONE".
+        /// `Session.ColdStartAsync` sets `Snapshot` from the CACHE before it
+        /// calls anything, so a returning player keeps their stored progress
+        /// even with the network down and never reaches this exit at all. A
+        /// null snapshot here means the cache held nothing AND the sync did
+        /// not land - there really is no progress to read.
         public const string ColdStartEmpty =
             "Your progress could not be read from the server. Try again.";
 
