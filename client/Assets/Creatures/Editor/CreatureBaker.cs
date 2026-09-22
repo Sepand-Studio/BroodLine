@@ -102,7 +102,29 @@ namespace Broodline.Creatures.Editor
                     foreach (var s in new[] { Sockets.Dorsal, Sockets.Flank })
                         if (s != partOnly) { var t = creature.transform.Find(s); if (t != null) t.gameObject.SetActive(false); }
                 }
-                creature.GetComponent<CreatureMotion>().Tick(0f, 0f);   // rest pose, no breath phase
+                // `Tick(0, 0)` IS NOT A REST POSE, AND THE SPRITES MOVED BECAUSE
+                // OF IT. `CreatureMotion.Awake` seeds its breath phase from
+                // `Random.value`, and `Tick` reads `sin((time + phase) * ...)`,
+                // so at time 0 the root still carries a random breath of up to
+                // +-3.5%. Measured: two bakes of an UNCHANGED Vetch produced a
+                // 100px sprite and then a 101px one, and Ember 137px then
+                // 131px, and every body PNG turned up dirty in git after a
+                // generate that changed nothing.
+                //
+                // It matters beyond the churn. `SilhouetteTests` reads these
+                // PNGs at 40px against an 8% floor, and with six species its
+                // closest pair (ember/hollow) measures 9.3% - a bake that
+                // wobbles is a gate that wobbles, and this project's own rule
+                // is that a stale or lucky pass is worse than a failure.
+                //
+                // Flattening the breath back out of the root after the tick
+                // makes the sprite the creature at its AUTHORED size and the
+                // bake reproducible. `CreatureMotion` is untouched: a wave is
+                // still not a chorus line.
+                var motion = creature.GetComponent<CreatureMotion>();
+                motion.Tick(0f, 0f);
+                var rest = creature.transform.Find("root") ?? creature.transform;
+                rest.localScale = Vector3.one * motion.GrowthScale;
 
                 camera.Render();
                 var prev = RenderTexture.active;

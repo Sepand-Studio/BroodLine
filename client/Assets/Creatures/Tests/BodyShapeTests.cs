@@ -204,9 +204,371 @@ namespace Broodline.Creatures.Tests
             return bounds.min.x;
         }
 
+        // -------------------------------------------- the other five species
+
+        /// ONE CLAIM PER SPECIES, AND NOT THE SAME CLAIM SIX TIMES.
+        ///
+        /// `Vetch_StandsOnFourLegs...` above counts connected pieces in a slice
+        /// near the ground, which is exactly right for a body whose silhouette
+        /// column says "four stubby legs" - and it is the WRONG instrument for
+        /// three of the five species Task 15 adds:
+        ///
+        ///   Loam has no legs, so the count is 1 for a grub and 1 for a smooth
+        ///   sausage; it distinguishes nothing.
+        ///   Pale has no limbs either - same problem.
+        ///   Hollow has two stilts, and Ember has two legs, so the count cannot
+        ///   tell the two upright bodies apart - which is the one pair the 40px
+        ///   detector says is closest (9.9% against an 8% floor).
+        ///
+        /// So each species is pinned by what bible 1.2's silhouette column
+        /// actually names for it, and the measurement is chosen to match:
+        ///
+        ///   vetch   four stubby legs      -> 4 islands, each >= 0.15 across
+        ///   ember   tall, two legs        -> 2 islands + height >= 1.8x width
+        ///   skitter six long thin legs    -> 6 islands, each <= 0.16 across
+        ///   hollow  stilts, forward neck  -> body rides >= 40% of the height,
+        ///                                    head reaches >= 0.45 past the body
+        ///   loam    ground-hugger, no legs-> 1 island spanning >= 90% of the
+        ///                                    length, height <= 0.35x length,
+        ///                                    and four waists in the profile
+        ///   pale    broad arc, small body -> span >= 3x the length, footprint
+        ///                                    <= 25% of the span
+        ///
+        /// Every threshold sits between a half and two thirds of what the
+        /// shipped recipe measures, so these detect a REGRESSION rather than
+        /// pinning the current numbers in place.
+
+        /// The slice height for each body that has a ground-clearance story at
+        /// all. `EverySliceHeight_SitsInItsBodysGroundClearance` re-derives the
+        /// band from the recipe, exactly as Vetch's own check above does.
+        static readonly Dictionary<string, float> SliceHeights = new Dictionary<string, float>
+        {
+            { "vetch", SliceHeight }, { "ember", 0.18f }, { "skitter", 0.12f },
+            { "hollow", 0.25f }, { "skirmisher", 0.12f },
+        };
+
+        static BodyRecipe Recipe(string id) => SpeciesRecipes.For(id) ?? RaiderRecipes.For(id);
+
+        /// The generalised form of `TheSliceSitsInVetchsGroundClearance`: every
+        /// slice this file cuts has to lie between the mesh's own floor and the
+        /// body's underside, or the count below it measures a footprint rather
+        /// than a set of limbs. Task 12b found that defect by hand on Vetch;
+        /// this is the version that finds it on the eight bodies that came
+        /// after, including the raiders.
+        [Test]
+        public void EverySliceHeight_SitsInItsBodysGroundClearance()
+        {
+            const float margin = 0.04f;
+            foreach (var kv in SliceHeights)
+            {
+                var r = Recipe(kv.Key);
+                Assert.IsNotNull(r, "no recipe for " + kv.Key);
+                float floor = Committed(kv.Key).bounds.min.y;
+                Assert.LessOrEqual(floor + margin, kv.Value,
+                    kv.Key + ": the slice at y = " + kv.Value + " is within " + margin + " of the mesh's own " +
+                    "floor (" + floor.ToString("F4") + "), where the mesher has already clipped the limb tips");
+
+                float body = r.Primitives.Where(p => !p.Bone.StartsWith("leg")).Min(Underside) - r.Blend * 0.25f;
+                Assert.GreaterOrEqual(body - margin, kv.Value,
+                    kv.Key + ": the slice at y = " + kv.Value + " is within " + margin + " of its underside (" +
+                    body.ToString("F4") + ") - the body reaches the ground between its own limbs, which is the " +
+                    "defect Task 12b measured on Vetch. Lift the body or lower the slice.");
+            }
+        }
+
+        // --------------------------------------------------------------- ember
+
+        /// bible 1.2: "tall narrow torso, head crest, two legs". Two legs is the
+        /// cheap half; the ratio is the half that separates Ember from Hollow,
+        /// the only other upright body and the closest pair at 40px.
+        [Test]
+        public void Ember_StandsOnTwoLegs_AndIsTallerThanItIsWide()
+        {
+            var mesh = Committed("ember");
+            var legs = Section(mesh, SliceHeights["ember"]);
+            Assert.AreEqual(2, legs.Count,
+                "bible 1.2 asks Ember for two legs. A slice at y = " + SliceHeights["ember"] + " found " +
+                legs.Count + " piece(s) of solid. One means the torso reaches the ground between them - the " +
+                "brief's own torso did, bottoming at y = -0.03. Areas: " +
+                string.Join(", ", legs.Select(p => p.Area.ToString("F4"))) + ".");
+
+            // Measured on the shipped recipe: 1.263 / 0.613 = 2.06.
+            float widest = Mathf.Max(mesh.bounds.size.x, mesh.bounds.size.z);
+            Assert.GreaterOrEqual(mesh.bounds.size.y / widest, 1.8f,
+                "Ember is " + mesh.bounds.size.y.ToString("F3") + " tall against a widest horizontal span of " +
+                widest.ToString("F3") + " (" + (mesh.bounds.size.y / widest).ToString("F2") + "x) - bible 1.2 " +
+                "says TALL NARROW torso, and bible 10.2 rule 1 gives 'tall and narrow is ranged'");
+        }
+
+        /// "head crest" is in bible 1.2's silhouette column, so it has to be in
+        /// the SILHOUETTE - and `SilhouetteTests` bakes bodies with nothing
+        /// mounted, so a crest that lived only at `sk_crown` would never appear
+        /// in the read it exists for. Measured here the way Vetch's head lump
+        /// is: take the crest primitive out of the field, and ask how much
+        /// higher the committed mesh goes than what is left.
+        [Test]
+        public void Ember_CarriesACrestAboveItsBareHead()
+        {
+            var r = SpeciesRecipes.For("ember");
+            var bare = r.Primitives
+                .Where(p => !(p.Bone == "head" && p.Kind == PrimitiveKind.Capsule)).ToArray();
+            Assert.AreNotEqual(r.Primitives.Length, bare.Length, "ember declares no crest primitive on its head bone");
+
+            float bareTop = TopOf(bare, r.Blend);
+            float top = Committed("ember").bounds.max.y;
+            Assert.GreaterOrEqual(top - bareTop, 0.08f,
+                "with its crest removed Ember tops out at " + bareTop.ToString("F3") + " and the committed mesh " +
+                "reaches " + top.ToString("F3") + " - the crest only carries the outline " + (top - bareTop).ToString("F3") +
+                " higher, which on a body " + Committed("ember").bounds.size.y.ToString("F2") + " tall is not a crest " +
+                "anyone can see at 40px. Measured on the shipped recipe: 0.152.");
+        }
+
+        // ------------------------------------------------------------- skitter
+
+        /// bible 1.2: "six long thin legs" - and bible 10.2 rule 1 hands
+        /// "spindly is fast" to this species specifically. So this is Vetch's
+        /// leg test with both numbers inverted: six rather than four, and a
+        /// CEILING on how wide a leg may be rather than a floor.
+        [Test]
+        public void Skitter_StandsOnSixLegs_EachThinnerThanVetchsAre()
+        {
+            var legs = Section(Committed("skitter"), SliceHeights["skitter"]);
+            Assert.AreEqual(6, legs.Count,
+                "bible 1.2 asks Skitter for six long thin legs. A slice at y = " + SliceHeights["skitter"] +
+                " found " + legs.Count + ". Areas: " + string.Join(", ", legs.Select(p => p.Area.ToString("F4"))) +
+                ". Keep BodyRecipe.Blend at or below a leg's radius - at the brief's 0.08, more than twice it, " +
+                "the smooth union fillets them into the body.");
+
+            // Vetch's own test asserts >= 0.15 and calls anything under that
+            // spindly. This asserts the other side of the same line. Measured:
+            // 0.130 - 0.134, against Vetch's 0.216 - 0.221.
+            foreach (var p in legs)
+                Assert.LessOrEqual(p.Diameter, 0.16f,
+                    "a Skitter leg is " + p.Diameter.ToString("F3") + " across at y = " + SliceHeights["skitter"] +
+                    " - Vetch's legs are 0.216 and its own test calls anything under 0.15 spindly, which is the " +
+                    "read bible 10.2 rule 1 gives to Skitter. These are meant to be the thin ones.");
+
+            float biggest = legs.Max(p => p.Area), smallest = legs.Min(p => p.Area);
+            Assert.LessOrEqual(biggest - smallest, biggest * 0.25f,
+                "the six legs are not a matched set (" + string.Join(", ", legs.Select(p => p.Area.ToString("F4"))) + ")");
+        }
+
+        // -------------------------------------------------------------- hollow
+
+        /// bible 1.2: "tiny body, stilt legs, long forward neck". Counting
+        /// components would read 2 - and so does Ember, so the count settles
+        /// nothing. What makes them STILTS is how high they hold the body, and
+        /// what makes the neck LONG is how far past the body it puts the head.
+        /// Both are measured; neither can be true of Ember.
+        [Test]
+        public void Hollow_RidesOnStilts_AndCarriesItsHeadOnALongForwardNeck()
+        {
+            var r = SpeciesRecipes.For("hollow");
+            var mesh = Committed("hollow");
+
+            Assert.AreEqual(2, Section(mesh, SliceHeights["hollow"]).Count,
+                "bible 1.2 asks Hollow for two stilts");
+
+            // Measured: the body's underside is 0.603 on a body 1.160 tall, 52%.
+            // Ember's is 0.288 of 1.263, 23% - so this number, unlike the count,
+            // tells the two upright bodies apart.
+            float under = r.Primitives.Where(p => !p.Bone.StartsWith("leg")).Min(Underside) - r.Blend * 0.25f;
+            float h = mesh.bounds.size.y;
+            Assert.GreaterOrEqual(under / h, 0.40f,
+                "Hollow's body bottoms at " + under.ToString("F3") + " on a body " + h.ToString("F3") +
+                " tall (" + (under / h).ToString("P0") + ") - bible 1.2 says STILT legs, and a body that rides " +
+                "less than 40% of its own height up is standing on legs like Ember's");
+
+            // The neck, measured the way Vetch's head lump is: drop the neck and
+            // head from the field and ask how much further forward the committed
+            // mesh reaches. Measured: the body alone ends at 0.074, the mesh at
+            // 0.805 - the neck carries 0.731, about 63% of the body's length.
+            var bodyOnly = r.Primitives.Where(p => p.Bone != "neck" && p.Bone != "head").ToArray();
+            float reach = float.NegativeInfinity;
+            for (float y = 0.5f; y < h; y += 0.02f)
+                reach = Mathf.Max(reach, ForwardReach(bodyOnly, r.Blend, y));
+            Assert.GreaterOrEqual(mesh.bounds.max.x - reach, 0.45f,
+                "with its neck and head removed Hollow reaches x = " + reach.ToString("F3") + " and the committed " +
+                "mesh reaches " + mesh.bounds.max.x.ToString("F3") + " - the neck only carries the silhouette " +
+                (mesh.bounds.max.x - reach).ToString("F3") + " forward, which bible 1.2 would not call LONG");
+        }
+
+        // ---------------------------------------------------------------- loam
+
+        /// bible 1.2: "segmented ground-hugger, blunt snout, no legs". A slice
+        /// reads ONE island for a grub and one for a pebble and one for a
+        /// sausage, so the count is useless here - what it can say is that the
+        /// one island runs the WHOLE length, which is what "no legs" means
+        /// geometrically: the belly, not feet, is what touches down.
+        [Test]
+        public void Loam_HasNoLegs_AndHugsTheGroundAlongItsWholeLength()
+        {
+            var mesh = Committed("loam");
+            var slice = Section(mesh, 0.10f);
+            Assert.AreEqual(1, slice.Count,
+                "bible 1.2 gives Loam no legs, so a slice at y = 0.10 must be one piece of solid, not " +
+                slice.Count);
+
+            // Measured: 1.52 of a 1.540 body, 99%. Vetch's four legs at the same
+            // height span 0.22 each of a 1.18 body - about 19%.
+            Assert.GreaterOrEqual(slice[0].XExtent, mesh.bounds.size.x * 0.90f,
+                "Loam's ground contact runs " + slice[0].XExtent.ToString("F3") + " of a body " +
+                mesh.bounds.size.x.ToString("F3") + " long (" + (slice[0].XExtent / mesh.bounds.size.x).ToString("P0") +
+                ") - a ground-hugger's belly touches down along its whole length; anything less is standing on something");
+
+            // Measured: 0.428 tall on 1.540 long = 0.278. Vetch, the other wide
+            // low body, is 0.65.
+            Assert.LessOrEqual(mesh.bounds.size.y, mesh.bounds.size.x * 0.35f,
+                "Loam is " + mesh.bounds.size.y.ToString("F3") + " tall against " + mesh.bounds.size.x.ToString("F3") +
+                " long (" + (mesh.bounds.size.y / mesh.bounds.size.x).ToString("F2") + ") - bible 1.2 says GROUND-HUGGER");
+        }
+
+        /// SEGMENTATION IS MEASURED ON THE FIELD, NOT ON THE MESH, and that is
+        /// a deliberate exception to this file's rule.
+        ///
+        /// Loam is 1.54 long, so at grid 20 the mesher's x cell is 0.091 -
+        /// twice the depth of the 0.045 waists between its segments. The
+        /// committed mesh keeps all four but smears them from 15-21% deep to
+        /// 3-9%, and a threshold low enough to pass that would also pass a
+        /// sausage. Resolving them in the mesh needs grid 22, which meshes to
+        /// 3296 triangles against `MesherTests`' 2500 budget.
+        ///
+        /// So this asserts the RECIPE's own surface, which is what an author
+        /// edits, and `DriftTests` is what ties the committed asset to it.
+        /// `Vetch_CarriesAHeadLumpOnTheFront` already mixes the two the same
+        /// way. What this cannot claim is that the segmentation reads at 40px -
+        /// it does not, and it is not meant to; it reads on the card render.
+        [Test]
+        public void Loam_IsSegmented_MeasuredOnTheRecipesOwnSurface()
+        {
+            var r = SpeciesRecipes.For("loam");
+            var w = HalfWidthProfile(r);
+            float peak = w.Max();
+            var depths = new List<float>();
+            for (int i = 1; i < w.Length - 1; i++)
+            {
+                if (!(w[i] <= w[i - 1] && w[i] < w[i + 1])) continue;
+                int k = i - 1; while (k - 1 >= 0 && w[k - 1] > w[k]) k--;
+                int j = i + 1; while (j + 1 < w.Length && w[j + 1] > w[j]) j++;
+                depths.Add((Mathf.Min(w[k], w[j]) - w[i]) / peak);
+            }
+
+            // Five segments leave four waists. Measured on the shipped recipe:
+            // 15.1%, 15.1%, 17.0%, 20.8% of the widest half-width.
+            Assert.GreaterOrEqual(depths.Count, 4,
+                "Loam's half-width profile has " + depths.Count + " waist(s), not the four that five segments " +
+                "leave - the union has welded them into one smooth body, which is what the brief's blend of 0.12 " +
+                "did. Profile: " + string.Join(", ", w.Select(v => v.ToString("F3"))));
+            foreach (var d in depths)
+                Assert.GreaterOrEqual(d, 0.10f,
+                    "a waist is only " + d.ToString("P1") + " of the widest half-width below its own shoulders - " +
+                    "too shallow to read as a segment. Spread the spheres further apart or lower BodyRecipe.Blend.");
+        }
+
+        // ---------------------------------------------------------------- pale
+
+        /// bible 1.2: "broad wing arc, small hanging body". No limbs, so no
+        /// component count says anything; the two nouns in that column are both
+        /// spans, and spans are what this measures.
+        [Test]
+        public void Pale_IsMostlyWingSpan_WithASmallBodyHangingUnderIt()
+        {
+            var mesh = Committed("pale");
+
+            // Measured: 1.720 across against 0.471 long = 3.65. No other body is
+            // above 1.5, and Vetch - the other wide one - is 0.79.
+            Assert.GreaterOrEqual(mesh.bounds.size.z, mesh.bounds.size.x * 3f,
+                "Pale spans " + mesh.bounds.size.z.ToString("F3") + " across against " +
+                mesh.bounds.size.x.ToString("F3") + " long (" +
+                (mesh.bounds.size.z / mesh.bounds.size.x).ToString("F2") + "x) - bible 1.2 says BROAD wing arc");
+
+            // The hanging body, low down where the wings are not. Measured: a
+            // 0.25 footprint under a 1.720 span, 14%.
+            var foot = Section(mesh, mesh.bounds.min.y + 0.10f * mesh.bounds.size.y);
+            Assert.AreEqual(1, foot.Count, "Pale has no limbs, so its footprint is one piece");
+            Assert.LessOrEqual(foot[0].ZExtent, mesh.bounds.size.z * 0.25f,
+                "Pale's footprint is " + foot[0].ZExtent.ToString("F3") + " across under a span of " +
+                mesh.bounds.size.z.ToString("F3") + " (" + (foot[0].ZExtent / mesh.bounds.size.z).ToString("P0") +
+                ") - bible 1.2 says a SMALL hanging body under the arc, not a body as broad as its wings");
+        }
+
+        // ------------------------------------------------------------- raiders
+
+        /// TASK 12b'S DEFECT, APPLIED WHERE NOBODY HAD LOOKED. Raiders go
+        /// through the same mesher under the same conventions, and they are
+        /// covered by neither `SilhouetteTests` (species only) nor the claims
+        /// above. A raider whose hull reaches the ground between its own legs
+        /// reads as a blob exactly as Vetch did.
+        ///
+        /// The expected counts come from `Character Bible.dc.html`'s shape
+        /// column, so a body that grows or loses a limb fails here rather than
+        /// silently shipping: Skirmisher is "angular wedge, two blade legs";
+        /// Courser is "forward-raked diamond, speed lines" and Lash is "wedge
+        /// body, long trailing whip" - neither names a limb, so their hulls
+        /// reach the ground on purpose and one island is the right answer.
+        [Test]
+        public void EveryRaider_ShowsTheLimbsItsShapeColumnNames()
+        {
+            var expected = new Dictionary<string, int>
+            {
+                { "courser", 1 }, { "lash", 1 }, { "skirmisher", 2 },
+            };
+            Assert.AreEqual(expected.Count, RaiderRecipes.All.Count,
+                "RaiderRecipes carries " + RaiderRecipes.All.Count + " bodies and this test names " +
+                expected.Count + " - a raider added without a shape claim is a raider nobody checked");
+
+            foreach (var r in RaiderRecipes.All)
+            {
+                Assert.IsTrue(expected.ContainsKey(r.Id), "no shape claim for raider " + r.Id);
+                var islands = Section(Committed(r.Id), 0.12f);
+                Assert.AreEqual(expected[r.Id], islands.Count,
+                    r.Id + ": a slice at y = 0.12 found " + islands.Count + " piece(s), expected " +
+                    expected[r.Id] + ". Areas: " + string.Join(", ", islands.Select(p => p.Area.ToString("F4"))) +
+                    (expected[r.Id] > 1 && islands.Count == 1
+                        ? " - one piece where the character bible names legs is the Task 12b defect: the hull is " +
+                          "resting on the ground between them."
+                        : ""));
+            }
+        }
+
+        // -------------------------------------------------------- field probes
+
+        /// The topmost point of a field, down the midline. Used to ask what a
+        /// body would top out at with one primitive removed.
+        static float TopOf(Primitive[] prims, float blend)
+        {
+            var bounds = Sdf.BoundsOf(prims, 0.1f);
+            float top = bounds.min.y;
+            for (float x = bounds.min.x; x <= bounds.max.x; x += 0.01f)
+                for (float y = bounds.max.y; y > bounds.min.y; y -= 0.002f)
+                    if (Sdf.Field(prims, blend, new Vector3(x, y, 0f)) < 0f) { top = Mathf.Max(top, y); break; }
+            return top;
+        }
+
+        /// The body's half-width in plan at each of `samples` stations along x:
+        /// the furthest -z at which the field is still inside, over every height.
+        /// Sampled off the field rather than the mesh because the mesher's cell
+        /// is coarser than the feature being measured - see the test above.
+        static float[] HalfWidthProfile(BodyRecipe r, int samples = 62)
+        {
+            var b = Sdf.BoundsOf(r.Primitives, 0f);
+            var w = new float[samples];
+            for (int i = 0; i < samples; i++)
+            {
+                float x = b.min.x + b.size.x * ((i + 0.5f) / samples);
+                float widest = 0f;
+                for (float y = b.min.y + 0.02f; y <= b.max.y; y += 0.02f)
+                    for (float z = 0f; z > b.min.z; z -= 0.004f)
+                        if (Sdf.Field(r.Primitives, r.Blend, new Vector3(x, y, z)) < 0f)
+                            widest = Mathf.Max(widest, -z);
+                w[i] = widest;
+            }
+            return w;
+        }
+
         // ----------------------------------------------------- the cross-cut
 
-        struct Island { public float Area; public float Diameter; }
+        struct Island { public float Area; public float Diameter; public float XExtent; public float ZExtent; }
 
         /// The solid cross-section of a CLOSED mesh at height y, rasterised on
         /// an XZ grid and split into 4-connected islands.
@@ -268,11 +630,14 @@ namespace Broodline.Creatures.Tests
                     queue.Clear();
                     queue.Enqueue(ix * nz + jz);
                     int cells = 0;
+                    int lox = ix, hix = ix, loz = jz, hiz = jz;
                     while (queue.Count > 0)
                     {
                         int k = queue.Dequeue();
                         int cx = k / nz, cz = k % nz;
                         cells++;
+                        lox = Mathf.Min(lox, cx); hix = Mathf.Max(hix, cx);
+                        loz = Mathf.Min(loz, cz); hiz = Mathf.Max(hiz, cz);
                         Push(cx + 1, cz); Push(cx - 1, cz); Push(cx, cz + 1); Push(cx, cz - 1);
                         void Push(int ax, int az)
                         {
@@ -284,7 +649,13 @@ namespace Broodline.Creatures.Tests
                     }
                     if (cells < MinComponentCells) continue;
                     float area = cells * Cell * Cell;
-                    islands.Add(new Island { Area = area, Diameter = 2f * Mathf.Sqrt(area / Mathf.PI) });
+                    islands.Add(new Island
+                    {
+                        Area = area,
+                        Diameter = 2f * Mathf.Sqrt(area / Mathf.PI),
+                        XExtent = (hix - lox + 1) * Cell,
+                        ZExtent = (hiz - loz + 1) * Cell,
+                    });
                 }
             return islands;
         }

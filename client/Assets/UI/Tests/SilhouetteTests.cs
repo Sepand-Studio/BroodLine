@@ -26,31 +26,40 @@ namespace Broodline.UI.Tests
     /// quality bar: two shapes differing on fewer than 8% of a 40x40 field are
     /// the same shape at a glance.
     ///
-    /// ONLY VETCH IS BAKED. `SpeciesRecipes.All` and `PartRecipes.All` carry
-    /// one body and three parts until Task 15 fills in the other five
-    /// species; asserting `NoTwoSpeciesAreConfusableAsFlatBlackShapesAt40px`
-    /// against a five-species gap would be asserting against art that does
-    /// not exist. `Species` below is narrowed to `{ "vetch" }` for this task
-    /// - Task 15 restores the six, and with them the pairwise comparison.
+    /// ALL SIX ARE BAKED. Through Task 14 this list was narrowed to
+    /// `{ "vetch" }`, because asserting a pairwise detector against five
+    /// species that did not exist would have been asserting against absent
+    /// art. Task 15 authored the other five, and this is the restoration:
+    /// six species, fifteen pairs, and the collision detector doing the job
+    /// it was written for.
+    ///
+    /// THE CLOSEST PAIR IS EMBER/HOLLOW, and it is close for a reason worth
+    /// recording. They are the only two upright bodies in the cast, so their
+    /// masks are both tall, narrow and SPARSE - 236 and 144 of 1600 cells -
+    /// and two sparse masks cannot differ on more of the field than their
+    /// combined fill, however unlike they are. 9.9% against a ceiling of
+    /// 23.8% means they overlap on very little; it is not a near-miss on
+    /// shape. `Broodline.Creatures.Tests.BodyShapeTests` carries the positive
+    /// claims that hold them apart: Ember is 2.06x as tall as it is wide and
+    /// carries a crest, Hollow rides 52% of its height up on stilts behind a
+    /// neck 0.73 long.
     public class SilhouetteTests
     {
         const int Size = 40;
         const double MinDifferingFraction = 0.08;
 
-        // Task 15 restores the six ({ "vetch", "ember", "skitter", "hollow",
-        // "loam", "pale" }) once every species is baked.
-        static readonly string[] Species = { "vetch" };
+        // bible 1.2's order.
+        static readonly string[] Species = { "vetch", "ember", "skitter", "hollow", "loam", "pale" };
 
         /// A second, independent statement of "how many species are baked right
         /// now", asserted against `Species.Length` at the top of the pairwise
-        /// test below. With fewer than two species there are zero pairs to
-        /// compare, so `NoTwoSpeciesAreConfusableAsFlatBlackShapesAt40px`'s
-        /// `collisions` list stays empty and it PASSES whether the detector
-        /// ran a real comparison or none at all - the only trace of that was a
-        /// log line this project's own test command never shows. Bump this
-        /// alongside `Species` when Task 15 restores the six; leaving one of
-        /// the two behind fails loudly instead of the test staying quiet.
-        const int ExpectedBakedSpecies = 1;
+        /// test below. A pairwise loop over too few species compares too few
+        /// pairs and PASSES on an empty `collisions` list, which is
+        /// indistinguishable from a clean sweep - and the only trace of that
+        /// was a log line this project's own test command never shows. Keep
+        /// this and `Species` in step; leaving one behind fails loudly instead
+        /// of the test staying quiet.
+        const int ExpectedBakedSpecies = 6;
 
         /// 40x40 coverage mask: true where the baked body is opaque.
         static bool[] Mask(string species)
@@ -126,10 +135,9 @@ namespace Broodline.UI.Tests
                 }
 
             // How many pairs `ExpectedBakedSpecies` species implies, asserted
-            // against how many the loop above actually ran - so a collision
-            // detector that silently compared zero pairs (today: 1 species,
-            // 0 pairs, by design) is at least an ASSERTED zero, not a quiet
-            // one indistinguishable from six species that all passed clean.
+            // against how many the loop above actually ran - so a detector that
+            // silently compared fewer pairs than the roster implies is caught
+            // rather than reported as a clean sweep. Six species, fifteen pairs.
             int expectedPairs = ExpectedBakedSpecies * (ExpectedBakedSpecies - 1) / 2;
             Assert.AreEqual(expectedPairs, measured.Count,
                 $"compared {measured.Count} pairs, not the {expectedPairs} that {ExpectedBakedSpecies} baked " +
@@ -140,8 +148,7 @@ namespace Broodline.UI.Tests
             // be a second, tighter threshold nobody agreed to, and tightening
             // this detector is how it stops detecting. `verify-uss-tokens.sh`
             // makes the same distinction - measure, print, gate on one line.
-            // With only Vetch baked, `measured` is empty and this line logs
-            // nothing to compare - Task 15's job, not this one's.
+            // Fifteen pairs since Task 15. Closest measured: ember/hollow.
             Debug.Log("bible 10.2 rule 1, pairwise at 40px (floor " +
                       $"{MinDifferingFraction:P0}): " + string.Join(", ", measured));
 
