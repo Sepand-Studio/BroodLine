@@ -200,6 +200,23 @@ namespace Broodline.UI.Components
 
         readonly VisualElement _surface;
 
+        /// The ring-and-pool layer, or null on a ringless band. Held because
+        /// `OrnamentScale` below writes to it every time the band resizes.
+        readonly VisualElement _halo;
+
+        /// The ring itself, for the one number `OrnamentScale` needs that is
+        /// not the band's: the ring's own AUTHORED diameter.
+        ///
+        /// READ FROM `resolvedStyle`, NEVER FROM A CONSTANT HERE, AND THAT IS
+        /// THE POINT. `--band-ring` is 264px in `Tokens.uss` and is also read
+        /// by `generate-textures.py`, which draws the dashes at that scale; a
+        /// third copy in C# would be a number three files have to agree on
+        /// and only two of them check. Nothing ever writes this element's
+        /// width inline - the fit is a `scale`, which is a transform and
+        /// leaves layout untouched - so `resolvedStyle.width` is the token's
+        /// own value on every frame, including the frames after a fit.
+        readonly VisualElement _ring;
+
         /// Where the screen's own content goes, deliberately not `this` and
         /// deliberately not the surface. A caller adding to the band directly
         /// would land in the shadow's padding ring, outside the fill; adding
@@ -233,6 +250,95 @@ namespace Broodline.UI.Components
             // handoff frames a subject in", so the same flag decides both.
             if (ring) Subject.AddToClassList(SubjectHaloedUssClassName);
             else this.Q<VisualElement>("halo").RemoveFromHierarchy();
+
+            // THE ORNAMENT IS FITTED TO THE BAND ON EVERY RESIZE - Phase 9
+            // Task 21e. `OrnamentScale` has the measurement that made it
+            // necessary; the wiring note is that this is registered on the
+            // SURFACE and not on the root, because the root is the `.elev-2`
+            // wrapper and its height includes the shadow's spread on each
+            // side - the same distinction `Fill` and `Fix` exist to keep.
+            //
+            // ONLY ON A RINGED BAND. A ringless one has no halo to scale and
+            // its subject is a padded column the handoff draws at its own
+            // size (`Splice Chamber:101`), which must not be scaled by
+            // anything.
+            //
+            // NOT RE-ENTRANT. `style.scale` is a transform: it changes what
+            // is painted and not what is laid out, so writing it here cannot
+            // raise the event that called us.
+            // `_halo.Q` RATHER THAN `this.Q` FOR THE RING. `HeroSlot` owns an
+            // element named "ring" too and a haloed band holds one of those
+            // inside `Subject` - the founder screen's does. Scoping the query
+            // to the halo means it cannot ever answer the wrong one, rather
+            // than relying on this constructor running before a screen fills
+            // the subject (which it does today, and which is exactly the kind
+            // of ordering `FounderNamingView`'s `card-title` note records not
+            // relying on).
+            _halo = ring ? this.Q<VisualElement>("halo") : null;
+            _ring = ring ? _halo.Q<VisualElement>("ring") : null;
+            if (ring) _surface.RegisterCallback<GeometryChangedEvent>(_ => FitOrnament());
+        }
+
+        /// HOW MUCH OF THE ORNAMENT FITS IN THE BAND, as a scale factor.
+        ///
+        /// THE BAND CAN BE SHORTER THAN ITS OWN RING, AND ON A PHONE IT IS.
+        /// `.hero-band__ring` is a fixed `var(--band-ring)` square - fixed
+        /// because USS on 6000.6.0f1 has no `calc()` and no `aspect-ratio`,
+        /// so a percentage width cannot produce a matching height
+        /// (`HeroBand.uss`'s `__halo` note has that in full) - and the band
+        /// around it is elastic. `.hero-band__surface` carries
+        /// `overflow: hidden`, whose own note already recorded the collision:
+        /// "the ring is 264px in a band that can be shorter than that". What
+        /// it did about it was CLIP, which turns a dashed circle into a
+        /// dashed circle with its top and bottom arcs sawn off.
+        ///
+        /// MEASURED, PHASE 9 TASK 21e. On the iPhone 17 the exit gate's walk
+        /// ran on, the founder screen's scroll viewport is 582 points tall
+        /// and its column wants 656, so the band has to give back 74 and
+        /// lands at about 226 - thirty-eight points shorter than its ring.
+        ///
+        /// A SCALE RATHER THAN A SIZE, AND THAT IS WHAT KEEPS IT SMALL. The
+        /// ornament is a ring, a pool inside it at 196/264 of its diameter,
+        /// and a subject the halo is drawn around at 160/264 of it. Setting
+        /// three sizes means restating three proportions the stylesheet
+        /// already holds, in a second language, and getting one of them wrong
+        /// later; one `scale` on the halo and one on the subject preserves
+        /// every one of them by construction. `style.scale` is also a paint
+        /// transform, so nothing it touches can change the layout that
+        /// produced the number.
+        ///
+        /// NEVER ABOVE 1. A band taller than its ring is the ordinary case
+        /// and the handoff's own - the ring is a fixed ornament in a band
+        /// that grows, not a thing that fills it - so this only ever shrinks.
+        /// Without the clamp the founder band at 430x932 would blow its ring
+        /// up to 456 and there would be no corpus left to compare against.
+        ///
+        /// ONE ON ANYTHING UNRESOLVED. A band with no panel, a zero height
+        /// before the first layout, a ring whose stylesheet failed to import:
+        /// each answers "draw it at the size the sheet said", which is the
+        /// behaviour every frame before this task had.
+        public static float OrnamentScale(float bandHeight, float ringDiameter)
+        {
+            if (float.IsNaN(bandHeight) || float.IsNaN(ringDiameter)) return 1f;
+            if (bandHeight <= 0f || ringDiameter <= 0f) return 1f;
+            return Mathf.Min(1f, bandHeight / ringDiameter);
+        }
+
+        void FitOrnament()
+        {
+            var k = OrnamentScale(_surface.resolvedStyle.height, _ring.resolvedStyle.width);
+
+            // BOTH LAYERS, FROM ONE NUMBER, WHICH IS `Fill`'s OWN LESSON ONE
+            // ORNAMENT DOWN. The pool is a child of the ring so it comes with
+            // the halo; the SUBJECT is a sibling, and scaling the halo alone
+            // would shrink the ring and the pool around a creature that
+            // stayed 160px - which at the founder screen's measured 226px
+            // band leaves four points of pool visible on each side where
+            // `HeroBand.uss` authored eighteen, and the note beside
+            // `__glow` already rejected exactly that look ("a disc that size
+            // would sit exactly on the pool's edge and hide it completely").
+            _halo.style.scale = new Scale(Vector2.one * k);
+            Subject.style.scale = new Scale(Vector2.one * k);
         }
 
         /// The handoff's `flex: 1; min-height: <n>px` - the band takes

@@ -44,13 +44,50 @@ namespace Broodline.UI.Screens
     {
         public const string UssClassName = "founder-naming-view";
 
-        /// The handoff's floor for the hero band, `Onboarding.dc.html:43`'s
-        /// `min-height: 300px`. It is this screen's number rather than
-        /// `HeroBand`'s, because the other band in the bundle that pins a
-        /// size pins a different one - `Splice Reveal.dc.html:43` is 372 -
-        /// and a component that guessed between them would be wrong on one
-        /// screen in two.
-        const float BandFloor = 300f;
+        /// NO FLOOR, AND THE HANDOFF'S 300 IS WHY THERE ISN'T ONE - PHASE 9
+        /// TASK 21e. `HeroBand.Fill`'s own note already sanctions this shape:
+        /// "a band that wants to grow with no floor passes 0 and says so."
+        ///
+        /// THIS WAS `Onboarding.dc.html:43`'s `min-height: 300px` AND IT
+        /// CLIPPED THE CARD ON A PHONE. The exit gate's walk of the packaged
+        /// app, on an iPhone 17 at 402x874, found this screen's white card cut
+        /// off flat under the name field with no corners and no tip note. The
+        /// numbers, measured with `probe-frame.sh` rather than reasoned about:
+        /// the shell gives a screen 402x704 at that device (874 less a 62pt
+        /// top inset, a 34pt bottom inset, the 16pt top bar and the 58pt tab
+        /// bar), the scaffold's scroll viewport is 582 of that, and this
+        /// column wanted 656 - a progress row of 37, a band pinned at 300, a
+        /// card of 275 and 44 of elevation wrappers.
+        ///
+        /// A FLOOR ON THE COLUMN'S ONLY GROWING CHILD IS EITHER INERT OR
+        /// HARMFUL, AND IT CANNOT BE ANYTHING ELSE. The band is the one
+        /// element in this column carrying `flex-grow`
+        /// (`ScreenScaffold.uss`'s `min-height: 100%` note says so of the
+        /// whole project), so its height is `max(floor, natural + all the
+        /// slack)`. Where there IS slack the band is already past 300 and the
+        /// floor changes nothing - measured at 398 on a 402x874 frame and 456
+        /// at the corpus's 430x932. Where there is NOT, the floor is the only
+        /// reason the column overflows. There is no third case. Removing it
+        /// moves no pixel of the committed corpus and gives the card its
+        /// bottom back at 402.
+        ///
+        /// THE BAND STILL DOES NOT COLLAPSE, WHICH IS WHAT THE FLOOR WAS FOR.
+        /// It grows into whatever is left; at 402 that lands it near 226. Its
+        /// ring is a fixed 264 square and would be sawn off by
+        /// `.hero-band__surface`'s `overflow: hidden` at that height, so
+        /// `HeroBand.OrnamentScale` fits the whole ornament to the band -
+        /// added in this task, and its note has the measurement.
+        ///
+        /// THE BRIEF'S HYPOTHESIS WAS THAT THE CARD WAS BEING SQUEEZED. It is
+        /// not, and the distinction is worth the sentence because it is what
+        /// says this fix is the right one: a ScrollView's content container is
+        /// sized BY its content, so nothing in this column ever shrinks - the
+        /// card measured 275 at every frame from 874 down to 740. What happens
+        /// is that the container grows past the viewport and the tail goes
+        /// below the fold. It scrolls, and a swipe on the device brings the
+        /// note into view. What made it read as broken is that the cut lands
+        /// mid-card, under a pinned CTA that says "this is the end".
+        const float BandFloor = 0f;
 
         readonly Label _prompt;
         readonly VisualElement _founder;

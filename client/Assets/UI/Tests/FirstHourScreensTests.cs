@@ -327,18 +327,40 @@ namespace Broodline.UI.Tests
             Assert.IsNotNull(band.Q<VisualElement>("ring"),
                 "the band drew no ring; Onboarding.dc.html:45 has one and it is the fullest instance");
 
-            // THE HANDOFF'S `flex: 1; min-height: 300px`, BOTH HALVES, ON THE
-            // SURFACE. Task 14b's capture is the reason this is asserted from
-            // the screen and not only from ComponentTests: the screen is what
-            // chooses to call `Fill`, and a screen that forgot would render
-            // a 300px band in a column with 150px of slack under it.
+            // `flex: 1` ON BOTH HALVES, ON THE SURFACE AND ON THE WRAPPER.
+            // Task 14b's capture is the reason this is asserted from the
+            // screen and not only from ComponentTests: the screen is what
+            // chooses to call `Fill`, and a screen that forgot would render a
+            // band at its content height in a column with 150px of slack
+            // under it.
             var surface = band.Q<VisualElement>("surface");
             Assert.AreEqual(1f, band.style.flexGrow.value,
                 "the band does not take the column's slack, so the screen ends in bare paper");
             Assert.AreEqual(1f, surface.style.flexGrow.value,
                 "the wrapper grew and the surface did not - the nine-sliced shadow is around bare paper");
-            Assert.AreEqual(300f, surface.style.minHeight.value.value,
-                "the handoff's 300px floor is not on the band");
+
+            // AND NO FLOOR - PHASE 9 TASK 21e, AND THIS ASSERTION IS THE
+            // REVERSE OF THE ONE IT REPLACES. It read
+            // `AreEqual(300f, ..., "the handoff's 300px floor is not on the
+            // band")`. The floor WAS `Onboarding.dc.html:43`'s `min-height:
+            // 300px` and it clipped this screen's card on the iPhone 17 the
+            // exit gate's walk ran on: the scroll viewport is 582 points
+            // there and the column wanted 656, so the tip note and the card's
+            // bottom corners went below the fold.
+            // `FounderNamingView.BandFloor`'s note has the full measurement
+            // and the argument that a floor on a column's only growing child
+            // is either inert or harmful.
+            //
+            // ZERO RATHER THAN UNSET, AND THAT IS THE POINT OF STILL
+            // ASSERTING IT. `Fill` writes whatever it is handed, so a screen
+            // that stopped calling `Fill` altogether would leave `minHeight`
+            // at `StyleKeyword.Null` and the two `flexGrow` lines above would
+            // redden - but a screen that went back to `Fill(300)` would pass
+            // every other assertion in this file. This is the line that
+            // reddens for it.
+            Assert.AreEqual(0f, surface.style.minHeight.value.value,
+                "the band has a height floor again - on this screen's column that can only "
+                + "push the card below the fold, which is the defect Task 21e closed");
 
             // AND NO SECTION CARD IS LEFT AROUND THE CREATURE. The words card
             // below is still one, so this walks up from the founder rather
