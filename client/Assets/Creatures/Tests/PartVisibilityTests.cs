@@ -53,7 +53,7 @@ namespace Broodline.Creatures.Tests
 
         /// Below this many overlapping pixels the mean colour of "the part
         /// where it covers the body" is a handful of anti-aliased edge samples
-        /// rather than a measurement. 28 of the 144 combinations are parts that
+        /// rather than a measurement. 29 of the 144 combinations are parts that
         /// sit almost entirely OFF their body - a taunt mast on Hollow overlaps
         /// 6px of a body it clears by 262 - and for those the colour question
         /// is against the card, not against the hide. The nearest combination

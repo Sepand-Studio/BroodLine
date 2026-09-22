@@ -48,9 +48,17 @@ namespace Broodline.Creatures
         /// part's provenance.
         ///
         /// AND THE SATURATION GOES UP, BECAUSE THE MASCOT IS A SPEC. Dropping
-        /// value alone took Ember's parts to #95574f, and bible 10.9 and the
-        /// character bible both describe Cinderplate as "a teal dome plus three
-        /// coral spikes" - at #95574f they are brown. Value 0.68 with
+        /// value alone took Ember's parts to #95574f. The phrase "teal dome
+        /// plus three coral spikes" is the design handoff's, at
+        /// `specs/Designs/design_handoff_broodline/README.md:506`; the bible
+        /// states the same shape WITHOUT the colour words, at
+        /// `specs/broodline_bible.md:1114` - "a dome plus three spikes". The
+        /// colour constraint is still the bible's, just derived rather than
+        /// quoted: it pins the crest to EMBER, and Ember is coral in the
+        /// palette. Cited apart because this project grades itself on
+        /// citations, and one of these is a quotation while the other is an
+        /// inference. Either way the spikes must read coral, and at #95574f
+        /// they are brown. Value 0.68 with
         /// saturation x1.40 puts them at #9c4136, still plainly coral, and
         /// measures 17.18 against 16.71 for the duller version. Chroma is free
         /// here: deltaE counts it, and the spec asks for it.

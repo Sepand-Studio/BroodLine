@@ -98,6 +98,13 @@ namespace Broodline.Creatures.Editor
         /// true: it builds the same creature twice and compares every transform
         /// in both hierarchies, so a second seeded term added to `Tick` fails
         /// there instead of quietly returning the 40px gate to passing by luck.
+        ///
+        /// THAT GATE SEES TRANSFORMS, NOT MATERIALS. `Tick` also pushes
+        /// `_Desaturate` through a `MaterialPropertyBlock`, and a seeded tint
+        /// added on THAT path would change the baked pixels while every
+        /// transform still compared equal. Nothing covers it today. Said here
+        /// because the sentence above reads like the gate is total, and the
+        /// next author will otherwise trust it that far.
         public static void RestPose(GameObject creature)
         {
             var motion = creature.GetComponent<CreatureMotion>();
