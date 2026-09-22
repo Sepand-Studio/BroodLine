@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using Broodline.Game;
 using Broodline.Game.Shell;
@@ -201,8 +202,25 @@ public class WaveCapturePlayTests
         // tick of 2, and quietly making it vacuous.
         Assert.AreNotEqual(live, runner.Runner.Tick,
             "integrity and tick must differ here or the prefix assertion below cannot tell them apart");
-        StringAssert.StartsWith("Integrity " + live, integrity.text,
+        // THE WORD "Integrity" LEFT THIS LINE IN PHASE 9 TASK 18 and this
+        // assertion did not follow it. `WaveHudScreen.Integrity` now returns
+        // "2   tick 104" - the value of a pill whose caption is
+        // `IntegrityLabel` ("ARK INTEGRITY"), because the word was being
+        // printed twice, 14px apart. That function's own comment records the
+        // change AND CITES THIS FILE at :162-165 as the reason the tick
+        // stays, so the task that made it read this test and still missed the
+        // line below: PlayMode deadlocks in batchmode here, so nothing could
+        // run it. Found by the human's Editor pass, which is what that pass
+        // is for.
+        //
+        // The prefix still carries the whole claim - the readout opens with
+        // the live integrity - and the contrastive guard above is what keeps
+        // it honest now that the word is gone and the line opens with a bare
+        // numeral.
+        StringAssert.StartsWith(live.ToString(CultureInfo.InvariantCulture), integrity.text,
             "the HUD's integrity readout must come from the live runner - WaveRunner.Snapshot()");
+        StringAssert.Contains("tick", integrity.text,
+            "the tick must stay on this line - the device re-capture procedure reads it off the screen");
 
         yield return Until(() => runner.Runner.Done, "the wave never terminated");
         yield return null;   // the Update that writes the artifacts

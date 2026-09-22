@@ -55,7 +55,34 @@ Expected totals: 7 tests across 3 suites, all green.
     A FAILURE MEANS: the dressed lane does not draw, or its destroy ordering
     regressed. `LaneStage` is new this phase and has no headless coverage.
 
-WRITE THE COUNTS BACK HERE (total/passed/failed) when you have them.
+RESULT, 2026-09-22, run by the developer in the Editor Test Runner:
+ALL GREEN - 7 of 7 across the three suites, as reported by the human who ran
+them. No agent has run or can run these; this line records their report.
+
+*** ONE TEST FAILED ON THE FIRST RUN, AND IT WAS A STALE ASSERTION, NOT A
+    REGRESSION. The capture was never implicated. ***
+
+  PlayingTheWaveSceneWithNoHost_StillWritesACaptureOfWave6
+    Expected: String starting with "Integrity 2"
+    But was:  "2   tick 104"
+
+  `WaveHudScreen.Integrity` returns "2   tick 104" BY DESIGN since Phase 9
+  Task 18: the word "Integrity" moved to the caption of the pill the line now
+  sits in (`IntegrityLabel`, "ARK INTEGRITY"), because it was being printed
+  twice 14px apart. That function's own comment records the change.
+
+  WHY IT SURVIVED TO HERE, which is the part worth keeping: the SAME comment
+  CITES THIS FILE at :162-165 as the reason the tick stays on the line. So
+  Task 18 read this test, reasoned from it, and still missed the assertion
+  further down - because PlayMode deadlocks in batchmode on this Editor and
+  nothing could execute it. It took a human opening the Test Runner. That is
+  what this section exists for, and it earned its keep on its first use.
+
+  FIXED: the assertion now expects the shipped format, and a second assertion
+  pins that `tick` is still on the line - which nothing held before, although
+  `Integrity`'s comment says the device re-capture procedure reads it off the
+  screen. The contrastive guard above keeps a bare-numeral prefix meaningful.
+  Re-run by the developer: green.
 
 ===============================================================================
 B. WATCH A WAVE, WITH THE SHELL HIDDEN
