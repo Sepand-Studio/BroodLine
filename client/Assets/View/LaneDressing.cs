@@ -49,7 +49,7 @@ namespace Broodline.View
             var trees = new[] { new Vector3(3f, 0f, 2.6f), new Vector3(9f, 0f, -1.9f), new Vector3(15.5f, 0f, 2.9f), new Vector3(20f, 0f, -2.2f) };
             for (int i = 0; i < trees.Length; i++)
             {
-                var tree = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                var tree = Primitive(PrimitiveType.Sphere, "Sphere.fbx");
                 tree.name = "tree" + i;
                 tree.transform.SetParent(root.transform, false);
                 tree.transform.localPosition = trees[i];
@@ -57,7 +57,7 @@ namespace Broodline.View
                 Paint(tree, Tree);
             }
 
-            var ark = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            var ark = Primitive(PrimitiveType.Cylinder, "Cylinder.fbx");
             ark.name = "ark";
             ark.transform.SetParent(root.transform, false);
             ark.transform.localPosition = new Vector3(length, 0.5f, 0f);
@@ -66,9 +66,41 @@ namespace Broodline.View
             return root;
         }
 
+        /// A primitive WITHOUT the collider `CreatePrimitive` insists on.
+        ///
+        /// WHY, AND IT IS NOT TIDINESS: `GameObject.CreatePrimitive` always
+        /// adds a collider, and `stripEngineCode` is on, so in a player the
+        /// collider classes are not in the build and every call logs
+        /// "Can't add component because class 'SphereCollider' doesn't exist!".
+        /// The dressing builds ~31 primitives, so a packaged run printed ~31
+        /// engine errors before drawing a single frame - and on iOS those
+        /// errors are what raise the red developer console over the UI. The
+        /// code then DELETED the collider anyway, so the warning was pure
+        /// cost: an engine error for a component nothing wanted.
+        ///
+        /// A `link.xml` would be the WRONG fix here. It would add the collider
+        /// classes back into the build purely so `CreatePrimitive` can attach
+        /// one that `Paint` immediately destroys.
+        ///
+        /// FALLS BACK RATHER THAN THROWING, and that is the lesson of Task
+        /// 21c one file over: a name that resolves in the Editor may answer
+        /// null in a player. If the built-in mesh is ever missing this returns
+        /// to the old path - noisy, and drawing - instead of handing null to a
+        /// Unity binding the way `Shader.Find` did.
+        static GameObject Primitive(PrimitiveType type, string builtinMesh)
+        {
+            var mesh = Resources.GetBuiltinResource<Mesh>(builtinMesh);
+            if (mesh == null) return GameObject.CreatePrimitive(type);
+
+            var go = new GameObject();
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.AddComponent<MeshRenderer>();
+            return go;
+        }
+
         static void Flat(string name, Transform parent, Vector3 at, Vector3 size, Color colour)
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            var go = Primitive(PrimitiveType.Cube, "Cube.fbx");
             go.name = name;
             go.transform.SetParent(parent, false);
             go.transform.localPosition = at;
