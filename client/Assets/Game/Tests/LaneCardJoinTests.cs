@@ -177,6 +177,79 @@ namespace Broodline.Game.Tests
             }
         }
 
+        /// THE DEPLOY SCREEN OUTLIVES THE BEAT, AND A `Clear` UNDER IT USED TO
+        /// EMPTY THE LANE - Phase 9 Task 21F, found on the exit gate's second
+        /// device walk and reproduced before it was written down.
+        ///
+        /// `ScreenFlow.ShowAsync` presents with `after: null`, so the deploy
+        /// screen STAYS the presented shell screen for the whole beat and
+        /// after it. `LanePreviewCard` holds the stage's `RenderTexture` as a
+        /// LIVE background, so it shows whatever is in that buffer whenever it
+        /// draws. `FtueDirector.FightAsync` then clears the stage in a
+        /// `finally` that spans the beat - and it has FOUR exits that show no
+        /// other screen first (`CanDeploy` false, `StartAsync` throwing,
+        /// `_play` throwing, an outbox submit that is not `Sent`). On every one
+        /// of them the wipe landed on the card the player was looking at.
+        ///
+        /// MEASURED ON AN iPHONE 17 AT 402x874: background the packaged app
+        /// mid-wave past `WaveHost.CompletionTimeoutSeconds`, and the deploy
+        /// screen comes back with a flat `--green-tint` card - no path, no
+        /// dashes, no trees, no creatures - while its slot strip still reads
+        /// `A B C` filled and the fact cells still read `DEPLOYED 3/5`.
+        /// Nothing logged: `Show` was never re-entered, so the card was never
+        /// handed null; its buffer was emptied underneath it. That is why this
+        /// case lives HERE rather than in `LaneStageTests` - the stage suites
+        /// read the render texture, and a wiped texture is exactly what they
+        /// used to demand.
+        ///
+        /// THE FALLBACK IS THE CONTROL, as everywhere else in this file, so
+        /// the assertion is against a DIFFERENCE and not a threshold. Re-add
+        /// the `GL.Clear` to `LaneStage.Clear` and the post-clear render
+        /// becomes the fallback fill, which reddens both halves.
+        [Test]
+        public void AStageClearedUnderAPresentedCard_LeavesTheLaneDrawn_NotTheFallbackFill()
+        {
+            RequireGraphics();
+
+            var host = new GameObject("lane-host");
+            try
+            {
+                var stage = LaneStage.Create(host.transform);
+                var texture = stage.Show(
+                    1,
+                    new List<CreatureLook>
+                    {
+                        new CreatureLook { Species = Species },
+                        new CreatureLook { Species = Species },
+                    },
+                    new List<int> { 0, 1 });
+                Assert.IsNotNull(texture, "wave 1 is authored; Show returned no texture for it");
+
+                var beforeClear = RenderCard(texture, out var cardArea);
+                var fallback = RenderCard(null, out _);
+                Assert.Greater(cardArea, 20000,
+                    "the card did not lay out - there is nothing to have measured");
+                Assert.Greater(DifferingPixels(beforeClear, fallback), cardArea / 20,
+                    "precondition: the lane is not reaching the card even before the Clear");
+
+                // THE BEAT ENDS THE WAY A TIMED-OUT WAVE ENDS IT: the director's
+                // `finally` clears the stage, and NOTHING replaces the screen.
+                stage.Clear();
+
+                var afterClear = RenderCard(texture, out _);
+
+                Assert.Greater(DifferingPixels(afterClear, fallback), cardArea / 20,
+                    "after the stage was cleared the card is drawing its flat --green-tint fallback - "
+                    + "this is the deploy screen the walk reported as an empty lane");
+                Assert.AreEqual(0, DifferingPixels(beforeClear, afterClear),
+                    "the Clear changed what the still-presented card is showing");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(host);
+            }
+        }
+
         // ---------------------------------------------------------------
 
         /// The card, in a real runtime panel, at the design frame's content

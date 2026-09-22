@@ -83,11 +83,14 @@ namespace Broodline.Game.Tests
 
                 // THE OPACITY CHECK COMES FIRST, and it is not decoration: the
                 // unlike-the-field count below reads the same on a painted lane and
-                // on a texture `Clear()` left transparent, because transparent black
-                // is unlike the field too. Without this line the threshold only
-                // makes the inversion harder to see.
+                // on a texture that was never painted, because transparent black is
+                // unlike the field too. Without this line the threshold only makes
+                // the inversion harder to see. (Until Task 21f the unpainted case
+                // this names was `Clear()`'s own `GL.Clear`; a never-rendered
+                // `RenderTexture` reads the same way, so the case still separates
+                // painted from unpainted.)
                 Assert.Greater(OpaquePixelCount(empty), 0,
-                    "the texture is still the blank Clear() left - no frame was painted at all");
+                    "the texture is transparent - no frame was painted into it at all");
                 Assert.Greater(PixelsUnlikeTheField(empty), texture.width * texture.height / 50,
                     "the stage rendered nothing but its clear colour - the lane itself is not drawing");
 
@@ -126,14 +129,16 @@ namespace Broodline.Game.Tests
                     new List<int> { 0 });
 
                 // OPAQUE COUNT, NOT UNLIKE-THE-FIELD. This assertion used to read
-                // `PixelsUnlikeTheField(...) > 0` and COULD NOT FAIL: `Show` calls
-                // `Clear()` first, which `GL.Clear`s to (0,0,0,0), and transparent
-                // black is maximally unlike the field colour - so an unpainted
-                // texture scored every one of its 307,200 pixels and passed. The
-                // message described exactly the case it could not detect.
+                // `PixelsUnlikeTheField(...) > 0` and COULD NOT FAIL: an unpainted
+                // texture is transparent black, which is maximally unlike the field
+                // colour - so it scored every one of its 307,200 pixels and passed.
+                // The message described exactly the case it could not detect.
                 // Only a real render writes alpha 1, because the camera clears to
                 // `LaneDressing.Field`, so opacity is what separates painted from
-                // blanked.
+                // unpainted. (`Show` used to reach that transparent state through
+                // `Clear()`'s own `GL.Clear`; Task 21f removed it, and a
+                // `RenderTexture` nothing has rendered into reads the same way, so
+                // this case keeps its sensitivity.)
                 Assert.Greater(OpaquePixelCount(ReadPixels(texture)), 0,
                     "nothing was painted, so Show is still relying on a player loop this suite does not run");
 
@@ -169,8 +174,24 @@ namespace Broodline.Game.Tests
             }
         }
 
+        /// THE ASSERTION THIS CASE USED TO MAKE WAS THE DEFECT - Phase 9 Task
+        /// 21F. It read `Clear_BlanksTheTexture_RatherThanOnlyStoppingThe
+        /// Drawing`, and it cited the true fact that `Show` hands the SAME
+        /// texture reference to the card and that `ScreenFlow` passes
+        /// `after: null` so the deploy screen is still presented when the
+        /// director's `finally` runs `Clear`. Those two facts do not argue
+        /// for the wipe; they are what makes it visible. The card holds this
+        /// render texture as a LIVE background, so a wipe empties the picture
+        /// under a screen the player is still looking at - which is what a
+        /// device walk found, and which reads as "the lane is empty".
+        ///
+        /// SO THE CONTRACT IS INVERTED AND THIS CASE HOLDS THE NEW ONE:
+        /// `Clear` releases the bodies and stops the rig, and the picture
+        /// belongs to the last `Show` until the next `Show` repaints it.
+        /// `LaneStage.Clear`'s own note carries the argument that a lane for
+        /// the WRONG wave has no path onto a card either way.
         [Test]
-        public void Clear_BlanksTheTexture_RatherThanOnlyStoppingTheDrawing()
+        public void Clear_LeavesTheLastPictureInTheTexture_BecauseACardMayStillBeShowingIt()
         {
             RequireGraphics();
 
@@ -182,18 +203,31 @@ namespace Broodline.Game.Tests
                     1,
                     new List<CreatureLook> { new CreatureLook { Species = Species } },
                     new List<int> { 0 });
-                Assert.Greater(OpaquePixelCount(ReadPixels(texture)), 0,
-                    "precondition: the stage must have painted something to clear");
+                var painted = ReadPixels(texture);
+                Assert.Greater(OpaquePixelCount(painted), 0,
+                    "precondition: the stage must have painted something for Clear to leave alone");
 
                 stage.Clear();
 
-                // `Show` hands the SAME texture reference to whatever
-                // `LanePreviewCard` is displaying, and `ScreenFlow` passes
-                // `after: null` so the deploy screen is still presented when
-                // the director's `finally` runs this. A Clear that only
-                // stopped drawing would leave the last wave on screen.
-                Assert.AreEqual(0, OpaquePixelCount(ReadPixels(texture)),
-                    "Clear left the last wave's frame in the texture");
+                // THE WHOLE CASE, AND IT IS A PIXEL COMPARISON RATHER THAN A
+                // COUNT SO THAT IT CANNOT PASS ON A TEXTURE THAT CHANGED
+                // WITHOUT EMPTYING. Re-adding the `GL.Clear(true, true,
+                // transparent)` this method used to end with takes the opaque
+                // count to 0 and the difference to every pixel, so both
+                // assertions redden together.
+                var afterClear = ReadPixels(texture);
+                Assert.Greater(OpaquePixelCount(afterClear), 0,
+                    "Clear emptied the texture - a LanePreviewCard still bound to it now draws its "
+                    + "flat --green-tint fallback, which is the Task 21f defect");
+                Assert.AreEqual(0, DifferingPixels(painted, afterClear),
+                    "Clear changed the picture the card is showing");
+
+                // AND THE NEXT `Show` IS WHAT REPLACES IT, which is the other
+                // half of the contract: leaving the frame alone would be a
+                // leak rather than a fix if a later wave inherited it.
+                var empty = (RenderTexture)stage.Show(1, new List<CreatureLook>(), new List<int>());
+                Assert.Greater(DifferingPixels(painted, ReadPixels(empty)), 200,
+                    "a Show with no creatures left the previous deployment's picture in place");
             }
             finally
             {

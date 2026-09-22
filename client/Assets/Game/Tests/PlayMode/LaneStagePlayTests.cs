@@ -25,7 +25,8 @@ namespace Broodline.Game.PlayTests
     /// started painting one frame on demand through
     /// `Camera.SubmitRenderRequest`, which is synchronous and needs no player
     /// loop. Everything about "does the lane draw, are the creatures on it,
-    /// does Clear blank it" is answered there, headlessly, every run.
+    /// what does Clear do to the picture" is answered there, headlessly,
+    /// every run.
     ///
     /// SO WHAT IS LEFT HERE IS THE TWO THINGS EDITMODE CANNOT REACH:
     ///
@@ -42,6 +43,14 @@ namespace Broodline.Game.PlayTests
     ///     `Show` can build creatures on top of a set that has not gone yet,
     ///     which would put two waves in one picture. No EditMode test can see
     ///     that, because EditMode never reaches an end of frame.
+    ///
+    ///     THAT SECOND BULLET DESCRIBED A DEFECT THIS FILE DID NOT ACTUALLY
+    ///     CATCH, AND A DEVICE FOUND IT - Phase 9 Task 21f. The case below it
+    ///     watched the destroy LAND at the end of the frame, which it always
+    ///     did; what nothing watched was the frame `Paint` takes BEFORE it,
+    ///     which is the only frame the card ever keeps.
+    ///     `ASecondShowInTheSameFrame_DoesNotPaintThePreviousDeployments
+    ///     Bodies` is the arm for it.
     ///
     /// AND WHAT NEITHER SUITE CHECKS: whether the framing LOOKS right. They
     /// count pixels. `LaneStageTests.EveryPocketOfEveryAuthoredWaveStands
@@ -100,8 +109,16 @@ namespace Broodline.Game.PlayTests
             Object.Destroy(host);
         }
 
+        /// THIS CASE ASSERTED THE OPPOSITE UNTIL PHASE 9 TASK 21F, under the
+        /// name `Clear_MakesTheTextureTransparentAgain_AndItsDestroyIsDeferred
+        /// Here`. `LaneStage.Clear` no longer wipes the render texture, and
+        /// its own note carries why: the card holds that texture as a LIVE
+        /// background and `ScreenFlow` presents with `after: null`, so the
+        /// wipe landed on a deploy screen the player was still looking at.
+        /// Reproduced on an iPhone 17 by backgrounding the app mid-wave past
+        /// `WaveHost.CompletionTimeoutSeconds`.
         [UnityTest]
-        public IEnumerator Clear_MakesTheTextureTransparentAgain_AndItsDestroyIsDeferredHere()
+        public IEnumerator Clear_LeavesThePicture_AndItsDestroyIsStillDeferredHere()
         {
             var host = new GameObject("lane-host");
             var stage = LaneStage.Create(host.transform);
@@ -110,26 +127,91 @@ namespace Broodline.Game.PlayTests
                 new List<CreatureLook> { new CreatureLook { Species = Species } },
                 new List<int> { 0 });
             yield return null;
-            Assert.Greater(OpaquePixelCount(ReadPixels(texture)), 0,
-                "precondition: the stage must have rendered something to clear");
+            var painted = ReadPixels(texture);
+            Assert.Greater(OpaquePixelCount(painted), 0,
+                "precondition: the stage must have rendered something for Clear to leave alone");
 
             stage.Clear();
             yield return null;
 
-            Assert.AreEqual(0, OpaquePixelCount(ReadPixels(texture)),
-                "Clear must blank the render texture, not just stop drawing to it");
+            Assert.AreEqual(0, DifferingPixels(painted, ReadPixels(texture)),
+                "Clear changed the picture a LanePreviewCard may still be showing - re-adding its "
+                + "GL.Clear is the Task 21f defect, and the card falls back to its flat fill");
 
             // THE DEFERRED DESTROY, WHICH IS WHY THIS CASE IS IN PLAY MODE.
             // `Clear` takes the `Object.Destroy` branch here and the
             // `DestroyImmediate` branch everywhere else. After the frame
-            // above has ended, the creatures must actually be gone - a second
-            // `Show` building on top of a set that is still standing would
-            // put two waves in one picture, and the pixel assertion above
-            // would not notice.
+            // above has ended, the creatures must actually be gone. Task 21f
+            // added a `SetActive(false)` before that destroy; this assertion
+            // is what stops the deactivation being mistaken for a release.
             Assert.IsNull(host.transform.Find("lane-stage/creatures"),
                 "the creatures survived the end of the frame Clear was called on");
 
             Object.Destroy(host);
+        }
+
+        /// THE FRAME THE CARD KEEPS, AND THE ONE DEFECT NO EDITMODE TEST CAN
+        /// SEE - Phase 9 Task 21F, found on a device before it was written
+        /// down here.
+        ///
+        /// `Show` calls `Clear`, builds the new bodies and `Paint`s ONE frame,
+        /// all synchronously. In play mode `Clear`'s `Object.Destroy` does not
+        /// run until the END of that frame, so the single painted frame caught
+        /// the PREVIOUS deployment's bodies still alive and still rendering -
+        /// and because `Paint` is one-shot, nothing ever repaired it. On the
+        /// deploy screen a roster toggled down to `DEPLOYED 1/5` drew TWO
+        /// creatures, with the removed one still standing in pocket B and the
+        /// slot strip beside it correctly showing one.
+        ///
+        /// EDITMODE CANNOT REACH THIS. There `Clear` takes the
+        /// `DestroyImmediate` branch, so the bodies are gone before `Paint`
+        /// runs and the case passes on the broken code - the could-not-fail
+        /// shape this phase has found repeatedly. It is written here, where
+        /// the deferral is real, and it HAS NOT BEEN RUN: see this file's
+        /// class comment.
+        ///
+        /// THE REFERENCE IS A SECOND STAGE THAT ONLY EVER DREW THE SECOND
+        /// DEPLOYMENT, rather than a pixel threshold to be generous with. Two
+        /// stages given the same wave and the same bodies paint the same
+        /// frame, so any difference is the stale body. Drop the
+        /// `SetActive(false)` from `LaneStage.Clear` and pocket 2's creature
+        /// survives into the comparison, which is thousands of pixels.
+        [UnityTest]
+        public IEnumerator ASecondShowInTheSameFrame_DoesNotPaintThePreviousDeploymentsBodies()
+        {
+            var host = new GameObject("lane-host");
+            var stage = LaneStage.Create(host.transform);
+
+            // Two bodies, then - WITHOUT yielding, which is the whole case -
+            // one. This is what a tap on a field row does: `FtueDirector`'s
+            // `redraw` closure re-runs `ShowLane` inside the click handler.
+            stage.Show(
+                1,
+                new List<CreatureLook> { new CreatureLook { Species = Species }, new CreatureLook { Species = Species } },
+                new List<int> { 0, 2 });
+            var reduced = (RenderTexture)stage.Show(
+                1,
+                new List<CreatureLook> { new CreatureLook { Species = Species } },
+                new List<int> { 0 });
+            var afterToggle = ReadPixels(reduced);
+
+            var cleanHost = new GameObject("clean-lane-host");
+            var clean = LaneStage.Create(cleanHost.transform);
+            var reference = (RenderTexture)clean.Show(
+                1,
+                new List<CreatureLook> { new CreatureLook { Species = Species } },
+                new List<int> { 0 });
+            var never = ReadPixels(reference);
+
+            Assert.Greater(OpaquePixelCount(never), 0,
+                "precondition: the reference stage painted nothing, so it proves nothing");
+            Assert.AreEqual(0, DifferingPixels(never, afterToggle),
+                "the frame the card keeps still has the previous deployment's bodies in it - "
+                + "Clear's Destroy is deferred to the end of the frame and Paint runs before it");
+
+            Object.Destroy(host);
+            Object.Destroy(cleanHost);
+            yield return null;
         }
 
         static Color[] ReadPixels(RenderTexture texture)

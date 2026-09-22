@@ -335,8 +335,29 @@ namespace Broodline.Game.Shell
             // creatures would still be standing when the next `Show` built a
             // second set on top of them, and the test that reads the texture
             // back would be reading two waves at once.
+            //
+            // DEACTIVATED BEFORE EITHER BRANCH, AND THAT LINE IS PHASE 9 TASK
+            // 21F - MEASURED ON A DEVICE, NOT REASONED ABOUT. `Show` calls
+            // this, builds the new bodies and `Paint`s ONE FRAME, all inside
+            // the same frame; the deferred `Destroy` above does not run until
+            // the END of that frame. So in play mode the single frame the card
+            // keeps was painted with the PREVIOUS deployment's bodies still
+            // alive and still rendering, and nothing ever repaints it. On the
+            // deploy screen at 402x874 a roster toggled down to `DEPLOYED 1/5`
+            // drew TWO creatures - the removed one still standing in pocket B
+            // - and the slot strip beside it correctly showed one.
+            //
+            // `SetActive(false)` RATHER THAN `DestroyImmediate` IN BOTH
+            // BRANCHES. An inactive GameObject renders nothing, so this is
+            // sufficient for the paint, and it leaves the destruction
+            // semantics this file deliberately chose exactly as they were -
+            // `LaneStagePlayTests` still watches the deferred destroy actually
+            // land at the end of the frame. Making play mode destroy
+            // immediately would fix the same frame by changing a rule that is
+            // not the one that is wrong.
             if (_creatures != null)
             {
+                _creatures.SetActive(false);
                 if (Application.isPlaying) Destroy(_creatures);
                 else DestroyImmediate(_creatures);
             }
@@ -348,27 +369,46 @@ namespace Broodline.Game.Shell
             // past a Clear.
             if (_camera != null) _camera.enabled = false;
 
-            // `PortraitStudio.Clear`'s note, and it applies here for exactly
-            // the same reason: disabling the camera does not reset the
-            // texture it was painting, and `Show` hands the same `Texture`
-            // reference out to whatever `LanePreviewCard` is displaying - so
-            // without this a cleared stage still shows the last wave's lane.
-            // It matters MORE here than there: `ScreenFlow.ShowAsync` passes
-            // `after: null`, so the deploy screen is still presented when the
-            // director's `finally` runs this.
+            // AND THE TEXTURE IS LEFT ALONE. THIS METHOD USED TO `GL.Clear` IT
+            // TO TRANSPARENT AND THAT IS THE PHASE 9 TASK 21F DEFECT, CAUGHT
+            // ON A DEVICE. Stated as the old comment stated it, because the
+            // reasoning was sound and the conclusion was backwards:
             //
-            // CLEARED TO TRANSPARENT, NOT TO THE FIELD COLOUR. The card's own
-            // `--green-tint` fill is what should show through an empty
-            // texture, and it is the same colour as the field anyway
-            // (`LaneDressing.Field`), so the two agree on what a blank lane
-            // looks like from either side.
-            if (_texture != null)
-            {
-                var prev = RenderTexture.active;
-                RenderTexture.active = _texture;
-                GL.Clear(true, true, new Color(0f, 0f, 0f, 0f));
-                RenderTexture.active = prev;
-            }
+            //   "`Show` hands the same `Texture` reference out to whatever
+            //   `LanePreviewCard` is displaying [...] `ScreenFlow.ShowAsync`
+            //   passes `after: null`, so the deploy screen is still presented
+            //   when the director's `finally` runs this."
+            //
+            // Both halves are true, and TOGETHER THEY ARE THE BUG RATHER THAN
+            // THE REASON FOR THE WIPE. The card holds this render texture as a
+            // LIVE background, so it shows whatever is in the buffer at the
+            // moment it draws - and the deploy screen outliving the beat means
+            // the wipe lands on a card the player is still looking at.
+            // `FtueDirector.FightAsync` has four exits that show no other
+            // screen first (`CanDeploy` false, `StartAsync` throwing, `_play`
+            // throwing, and an outbox submit that is not `Sent`), and on every
+            // one of them the `finally` wiped the lane out from under the
+            // presented deploy screen. Reproduced on an iPhone 17 at 402x874:
+            // background the app mid-wave past `WaveHost
+            // .CompletionTimeoutSeconds`, and the deploy screen comes back
+            // with a flat `--green-tint` card - no path, no dashes, no trees,
+            // no creatures - while its slot strip still reads `A B C` filled.
+            // NOTHING LOGGED, because `Show` was never re-entered: the card
+            // was never handed null, its buffer was emptied underneath it.
+            //
+            // WHAT THE WIPE WAS PROTECTING AGAINST CANNOT HAPPEN. It guarded
+            // "a cleared stage still shows the last wave's lane", but the card
+            // only ever RECEIVES a texture from `FtueDirector.ShowLane`, which
+            // calls `Show(waveId, ...)` - and `Show` repaints for the wave it
+            // is about to display before the card is bound to it. So a lane
+            // for the WRONG wave has no path onto a card, with or without this
+            // wipe; the only picture this method could ever erase is the
+            // correct picture for the screen that is still up. The frame
+            // belongs to the last `Show` and is replaced by the next one.
+            //
+            // A wave this build does not author is unaffected and keeps its
+            // own answer: `Show` returns null there, `ShowLane` passes null on,
+            // and `LanePreviewCard.SetTexture` falls back to its own fill.
         }
 
         /// Point the camera at `centreX` from a lower three-quarter angle, so

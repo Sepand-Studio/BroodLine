@@ -363,11 +363,18 @@ namespace Broodline.Game
             //     so NOTHING HIDES THE VIEW when the turn resolves - it stays
             //     presented until the next `ScreenHost.Show`, and the turn's
             //     continuation runs synchronously inside the `Button.clicked`
-            //     handler. A `Clear` written just after the await would blank
-            //     the lane card while the player is still looking at it,
-            //     through the whole of `StartAsync`'s round trip. That is the
-            //     ring-with-nothing-in-it defect, arrived at from the lane
-            //     side.
+            //     handler. So the deploy screen OUTLIVES THIS BEAT, through
+            //     the whole of `StartAsync`'s round trip and past every exit
+            //     below.
+            //
+            //     THAT FACT USED TO MAKE THE `finally` BLANK THE LANE, AND
+            //     PHASE 9 TASK 21F MOVED THE FIX TO THE RIG RATHER THAN TO
+            //     THIS SHAPE. `LaneStage.Clear` no longer wipes the render
+            //     texture - the card holds it as a live background, so the
+            //     wipe emptied a picture the player was still looking at on
+            //     the four exits below that show no other screen first. See
+            //     that method's note for the measurement. Nothing about the
+            //     ordering here had to change.
             //   - `Show` leaves a camera enabled and a render texture being
             //     painted, and three paths below return early, so a `Clear`
             //     written after them would leave the stage running for the
@@ -544,15 +551,26 @@ namespace Broodline.Game
                 // put a resumption point on the exception path of a beat for
                 // no gain.
                 //
-                // THE COST OF SPANNING THE WHOLE BEAT, NAMED: the stage's
-                // camera stays enabled through the hosted wave, painting a
-                // 640x480 target it is not being looked at for. The
-                // alternative - clearing when the turn resolves - blanks the
-                // lane card while the deploy screen is still presented, which
-                // is the defect this shape exists to avoid. Freezing the
-                // camera without clearing the texture would get both and is
-                // not built here: it would be a fourth public member on
-                // `LaneStage` past the three this task's interface names.
+                // WHAT THIS CALL DOES, AND WHAT IT DELIBERATELY NO LONGER
+                // DOES - Phase 9 Task 21f. `Clear` releases the creature
+                // bodies and leaves the rig stopped. It does NOT touch the
+                // render texture, so the deploy screen this beat outlives
+                // keeps the lane it was drawn with.
+                //
+                // THAT MATTERS ON THE EXITS THAT SHOW NO OTHER SCREEN FIRST,
+                // WHICH IS FOUR OF THEM: the `CanDeploy` refusal above, the
+                // `StartAsync` catch, the `_play` catch, and a submission the
+                // outbox did not send. The win and defeat paths are safe only
+                // because `PostWaveView`/`WaveDefeatView` are already up by
+                // the time this runs; on the other four the player is left
+                // looking at the deploy screen, and a wipe here emptied its
+                // lane card. That is the "the lane is empty" the exit gate's
+                // second walk reported, reproduced by backgrounding the
+                // packaged app past `WaveHost.CompletionTimeoutSeconds`.
+                //
+                // No fourth member on `LaneStage` was needed after all: its
+                // surface is still `Width`, `Height`, `OrthographicSize`,
+                // `Create`, `Show`, `Clear`.
                 try
                 {
                     if (_stage != null) _stage.Clear();
