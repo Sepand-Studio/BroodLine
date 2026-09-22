@@ -102,8 +102,17 @@
  * already `TraitChip`'s own 2px-a-side margin; restating the horizontal half
  * here made every chip 6px wider than it measures and wrapped both of them
  * onto separate rows inside a 136px tile. USS on 6000.6.0f1 has no `gap`, so
- * the between-rows half has nowhere else to live. */
-.creature-card__traits > .trait-chip { margin-bottom: 4px; }
+ * the between-rows half has nowhere else to live.
+ *
+ * --space-1 RATHER THAN THE LITERAL 4px IT WAS - Phase 9 Task 16b. The
+ * identical declaration is written in `SpliceChamberView.uss` for the
+ * identical gap under the identical chips, and it was written there as the
+ * token: one gap reading as "the handoff's 4" in one file and "the scale's
+ * first step" in another is the same number pretending to be two. The token
+ * wins because the value IS on the scale and because this phase's standing
+ * rule is that spacing comes from Tokens.uss. `TraitChip`'s own 2px stays a
+ * literal - there is no 2px step to name it with. */
+.creature-card__traits > .trait-chip { margin-bottom: var(--space-1); }
 
 /* bible 3.3: the Founder's name is what stops a player. A visible marker on
  * the card itself is the read that carries into the roster and the splice

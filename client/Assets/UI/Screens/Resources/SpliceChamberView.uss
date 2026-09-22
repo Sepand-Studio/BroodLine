@@ -22,6 +22,12 @@
  * are `MutationBanner`'s, which also owns the collapse; `.forecast-row`'s
  * row direction is `InheritanceBar`'s own; and the CTA's top margin is the
  * cost row's.
+ *
+ * AND WHAT LEFT IN TASK 16b: two GAPS this sheet was paying a second time.
+ * The forecast column's `margin-top` and its `> .forecast-row` rule (the
+ * bars' own 9px, restated) and the lineage strip's `margin-top` (the
+ * track's own 8px, restated) are gone; each removal's own note, further
+ * down, has what it double-counted and the handoff line it missed by.
  */
 .splice-chamber-view { flex-grow: 1; }
 
@@ -279,12 +285,21 @@
 
 /* `:139` onward - the bars stack. A column rather than the Phase 8 row of
  * `StatCell`s: the handoff's rows are full-width and compared vertically,
- * which is what the bar inside each one is for. */
-.splice-chamber-view__forecast { flex-direction: column; margin-top: 10px; }
-
-/* `:151` and `:163` - `margin-top: 9px` between rows, and none above the
- * first, which the container's own 10px already provides. */
-.splice-chamber-view__forecast > .forecast-row { margin-top: 9px; }
+ * which is what the bar inside each one is for.
+ *
+ * NO `margin-top` HERE, AND THE RULE THAT USED TO SIT UNDER THIS ONE IS
+ * GONE - Phase 9 Task 16b. The pair read `margin-top: 10px` on this column
+ * plus `margin-top: 9px` on `> .forecast-row`, and the second was a verbatim
+ * restatement of `InheritanceBar.uss`'s own `.inheritance-bar { margin-top:
+ * 9px }`. Identical value, so deleting it changes nothing - BUT the comment
+ * beside it claimed "none above the first, which the container's own 10px
+ * already provides", and that was wrong in a way the capture shows: the
+ * first bar was taking the container's 10 PLUS the component's 9 = 19,
+ * against `:139`'s 10. With this column's margin at 0 the component pays
+ * every gap, first one included: 9 where the handoff draws 10 (one under,
+ * on the component's own rhythm) and 9 between the rest, which is `:151`
+ * and `:163` exactly. */
+.splice-chamber-view__forecast { flex-direction: column; }
 
 /* The empty case is one element in a column of rows, and unlike the Phase 8
  * row version it needs no `flex-grow` to fill the line - a column child
@@ -293,11 +308,17 @@
  * { flex-grow: 1 }` would have grown the message vertically instead, which
  * is not what the old rule did in a row and not what this card wants. */
 
-/* `:188` - the rail sits 8px under its header. The strip is `LineageStrip`
- * and brings everything else it needs; this is the one gap between it and
- * the header row above, which no component can own because neither is the
- * other's descendant. */
-.splice-chamber-view .lineage-strip { margin-top: var(--space-2); }
+/* `:188` - the rail sits 8px under its header, AND `LineageStrip` ALREADY
+ * PAYS IT. The rule that used to be here added --space-2 to `.lineage-strip`
+ * on top of `LineageStrip.uss:29`'s own --space-2 on `.lineage-strip__track`,
+ * so the rail sat 16px under the header against the handoff's 8 - Phase 9
+ * Task 16b removed it. The sentence that justified it ("no component can own
+ * this gap, because neither element is the other's descendant") was the part
+ * that was wrong: the strip's FIRST CHILD is the track, the strip itself has
+ * no padding, and UI Toolkit has no margin collapsing, so the track's own
+ * top margin IS the gap under whatever sits above the strip. Kept as a
+ * comment rather than a rule because the next screen to place a
+ * `LineageStrip` under a header will reach for the same 8px twice. */
 
 /* Two sentences, not labels, so they wrap. The coverage warning also
  * COLLAPSES when the server named nothing - SpliceChamberView.Bind has the
