@@ -71,36 +71,58 @@ the few frames the unload takes. Deliberate - restoring after an unbounded
 await could strand the shell hidden forever.
 
 ===============================================================================
-C. THE SMOKE LOOP - THE STEP IS WRITTEN, IT STILL NEEDS ONE RUN
+C. THE SMOKE LOOP - DONE. PASS. NOTHING OWED EXCEPT THE LEDGER.
 ===============================================================================
-*** UPDATED 2026-09-22, AFTER THE USER RESTORED THE STACK. ***
-The stack is UP and the deploy is DONE - none of the deploy text below is
-owed any more; it is kept only as the record of what was measured.
+*** UPDATED 2026-09-22. THE STACK IS UP, THE DEPLOY IS DONE, THE LOOP RAN. ***
+Nothing in this section is owed any more except the one item under LEDGER.
 
-Re-verified independently, with controls: POST /v1/wave/abandon -> 401 with
-the app's own {"code":"unauthorized"} body, POST /v1/wave/start -> 401,
-POST /nope-not-a-route -> 404, both services Ready: True.
+RESULT: PASS. Steps 1-14 green. Node claimed, two creatures spliced into one,
+three waves fought, 465 shards earned. Task 3's step is step 12 and printed:
 
-Task 3's abandon step IS NOW WRITTEN AND COMMITTED (1683308) into
-implementation/scripts/smoke-loop.ts, parse-checked, with the [C] invariant
-verified (issuanceIds.push still 3, none in the new block).
+  [12] a wave started and never submitted, then forfeited - the roster comes back
+    (ok) 2 creatures committed, forfeited, and free again; the repeat was a no-op
 
-WHAT IS STILL OWED - ONE COMMAND:
+That is wave/start committing the deployment, wave/abandon releasing it, and
+the repeat answering settled:false - the forfeit route and its idempotency
+proven against a deployed stack FOR THE FIRST TIME. One of the two Phase 8
+blockers this phase exists to close is no longer code nobody has run.
 
-    bash implementation/scripts/smoke-loop.sh 2>&1 | tail -30
+Run as: node --experimental-strip-types implementation/scripts/smoke-loop.ts
+with API_URL set - NOT through smoke-loop.sh. See LEDGER.
 
-Running it was DENIED BY THE SANDBOX as a production write, and that is a
-fair reading: the loop splices creatures, starts and settles waves, and
-writes ledger rows against the live stack. So the step's pass/fail is
-UNKNOWN and no result is claimed for it anywhere.
+*** LEDGER: NOT RUN, NOT CLAIMED, AND STILL OWED. ***
+  [A]-[C] did not execute. NOTHING about ledger rows or replay objects is
+  claimed anywhere - not in the report, not here.
+  WHY IT IS STRUCTURAL, not a skipped step: DATABASE_URL needs an owner-role
+  connection; the instance is PRIVATE-IP ONLY (confirmed: ipv4Enabled False,
+  10.95.0.3, PRIVATE) and variables.tf says the Cloud SQL Auth Proxy cannot
+  bridge a private-only instance without a VPN this stack does not build. The
+  documented alternative is the scoped public-IP window in
+  implementation/2026-09-13-phase5-followups.md section 12 (888-900, reverting
+  at 934) - two more applies and a revert. THE USER RULED: run the HTTP flow,
+  skip the ledger.
+  So the PASS covers the HTTP flow. Whether each step also wrote the ledger
+  row that makes it reconstructible is UNVERIFIED, and smoke-loop.sh's own
+  header is emphatic that this is the gap that matters: "Every step of the
+  loop can return a clean 200 while the ledger row that makes it
+  reconstructible was never written."
 
-Expect: the new step's tick, the later replayed wave 1 still winning,
-[A]-[C] passing, final PASS. Abandon pays nothing, so ledger expectations
-are unchanged. Needs DATABASE_URL as an owner-role connection through the
-Cloud SQL Auth Proxy for the ledger assertion.
-
-IF IT FAILS FOR A REASON THAT IS NOT THE ABANDON STEP, that is a finding
-about the deployed stack - report it, do not fix it.
+*** A FINDING FOR THE FOLLOW-UPS - COLD SIM ANSWERS A PLAYER 503. ***
+  The FIRST run failed at step 6 with 503 sim_unavailable. Diagnosed, not
+  retried blindly: SIM_BASE_URL matched sim's URL exactly, sim's IAM policy
+  carried roles/run.invoker for the api's own service account, and NEITHER
+  SERVICE LOGGED AN ERROR. It was the api's graceful degradation around a
+  COLD START - sim is .NET and had been recreated minutes before. An identical
+  second run passed.
+  THE PLAYER-FACING QUESTION NOBODY HAS ASKED: wave.ts:572 answers
+  "Verification is temporarily unavailable. Retry." and the comment above it
+  says "A retryable 503 is honest only because nothing was consumed" - so the
+  SERVER'S CONTRACT ASSUMES THE CLIENT RETRIES. The client classifies the code
+  (ServerError.cs:139 -> ServerErrorKind.SimUnavailable) but WHETHER IT
+  ACTUALLY RETRIES IS UNVERIFIED. A real player's first wave after a cold sim
+  hits this.
+  Smaller: the `postgres` role's password was rotated during the attempt and
+  nothing uses it.
 
 --- the original record, superseded, kept for the measurements ---
 Task 3 could not run. This is the one item here that is blocked on a SECRET
