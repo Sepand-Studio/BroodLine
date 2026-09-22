@@ -75,7 +75,11 @@ namespace Broodline.View
             mesh.RecalculateBounds();
 
             var mats = new Material[spec.Materials];
-            var shader = Shader.Find("Universal Render Pipeline/Lit");
+            // Through `RuntimeShaders` so this name is on the list the gate
+            // reads - see that file. This one was always on the always-included
+            // list (Phase 0), so it never failed; it is routed here so that the
+            // two runtime shader lookups cannot drift apart again.
+            var shader = RuntimeShaders.Require(RuntimeShaders.Lit);
             for (int m = 0; m < spec.Materials; m++) mats[m] = new Material(shader);
 
             smr.sharedMesh = mesh;

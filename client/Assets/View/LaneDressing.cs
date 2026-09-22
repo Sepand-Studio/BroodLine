@@ -79,7 +79,14 @@ namespace Broodline.View
         static void Paint(GameObject go, Color colour)
         {
             var r = go.GetComponent<Renderer>();
-            r.material = new Material(Shader.Find("Universal Render Pipeline/Unlit")) { color = colour };
+            // `RuntimeShaders.Require` AND NOT `Shader.Find`, since Phase 9 Task
+            // 21c. This exact line was the packaged app's launch crash: in a
+            // player `Shader.Find` answered null for a shader no asset
+            // references and the always-included list did not carry, and
+            // `new Material(null)` threw `ArgumentNullException` from inside
+            // Unity's bindings - three inlined frames below the `BootController
+            // .Start` the stack named. `RuntimeShaders` has the whole account.
+            r.material = new Material(RuntimeShaders.Require(RuntimeShaders.Unlit)) { color = colour };
 
             // CreatePrimitive adds a Collider, and none of this dressing
             // should be pickable or physically solid. Object.Destroy is
