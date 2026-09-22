@@ -207,12 +207,29 @@ namespace Broodline.UI
         }
 
         /// The child, as this screen names it.
+        ///
+        /// AN EMPTY COMBAT SLOT IS NOT LISTED - Phase 9 Task 21e. This read
+        /// both slots unconditionally, so a child with one trait was
+        /// introduced as "Ash (G3) — Carapace II, None": the wire's word for
+        /// an empty slot, printed in a sentence, with a comma in front of it.
+        /// It is the same defect as the granted card's two "None" chips, in
+        /// prose instead of in chips, and `CreatureLabel.IsAbsentTrait` has
+        /// the ruling. A child with NEITHER trait is named with no dash at
+        /// all rather than with a dangling one, on `CreatureLabel.RoleLine`'s
+        /// own rule - "a line reading ` · Forage` is a hole where a fact
+        /// should be".
         public static string ChildLine(CreatureDto child)
         {
             if (child == null) return string.Empty;
-            return CreatureLabel.WithGeneration(child) + " — "
-                + CreatureLabel.TraitWithTier(child.Trait1, child.Tier1) + ", "
-                + CreatureLabel.TraitWithTier(child.Trait2, child.Tier2);
+
+            var named = new List<string>(2);
+            if (!CreatureLabel.IsAbsentTrait(child.Trait1))
+                named.Add(CreatureLabel.TraitWithTier(child.Trait1, child.Tier1));
+            if (!CreatureLabel.IsAbsentTrait(child.Trait2))
+                named.Add(CreatureLabel.TraitWithTier(child.Trait2, child.Tier2));
+
+            var name = CreatureLabel.WithGeneration(child);
+            return named.Count == 0 ? name : name + " — " + string.Join(", ", named);
         }
 
         /// splice_confirm_spec section 5: "Then show the lineage." The button

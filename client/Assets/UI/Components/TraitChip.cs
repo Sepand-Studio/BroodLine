@@ -38,6 +38,12 @@ namespace Broodline.UI.Components
     /// display as 'less than tier I'" - so a null tier renders as the bare
     /// trait name plus the `aberrant` marker, which is the same contract
     /// `TraitPip` and `CreatureCard` already keep.
+    ///
+    /// UNLESS THERE IS NO TRAIT, WHICH IS A THIRD STATE AND WAS BEING READ AS
+    /// THE SECOND - Phase 9 Task 21e. An empty combat slot comes over the
+    /// wire as `"None"` with a null tier, so every absence was wearing the
+    /// Aberrant outline. `CreatureLabel.IsAbsentTrait` is the one definition
+    /// of that state and the constructor consults it.
     public sealed class TraitChip : VisualElement
     {
         public const string UssClassName = "trait-chip";
@@ -64,7 +70,16 @@ namespace Broodline.UI.Components
             var key = (species ?? string.Empty).Trim().ToLowerInvariant();
             if (key.Length > 0) AddToClassList(UssClassName + "--" + key);
 
-            EnableInClassList(AberrantUssClassName, tier == null);
+            // A NULL TIER IS AN ABERRANT ONLY IF THERE IS A TRAIT - Phase 9
+            // Task 21e. An empty combat slot arrives as `"None"` with a null
+            // tier (`CreatureLabel.IsAbsentTrait` has the wire shape and Task
+            // 6b's ruling), so `tier == null` alone marked every absence with
+            // the rare-trait outline. No screen builds such a chip any more -
+            // `CreatureCard` and `LineageView` both skip an absent slot - and
+            // this is the guard that keeps a direct caller from re-creating
+            // the defect the exit gate's walk found.
+            EnableInClassList(AberrantUssClassName,
+                tier == null && !CreatureLabel.IsAbsentTrait(trait));
 
             this.Q<Label>("trait").text = CreatureLabel.TraitWithTier(trait, tier);
         }

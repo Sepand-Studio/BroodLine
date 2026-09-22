@@ -130,9 +130,32 @@ namespace Broodline.UI.Components
             _gen.Clear();
             _gen.Add(new GenChip(creature.Generation));
 
+            // AN ABSENT SLOT DRAWS NOTHING - Phase 9 Task 21e. The granted
+            // Hollow on the post-wave screen has no combat traits at all, and
+            // this card drew two chips reading "None" at the player: the
+            // wire's word for an empty slot, laid out as though it were the
+            // name of a trait. `CreatureLabel.IsAbsentTrait` has the ruling
+            // and why the engine is not at fault.
+            //
+            // "TWO, NOT FOUR" IS UNCHANGED AND IS STILL THE GUARANTEE
+            // (screen_inventory_v2 3). What this adds is an upper bound that
+            // was never the question: two SLOTS are read, in order, and each
+            // draws a chip only if it holds something. A creature with one
+            // trait shows one chip; a creature with none shows no row at all.
+            //
+            // AND THE ROW COLLAPSES WHEN IT IS EMPTY, which is not tidying:
+            // `.creature-card__traits` carries `margin-top: 7px`, so a row
+            // with nothing in it is a 7px hole under the role line rather
+            // than nothing. This is the same rule `_instinct` two blocks up
+            // keeps, and `FounderNamingView.Blocker` and
+            // `ScreenScaffold.FooterNote` before it - every conditional row
+            // in this project is removed from the layout rather than blanked,
+            // because every one of them carries a margin of its own.
             _traits.Clear();
-            _traits.Add(new TraitChip(creature.Trait1, creature.Tier1, creature.Species));
-            _traits.Add(new TraitChip(creature.Trait2, creature.Tier2, creature.Species));
+            AddTrait(creature.Trait1, creature.Tier1, creature.Species);
+            AddTrait(creature.Trait2, creature.Tier2, creature.Species);
+            _traits.style.display = _traits.childCount == 0
+                ? DisplayStyle.None : DisplayStyle.Flex;
 
             // The baked sprites, stacked body / dorsal / flank - Phase 9's
             // bridge from the 3D pipeline to the flat card. `CreatureSprites`
@@ -148,8 +171,34 @@ namespace Broodline.UI.Components
 
             // data_model 2: a TraitInstance's coverage_tier is null exactly
             // when it holds an Aberrant. Either combat slot can hold one.
-            EnableInClassList(AberrantUssClassName, creature.Tier1 == null || creature.Tier2 == null);
+            //
+            // AN EMPTY SLOT IS NOT AN ABERRANT, AND THIS CARD SAID IT WAS -
+            // Phase 9 Task 21e. `"None"` arrives with a null tier (the
+            // contract serialises `Trait.None` by name and leaves the tier
+            // null - `SimulateTests` asserts exactly that pair), so the test
+            // above marked every traitless creature `aberrant` and drew the
+            // rare-trait treatment around it. The granted Hollow the walk
+            // found was wearing it. Task 6b ruled on this same pair in
+            // `FtueDirector.Tier` - "an absent trait has no coverage to null
+            // out" - and this is that ruling applied one layer up.
+            EnableInClassList(AberrantUssClassName,
+                IsAberrant(creature.Trait1, creature.Tier1)
+                || IsAberrant(creature.Trait2, creature.Tier2));
+        }
 
+        /// A slot holds an Aberrant when it holds a TRAIT whose coverage tier
+        /// is null. Both halves are load-bearing: no trait is not an Aberrant,
+        /// and a trait with a tier is not one either.
+        static bool IsAberrant(string trait, int? tier)
+        {
+            return tier == null && !CreatureLabel.IsAbsentTrait(trait);
+        }
+
+        /// One combat slot, drawn only if it holds something.
+        void AddTrait(string trait, int? tier, string species)
+        {
+            if (CreatureLabel.IsAbsentTrait(trait)) return;
+            _traits.Add(new TraitChip(trait, tier, species));
         }
 
         void SetLayer(string name, Texture2D texture)

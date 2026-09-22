@@ -184,6 +184,133 @@ namespace Broodline.UI.Tests
             StringAssert.Contains("Wall", card.Q<Label>("instinct").text);
         }
 
+        /// THE ONE DEFINITION OF AN EMPTY COMBAT SLOT - Phase 9 Task 21e.
+        ///
+        /// THERE WERE TWO AND A HALF BEFORE THIS. `LineageView.AddTrait`
+        /// screened `string.IsNullOrEmpty`, which catches a missing STRING and
+        /// not the wire's word for a missing TRAIT; `CreatureCard` screened
+        /// nothing and drew "None" at the player; `FtueDirector.Tier` had the
+        /// right test and kept it to itself. One place knows now, and the
+        /// three readers consult it.
+        ///
+        /// EVERY ARM BELOW IS A WAY THE SLOT ACTUALLY ARRIVES OR A WAY IT
+        /// MUST NOT BE READ. Dropping the `"None"` arm restores the defect;
+        /// dropping `Trim` lets a padded value through; making the comparison
+        /// case-sensitive breaks on a wire that ever shouts; and the
+        /// "Noneish" arm is what stops the test passing against a
+        /// `StartsWith` or a `Contains`, which would swallow a real trait
+        /// called "Nonesuch".
+        [Test]
+        public void AnAbsentTraitIsRecognisedByOneDefinition_AndARealOneIsNot()
+        {
+            Assert.IsTrue(CreatureLabel.IsAbsentTrait("None"), "the wire's own word for an empty slot");
+            Assert.IsTrue(CreatureLabel.IsAbsentTrait("none"), "case must not decide this");
+            Assert.IsTrue(CreatureLabel.IsAbsentTrait("NONE"));
+            Assert.IsTrue(CreatureLabel.IsAbsentTrait(" None "), "a padded value is the same absence");
+            Assert.IsTrue(CreatureLabel.IsAbsentTrait(null));
+            Assert.IsTrue(CreatureLabel.IsAbsentTrait(string.Empty));
+
+            Assert.IsFalse(CreatureLabel.IsAbsentTrait("Chill"));
+            Assert.IsFalse(CreatureLabel.IsAbsentTrait("Nonesuch"),
+                "a real trait whose name opens with the absence's was swallowed - this is what "
+                + "a StartsWith or a Contains would do");
+        }
+
+        /// THE SAME ABSENCE IN PROSE - `SpliceRevealScreen.ChildLine` names a
+        /// new creature's two combat slots in a sentence, and read both of
+        /// them unconditionally. A child with one trait was introduced as
+        /// "Ash (G3) — Carapace II, None", with a comma in front of the hole.
+        ///
+        /// THE NO-TRAIT ARM DROPS THE DASH WITH IT, on `CreatureLabel
+        /// .RoleLine`'s own rule: "a line reading ` · Forage` is a hole where
+        /// a fact should be". A dangling em dash is that hole one punctuation
+        /// mark over.
+        [Test]
+        public void TheRevealsChildLine_NamesOnlyTheSlotsThatHoldSomething()
+        {
+            var one = SpliceRevealScreen.ChildLine(
+                Creature("Vetch", gen: 3, name: "Ash", founder: false,
+                         trait1: "Carapace", tier1: 2, trait2: "None", tier2: null));
+            StringAssert.DoesNotContain("None", one, "the empty slot was named in the sentence");
+            StringAssert.Contains("Carapace II", one);
+            StringAssert.DoesNotContain(", ", one, "the joiner outlived the trait it was joining");
+
+            var both = SpliceRevealScreen.ChildLine(
+                Creature("Vetch", gen: 3, name: "Ash", founder: false,
+                         trait1: "Carapace", tier1: 2, trait2: "Taunt", tier2: 1));
+            StringAssert.Contains("Carapace II, Taunt I", both,
+                "sanity: two real traits must still be joined, or the check above proves nothing");
+
+            var none = SpliceRevealScreen.ChildLine(
+                Creature("Hollow", gen: 1, name: null, founder: false,
+                         trait1: "None", tier1: null, trait2: "None", tier2: null));
+            StringAssert.DoesNotContain("—", none, "a dangling em dash is a hole where a fact should be");
+            StringAssert.DoesNotContain("None", none);
+            Assert.IsNotEmpty(none, "the creature still has a name and a generation to state");
+        }
+
+        /// AN EMPTY COMBAT SLOT DRAWS NO CHIP - PHASE 9 TASK 21e, AND THIS IS
+        /// THE DEFECT THE EXIT GATE'S WALK FOUND ON A REAL DEVICE. The
+        /// granted Hollow on the post-wave screen has no combat traits, and
+        /// this card drew TWO CHIPS BOTH READING "None": the wire's own word
+        /// for an empty slot, laid out as though it were the name of a trait.
+        ///
+        /// THE ENGINE IS NOT AT FAULT AND THAT IS WHY THE FIX IS HERE.
+        /// `Trait` is an enum whose zero member is `None`, the contract
+        /// serialises it by name with a null tier, and Task 6b already ruled
+        /// on what the pair MEANS - `FtueDirector.Tier` returns 0 for it
+        /// rather than throwing, because "an absent trait has no coverage to
+        /// null out". `CreatureLabel.IsAbsentTrait` is the one place that
+        /// knows it, and `CreatureLabelTests` holds its own arms.
+        ///
+        /// BOTH HALVES OF THE ABERRANT BUG TOO. A null tier IS an Aberrant
+        /// (data_model 2) and an empty slot ALSO arrives with a null tier, so
+        /// `Tier1 == null || Tier2 == null` marked every traitless creature
+        /// `aberrant` and drew the rare-trait treatment around the word
+        /// "None". Reverting either the chip guard or the aberrant guard
+        /// reddens a line below.
+        [Test]
+        public void CreatureCard_WithAnEmptySlot_DrawsNoChipForItAndIsNotAberrant()
+        {
+            // ONE trait and one absence - the shape `FtueDirectorTests`
+            // documents ("a creature with one combat trait arrives as trait2
+            // \"None\" with a null tier").
+            var card = new CreatureCard();
+            card.Bind(Creature("Vetch", gen: 1, name: "Ash", founder: false,
+                               trait1: "Taunt", tier1: 1, trait2: "None", tier2: null), Counters());
+
+            var chips = card.Query<TraitChip>().ToList();
+            Assert.AreEqual(1, chips.Count, "the empty slot drew a chip of its own");
+            Assert.AreEqual(CreatureLabel.TraitWithTier("Taunt", 1), chips[0].Q<Label>("trait").text);
+            Assert.IsFalse(card.ClassListContains("aberrant"),
+                "an empty slot is not an Aberrant - Task 6b ruled on exactly this pair");
+
+            // NEITHER trait: the granted Hollow the walk found. No chips at
+            // all, and the row is removed rather than left as a 7px hole
+            // under the role line.
+            var bare = new CreatureCard();
+            bare.Bind(Creature("Hollow", gen: 1, name: null, founder: false,
+                               trait1: "None", tier1: null, trait2: "None", tier2: null), Counters());
+
+            Assert.IsEmpty(bare.Query<TraitChip>().ToList(),
+                "the granted Hollow's card drew two chips reading \"None\" at the player");
+            Assert.IsFalse(bare.ClassListContains("aberrant"));
+            Assert.AreEqual(DisplayStyle.None, bare.Q<VisualElement>("traits").style.display.value,
+                "the empty trait row carries margin-top: 7px, so it has to be removed rather "
+                + "than left empty");
+
+            // AND A REAL ABERRANT STILL READS AS ONE, which is what stops the
+            // guard above being written as `tier == null ? not aberrant`. A
+            // null tier on a PRESENT trait is data_model 2's Aberrant and the
+            // card must still say so.
+            var aberrant = new CreatureCard();
+            aberrant.Bind(Creature("Ember", gen: 2, name: null, founder: false,
+                                   trait1: "Cinder", tier1: null, trait2: "None", tier2: null), Counters());
+            Assert.IsTrue(aberrant.ClassListContains("aberrant"),
+                "a trait with a null coverage tier IS an Aberrant and the card stopped saying so");
+            Assert.AreEqual(1, aberrant.Query<TraitChip>().ToList().Count);
+        }
+
         /// THE CHIPS ARE TINTED BY THE SPECIES THAT CARRIES THE TRAIT, which
         /// is the whole reason the card moved off `TraitPip`: a pip is violet
         /// whatever the creature is. Without this, a card that built two
@@ -969,6 +1096,74 @@ namespace Broodline.UI.Tests
                 "the fixed height outlived the Fill that replaced it, so the band cannot grow past it");
         }
 
+        /// THE ORNAMENT FITS THE BAND, AND THE BAND CAN BE SHORTER THAN IT -
+        /// Phase 9 Task 21e. `HeroBand.OrnamentScale`'s own note has the
+        /// measurement: on the iPhone 17 the exit-gate walk ran on, the
+        /// founder screen's band lands near 226 points against a fixed 264px
+        /// ring, and `.hero-band__surface`'s `overflow: hidden` answers that
+        /// by sawing the top and bottom arcs off a dashed circle.
+        ///
+        /// A PURE FUNCTION IS TESTED HERE AND THE WIRING IS NOT, DELIBERATELY.
+        /// These trees have no panel, so the `resolvedStyle` reads `FitOrnament`
+        /// makes would every one of them return zero and this would pass on
+        /// anything - which is the could-not-fail shape this phase has found
+        /// three times. The arithmetic is the part a test can hold; that it is
+        /// CALLED on a real band was measured with `probe-frame.sh` at
+        /// 402x704 and on the device, and the report names both.
+        ///
+        /// EVERY ARM IS A FAILURE SOMETHING WOULD CAUSE. Dropping the
+        /// `Mathf.Min(1f, ...)` reddens the tall-band arm and would blow the
+        /// corpus's ring up from 264 to 456; dropping the guards reddens the
+        /// unresolved arms and would write a `scale` of 0, NaN or infinity
+        /// onto a band that had not been laid out yet, which paints nothing
+        /// at all.
+        [Test]
+        public void AHeroBandsOrnamentShrinksToFitAShortBand_AndNeverGrows()
+        {
+            // The case the defect was measured in: a 226pt band, a 264px ring.
+            Assert.AreEqual(226f / 264f, HeroBand.OrnamentScale(226f, 264f), 0.0001f,
+                "a band shorter than its ring must shrink the ornament, or overflow:hidden saws "
+                + "the top and bottom arcs off the dashed circle");
+
+            // Exactly the ring: no scaling, and no floating-point creep past 1.
+            Assert.AreEqual(1f, HeroBand.OrnamentScale(264f, 264f), 0.0001f);
+
+            // The ordinary case, and the corpus's. The founder band measures
+            // 456 at 430x932; the ring is an ornament in a band that grows,
+            // not a thing that fills it.
+            Assert.AreEqual(1f, HeroBand.OrnamentScale(456f, 264f),
+                "a tall band scaled its ornament UP, which would move every committed capture");
+
+            // Unresolved, in each of the ways a band can be. All four mean
+            // "draw it at the size the stylesheet said".
+            Assert.AreEqual(1f, HeroBand.OrnamentScale(0f, 264f), "a band before its first layout");
+            Assert.AreEqual(1f, HeroBand.OrnamentScale(226f, 0f), "a ring whose stylesheet did not load");
+            Assert.AreEqual(1f, HeroBand.OrnamentScale(float.NaN, 264f), "an unresolved band height");
+            Assert.AreEqual(1f, HeroBand.OrnamentScale(226f, float.NaN), "an unresolved ring width");
+        }
+
+        /// A RINGLESS BAND HAS NOTHING TO FIT AND MUST NOT TRY. Splice
+        /// Chamber's band is `ring: false` and its subject is a padded column
+        /// the handoff draws at its own size (`Splice Chamber:101`); scaling
+        /// that would shrink two parent cards for no reason. The halo is
+        /// REMOVED rather than hidden on such a band, so a `FitOrnament` that
+        /// ran anyway would dereference null - which is the failure this
+        /// asserts is not reachable.
+        [Test]
+        public void ARinglessHeroBandIsBuiltAndResizedWithoutAnOrnament()
+        {
+            var band = new HeroBand(ring: false);
+            Assert.IsNull(band.Q<VisualElement>("halo"), "a ringless band kept its halo");
+            Assert.IsNull(band.Q<VisualElement>("ring"), "a ringless band kept its ring");
+
+            // Fill/Fix are what a screen calls on a resized band; neither may
+            // reach the fit path on this instance.
+            band.Fill(300f);
+            band.Fix(372f);
+            Assert.AreEqual(StyleKeyword.Null, band.Subject.style.scale.keyword,
+                "a ringless band scaled its subject, which is the handoff's own padded column");
+        }
+
         [Test]
         public void AnEmptyStateSaysSomethingRatherThanRenderingNothing()
         {
@@ -1124,6 +1319,16 @@ namespace Broodline.UI.Tests
         [Test]
         public void TraitChip_IsTintedByTheSpecies_AndMarksAberrant()
         {
+            // AN ABSENCE IS NOT AN ABERRANT, AND THE CHIP USED TO SAY IT WAS
+            // - Phase 9 Task 21e. `EnableInClassList(aberrant, tier == null)`
+            // is true of every empty slot, because an empty slot arrives as
+            // `"None"` with a null tier. No screen builds such a chip any
+            // more, so this is the guard that keeps a direct caller from
+            // re-creating the defect rather than a path in use.
+            Assert.IsFalse(new TraitChip("None", null, "Hollow")
+                    .ClassListContains(TraitChip.AberrantUssClassName),
+                "an empty combat slot was wearing the rare-trait outline");
+
             var vetch = new TraitChip("Carapace", 3, "Vetch");
             Assert.IsTrue(vetch.ClassListContains("trait-chip--vetch"),
                 "the species modifier is what picks the tint; without it every chip is the default violet");

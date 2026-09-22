@@ -376,7 +376,15 @@ namespace Broodline.UI.Screens
         /// =================================================================
         static void AddTrait(VisualElement into, string trait, int? tier, string species)
         {
-            if (string.IsNullOrEmpty(trait)) return;
+            // `IsAbsentTrait` RATHER THAN `IsNullOrEmpty` - Phase 9 Task 21e.
+            // This screened for a missing STRING and not for the wire's own
+            // word for a missing TRAIT, so a node with one combat trait drew
+            // a chip reading "None" beside it - the same defect the exit
+            // gate's walk found on the post-wave grant card, in a second
+            // place, from a second hand-rolled definition of "absent". There
+            // is one definition now and `CreatureLabel.IsAbsentTrait` holds
+            // it. Null and empty are still absences; that half is unchanged.
+            if (CreatureLabel.IsAbsentTrait(trait)) return;
             // `species` is the NODE's, which is the question a tree asks:
             // whose trait is this. `TraitChip`'s class comment draws the line
             // - "a pip says what a trait COUNTERS ... a chip says whose trait
