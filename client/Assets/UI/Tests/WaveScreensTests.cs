@@ -1090,35 +1090,68 @@ namespace Broodline.UI.Tests
             Assert.IsTrue(integrity.ClassListContains("t-num"), "the readout lost the marker");
         }
 
-        /// NOTHING IN THE HUD ALLOCATES ON A FRAME WHERE NOTHING CHANGED.
+        /// A FRAME WHOSE NUMBERS HAVE NOT MOVED WRITES NO STRING.
         ///
-        /// This is the one screen that repaints during combat, on a mobile
-        /// target, at a frame rate that is not the 30Hz tick rate - so a
-        /// string rebuilt per frame is garbage handed to the collector for a
-        /// line that is identical half the time. Two places did it before
-        /// Phase 9 Task 18: `WaveHudScreen.Integrity` (two `ToString`s and a
-        /// concat) and `BarTag`'s "RALLY 42".
+        /// Not "the HUD allocates nothing per tick", which overstates it and
+        /// which an earlier version of this comment said: the readout carries
+        /// the live tick, so it IS rebuilt every time the simulation ticks -
+        /// 30 times a second during combat, by design, because
+        /// `WaveCapturePlayTests` and the device re-capture procedure both
+        /// read that number off the screen. What the guards remove is the
+        /// REPEAT: the renderer is not the tick clock, so at 60fps at least
+        /// half the frames were rebuilding a string identical to the one
+        /// already on screen, on the one view with a per-frame budget worth
+        /// defending. Two places did it before Phase 9 Task 18 -
+        /// `WaveHudScreen.Integrity` (two `ToString`s and a concat) and
+        /// `BarTag`'s "RALLY 42".
         ///
         /// MEASURED IN GEN-0 COLLECTIONS AND NOT IN BYTES, and the first
         /// version of this test is why. It read
         /// `GC.GetAllocatedBytesForCurrentThread()`, which on this Editor's
         /// Mono returns the same figure however much is allocated - so the
-        /// frozen loop and the moving one both measured zero and the "it
+        /// frozen loop and the control loop both measured zero and the "it
         /// allocated nothing" assertion passed while proving nothing at all.
         /// That is the shape of the two assertions this project recently found
-        /// that could not fail, so it was written with the sanity arm below
-        /// FIRST, and the sanity arm is what caught it.
+        /// that could not fail, and it is recorded here so nobody reaches for
+        /// the same API again.
         ///
-        /// THE FAILURE MODE IS CONSTRUCTED RATHER THAN ASSUMED. The moving
-        /// loop allocates a fresh snapshot per iteration on top of whatever
-        /// the view does, so it MUST collect; if it does not, the counter is
-        /// unusable and the assertion below would be vacuous. Removing either
-        /// guard makes the frozen loop allocate ~100 bytes a frame - 20,000
-        /// frames of it, which is more than a gen-0 budget - and this reddens.
+        /// THE CONTROL ARM IS THE REGRESSION ITSELF, AT ITS OWN SIZE, which is
+        /// fix round 1's finding and is the part that makes the frozen arm
+        /// mean something. A gen-0 counter only says "more than the trigger T
+        /// was allocated", so a control arm that allocates 2.5x what the
+        /// regression would allocate bounds T ABOVE the regression and leaves
+        /// a window in which this test stays green on exactly the defect it
+        /// was written for. The control loop below therefore calls the two
+        /// model functions the guards skip, `frames` times each and nothing
+        /// else - so it allocates precisely what removing both guards would,
+        /// and T is bounded at or below that. A green frozen arm and a red
+        /// control arm cannot both hold with a guard missing.
+        ///
+        /// AND `frames` IS 200,000 BECAUSE 20,000 WAS MEASURED TO BE TOO FEW -
+        /// which is the window fix round 1 predicted, observed. At 20,000 the
+        /// control arm reports ZERO collections (~2 MB of strings), while the
+        /// earlier version's arm, which allocated a snapshot per iteration as
+        /// well, reported several (~5 MB). So T sits in (2, 5] MB on this
+        /// Editor and the first version of this test WOULD have stayed green
+        /// with the readout guard removed. `run-unity-tests.sh` was run with
+        /// that guard commented out to see it: the control arm reddened with
+        /// `unguarded=0`, which is the sanity arm refusing to let the frozen
+        /// assertion mean anything. 200,000 puts the control at ~20 MB, an
+        /// order of magnitude over the observed floor, and the frozen arm
+        /// carries the same count - so the two remain matched, which is the
+        /// property that makes this a proof rather than a ratio.
+        ///
+        /// `GC.CollectionCount(0)` IS PROCESS-WIDE AND THIS RUNS INSIDE AN
+        /// EDITOR, so another thread allocating during the frozen loop can
+        /// redden it. That is a false positive rather than a false negative -
+        /// it cannot hide a regression - and it has not been observed across
+        /// the runs in this task. If it ever flakes, the answer is not a
+        /// tolerance: it is a per-thread counter, which this runtime does not
+        /// have.
         [Test]
-        public void WaveHud_RedrawingAnUnchangedFrame_AllocatesNothing()
+        public void WaveHud_RedrawingAFrameWhoseNumbersHaveNotMoved_WritesNoString()
         {
-            const int frames = 20000;
+            const int frames = 200000;
 
             var snapshot = Hud(2, 10, Rallied(1f, 42));
             var view = new WaveHudView { Wave = 6 };
@@ -1133,29 +1166,30 @@ namespace Broodline.UI.Tests
             for (var i = 0; i < frames; i++) view.Refresh();
             var frozen = GC.CollectionCount(0) - mark;
 
-            var tick = 10;
-            var rally = 42;
-            var moving = Hud(2, tick, Rallied(1f, rally));
-            var view2 = new WaveHudView { Wave = 6 };
-            view2.Bind(() => moving);
-            for (var i = 0; i < 8; i++) view2.Refresh();
-
+            // THE CONTROL: exactly the two strings the guards skip, and
+            // nothing else. `sink` is accumulated rather than discarded so no
+            // optimiser can decide the calls are dead.
+            var rallied = Rallied(1f, 42);
+            var sink = 0;
             GC.Collect();
             mark = GC.CollectionCount(0);
             for (var i = 0; i < frames; i++)
             {
-                moving = Hud(2, ++tick, Rallied(1f, --rally));
-                view2.Refresh();
+                sink += WaveHudScreen.Integrity(snapshot).Length;
+                sink += WaveHudScreen.BarTag(rallied).Length;
             }
-            var advancing = GC.CollectionCount(0) - mark;
+            var unguarded = GC.CollectionCount(0) - mark;
 
-            Assert.Greater(advancing, 0,
-                "20,000 frames that each allocated a snapshot triggered no gen-0 collection, so "
-                + "this runtime is not counting them and the assertion below proves nothing "
-                + "(frozen=" + frozen + ", advancing=" + advancing + ")");
+            Assert.Greater(sink, 0, "sanity: the control loop's work was optimised away");
+            Assert.Greater(unguarded, 0,
+                "writing both readouts " + frames + " times unguarded triggered no gen-0 "
+                + "collection, so either this runtime is not counting them or the trigger is "
+                + "above the regression's own allocation - and the assertion below would then "
+                + "prove nothing (frozen=" + frozen + ", unguarded=" + unguarded + ")");
             Assert.AreEqual(0, frozen,
                 "the HUD triggered " + frozen + " gen-0 collections redrawing " + frames
-                + " identical frames; a frame whose numbers have not moved must write no string");
+                + " frames whose numbers had not moved, against " + unguarded
+                + " for the same number of unguarded writes");
         }
 
         static BodyBar Rallied(float x, int remaining)

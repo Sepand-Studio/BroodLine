@@ -106,8 +106,14 @@
  * `letter-spacing` is in POINTS with no em unit. Rounded to 0 rather than
  * spent: half a pixel of negative tracking on a two-word headline is under the
  * rasteriser's own resolution at this size. */
+/* NO `white-space: normal` BESIDE THE HEIGHT, which fix round 1 is right to
+ * call a latent clip: a Label that is allowed to wrap inside a box pinned to
+ * ONE line box loses every line after the first, silently. `Verdict` is a
+ * two-word const and cannot wrap today, and the rule three below explains why
+ * the sentence UNDER it - which really does wrap - gets no height at all. The
+ * two declarations are mutually exclusive and are kept that way by
+ * construction rather than by the constant's current length. */
 .wave-defeat-view__verdict {
-    white-space: normal;
     height: 38px;
     -unity-text-align: middle-left;
     margin-top: 2px;

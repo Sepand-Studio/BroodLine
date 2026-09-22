@@ -454,9 +454,22 @@ namespace Broodline.UI
         /// `WaveOf`. `DeployScreen.Title`'s comment has why the word and the
         /// number are two Labels: bible 10.6 keeps numerals out of the display
         /// face and puts `t-num` on every decision-bearing one, so "Wave 6"
-        /// cannot be one run of text. Taken from the deploy screen for the
-        /// reason `Eyebrow` is.
-        public const string WaveWord = DeployScreen.Title;
+        /// cannot be one run of text.
+        ///
+        /// SPELLED, NOT ALIASED, AND THE RULE THIS FILE FOLLOWS IS WORTH
+        /// STATING ONCE - fix round 1 found two of them forty lines apart.
+        /// `Eyebrow` and `IntegrityLabel` ARE `DeployScreen`'s by reference,
+        /// because each is literally the same handoff ELEMENT in the screen's
+        /// other phase (`:39` and `:63`) and a second literal would be one
+        /// sentence written twice. This is not: `DeployScreen.Title` is a PAGE
+        /// HEADER - the word in the scaffold's chrome, which
+        /// `FounderNamingScreen.Title`'s rule says names the screen - and this
+        /// is a display word inside a band. Binding them would mean renaming
+        /// the deploy screen's header silently renames the HUD's word. They
+        /// happen to agree today and `WaveHud_TheTopBandNamesTheWaveAndItsKicker`
+        /// pins the agreement, which is what `WaveCampaign.Region` already
+        /// does for the other duplicated string.
+        public const string WaveWord = "Wave";
 
         /// `Wave Defense.dc.html:40` - "Wave {{ wave }} / 12", both numerals
         /// in one `t-num` Label because they are one reading ("six of twelve")
@@ -472,11 +485,11 @@ namespace Broodline.UI
                    WaveCampaign.Waves.ToString(CultureInfo.InvariantCulture);
         }
 
-        /// The readout's caption - `Wave Defense.dc.html:38`, the right-hand
+        /// The readout's caption - `Wave Defense.dc.html:63`, the right-hand
         /// one of the handoff's two stat pills. By reference to the deploy
         /// screen's for `Eyebrow`'s reason: one handoff element, two phases.
         ///
-        /// THE LEFT PILL - `Gene energy` (`:29`) - IS NOT DRAWN, and this is
+        /// THE LEFT PILL - `Gene energy` (`:54`) - IS NOT DRAWN, and this is
         /// the brief's step 1.2 refuted by the data path rather than declined.
         /// `HudSnapshot` carries three fields (`Model/WaveReport.cs:146-158`:
         /// Integrity, Tick, Bodies) and `WaveRunner.Snapshot` fills them from

@@ -624,7 +624,29 @@ public static class ScreenFixtures
         // order - `Wave` writes its own Label and never touches the snapshot.
         view.Wave = 6;
         view.Bind(() => snapshot);
-        return view;
+
+        // CAPTIONED, BECAUSE THE CORPUS CANNOT TELL THIS STATE FROM A DEFECT.
+        // Fix round 1's own minor: with no camera every bar stacks at (0,0)
+        // and draws BREACH/RALLY across the chrome, and a reader of
+        // `WaveHudView.png` cannot distinguish that from the clamp failing -
+        // which is the one risk on this screen that no test reaches, because
+        // `Place` returns early without a panel and a camera. The caption is
+        // ABSOLUTE so it changes none of the HUD's own layout, and the HUD
+        // keeps `flex-grow` so the frame it is measured in is unchanged.
+        var captioned = new VisualElement { name = "wave-hud-fixture" };
+        captioned.style.flexGrow = 1;
+        captioned.Add(view);
+
+        var caption = ComponentCaption(
+            "WaveHudView  -  no camera in this fixture, so every bar stacks at (0,0). "
+            + "Bar POSITIONS here are not evidence of anything.");
+        caption.style.position = Position.Absolute;
+        caption.style.left = 12;
+        caption.style.right = 12;
+        caption.style.bottom = 12;
+        caption.style.whiteSpace = WhiteSpace.Normal;
+        captioned.Add(caption);
+        return captioned;
     }
 
     // ---------------------------------------------------------------
@@ -1359,6 +1381,25 @@ public static class ScreenFixtures
         ringless.Fix(120f);
         Stack(ringless);
 
+        // THE TINT HOOK, IN THE ONE PLACE THE TWO RAMPS CAN BE COMPARED.
+        // Phase 9 Task 18 gave `HeroBand` a second ramp for `Wave Defeat
+        // .dc.html:31`, and a tint that renders is the only evidence the swap
+        // worked - a modifier class that matched no rule would draw the violet
+        // band and nothing would say so. Directly under the ringless violet
+        // one above, at the same 120, so the two are the same picture in two
+        // colours and the difference is the whole of what is being shown.
+        //
+        // AND BEFORE THE 200px BAND RATHER THAN AFTER IT, WHICH IS FIX ROUND
+        // 1's OWN MINOR. Appended last it started at y=908 in a 932 frame and
+        // 24 of its 120px fitted - so the frame whose stated purpose is that
+        // the swap is visible showed the ramp's pale end and none of its deep
+        // one. This catalogue has no scroll; anything past ~900 is not in the
+        // picture, and the picture is the point.
+        Stack(ComponentCaption("HeroBand(ring: false, tint: Coral)  -  Wave Defeat's own ramp"));
+        var coral = new HeroBand(ring: false, tint: HeroBand.Tint.Coral);
+        coral.Fix(120f);
+        Stack(coral);
+
         // THE RING WITH NOTHING INSIDE IT, which is what three of the six
         // handoff screens would show before their content arrives and is the
         // only frame in the corpus where the pool's fill can be read against
@@ -1369,18 +1410,6 @@ public static class ScreenFixtures
         var empty = new HeroBand();
         empty.Fix(200f);
         Stack(empty);
-
-        // THE TINT HOOK, IN THE ONE PLACE THE TWO RAMPS CAN BE COMPARED.
-        // Phase 9 Task 18 gave `HeroBand` a second ramp for `Wave Defeat
-        // .dc.html:31`, and a tint that renders is the only evidence the swap
-        // worked - a modifier class that matched no rule would draw the violet
-        // band and nothing would say so. Directly under the ringless violet
-        // one above, at the same 120, so the two are the same picture in two
-        // colours and the difference is the whole of what is being shown.
-        Stack(ComponentCaption("HeroBand(ring: false, tint: Coral)  -  Wave Defeat's own ramp"));
-        var coral = new HeroBand(ring: false, tint: HeroBand.Tint.Coral);
-        coral.Fix(120f);
-        Stack(coral);
 
         return root;
     }

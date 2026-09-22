@@ -172,9 +172,25 @@ namespace Broodline.UI.Components
         /// smuggled in: the violet ramp is `.hero-band__surface`'s own
         /// declaration, so the default tint is the absence of a modifier and
         /// a `.hero-band--violet` rule would restate the base rule verbatim.
+        /// A THROW ON AN UNHANDLED MEMBER, NOT A FALL-THROUGH TO NULL - fix
+        /// round 1. `Tint`'s comment explains why `Mist` is not a member yet,
+        /// and a comment is not a mechanism: a third member added without its
+        /// USS rule would have returned null here, worn no modifier, drawn the
+        /// VIOLET ramp and passed every test in the project. The recipe under
+        /// `Tint` is four steps and this is the one that fails loudly when
+        /// step 4 is done without steps 1 to 3.
         public static string TintUssClassName(Tint tint)
         {
-            return tint == Tint.Coral ? UssClassName + "--coral" : null;
+            switch (tint)
+            {
+                case Tint.Violet: return null;
+                case Tint.Coral: return UssClassName + "--coral";
+                default:
+                    throw new System.ArgumentOutOfRangeException(
+                        nameof(tint), tint,
+                        "HeroBand.Tint has a member with no class and therefore no ramp - see "
+                        + "the four-step recipe on HeroBand.Tint before adding one.");
+            }
         }
 
         /// Which ramp this instance draws. Read-only after construction: the

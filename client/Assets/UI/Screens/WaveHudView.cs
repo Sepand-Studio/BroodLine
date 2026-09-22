@@ -475,6 +475,31 @@ namespace Broodline.UI.Screens
             // and it is the right band on its own merits too: the thing a
             // clamped bar must not cover is all of the chrome, not the last
             // line of it.
+            //
+            // AND THE BAND IT RESERVES TRIPLED, WHICH IS A REAL COST AND IS
+            // NAMED HERE RATHER THAN LEFT IN A REPORT. `ClampIntoFrame` takes
+            // `headerBottom` as a SCALAR and applies it across the full frame
+            // width, so the reserved strip went from the readout's ~46px to
+            // the chrome's ~148 (8 + 72 + 6 + 62, measured on
+            // `WaveHudView.png`) - and it now applies over the right
+            // two-thirds of the screen, where there is no chrome at all. A bar
+            // that would land in y in [46, 148) is pushed to 148 and detaches
+            // from the raider it labels, which is the same class of defect the
+            // safe-area inset already causes near the Ark (see
+            // `ClampIntoFrame`'s own note) and is now reachable further down
+            // the lane.
+            //
+            // WHAT IT WANTS IS `_chrome`'s WIDTH TOO. The chrome is
+            // `align-items: flex-start`, so it is as wide as its widest pill
+            // and no wider; a clamp that took a RECT rather than a scalar
+            // would reserve only the rectangle the chrome actually occupies
+            // and leave the rest of the frame at zero. That is a signature
+            // change to a public static method four tests read, and no test in
+            // a panel-less suite can see the difference - `Place` returns
+            // early with no panel and no camera - so it is recorded for the
+            // Boot.unity pass rather than made blind. Until then the
+            // reservation is conservative in the direction that keeps the
+            // chrome readable, which is the direction the safe-area work chose.
             var header = _chrome.layout;
             var headerBottom = float.IsNaN(header.yMax) ? 0f : header.yMax;
 
