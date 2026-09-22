@@ -34,8 +34,15 @@ namespace Broodline.UI
         /// constants only. Spelled rather than shared with
         /// `DeployScreen.Eyebrow` ("HOLLOW REACH · DEFENSE") because that one
         /// is a whole kicker and this is half of a different one; the two
-        /// agreeing is pinned by a test rather than by a reference, so the day
-        /// the region is not Hollow Reach the test names both call sites.
+        /// agreeing is pinned by `WaveScreens_TheRegionAgreesWithTheDeployKicker`
+        /// rather than by a reference, so the day the region is not Hollow
+        /// Reach the test names both call sites.
+        ///
+        /// THAT TEST WAS WRITTEN AFTER THIS COMMENT CLAIMED IT. Fix round 1's
+        /// re-review grepped for it and found nothing pinning either of this
+        /// file's two "pinned by a test" claims. A comment asserting a gate
+        /// that does not exist is worse than no comment, because the next
+        /// reader stops looking.
         public const string Region = "HOLLOW REACH";
 
         /// `Wave Defeat.dc.html:40` - "Hollow Reach · wave 7 of 12", the
@@ -466,9 +473,12 @@ namespace Broodline.UI
         /// `FounderNamingScreen.Title`'s rule says names the screen - and this
         /// is a display word inside a band. Binding them would mean renaming
         /// the deploy screen's header silently renames the HUD's word. They
-        /// happen to agree today and `WaveHud_TheTopBandNamesTheWaveAndItsKicker`
-        /// pins the agreement, which is what `WaveCampaign.Region` already
-        /// does for the other duplicated string.
+        /// happen to agree today, AND NOTHING PINS THAT, DELIBERATELY - they
+        /// are allowed to diverge and this constant is what lets them.
+        /// `WaveHud_TheTopBandNamesTheWaveAndItsKicker` asserts the VIEW
+        /// against this constant, not this constant against
+        /// `DeployScreen.Title`; the earlier version of this comment claimed
+        /// otherwise and was wrong.
         public const string WaveWord = "Wave";
 
         /// `Wave Defense.dc.html:40` - "Wave {{ wave }} / 12", both numerals

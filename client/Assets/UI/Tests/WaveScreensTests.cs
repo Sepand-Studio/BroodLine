@@ -1536,5 +1536,23 @@ namespace Broodline.UI.Tests
 
         static string IntegrityValueOf(DeployView view) =>
             view.Q<SectionCard>("integrity").Q<Label>(className: "deploy-view__pill-value").text;
+        /// The claim in `WaveCampaign.Region`'s own comment, which until now
+        /// nothing held: the region word and the deploy screen's kicker agree.
+        ///
+        /// THEY ARE DELIBERATELY NOT SHARED BY REFERENCE - one is a whole
+        /// kicker and the other is half of a different one - so the agreement
+        /// is a fact about two literals, and a fact about two literals is
+        /// exactly what a test is for. Fix round 1's re-review grepped for
+        /// this test, found nothing, and named the comment's claim as the
+        /// live hazard: the day the region stops being Hollow Reach, this
+        /// names both call sites instead of one of them shipping stale.
+        [Test]
+        public void WaveScreens_TheRegionAgreesWithTheDeployKicker()
+        {
+            StringAssert.StartsWith(WaveCampaign.Region, DeployScreen.Eyebrow,
+                "the deploy kicker no longer opens with the region word, so one of the two " +
+                "literals has moved and the other has not");
+        }
+
     }
 }

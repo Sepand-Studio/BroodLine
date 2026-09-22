@@ -1401,11 +1401,23 @@ public static class ScreenFixtures
         Stack(coral);
 
         // THE RING WITH NOTHING INSIDE IT, which is what three of the six
-        // handoff screens would show before their content arrives and is the
-        // only frame in the corpus where the pool's fill can be read against
-        // both ends of the ramp at once - --violet-pressed is 64 from the
-        // white the band starts at and 26 from the --violet-tint it ends on,
-        // and HeroBand.uss's note is the arithmetic this is the picture of.
+        // handoff screens would show before their content arrives.
+        //
+        // AND IT IS NOW THE CROPPED ONE. Moving the coral band above it - fix
+        // round 1's own minor - did not remove the crop, it MOVED it: this
+        // band starts near y=830 and about half of its 200px fits. The claim
+        // this comment used to carry, that it is the only frame where the
+        // pool's fill reads against both ends of the ramp at once, is no
+        // longer true of the picture. The arithmetic it was the picture of
+        // (--violet-pressed 64 from the white the band starts at, 26 from the
+        // --violet-tint it ends on) is in HeroBand.uss's note, which is where
+        // it is checkable; this frame shows the top half.
+        //
+        // The trade was deliberate - a tint nobody can see is worth less than
+        // a pool nobody can see twice - but the catalogue has outgrown one
+        // 932px frame and the next component added here will crop something
+        // else. A second fixture is the fix, as the Vocabulary/Lane split
+        // already was in Task 13.
         Stack(ComponentCaption("HeroBand  -  the ring and the pool, with no subject"));
         var empty = new HeroBand();
         empty.Fix(200f);

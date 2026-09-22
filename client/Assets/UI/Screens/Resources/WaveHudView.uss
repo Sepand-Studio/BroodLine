@@ -99,7 +99,7 @@
 
 /* THE GUTTER LIVES HERE NOW, ONCE, FOR BOTH THE BAND AND THE READOUT. Each
  * used to carry its own `margin-left: var(--gutter)`; `Wave Defense.dc.html`
- * puts both inside the same 12px page gutter (`:34` and `:48`) and they are
+ * puts both inside the 12px page gutter at `:48` (`:34` is 14, not 12) and they are
  * one block of chrome, so one element owns it.
  *
  * `align-items: flex-start` RATHER THAN A `flex-start` ON EACH CHILD, which
