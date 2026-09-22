@@ -11,7 +11,44 @@
          corpus showed this screen correct while the game did not. -->
     <ui:Style src="../../Shell/Tokens.uss" />
     <ui:Style src="../../Shell/Theme.uss" />
+    <ui:Style src="../../Shell/icons.uss" />
     <ui:Style src="WaveHudView.uss" />
-    <ui:Label name="integrity" class="wave-hud-view__integrity t-num" />
+
+    <!-- THE CHROME IS ONE ELEMENT AND THAT IS LOAD-BEARING, NOT TIDY.
+         `WaveHudView.Place` reserves a band at the top of the frame so a
+         clamped bar never lands on the readout, and it MEASURES that band off
+         a direct child of this root - `layout` is relative to the parent, so
+         anything one level deeper answers in the wrong space while still
+         returning a plausible number. Before Phase 9 Task 18 the readout WAS
+         that direct child; it is now two levels inside a pill, and this
+         element is what took its place. `WaveHudView.cs`'s note beside the
+         measurement has the history. -->
+    <ui:VisualElement name="chrome" class="wave-hud-view__chrome">
+        <ui:VisualElement name="band" class="wave-hud-view__band">
+            <ui:Label name="eyebrow" class="wave-hud-view__eyebrow t-micro" />
+            <ui:VisualElement name="wave-line" class="wave-hud-view__wave-line">
+                <ui:Label name="wave-word" class="wave-hud-view__wave-word t-screen-title" />
+                <ui:Label name="wave-number" class="wave-hud-view__wave-number t-num" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="pills" class="wave-hud-view__pills">
+            <ui:VisualElement name="integrity-pill" class="wave-hud-view__pill">
+                <ui:VisualElement name="integrity-disc" class="wave-hud-view__pill-disc">
+                    <ui:VisualElement name="integrity-glyph" class="icon wave-hud-view__pill-glyph icon--ark" />
+                </ui:VisualElement>
+                <ui:VisualElement name="integrity-text" class="wave-hud-view__pill-text">
+                    <ui:Label name="integrity-label" class="wave-hud-view__pill-label t-micro" />
+                    <!-- STILL NAMED `integrity`, STILL A Label, STILL CARRYING
+                         `t-num`. `WaveCapturePlayTests` reads this element by
+                         name off the live wave scene and asserts its text
+                         advances; three EditMode tests compare it to
+                         `WaveHudScreen.Integrity` verbatim. -->
+                    <ui:Label name="integrity" class="wave-hud-view__integrity t-num" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+
     <ui:VisualElement name="bars" class="wave-hud-view__bars" />
 </ui:UXML>

@@ -186,7 +186,7 @@ namespace Broodline.Game
             _view = gameObject.AddComponent<WaveView>();
             _view.Build(_runner, deployment, wave);
 
-            BuildHud();
+            BuildHud(wave.Id);
         }
 
         /// Attaches the HUD to whichever `UIDocument` the scene carries.
@@ -196,7 +196,13 @@ namespace Broodline.Game
         /// adds it, with the shell's `PanelSettings` so a hosted wave draws
         /// into the same panel the rest of the app does, at a sorting order
         /// above it.
-        void BuildHud()
+        /// `waveId` IS PASSED RATHER THAN READ FROM A FIELD, because nothing
+        /// here holds the `WaveDef` after `Configure` and a second copy of it
+        /// would be a second thing to keep in step with `_runner`. It is the
+        /// only argument the HUD's chrome needs that its per-frame snapshot
+        /// does not carry - `WaveHudView.Wave` has why it is not a snapshot
+        /// field.
+        void BuildHud(int waveId)
         {
             var document = GetComponentInChildren<UIDocument>();
             if (document == null)
@@ -236,7 +242,7 @@ namespace Broodline.Game
             _safeArea.ApplyIfChanged();
             root.RegisterCallback<GeometryChangedEvent>(_ => _safeArea.ApplyIfChanged());
 
-            _hud = new WaveHudView { Camera = Camera.main };
+            _hud = new WaveHudView { Camera = Camera.main, Wave = waveId };
             root.Add(_hud);
             _hud.Bind(Snapshot);
         }

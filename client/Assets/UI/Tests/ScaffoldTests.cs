@@ -317,13 +317,16 @@ namespace Broodline.UI.Tests
             // `Onboarding.dc.html` has no page header and draws its progress
             // row straight into the content column.
             //
-            // EXACTLY TWO SCREENS WANT THAT, AND THE SECOND ARRIVED IN PHASE
-            // 9 TASK 16b. `Splice Reveal.dc.html:38-41` is the same shape as
+            // THREE SCREENS WANT THAT, AND THE THIRD ARRIVED IN PHASE 9 TASK
+            // 18. `Splice Reveal.dc.html:38-41` is the same shape as
             // `Onboarding.dc.html`'s - a centred kicker over a big headline
             // with nothing above it - so `SpliceRevealView` passes
             // `title: null` too, and its kicker moved into the content
             // column because `#header` is also where the eyebrow lives.
-            // THE OTHER EIGHT pass a non-empty `const string Title` and must
+            // `Wave Defeat.dc.html` is the third: `:26` is the status bar and
+            // `:31` is the hero band, with no header row between them, and its
+            // kicker moved into the band for the same reason.
+            // THE OTHER SEVEN pass a non-empty `const string Title` and must
             // still get a header - and with it the back chevron, the eyebrow
             // and the resource pill, all of which live inside the row the
             // headerless branch hides.
@@ -340,7 +343,7 @@ namespace Broodline.UI.Tests
             // whichever is nearest would lose the distinction that makes
             // this sweep worth running.
             var noScaffold = new[] { "CodexSheet", "WaveHudView" };
-            var headerless = new[] { "FounderNamingView", "SpliceRevealView" };
+            var headerless = new[] { "FounderNamingView", "SpliceRevealView", "WaveDefeatView" };
 
             var titled = typeof(Broodline.UI.Screens.RosterView).Assembly
                 .GetTypes()
@@ -352,8 +355,8 @@ namespace Broodline.UI.Tests
                             && !headerless.Contains(t.Name))
                 .ToList();
 
-            Assert.That(titled.Count, Is.EqualTo(8),
-                "eight screens pass a non-empty title; if this moved, decide which list the " +
+            Assert.That(titled.Count, Is.EqualTo(7),
+                "seven screens pass a non-empty title; if this moved, decide which list the " +
                 "new screen belongs in rather than widening one silently");
 
             var lost = titled

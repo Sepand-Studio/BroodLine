@@ -83,6 +83,15 @@ public static class ScreenFixtures
         "FounderNamingView",
         "LineageView",
         "PostWaveView",
+        // THE OTHER ARM OF THE ONE SCREEN THAT RENDERS BOTH VERDICTS.
+        // `PostWaveView.Bind` toggles `t-success`/`t-danger` off the SERVER's
+        // result and `PostWaveScreen.Headline` has two sentences; a
+        // non-win response reaching this screen is a documented path
+        // (`WinResult`'s own note) and until Phase 9 Task 18 no capture in the
+        // corpus showed it. A branch nobody has looked at is a branch that has
+        // shipped wrong before in this project - the green blank strip and the
+        // shadow round bare paper were both this shape.
+        "PostWaveLoss",
         "RegionView",
         "RosterView",
         "SpliceChamberView",
@@ -148,6 +157,7 @@ public static class ScreenFixtures
             case "FounderNamingView": return FounderNaming();
             case "LineageView": return Lineage();
             case "PostWaveView": return PostWave();
+            case "PostWaveLoss": return PostWaveLost();
             case "RegionView": return Region();
             case "RosterView": return Roster();
             case "SpliceChamberView": return SpliceChamber();
@@ -388,6 +398,9 @@ public static class ScreenFixtures
         return view;
     }
 
+    /// THE WIN. `WaveDefeat()` below is wave 6, the designed loss, so this is
+    /// the wave after it - which is also the wave `Wave Defense.dc.html` is
+    /// drawn at (`:303`, `wave: 7`).
     static VisualElement PostWave()
     {
         var response = new WaveSubmitResponse
@@ -399,7 +412,28 @@ public static class ScreenFixtures
         var granted = new List<CreatureDto> { Creature("Pale", 1, name: null, founder: false) };
 
         var view = new PostWaveView();
-        view.Bind(response, granted, next: () => { });
+        // waves_01_12 section 3's "expected roster 5" is the deployment both
+        // verdict screens state as KEPT.
+        view.Bind(response, granted, next: () => { }, wave: 7, deployed: 5);
+        return view;
+    }
+
+    /// THE SAME SCREEN ON THE OTHER VERDICT, and the only frame in the corpus
+    /// that shows it. Everything differs from `PostWave()` that the branch
+    /// touches and nothing that it does not: a non-win result, no reward, no
+    /// arrivals and no integrity left - so the headline's coral, the collapsed
+    /// grant row and an empty reward cell are all readable in one picture.
+    static VisualElement PostWaveLost()
+    {
+        var response = new WaveSubmitResponse
+        {
+            Result = "Loss",
+            IntegrityRemaining = 0,
+            Reward = new Reward { Currency = "shards", Amount = 0 },
+        };
+
+        var view = new PostWaveView();
+        view.Bind(response, new List<CreatureDto>(), next: () => { }, wave: 6, deployed: 5);
         return view;
     }
 
@@ -553,7 +587,12 @@ public static class ScreenFixtures
         var granted = new List<CreatureDto> { Creature("Pale", 1, name: null, founder: false) };
 
         var view = new WaveDefeatView();
-        view.Bind(report, granted, retry: () => { });
+        // wave 6 and waves_01_12 section 3's "expected roster 5, none carrying
+        // Chill" - the deployment the KEPT cell states. The granted Pale
+        // carries Chill I (the `Creature` helper's own default), which is what
+        // lets the counter chip take a real tier and a real species tint
+        // rather than the tier-less fallback `WaveDefeatView.Bind` describes.
+        view.Bind(report, granted, retry: () => { }, wave: 6, deployed: 5);
         return view;
     }
 
@@ -578,6 +617,12 @@ public static class ScreenFixtures
         // That is a real, reachable state (a HUD bound before its camera is
         // wired) and not a fixture defect to paper over.
         var view = new WaveHudView();
+        // WAVE 6, WHICH IS THE ONE THIS HUD IS EVER CAPTURED ON.
+        // `WaveRunner.CaptureWaveId` is 6 and waves_01_12 section 3 designs it
+        // as the loss; the snapshot's integrity of 2 above is that wave's
+        // authored pool. Set BEFORE `Bind` for no reason other than reading
+        // order - `Wave` writes its own Label and never touches the snapshot.
+        view.Wave = 6;
         view.Bind(() => snapshot);
         return view;
     }
@@ -1324,6 +1369,18 @@ public static class ScreenFixtures
         var empty = new HeroBand();
         empty.Fix(200f);
         Stack(empty);
+
+        // THE TINT HOOK, IN THE ONE PLACE THE TWO RAMPS CAN BE COMPARED.
+        // Phase 9 Task 18 gave `HeroBand` a second ramp for `Wave Defeat
+        // .dc.html:31`, and a tint that renders is the only evidence the swap
+        // worked - a modifier class that matched no rule would draw the violet
+        // band and nothing would say so. Directly under the ringless violet
+        // one above, at the same 120, so the two are the same picture in two
+        // colours and the difference is the whole of what is being shown.
+        Stack(ComponentCaption("HeroBand(ring: false, tint: Coral)  -  Wave Defeat's own ramp"));
+        var coral = new HeroBand(ring: false, tint: HeroBand.Tint.Coral);
+        coral.Fix(120f);
+        Stack(coral);
 
         return root;
     }

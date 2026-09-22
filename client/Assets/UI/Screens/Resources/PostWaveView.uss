@@ -59,7 +59,20 @@
     margin-bottom: var(--space-3);
 }
 
-.post-wave-view__stats { flex-direction: row; }
+/* THE -4px IS `StatCell.uss`'s OWN PRESCRIPTION AND NOT A NUDGE. A cell
+ * carries half the handoff's 8px gap on each of its own sides, because USS
+ * here has no `gap` and no `:last-child`, and that file says what a caller
+ * that wants the row flush does about it: "cancels it with a -4px margin on
+ * the container, which is one line at the call site rather than a rule that
+ * looks like it works and does not." Without it the row is inset 4px from the
+ * card's padding on both sides. `DeployView.uss` and `WaveDefeatView.uss`
+ * carry the same cancel for the same row; this screen was the one that did
+ * not, which is a residual Phase 9 Task 18 closed rather than a new rule. */
+.post-wave-view__stats {
+    flex-direction: row;
+    margin-left: -4px;
+    margin-right: -4px;
+}
 
 /* The arrivals, laid out like RosterView's grid and for the same reason: a
  * CreatureCard is a fixed 160px, two of them plus the 12px gutter leave 406

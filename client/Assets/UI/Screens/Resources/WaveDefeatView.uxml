@@ -1,7 +1,25 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
     <ui:Style src="WaveDefeatView.uss" />
-    <ui:Label name="headline" class="wave-defeat-view__headline t-hero t-danger" />
+    <!-- THE BAND'S FOUR PIECES, IN THE HANDOFF'S ORDER (`Wave Defeat.dc.html
+         :40-56`): the kicker, the verdict, the sentence that explains it, and
+         three cells. They are authored here and re-parented into the HeroBand
+         the view composes, which is the arrangement every screen in this phase
+         uses - one tree, one place each element is written down. -->
+    <!-- NAMED `kicker` AND NOT `eyebrow`, WHICH IS A COLLISION THIS SCREEN
+         WOULD OTHERWISE HAVE. `ScreenScaffold` owns a Label named
+         `eyebrow` inside `#header`, and the header is HIDDEN on this
+         screen rather than removed - so both would answer `Q("eyebrow")`
+         and the hidden one, being earlier in the traversal, would win.
+         `SpliceRevealView` hit the same pair first and calls its own
+         `kicker`; `DeployView`'s `lane-card` note has the general rule. -->
+    <ui:Label name="kicker" class="wave-defeat-view__kicker t-micro t-danger" />
+    <ui:Label name="verdict" class="wave-defeat-view__verdict t-hero t-danger" />
+    <ui:Label name="headline" class="wave-defeat-view__headline t-card-title t-danger" />
+    <ui:VisualElement name="stats" class="wave-defeat-view__stats" />
+
+    <ui:Label name="diagnosis-heading" class="wave-defeat-view__diagnosis-heading t-micro" />
     <ui:Label name="diagnosis" class="wave-defeat-view__diagnosis t-card-title" />
+
     <ui:VisualElement name="resupply" class="wave-defeat-view__resupply">
         <ui:Label name="granted" class="wave-defeat-view__granted t-secondary t-success" />
         <ui:VisualElement name="grants" class="wave-defeat-view__grants" />

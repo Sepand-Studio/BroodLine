@@ -37,6 +37,7 @@ namespace Broodline.UI.Screens
         readonly Button _next;
         readonly StatCell _reward;
         readonly StatCell _integrity;
+        readonly StatCell _kept;
 
         Action _onNext;
 
@@ -67,9 +68,18 @@ namespace Broodline.UI.Screens
             _reward = new StatCell(PostWaveScreen.RewardStatLabel, null) { name = "reward" };
             _integrity = new StatCell(PostWaveScreen.IntegrityStatLabel, null) { name = "integrity" };
 
+            // A THIRD CELL, BECAUSE THIS ROW AND THE DEFEAT SCREEN'S ARE THE
+            // SAME ROW ON OPPOSITE ARMS OF ONE BRANCH. `Wave Defeat
+            // .dc.html:43` draws three; a player who loses a wave and a player
+            // who holds one should read the same shape. Its value is the size
+            // of the deployment that came home - `WaveDefeatScreen
+            // .KeptStatValue`'s comment has why that is not a survival count.
+            _kept = new StatCell(PostWaveScreen.KeptStatLabel, null) { name = "kept" };
+
             var stats = this.Q<VisualElement>("stats");
             stats.Add(_reward);
             stats.Add(_integrity);
+            stats.Add(_kept);
 
             // THE FRAME, COMPOSED AND NOT INHERITED - ScreenScaffold's class
             // comment has the reason, and ScaffoldTests' sweep is what
@@ -110,12 +120,27 @@ namespace Broodline.UI.Screens
         /// (`ScreenHost.Show`, back stack cleared) rather than a push, so
         /// nothing draws one today. On this screen that is also right on its
         /// own: back from a wave's summary is back to a wave that is over.
+        /// `wave` and `deployed` ARE THE TWO FACTS THIS SCREEN STATES AND THE
+        /// SERVER'S RESPONSE DOES NOT CARRY. `WaveSubmitResponse` is Result,
+        /// IntegrityRemaining, Breaches, Reward and Granted
+        /// (`Generated/Api/BroodlineApiClient.cs:2265-2281`) and carries no
+        /// wave id at all, so the kicker's "WAVE 6 OF 12" has to come from the
+        /// caller that started the wave. Both nullable for
+        /// `DeployScreen.FoesStatValue`'s reason, and
+        /// `WaveDefeatView.Bind` takes the same pair for the same reason.
         public void Bind(WaveSubmitResponse response, IReadOnlyList<CreatureDto> granted, Action next,
-                         Action onBack = null)
+                         Action onBack = null, int? wave = null, int? deployed = null)
         {
             if (response == null) throw new ArgumentNullException(nameof(response));
 
             _scaffold.OnBack = onBack;
+
+            // THE KICKER GOES IN THE SCAFFOLD'S OWN SLOT HERE AND IN THE BAND
+            // ON THE DEFEAT SCREEN, which is not an inconsistency: this screen
+            // keeps its page header (`PostWaveScreen.Title`'s note) and that
+            // one has none, because the handoff draws none. Null hides the
+            // row, which is `ScreenScaffold.Eyebrow`'s own contract.
+            _scaffold.Eyebrow = wave == null ? null : PostWaveScreen.Eyebrow(wave.Value);
 
             // The verdict is the SERVER's, and it is the one line on this
             // screen that changes between a win and anything else - which is
@@ -135,6 +160,7 @@ namespace Broodline.UI.Screens
 
             _reward.Value = PostWaveScreen.RewardLine(response.Reward);
             _integrity.Value = PostWaveScreen.IntegrityStatValue(response.IntegrityRemaining);
+            _kept.Value = PostWaveScreen.KeptStatValue(deployed);
 
             // ONE CARD PER CREATURE, named after its id - the same shape
             // `RosterView` uses, and the reason it is named rather than just

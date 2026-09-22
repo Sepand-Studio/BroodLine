@@ -315,14 +315,174 @@ namespace Broodline.UI.Tests
         /// `FounderNamingScreen.Title`'s rule, which is why the title is not
         /// "Wave lost". Asserted against the model rather than a literal, so
         /// moving the string back into the view still fails.
+        /// THIS USED TO ASSERT THE HEADER SAID "Wave Defeat" AND NOW ASSERTS
+        /// THERE IS NO HEADER, and the handoff is why rather than taste:
+        /// `Wave Defeat.dc.html` runs status bar (`:26`) straight into the
+        /// band (`:31`) with no header row between them. `SpliceRevealView`
+        /// made the same move in Task 16b on the same evidence, and
+        /// `ScaffoldTests.EveryTitledScreenStillDrawsItsPageHeader` is where
+        /// this screen's name moved from one list to the other.
+        ///
+        /// THE KICKER HAD TO GO SOMEWHERE, which is the half that is easy to
+        /// lose: `#header` is also where the eyebrow lives, so hiding it takes
+        /// the kicker with it. It is in the band now, which is where `:40`
+        /// draws it, and that is asserted here rather than left to the
+        /// capture - an eyebrow that silently stopped rendering would look
+        /// exactly like a screen that never had one.
         [Test]
-        public void WaveDefeat_ComposesTheScaffoldAndItsHeaderIsNotTheHeadline()
+        public void WaveDefeat_DrawsNoPageHeader_AndCarriesItsKickerInTheBand()
+        {
+            var view = new WaveDefeatView();
+            view.Bind(LossWith(Breach("Courser", "Chill")), null, retry: () => { }, wave: 6);
+
+            Assert.IsNotNull(view.Q(className: ScreenScaffold.UssClassName), "no scaffold");
+            Assert.AreEqual(DisplayStyle.None, view.Q<VisualElement>("header").style.display.value,
+                "the handoff draws no page header on this screen");
+
+            // NAMED `kicker`, NOT `eyebrow`: the scaffold owns a Label called
+            // `eyebrow` inside the header it just hid, and a hidden element is
+            // still an element `Q` walks - earlier in the traversal than this
+            // one. The UXML's own note has it.
+            var kicker = view.Q<Label>("kicker");
+            Assert.AreEqual(WaveDefeatScreen.Eyebrow(6), kicker.text);
+            Assert.AreSame(view.Q<HeroBand>().Subject, kicker.parent,
+                "the kicker is not in the band, so hiding the header took it with it");
+            Assert.AreNotEqual(kicker, view.Q<Label>("eyebrow"),
+                "the band's kicker answers to `eyebrow`, which is the scaffold's own name for "
+                + "the Label inside the header this screen hides");
+
+            // A DIFFERENT WAVE PRODUCES A DIFFERENT KICKER, which is what
+            // separates a screen reading its argument from one holding wave 6.
+            var other = new WaveDefeatView();
+            other.Bind(LossWith(Breach("Courser", "Chill")), null, retry: () => { }, wave: 9);
+            Assert.AreNotEqual(kicker.text, other.Q<Label>("kicker").text);
+
+            // And no wave at all collapses it rather than printing a hole.
+            Assert.AreEqual(DisplayStyle.None,
+                BoundDefeat(LossWith(Breach("Courser", "Chill"))).Q<Label>("kicker").style.display.value);
+        }
+
+        /// `Wave Defeat.dc.html:31` IS A HERO BAND AND THIS IS THE ASSERTION
+        /// THAT SAYS SO. Its ramp, its `border-radius: 26px` and its
+        /// `box-shadow: 0 4px 16px` are `HeroBand`'s three defining values in a
+        /// tint the component could not draw until Phase 9 Task 18.
+        ///
+        /// THE TINT IS THE COMPONENT'S AND NOT THIS SCREEN'S, which is the
+        /// thing actually worth pinning. The forbidden fix was a rule in
+        /// `WaveDefeatView.uss` reaching into `.hero-band__surface` to
+        /// recolour it, and that fix would leave every assertion about
+        /// structure green while the next screen that wants a tint
+        /// rediscovers the whole problem. `ComponentTests
+        /// .TheCoralTintSwapsBothTheRampAndTheFillItDegradesTo` reads the rule
+        /// itself; this reads that the screen asked the component for it.
+        [Test]
+        public void WaveDefeat_ComposesTheHandoffsCoralHeroBand_TintedByTheComponent()
         {
             var view = BoundDefeat(LossWith(Breach("Courser", "Chill")));
 
-            Assert.IsNotNull(view.Q(className: ScreenScaffold.UssClassName), "no scaffold");
-            Assert.AreEqual(WaveDefeatScreen.Title, view.Q<Label>("title").text);
-            Assert.AreNotEqual(view.Q<Label>("headline").text, view.Q<Label>("title").text);
+            var band = view.Q<HeroBand>();
+            Assert.IsNotNull(band, "the defeat screen draws no HeroBand");
+            Assert.AreEqual(HeroBand.Tint.Coral, band.Tinted,
+                "the band is violet; `Wave Defeat.dc.html:31` is #fbeee9 -> #f6e2e4");
+            Assert.IsTrue(band.ClassListContains(HeroBand.ElevationUssClassName),
+                "the band lost its elevation; the handoff draws `0 4px 16px`, the .elev-2 half of "
+                + "the 2:1 pair, where the card under it is `0 2px 8px`");
+
+            // RINGLESS. There is no dashed ring anywhere on this screen, and a
+            // ring-bearing band would also halo its subject - which is a
+            // 264px ornament behind four lines of text.
+            Assert.IsNull(band.Q<VisualElement>("ring"),
+                "the coral band drew the dashed ring; the handoff has none");
+
+            // THE SCREEN DOES NOT RECOLOUR THE SURFACE ITSELF, asserted from
+            // the stylesheet because an inline-style read cannot see a rule.
+            var path = System.IO.Path.GetFullPath(System.IO.Path.Combine(
+                UnityEngine.Application.dataPath, "UI/Screens/Resources/WaveDefeatView.uss"));
+            var sheet = System.IO.File.ReadAllText(path);
+            StringAssert.DoesNotContain("hero-band__surface", sheet,
+                "this screen reaches into the band's surface from its own sheet, which is the one "
+                + "fix HeroBand's tint hook exists to make unnecessary");
+        }
+
+        /// `Wave Defeat.dc.html:44-55` - three cells inside the band.
+        [Test]
+        public void WaveDefeat_StatesTheThreeCellsTheHandoffDraws()
+        {
+            var view = new WaveDefeatView();
+            view.Bind(LossWith(Breach("Courser", "Chill"), Breach("Lash", "Taunt")),
+                      null, retry: () => { }, wave: 6, deployed: 5);
+
+            Assert.AreEqual(3, view.Query<StatCell>().ToList().Count);
+            Assert.AreEqual("2", ValueOf(view.Q<StatCell>("leaked")),
+                "LEAKED is the breach list's own length");
+            Assert.AreEqual("0", ValueOf(view.Q<StatCell>("integrity")));
+            Assert.AreEqual("5", ValueOf(view.Q<StatCell>("kept")));
+
+            // THE CELLS ARE IN THE BAND, not under it. `:43` puts them inside
+            // the coral panel; a row that fell out of it would still show the
+            // right three numbers.
+            Assert.AreSame(view.Q<HeroBand>().Subject,
+                view.Q<VisualElement>("stats").parent,
+                "the stat row is not inside the band");
+
+            // A CALLER THAT DOES NOT KNOW THE DEPLOYMENT SAYS NOTHING, rather
+            // than claiming nothing came home on the screen whose own sentence
+            // is that the player's hybrids are intact.
+            Assert.AreEqual(string.Empty,
+                ValueOf(BoundDefeat(LossWith(Breach("Courser", "Chill"))).Q<StatCell>("kept")));
+        }
+
+        /// bible 9.3's teaching, as an element rather than as a word in a
+        /// sentence: the trait that answers the raider, tinted by the species
+        /// that just joined the roster and tiered at the coverage it brings.
+        [Test]
+        public void WaveDefeat_NamesTheCounterInAChipTintedByTheCreatureThatBringsIt()
+        {
+            var pale = Creature("Pale", trait1: "Chill", tier1: 2, trait2: "Guard", tier2: 1);
+            var view = BoundDefeat(LossWith(Breach("Courser", "Chill")), pale);
+
+            var chip = view.Q<TraitChip>("counter");
+            Assert.IsNotNull(chip, "the defeat screen names no counter chip");
+            Assert.AreEqual(CreatureLabel.TraitWithTier("Chill", 2), chip.Q<Label>("trait").text,
+                "the chip did not take the tier off the creature that carries the trait");
+            Assert.IsTrue(chip.ClassListContains(TraitChip.UssClassName + "--pale"),
+                "the chip is not tinted by the species that brings it");
+            Assert.IsFalse(chip.ClassListContains(TraitChip.AberrantUssClassName),
+                "a tiered counter drew the Aberrant outline");
+
+            // A DIFFERENT BREACH NAMES A DIFFERENT TRAIT, which is what
+            // separates a chip reading the bundle from one holding "Chill".
+            var taunt = BoundDefeat(LossWith(Breach("Lash", "Taunt")), pale);
+            StringAssert.Contains("Taunt", taunt.Q<TraitChip>("counter").Q<Label>("trait").text);
+            Assert.IsTrue(taunt.Q<TraitChip>("counter").ClassListContains(
+                    TraitChip.AberrantUssClassName),
+                "nothing granted carries Taunt, so the chip has no tier to show - which is the "
+                + "fallback WaveDefeatView.Bind records as the one thing it overstates");
+
+            // AND A BREACH THE BUNDLE ANSWERS WITH NOTHING DRAWS NO CHIP AT
+            // ALL, rather than an empty one. `WaveDefeatScreen.Headline` makes
+            // the same call on the same case for the sentence.
+            Assert.IsNull(BoundDefeat(LossWith(Breach("Courser", null)), pale)
+                .Q<TraitChip>("counter"));
+        }
+
+        /// The verdict is a second Label, not the headline renamed.
+        [Test]
+        public void WaveDefeat_DrawsTheVerdictAboveTheSentenceAndTheyAreNotTheSameLine()
+        {
+            var view = BoundDefeat(LossWith(Breach("Courser", "Chill")));
+
+            var verdict = view.Q<Label>("verdict");
+            Assert.AreEqual(WaveDefeatScreen.Verdict, verdict.text);
+            Assert.IsTrue(verdict.ClassListContains("t-hero"), "the verdict is not the hero line");
+            Assert.IsTrue(verdict.ClassListContains("t-danger"), "the verdict is not coral");
+
+            // THE SENTENCE SURVIVED, which is the half a rename would have
+            // eaten: bible 4.11 makes "names the raider that broke through and
+            // the trait that would have answered it" the reason this screen
+            // exists, and it is still its own Label with its own text.
+            Assert.AreNotEqual(verdict.text, view.Q<Label>("headline").text);
+            StringAssert.Contains("Courser", view.Q<Label>("headline").text);
         }
 
         // ---------------------------------------------------------------
@@ -463,6 +623,36 @@ namespace Broodline.UI.Tests
             Assert.IsNotNull(lost.Q(className: ScreenScaffold.UssClassName), "no scaffold");
             Assert.AreEqual(PostWaveScreen.Title, lost.Q<Label>("title").text);
             StringAssert.DoesNotContain("cleared", lost.Q<Label>("title").text);
+        }
+
+        /// The three-cell row, and the kicker that says which wave it is
+        /// about. Post-Wave keeps its page header (`PostWaveScreen.Title`'s
+        /// note), so its kicker goes in the scaffold's own eyebrow slot rather
+        /// than into a band the way the defeat screen's does.
+        [Test]
+        public void PostWave_StatesThreeCellsAndItsKickerNamesTheWave()
+        {
+            var view = new PostWaveView();
+            view.Bind(Submitted("Win", "shards", 150), null, next: () => { },
+                      wave: 7, deployed: 5);
+
+            Assert.AreEqual(3, view.Query<StatCell>().ToList().Count);
+            Assert.AreEqual("5", ValueOf(view.Q<StatCell>("kept")));
+
+            var eyebrow = view.Q<Label>("eyebrow");
+            Assert.AreEqual(PostWaveScreen.Eyebrow(7), eyebrow.text);
+            Assert.AreEqual(DisplayStyle.Flex, eyebrow.style.display.value);
+
+            // THE TWO SCREENS OF THIS BEAT SAY IT THE SAME WAY, which is what
+            // `WaveCampaign.Eyebrow` exists for - one sentence, not two that
+            // happen to agree today.
+            Assert.AreEqual(WaveDefeatScreen.Eyebrow(7), eyebrow.text);
+
+            // A caller that does not know the wave hides the row rather than
+            // printing "WAVE  OF 12".
+            Assert.AreEqual(DisplayStyle.None,
+                BoundPostWave(Submitted("Win", "shards", 150)).Q<Label>("eyebrow")
+                    .style.display.value);
         }
 
         // ---------------------------------------------------------------
@@ -809,6 +999,176 @@ namespace Broodline.UI.Tests
         static string ValueOf(VisualElement cell) => cell.Q<Label>("value").text;
 
         static string RewardOf(PostWaveView view) => ValueOf(view.Q<StatCell>("reward"));
+
+        /// The handoff's top band - `Wave Defense.dc.html:39-40`, the kicker
+        /// and the wave counter over the scrim.
+        ///
+        /// `HudSnapshot` GAINED NOTHING, which is asserted from the other
+        /// side: the counter is set through a property and is therefore
+        /// unaffected by a redraw, so a `Refresh` between the two reads below
+        /// must not disturb it. A wave id smuggled into the snapshot would
+        /// pass the first read and fail this one the moment a frame arrived
+        /// without it.
+        [Test]
+        public void WaveHud_TheTopBandNamesTheWaveAndItsKicker()
+        {
+            var view = new WaveHudView { Wave = 6 };
+            view.Bind(() => Hud(2, 10, Raider(1f, 100, 100)));
+
+            Assert.AreEqual(WaveHudScreen.Eyebrow, view.Q<Label>("eyebrow").text);
+            Assert.AreEqual(WaveHudScreen.WaveWord, view.Q<Label>("wave-word").text);
+            Assert.AreEqual(WaveHudScreen.WaveOf(6), view.Q<Label>("wave-number").text);
+
+            view.Refresh();
+            Assert.AreEqual(WaveHudScreen.WaveOf(6), view.Q<Label>("wave-number").text,
+                "a redraw cleared the wave counter - it is not per-frame data");
+
+            // A DIFFERENT WAVE PRODUCES A DIFFERENT COUNTER. Without this the
+            // assertion above is satisfied by a Label holding "6 / 12".
+            var other = new WaveHudView { Wave = 9 };
+            Assert.AreNotEqual(view.Q<Label>("wave-number").text,
+                other.Q<Label>("wave-number").text);
+
+            // BOTH NUMERALS CARRY THE MARKER. bible 10.6, and the wave a
+            // player is on is a number the next decision depends on.
+            Assert.IsTrue(view.Q<Label>("wave-number").ClassListContains("t-num"));
+        }
+
+        /// A HUD with no wave draws no counter rather than "Wave  / 12" or
+        /// "Wave 0 / 12" - `DeployScreen.FoesStatValue`'s rule, which this
+        /// project applies to every readout a caller may not know.
+        [Test]
+        public void WaveHud_WithNoWave_CollapsesTheCounterRatherThanClaimingWaveZero()
+        {
+            var view = new WaveHudView();
+            view.Bind(() => Hud(2, 10));
+
+            Assert.AreEqual(string.Empty, view.Q<Label>("wave-number").text);
+            Assert.AreEqual(DisplayStyle.None,
+                view.Q<VisualElement>("wave-line").style.display.value);
+
+            // The kicker names the PLACE and not the wave, so it stays.
+            Assert.AreEqual(WaveHudScreen.Eyebrow, view.Q<Label>("eyebrow").text);
+
+            // And setting one later brings the row back - `Wave` is settable
+            // after construction for the same reason `Camera` is.
+            view.Wave = 6;
+            Assert.AreEqual(DisplayStyle.Flex,
+                view.Q<VisualElement>("wave-line").style.display.value);
+        }
+
+        /// THE READOUT IS THE VALUE OF A PILL AND `#chrome` IS THE DIRECT
+        /// CHILD, which is the structural precondition `Place` depends on and
+        /// no test could otherwise see.
+        ///
+        /// `WaveHudView.Place` reserves a band at the top of the frame so a
+        /// clamped bar never lands on the chrome, and it MEASURES that band
+        /// with `layout`, which is relative to the PARENT. Task 11's own note
+        /// there named this trap in advance - "a wrapper would have moved the
+        /// measurement one level down, silently, while still returning a
+        /// plausible number" - and Task 18 is the change that moved it. The
+        /// bug it would produce is invisible in the Editor and in every
+        /// capture, because `Place` returns early with no camera.
+        [Test]
+        public void WaveHud_TheClampMeasuresTheWholeChrome_WhichIsStillADirectChild()
+        {
+            var view = new WaveHudView { Wave = 6 };
+            view.Bind(() => Hud(2, 10, Raider(1f, 100, 100)));
+
+            var chrome = view.Q<VisualElement>("chrome");
+            Assert.IsNotNull(chrome, "the HUD has no chrome element for Place to measure");
+            Assert.AreSame(view, chrome.parent,
+                "#chrome is not a direct child of the root, so its `layout` is in the wrong space");
+
+            // AND THE READOUT IS NOT ONE ANY MORE, which is the fact that made
+            // the change necessary. If this ever becomes true again, `Place`
+            // should go back to measuring it.
+            var integrity = view.Q<Label>("integrity");
+            Assert.AreNotSame(view, integrity.parent,
+                "the readout is a direct child again; Place measures #chrome and would now "
+                + "reserve a band that does not contain it");
+            Assert.IsTrue(integrity.ClassListContains("t-num"), "the readout lost the marker");
+        }
+
+        /// NOTHING IN THE HUD ALLOCATES ON A FRAME WHERE NOTHING CHANGED.
+        ///
+        /// This is the one screen that repaints during combat, on a mobile
+        /// target, at a frame rate that is not the 30Hz tick rate - so a
+        /// string rebuilt per frame is garbage handed to the collector for a
+        /// line that is identical half the time. Two places did it before
+        /// Phase 9 Task 18: `WaveHudScreen.Integrity` (two `ToString`s and a
+        /// concat) and `BarTag`'s "RALLY 42".
+        ///
+        /// MEASURED IN GEN-0 COLLECTIONS AND NOT IN BYTES, and the first
+        /// version of this test is why. It read
+        /// `GC.GetAllocatedBytesForCurrentThread()`, which on this Editor's
+        /// Mono returns the same figure however much is allocated - so the
+        /// frozen loop and the moving one both measured zero and the "it
+        /// allocated nothing" assertion passed while proving nothing at all.
+        /// That is the shape of the two assertions this project recently found
+        /// that could not fail, so it was written with the sanity arm below
+        /// FIRST, and the sanity arm is what caught it.
+        ///
+        /// THE FAILURE MODE IS CONSTRUCTED RATHER THAN ASSUMED. The moving
+        /// loop allocates a fresh snapshot per iteration on top of whatever
+        /// the view does, so it MUST collect; if it does not, the counter is
+        /// unusable and the assertion below would be vacuous. Removing either
+        /// guard makes the frozen loop allocate ~100 bytes a frame - 20,000
+        /// frames of it, which is more than a gen-0 budget - and this reddens.
+        [Test]
+        public void WaveHud_RedrawingAnUnchangedFrame_AllocatesNothing()
+        {
+            const int frames = 20000;
+
+            var snapshot = Hud(2, 10, Rallied(1f, 42));
+            var view = new WaveHudView { Wave = 6 };
+            view.Bind(() => snapshot);
+
+            // Warm: the first writes build the class lists and the inline
+            // style store, which are one-off allocations by construction.
+            for (var i = 0; i < 8; i++) view.Refresh();
+
+            GC.Collect();
+            var mark = GC.CollectionCount(0);
+            for (var i = 0; i < frames; i++) view.Refresh();
+            var frozen = GC.CollectionCount(0) - mark;
+
+            var tick = 10;
+            var rally = 42;
+            var moving = Hud(2, tick, Rallied(1f, rally));
+            var view2 = new WaveHudView { Wave = 6 };
+            view2.Bind(() => moving);
+            for (var i = 0; i < 8; i++) view2.Refresh();
+
+            GC.Collect();
+            mark = GC.CollectionCount(0);
+            for (var i = 0; i < frames; i++)
+            {
+                moving = Hud(2, ++tick, Rallied(1f, --rally));
+                view2.Refresh();
+            }
+            var advancing = GC.CollectionCount(0) - mark;
+
+            Assert.Greater(advancing, 0,
+                "20,000 frames that each allocated a snapshot triggered no gen-0 collection, so "
+                + "this runtime is not counting them and the assertion below proves nothing "
+                + "(frozen=" + frozen + ", advancing=" + advancing + ")");
+            Assert.AreEqual(0, frozen,
+                "the HUD triggered " + frozen + " gen-0 collections redrawing " + frames
+                + " identical frames; a frame whose numbers have not moved must write no string");
+        }
+
+        static BodyBar Rallied(float x, int remaining)
+        {
+            return new BodyBar
+            {
+                Kind = BodyKind.Creature,
+                World = new UnityEngine.Vector3(x, 0f, 0f),
+                Hp = 60, MaxHp = 100,
+                State = BodyState.Rallied,
+                RallyRemaining = remaining,
+            };
+        }
 
         // ---------------------------------------------------------------
         // DeployView - Phase 9 Task 17, `Wave Defense.dc.html` in

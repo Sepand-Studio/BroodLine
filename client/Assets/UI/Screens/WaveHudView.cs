@@ -61,10 +61,25 @@ namespace Broodline.UI.Screens
     ///
     /// WHAT IT DOES ADOPT is the vocabulary: `.elev-1` around each bar's
     /// track in `SectionCard`'s exact wrapper arrangement, `--hud-scrim`
-    /// behind the readout and the track, `--surface` as the one ink, and
-    /// `t-num` on the numerals. `WaveHudView.uss`'s header has what left the
-    /// file and why, including the wave counter the handoff asks for and
-    /// `HudSnapshot` does not carry.
+    /// behind the band, the readout and the track, `--surface` as the one ink,
+    /// and `t-num` on the numerals. `WaveHudView.uss`'s header has what left
+    /// the file and why.
+    ///
+    /// PHASE 9 TASK 18 GAVE IT THE HANDOFF'S TOP BAND - the kicker and the
+    /// wave counter over the scrim, with the integrity readout beneath them in
+    /// the handoff's pill anatomy. Two things are deliberately NOT drawn and
+    /// each is measured rather than declined: the pause and speed controls
+    /// (`WaveHudView.uss`'s header - there is no such icon, every element here
+    /// is unpickable, and a tap anywhere Rallies) and the `Gene energy` pill
+    /// (`WaveHudScreen.IntegrityLabel` - this game's combat loop has no
+    /// energy). `HudSnapshot` gained nothing; `Wave` is a property, on
+    /// `Camera`'s own precedent.
+    ///
+    /// AND IT STOPPED ALLOCATING PER FRAME, which on this view is a
+    /// correctness property rather than a polish one. `Refresh` rebuilt the
+    /// readout's string every frame and a rallied creature's "RALLY 42" with
+    /// it; both are now written only when the numbers behind them move. See
+    /// `_drawnIntegrity` and `Bar.TaggedState`.
     [UxmlElement]
     public partial class WaveHudView : VisualElement
     {
@@ -89,7 +104,29 @@ namespace Broodline.UI.Screens
         const float BarWidth = 52f;
 
         readonly Label _integrity;
+        readonly Label _waveNumber;
+        readonly VisualElement _waveLine;
         readonly VisualElement _bars;
+
+        /// The whole top-left block of chrome - the band and the readout - as
+        /// ONE direct child of this root. `Place` measures it; see the note
+        /// there, and the UXML's own beside `#chrome`.
+        readonly VisualElement _chrome;
+
+        /// The last integrity and tick the readout was written for, so an
+        /// unchanged frame does not rebuild its string.
+        ///
+        /// THIS IS A CORRECTNESS FIX AND NOT A TIDY-UP. `Refresh` runs every
+        /// frame of the one scene with a defended per-frame budget, and
+        /// `WaveHudScreen.Integrity` is a concatenation of two `ToString`s -
+        /// three managed allocations per frame, handed to the collector for a
+        /// line that only changes when the simulation ticks. The simulation
+        /// ticks at a fixed 30Hz and the renderer does not, so at 60fps at
+        /// least half of them were for an identical string. `int.MinValue`
+        /// rather than 0 because 0 is a tick and an integrity a wave really
+        /// reaches; the sentinel has to be a value the snapshot cannot carry.
+        int _drawnIntegrity = int.MinValue;
+        int _drawnTick = int.MinValue;
 
         /// Constructed once and re-attached, never re-allocated. This view
         /// redraws every frame of a scene with a defended per-frame budget;
@@ -110,6 +147,26 @@ namespace Broodline.UI.Screens
             public VisualElement Root;
             public VisualElement Fill;
             public Label Tag;
+
+            /// What this bar's tag was last written for. `WaveHudScreen
+            /// .BarTag` is a pure function of exactly these two fields, so a
+            /// body whose state and countdown are unchanged produces the same
+            /// sentence - and "RALLY 42" is a concatenation, allocated before
+            /// the Label's setter gets to notice the text is identical.
+            ///
+            /// SAFE ACROSS REUSE, which is the thing to check: a pooled bar is
+            /// index-aligned to `bodies[i]` and the body at index i is a
+            /// different raider from one frame to the next. That does not
+            /// matter here precisely because the tag depends on nothing else -
+            /// two different bodies in the same state with the same remainder
+            /// have the same tag.
+            ///
+            /// -1 IS NOT A `BodyState`. The enum runs 0..3, so the sentinel
+            /// cannot collide with a real state the way a default 0 (Normal)
+            /// would - a bar built for a Normal body would otherwise skip its
+            /// own first write and keep whatever text the UXML left.
+            public int TaggedState = -1;
+            public int TaggedRally = int.MinValue;
         }
 
         Func<HudSnapshot> _read;
@@ -132,6 +189,46 @@ namespace Broodline.UI.Screens
         /// and the camera outlives any one binding.
         public Camera Camera { get; set; }
 
+        /// Which wave is being fought, for the counter in the top band.
+        ///
+        /// A PROPERTY AND NOT A FIELD ON `HudSnapshot`, WHICH IS THE WHOLE
+        /// POINT. The handoff's chrome has wanted this since Phase 8 and
+        /// `WaveHudView.uss`'s header recorded it as owed because the obvious
+        /// route - a fourth field on the snapshot - reaches Broodline.Model,
+        /// `WaveRunner`'s per-frame snapshot builder and
+        /// `WaveHudScreen.Integrity`'s sentence, which the device re-capture
+        /// procedure reads off the screen to time a tap. None of that is
+        /// needed: the wave id is fixed for the whole run, so it is not
+        /// per-frame data. `Camera` is the same shape for the same reason and
+        /// says so ("not a `Bind` parameter: the brief pins
+        /// `Bind(Func<HudSnapshot>)` and the camera outlives any one
+        /// binding"), and `HudSnapshot` gains nothing, which is what the
+        /// brief asked for.
+        ///
+        /// WRITTEN ONCE, HERE, AND NEVER IN `Refresh`. Formatting it per frame
+        /// would be a string concatenation on the one screen with a per-frame
+        /// budget worth defending, for a number that cannot change.
+        ///
+        /// `int?` BECAUSE A HUD WITH NO WAVE MUST NOT CLAIM WAVE ZERO. The
+        /// same rule `DeployScreen.FoesStatValue` states: a caller that does
+        /// not know says nothing. The counter's whole row is removed from the
+        /// layout when it is null; the eyebrow, which names the place rather
+        /// than the wave, stays.
+        public int? Wave
+        {
+            get => _wave;
+            set
+            {
+                _wave = value;
+                _waveNumber.text = value == null
+                    ? string.Empty : WaveHudScreen.WaveOf(value.Value);
+                _waveLine.style.display = value == null
+                    ? DisplayStyle.None : DisplayStyle.Flex;
+            }
+        }
+
+        int? _wave;
+
         public WaveHudView()
         {
             AddToClassList(UssClassName);
@@ -140,10 +237,36 @@ namespace Broodline.UI.Screens
             var tree = Resources.Load<VisualTreeAsset>("WaveHudView");
             tree.CloneTree(this);
 
+            // EVERY ELEMENT, SWEPT, RATHER THAN EACH ONE NAMED. Rally is the
+            // player's only input during a wave (combat_engine section 8) and
+            // it is a tap anywhere on the screen, so one pickable element in a
+            // full-screen overlay is a HUD that silently disables the game.
+            // `WaveHud_AcceptsNoPointerEventAnywhere` sweeps the subtree for
+            // exactly this, and until Phase 9 Task 18 this constructor set two
+            // elements by hand against a test that checked all of them - a
+            // gap that only stayed closed because the tree had two elements
+            // in it. It has fourteen now. `NewBar` still sets its own,
+            // because a bar is built after this runs.
+            foreach (var element in this.Query<VisualElement>().ToList())
+                element.pickingMode = PickingMode.Ignore;
+
+            _chrome = this.Q<VisualElement>("chrome");
             _integrity = this.Q<Label>("integrity");
+            _waveNumber = this.Q<Label>("wave-number");
+            _waveLine = this.Q<VisualElement>("wave-line");
             _bars = this.Q<VisualElement>("bars");
-            _integrity.pickingMode = PickingMode.Ignore;
-            _bars.pickingMode = PickingMode.Ignore;
+
+            // THE THREE FIXED STRINGS, SET ONCE. Every one of them is
+            // `WaveHudScreen`'s rather than a literal here - the convention
+            // that file's own header states, and the one the Task 15 review
+            // found three screens breaking.
+            this.Q<Label>("eyebrow").text = WaveHudScreen.Eyebrow;
+            this.Q<Label>("wave-word").text = WaveHudScreen.WaveWord;
+            this.Q<Label>("integrity-label").text = WaveHudScreen.IntegrityLabel;
+
+            // Null until a caller says otherwise, which collapses the counter
+            // rather than printing "Wave  / 12" with a hole in it.
+            Wave = null;
         }
 
         /// `read` is PULLED, once per frame, rather than pushed on a tick
@@ -153,6 +276,13 @@ namespace Broodline.UI.Screens
         public void Bind(Func<HudSnapshot> read)
         {
             _read = read ?? throw new ArgumentNullException(nameof(read));
+
+            // THE READOUT'S MEMO IS CLEARED, NOT CARRIED OVER. A second `Bind`
+            // replaces the source, and a new source that happens to open on
+            // the same integrity and tick as the old one's last frame would
+            // otherwise leave the previous binding's text on screen.
+            _drawnIntegrity = int.MinValue;
+            _drawnTick = int.MinValue;
 
             // Drawn NOW as well as scheduled, so a bound HUD is already
             // correct before the first frame elapses - and so this is
@@ -171,7 +301,17 @@ namespace Broodline.UI.Screens
             var snapshot = _read?.Invoke();
             if (snapshot == null) return;
 
-            _integrity.text = WaveHudScreen.Integrity(snapshot);
+            // GUARDED, BECAUSE THIS IS THE ONE SCREEN THAT REPAINTS DURING
+            // COMBAT. See `_drawnIntegrity`: the line is a concatenation of
+            // two `ToString`s and the frame rate is not the tick rate, so an
+            // unguarded write handed the collector three objects a frame for a
+            // string that had not changed.
+            if (snapshot.Integrity != _drawnIntegrity || snapshot.Tick != _drawnTick)
+            {
+                _drawnIntegrity = snapshot.Integrity;
+                _drawnTick = snapshot.Tick;
+                _integrity.text = WaveHudScreen.Integrity(snapshot);
+            }
 
             var bodies = snapshot.Bodies;
             var count = bodies == null ? 0 : bodies.Count;
@@ -268,7 +408,19 @@ namespace Broodline.UI.Screens
             // literal this view authors. Empty rather than null so the label
             // clears rather than keeping the previous body's tag when this
             // pooled element is reused.
-            tag.text = WaveHudScreen.BarTag(body) ?? string.Empty;
+            //
+            // GUARDED ON THE TWO FIELDS THE SENTENCE IS A FUNCTION OF, for
+            // `_drawnIntegrity`'s reason one level down: "RALLY 42" is a
+            // concatenation, and a rallied creature was producing one per
+            // frame for a countdown that moves at the tick rate. See
+            // `Bar.TaggedState`.
+            var state = (int)body.State;
+            if (state != pooled.TaggedState || body.RallyRemaining != pooled.TaggedRally)
+            {
+                pooled.TaggedState = state;
+                pooled.TaggedRally = body.RallyRemaining;
+                tag.text = WaveHudScreen.BarTag(body) ?? string.Empty;
+            }
 
             Place(bar, body.World);
         }
@@ -303,21 +455,27 @@ namespace Broodline.UI.Screens
             var inPanel = RuntimePanelUtils.CameraTransformWorldToPanel(panel, lifted, camera);
             var at = _bars.WorldToLocal(inPanel);
 
-            // The integrity readout's own band, MEASURED rather than declared.
+            // The chrome's own band, MEASURED rather than declared.
             // `WaveHud` reserved a constant 34px for it and its own comment
             // called the resulting agreement between two files "an unasserted
             // numeric relationship between two constants in two assemblies".
-            // The label knows how tall it is; ask it.
+            // The element knows how tall it is; ask it.
             //
-            // STILL THE RIGHT ELEMENT TO ASK AFTER TASK 11 MADE THE READOUT A
-            // CHIP, and that is why the chip is the Label itself rather than a
-            // wrapper around it. `layout` is relative to the parent, so the
-            // band is only comparable with `_bars`' own space while the thing
-            // measured is a direct child of the same root - and a wrapper
-            // would have moved the measurement one level down, silently,
-            // while still returning a plausible number. The fill, the padding
-            // and the radius are all on `_integrity`, so its box IS the band.
-            var header = _integrity.layout;
+            // AND IT IS `_chrome` AND NOT `_integrity` AS OF PHASE 9 TASK 18,
+            // WHICH IS THE TRAP TASK 11's OWN NOTE HERE NAMED IN ADVANCE:
+            // "`layout` is relative to the parent, so the band is only
+            // comparable with `_bars`' own space while the thing measured is a
+            // direct child of the same root - and a wrapper would have moved
+            // the measurement one level down, silently, while still returning
+            // a plausible number." The readout is now the value line of a pill
+            // inside a band inside `#chrome`, three levels down, so asking it
+            // would have returned its offset within the pill - a small,
+            // plausible number - and bars would have clamped on top of the
+            // wave counter. `#chrome` is the direct child that replaced it,
+            // and it is the right band on its own merits too: the thing a
+            // clamped bar must not cover is all of the chrome, not the last
+            // line of it.
+            var header = _chrome.layout;
             var headerBottom = float.IsNaN(header.yMax) ? 0f : header.yMax;
 
             var placed = ClampIntoFrame(

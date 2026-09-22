@@ -420,10 +420,20 @@ namespace Broodline.Game
                     ? new List<CreatureDto>()
                     : new List<CreatureDto>(response.Granted);
 
+                // THE TWO FACTS NEITHER SCREEN'S OWN PAYLOAD CARRIES, and this
+                // is the only place in the app that holds both. The verdict
+                // screens state which wave was fought and how many creatures
+                // went into it; `WaveSubmitResponse` has no wave id at all and
+                // `WaveReport` has no deployment, so both are passed from the
+                // issuance that started the wave rather than added to a shared
+                // payload for one screen's chrome.
+                var deployed = start.Deployment == null ? (int?)null : start.Deployment.Count;
+
                 if (response.Result == PostWaveScreen.WinResult)
                 {
                     var postWave = new PostWaveView();
-                    await _flow.ShowAsync(postWave, resume => postWave.Bind(response, granted, next: resume));
+                    await _flow.ShowAsync(postWave, resume => postWave.Bind(
+                        response, granted, next: resume, wave: start.WaveId, deployed: deployed));
                     return true;
                 }
 
@@ -431,7 +441,8 @@ namespace Broodline.Game
                 // retry resumes the turn and the walk re-derives to this same
                 // beat, because nothing cleared - which is the retry.
                 var defeat = new WaveDefeatView();
-                await _flow.ShowAsync(defeat, resume => defeat.Bind(report, granted, retry: resume));
+                await _flow.ShowAsync(defeat, resume => defeat.Bind(
+                    report, granted, retry: resume, wave: start.WaveId, deployed: deployed));
                 return true;
             }
             finally

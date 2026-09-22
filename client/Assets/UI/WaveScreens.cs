@@ -6,6 +6,49 @@ using Broodline.Model;
 
 namespace Broodline.UI
 {
+    /// What the three wave screens share: where the fight is and how long the
+    /// run is, in one place because three screens state it and the handoff
+    /// states it the same way on each.
+    ///
+    /// TWELVE IS THE AUTHORED ARC AND NOT A DRAWING. `Wave Defense.dc.html:40`
+    /// and `Wave Defeat.dc.html:40` both write "/ 12" and "wave 7 of 12", and
+    /// `specs/broodline_waves_01_12.md` is the document that authors them -
+    /// its section 4 is titled "What the twelve waves do together". So the
+    /// number is a design fact with a source, which is what
+    /// `DeployView.uss`'s note (":58 - This project does not draw '/ 12'
+    /// (nothing in `config.waves` promises twelve)") was missing when it
+    /// declined to draw it. THE DEPLOY SCREEN IS NOT CHANGED HERE: it is Task
+    /// 17's capture and its title line is a two-Label row this constant cannot
+    /// reach without rebuilding it. Recorded as owed.
+    ///
+    /// NOT READ FROM `WaveDef`. `WaveDef.ForId` knows four ids (1, 2, 6, 7) -
+    /// it is the ENGINE's authored set, not the campaign's length - and it
+    /// lives in an assembly `Broodline.UI` deliberately cannot reference
+    /// (`WaveDefeatView`'s class comment has why that constraint has teeth).
+    public static class WaveCampaign
+    {
+        public const int Waves = 12;
+
+        /// The place, uppercase, because USS has no `text-transform` and the
+        /// user ruled the handoff's uppercase kickers are baked into the named
+        /// constants only. Spelled rather than shared with
+        /// `DeployScreen.Eyebrow` ("HOLLOW REACH · DEFENSE") because that one
+        /// is a whole kicker and this is half of a different one; the two
+        /// agreeing is pinned by a test rather than by a reference, so the day
+        /// the region is not Hollow Reach the test names both call sites.
+        public const string Region = "HOLLOW REACH";
+
+        /// `Wave Defeat.dc.html:40` - "Hollow Reach · wave 7 of 12", the
+        /// kicker BOTH verdict screens carry. Post-Wave has no handoff screen
+        /// of its own and takes the defeat screen's, because the two are the
+        /// same beat on opposite arms.
+        public static string Eyebrow(int waveId)
+        {
+            return Region + " · WAVE " + waveId.ToString(CultureInfo.InvariantCulture) +
+                   " OF " + Waves.ToString(CultureInfo.InvariantCulture);
+        }
+    }
+
     /// The wave screens' player-facing copy, authored OUTSIDE the views.
     ///
     /// Same convention as `SpliceScreen.Cta`, `DeployScreen.Cta` and
@@ -22,6 +65,142 @@ namespace Broodline.UI
     /// there is nothing to hold.
     public static class WaveDefeatScreen
     {
+        /// `Wave Defeat.dc.html:41` - the two-word verdict at the top of the
+        /// band, in the display face at 34px.
+        ///
+        /// IT IS NOT `Headline` AND DOES NOT REPLACE IT. The handoff draws
+        /// BOTH: a verdict that never changes (`:41`) and a sentence under it
+        /// that says what happened (`:42`). `Headline` is this project's
+        /// version of the second - bible 4.11's "names the raider that broke
+        /// through and the trait that would have answered it" - and it is the
+        /// sentence this screen exists for, so it keeps its element, its name
+        /// and its tests. What was missing was the first: the screen opened
+        /// with a raider's name and never said the Ark was breached.
+        public const string Verdict = "Ark breached";
+
+        /// The band's three cells - `Wave Defeat.dc.html:45,49,53`.
+        ///
+        /// UPPERCASE, which is the handoff's `.lbl` (`:15`,
+        /// `text-transform: uppercase`) and the addendum's rule for every
+        /// named constant a `t-micro` label reads. `StatCell`'s label IS
+        /// `t-micro`, so this is the same class the deploy screen's
+        /// `FOES`/`DEPLOYED`/`REWARD` already ship in; Task 17's report §5
+        /// flagged that the older screens had not followed, and these two
+        /// screens are the ones this task owns.
+        public const string LeakedStatLabel = "LEAKED";
+        public const string IntegrityStatLabel = "INTEGRITY";
+        public const string KeptStatLabel = "KEPT";
+
+        /// How many raiders reached the Ark. The breach LIST's length, not a
+        /// separate count, so it cannot disagree with the breach the headline
+        /// names.
+        public static string LeakedStatValue(IReadOnlyList<BreachSummary> breaches)
+        {
+            return (breaches == null ? 0 : breaches.Count).ToString(CultureInfo.InvariantCulture);
+        }
+
+        /// `Wave Defeat.dc.html:50` draws "0%" and this draws "0".
+        ///
+        /// NO PER CENT SIGN, AND THAT IS THE MODEL DISAGREEING WITH THE
+        /// DRAWING. combat_engine section 8 makes integrity a POOL and
+        /// `HudSnapshot.Integrity`'s own comment says so ("a pool, not a life
+        /// count") - wave 6 is authored at integrity 2, so "0%" would be a
+        /// percentage of two. `PostWaveScreen.IntegrityStatValue` has printed
+        /// the bare count since it was written and these two screens state the
+        /// same number about the same wave.
+        public static string IntegrityStatValue(int remaining)
+        {
+            return remaining.ToString(CultureInfo.InvariantCulture);
+        }
+
+        /// How many creatures came home, which on a defeat is ALL OF THEM.
+        ///
+        /// THE BRIEF ASKS FOR "the response's breach count against the
+        /// deployment count" AND THAT ARITHMETIC IS NOT AVAILABLE AND WOULD BE
+        /// WRONG IF IT WERE. A breach is a RAIDER that reached the Ark; it is
+        /// not a creature that died, and nothing the client holds records a
+        /// creature dying - `WaveReport` carries Result, Ticks,
+        /// IntegrityRemaining, ReplayBytes and Breaches
+        /// (`Model/WaveReport.cs:48-75`) and `WaveSubmitResponse` carries
+        /// Result, IntegrityRemaining, Breaches, Reward and Granted. Subtracting
+        /// one from the other would put a fabricated casualty count on the one
+        /// screen the bible cares most about not lying on.
+        ///
+        /// It is also the WRONG LESSON. `Wave Defeat.dc.html:42` is explicit
+        /// about what this screen has to say - "your hybrids and their lineage
+        /// are intact" - and bible 4.11's free retry depends on it. So the cell
+        /// states the size of the deployment that went in, and the caller
+        /// passes it because only the caller knows it.
+        ///
+        /// `int?` FOR `DeployScreen.FoesStatValue`'s REASON: a caller that does
+        /// not know the deployment must not be made to say nothing survived.
+        public static string KeptStatValue(int? deployed)
+        {
+            return deployed == null
+                ? string.Empty
+                : deployed.Value.ToString(CultureInfo.InvariantCulture);
+        }
+
+        /// The card under the band - `Wave Defeat.dc.html:62`, whose own
+        /// heading is "Defender performance" over a per-creature damage chart
+        /// this project's report carries nothing for. What replaces it is the
+        /// handoff's OWN teaching row two lines further down (`:88-93`): an
+        /// answer named, in a tinted row, under the verdict.
+        public const string DiagnosisHeading = "WHAT WOULD HAVE ANSWERED IT";
+
+        /// The trait the chip beside the diagnosis names, or empty when the
+        /// bundle names no answer for the raider.
+        ///
+        /// SAME CONTENT-BUNDLE VALUE THE SENTENCE READS, through the same
+        /// field, so a chip and a sentence cannot name different traits. See
+        /// `BreachSummary.Counter`: it is the bundle's answer and not
+        /// `Stats.CounterFor`'s.
+        public static string Counter(BreachSummary breach)
+        {
+            return breach == null ? string.Empty : breach.Counter ?? string.Empty;
+        }
+
+        /// The granted creature that carries `counter`, or null.
+        ///
+        /// bible 9.3: "The counter trait is available immediately: a campaign
+        /// reward, a species in the next drop, something the player can act on
+        /// within minutes", and waves_01_12 section 3 makes wave 6's drop the
+        /// Pale that carries Chill. So the resupply and the answer are the
+        /// same fact stated twice, and matching them is a LOOKUP rather than
+        /// an inference - the chip then carries the tier and the tint of a
+        /// creature the player actually owns.
+        ///
+        /// THE FIRST MATCH, and ordinal case-sensitive. Trait names come off
+        /// the same content bundle on both sides - `BreachSummary.Counter` is
+        /// `PlayerSnapshot.Traits[].Counters` and `CreatureDto.Trait1/2` is
+        /// the same table's spelling - so a case-insensitive compare would be
+        /// papering over a bundle that disagreed with itself.
+        public static CreatureDto CarrierOf(IReadOnlyList<CreatureDto> granted, string counter)
+        {
+            if (granted == null || string.IsNullOrEmpty(counter)) return null;
+            for (var i = 0; i < granted.Count; i++)
+            {
+                var c = granted[i];
+                if (c == null) continue;
+                if (c.Trait1 == counter || c.Trait2 == counter) return c;
+            }
+            return null;
+        }
+
+        /// That carrier's tier in `counter`, or null when there is no carrier.
+        ///
+        /// NULL IS NOT ZERO, which data_model 2 is explicit about - "zero
+        /// would sort and display as 'less than tier I'" - and it is also what
+        /// `TraitChip` reads as "no tier": the chip then renders the bare
+        /// trait name. See `WaveDefeatView.Bind` for what that costs.
+        public static int? TierOf(CreatureDto carrier, string counter)
+        {
+            if (carrier == null || string.IsNullOrEmpty(counter)) return null;
+            if (carrier.Trait1 == counter) return carrier.Tier1;
+            if (carrier.Trait2 == counter) return carrier.Tier2;
+            return null;
+        }
+
         /// bible 4.11 and 9.3, which say the same thing twice: "Wave Defeat
         /// names the raider that broke through and the trait that would have
         /// answered it." Both halves, in one sentence, because this screen
@@ -111,7 +290,21 @@ namespace Broodline.UI
         /// happened. `Headline` is already the sentence that states the loss,
         /// and it states it with the raider's name in it. A header repeating
         /// the verdict in three flatter words is the payoff said twice.
+        /// AND AS OF PHASE 9 TASK 18 IT IS NOT DRAWN, because the handoff's
+        /// own screen has no page header at all: `Wave Defeat.dc.html:31` is
+        /// the hero band, and the element above it (`:26`) is the status bar.
+        /// `ScreenScaffold(title: null)` hides the whole header row, which is
+        /// the call `SpliceRevealView` already made on the same evidence in
+        /// Task 16b. The constant stays because it is this screen's NAME - it
+        /// is the handoff README's own (section 11) and `ScreenFixtures` and
+        /// the inventory both use it - and because the day a caller pushes
+        /// this screen onto a back stack it needs a header again.
         public const string Title = "Wave Defeat";
+
+        /// The kicker, now inside the band rather than in the scaffold's
+        /// header, because the header is gone. `Wave Defeat.dc.html:40` draws
+        /// it there - first line inside the coral panel, above the verdict.
+        public static string Eyebrow(int waveId) => WaveCampaign.Eyebrow(waveId);
 
         /// The secondary CTA, offered only to a caller that has somewhere for
         /// it to go - `WaveDefeatView.Bind`'s `roster` argument.
@@ -153,11 +346,32 @@ namespace Broodline.UI
         /// something true rather than congratulating the player.
         public const string WinResult = "Win";
 
+        /// TWO WORDS, NOT A SENTENCE, AS OF PHASE 9 TASK 18. It was "Wave
+        /// cleared." / "Wave not cleared." - a full sentence in the 28px hero
+        /// face, where the screen on the other arm of the same branch says
+        /// "Ark breached" in two. `Wave Defeat.dc.html:41` is the shape both
+        /// halves of this beat want: a verdict at hero size, and the sentence
+        /// that explains it underneath at reading size. Post-Wave has no
+        /// handoff screen of its own (`PostWaveScreen.Title`'s note), so it
+        /// takes the defeat screen's, which is what makes the pair read as one
+        /// beat rather than two designs.
+        ///
+        /// NO FULL STOP, for the same reason: a headline is not a sentence,
+        /// and the one across the branch has none.
+        ///
+        /// THE TOGGLE IS UNCHANGED AND IT IS THE POINT. The verdict is the
+        /// SERVER's; a non-win response reaching this screen is a documented
+        /// path and it must say something true rather than congratulate.
         public static string Headline(string result)
         {
             if (string.IsNullOrEmpty(result)) return string.Empty;
-            return result == WinResult ? "Wave cleared." : "Wave not cleared.";
+            return result == WinResult ? "Wave held" : "Wave not held";
         }
+
+        /// The kicker, in the scaffold's own eyebrow slot - which this screen
+        /// keeps because, unlike Wave Defeat, it has a page header to hang it
+        /// under. `PostWaveScreen.Title`'s note has why the header stays.
+        public static string Eyebrow(int waveId) => WaveCampaign.Eyebrow(waveId);
 
         public const string NextLabel = "Continue";
 
@@ -196,8 +410,25 @@ namespace Broodline.UI
         /// condition, which makes "how much of it is left" the one number on
         /// this screen a next decision depends on. A one-cell stat row is
         /// also a contradiction in terms.
-        public const string RewardStatLabel = "Reward";
-        public const string IntegrityStatLabel = "Integrity left";
+        /// UPPERCASE AS OF PHASE 9 TASK 18, and a third cell beside them.
+        /// `StatCell`'s label carries `t-micro`, which IS this project's
+        /// version of the handoff's `.lbl` (9px, `.1em`, uppercase) - Task
+        /// 17's report §5 named these two as the screens still shipping
+        /// sentence case under that class. The deploy screen's
+        /// `FOES`/`DEPLOYED`/`REWARD` and the defeat screen's three are now
+        /// the same shape as these.
+        public const string RewardStatLabel = "REWARD";
+        public const string IntegrityStatLabel = "INTEGRITY LEFT";
+
+        /// The third cell, mirroring `WaveDefeatScreen.KeptStatLabel` - the
+        /// same fact stated on both arms of the branch. Its comment has why
+        /// it is the deployment's size and not a survival count.
+        public const string KeptStatLabel = "KEPT";
+
+        public static string KeptStatValue(int? deployed)
+        {
+            return WaveDefeatScreen.KeptStatValue(deployed);
+        }
 
         /// InvariantCulture for the reason every other number in this
         /// assembly takes it - `DeployScreen.WaveStatValue`'s comment has it:
@@ -209,18 +440,83 @@ namespace Broodline.UI
         }
     }
 
-    /// The live HUD's two lines of text. Everything else it draws is a bar.
+    /// The live HUD's text. Everything else it draws is a bar.
     public static class WaveHudScreen
     {
+        /// THE SAME KICKER THE DEPLOY SCREEN CARRIES, BY REFERENCE. They are
+        /// two phases of ONE handoff screen - `Wave Defense.dc.html:39`, which
+        /// Task 17 rendered in `phase: 'placing'` and this renders in
+        /// `running` - so a second literal here would be the same sentence
+        /// written twice with nothing holding the two together.
+        public const string Eyebrow = DeployScreen.Eyebrow;
+
+        /// "Wave", in the display face, with the numerals beside it in
+        /// `WaveOf`. `DeployScreen.Title`'s comment has why the word and the
+        /// number are two Labels: bible 10.6 keeps numerals out of the display
+        /// face and puts `t-num` on every decision-bearing one, so "Wave 6"
+        /// cannot be one run of text. Taken from the deploy screen for the
+        /// reason `Eyebrow` is.
+        public const string WaveWord = DeployScreen.Title;
+
+        /// `Wave Defense.dc.html:40` - "Wave {{ wave }} / 12", both numerals
+        /// in one `t-num` Label because they are one reading ("six of twelve")
+        /// and a span between them would be a third element for a space.
+        ///
+        /// THE DEPLOY SCREEN DECLINED THE "/ 12" AND THIS DRAWS IT.
+        /// `DeployView.uss:58` says "nothing in `config.waves` promises
+        /// twelve"; `WaveCampaign.Waves` has the source that does. Recorded
+        /// rather than fixed on that screen - see that constant's note.
+        public static string WaveOf(int waveId)
+        {
+            return waveId.ToString(CultureInfo.InvariantCulture) + " / " +
+                   WaveCampaign.Waves.ToString(CultureInfo.InvariantCulture);
+        }
+
+        /// The readout's caption - `Wave Defense.dc.html:38`, the right-hand
+        /// one of the handoff's two stat pills. By reference to the deploy
+        /// screen's for `Eyebrow`'s reason: one handoff element, two phases.
+        ///
+        /// THE LEFT PILL - `Gene energy` (`:29`) - IS NOT DRAWN, and this is
+        /// the brief's step 1.2 refuted by the data path rather than declined.
+        /// `HudSnapshot` carries three fields (`Model/WaveReport.cs:146-158`:
+        /// Integrity, Tick, Bodies) and `WaveRunner.Snapshot` fills them from
+        /// `_runner.Integrity` and `_runner.Tick`; there is no energy in this
+        /// game's combat loop at all - the deploy screen's own energy readout
+        /// is a SHARD BALANCE the director hands it before the wave
+        /// (`DeployScreen.EnergyValue`, "the player's spendable balance"), and
+        /// nothing is spent during one. The brief's substitute - the wave's
+        /// reward, as "+150 on a win" - is the server's number
+        /// (`client_architecture` section 7 makes the client a cache and never
+        /// a source of truth, and `PostWaveScreen.RewardLine` renders the
+        /// server's reward on the screen after this one), and the runner has
+        /// never been handed it.
+        public const string IntegrityLabel = DeployScreen.IntegrityLabel;
+
         /// What `WaveHud.DrawIntegrity` drew, minus the rich-text markup:
         /// the loss condition and the live tick. The tick is here because the
         /// tracked-capture procedure reads it off the screen - DeviceReplay
         /// Tests' re-capture message says so in as many words: "The HUD
         /// prints the live tick beside Integrity."
+        ///
+        /// THE WORD "Integrity" LEFT THE SENTENCE IN PHASE 9 TASK 18 AND THE
+        /// TICK DID NOT. The line is now the VALUE of a pill whose caption is
+        /// `IntegrityLabel` ("ARK INTEGRITY"), so the word was being printed
+        /// twice, 14px apart. The tick stays for two reasons and the second is
+        /// the load-bearing one: the device procedure reads it off this line,
+        /// and `WaveCapturePlayTests:162-165` asserts that
+        /// `Q<Label>("integrity").text` CHANGES within its frame budget.
+        /// Integrity is a pool that moves a handful of times in a wave
+        /// (`HudSnapshot.Integrity`: "a pool, not a life count"), so a line
+        /// carrying integrity alone would sit still for hundreds of frames and
+        /// that test would fail on a timeout rather than on a wrong value.
+        ///
+        /// NO PER CENT SIGN, for `WaveDefeatScreen.IntegrityStatValue`'s
+        /// reason: the handoff draws "82%" over a percentage and wave 6 is
+        /// authored at integrity 2.
         public static string Integrity(HudSnapshot snapshot)
         {
             if (snapshot == null) return string.Empty;
-            return "Integrity " + snapshot.Integrity.ToString(CultureInfo.InvariantCulture) +
+            return snapshot.Integrity.ToString(CultureInfo.InvariantCulture) +
                    "   tick " + snapshot.Tick.ToString(CultureInfo.InvariantCulture);
         }
 

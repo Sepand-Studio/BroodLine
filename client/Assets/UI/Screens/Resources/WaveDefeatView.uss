@@ -1,62 +1,190 @@
 /* A designed loss (wave 6), composed onto ScreenScaffold. bible 4.11 makes
  * this a TEACHING screen, not a failure screen: the diagnosis is the content
- * and the Pale grant is the recovery, so only the headline is coral.
+ * and the Pale grant is the recovery.
+ *
+ * PHASE 9 TASK 18 GAVE IT THE HANDOFF'S BAND, WHICH IS THE ONLY STRUCTURAL
+ * CHANGE. `Wave Defeat.dc.html:31` is a `HeroBand` in coral - the same
+ * `linear-gradient(170deg, ...)` at `--radius-band` with the `.elev-2` pair
+ * that six violet screens already draw - and `HeroBand.Tint` is the hook that
+ * made it reachable. The kicker, the verdict, the sentence and the three cells
+ * are the band's own column (`:40-56`); the card under it is the handoff's
+ * teaching row (`:88-93`) rather than its `Defender performance` chart, which
+ * needs per-creature damage this project's `WaveReport` does not carry.
  *
  * THIRTY-ONE DECLARATIONS BECAME TEN IN PHASE 8 TASK 11 AND NONE OF THE
  * TWENTY-ONE WAS REPLACED BY A COPY HERE, which is the test of whether a
- * screen composes the layer or re-derives it:
+ * screen composes the layer or re-derives it. That still holds of everything
+ * below: the ramp, the radius and the elevation are `HeroBand`'s, the card is
+ * `SectionCard`'s, the cells are `StatCell`'s, the chip is `TraitChip`'s, and
+ * what is left is the geometry the handoff gives THIS screen and nothing else.
  *   - the root's `padding: var(--gutter)` and `align-items: center` are the
  *     scaffold's content region, which puts the gutter on
  *     `unity-scroll-view__content-container` so an elevated card's shadow is
  *     not clipped at the viewport edge.
- *   - `__headline`'s size, weight and ink are `.t-hero` and `.t-danger`.
- *     Both are single-class selectors in Theme.uss and `.t-danger` is
- *     declared after `.t-hero`, so the coral wins the colour and the 28px
- *     survives.
+ *   - `__verdict`'s size, weight and ink are `.t-hero` and `.t-danger`. Both
+ *     are single-class selectors in Theme.uss and `.t-danger` is declared
+ *     after `.t-hero`, so the coral wins the colour and the 28px survives.
  *   - `__diagnosis`'s --surface fill, --radius-card, 1px --divider border and
  *     --space-4 of padding were SectionCard's surface written out again,
- *     minus the elevation - five declarations against a component that
- *     already carried all five and a drop shadow. Its --text-card-title is
- *     `.t-card-title` and its --ink is that class's too.
+ *     minus the elevation. Its --text-card-title is `.t-card-title`.
  *   - `__granted`'s size, weight and ink are `.t-secondary` and `.t-success`.
  *   - `__grants`'s --green-tint fill, row radius, 12px padding and
  *     `width: 100%` are gone and nothing took their place: that panel drew a
  *     full-width green block behind a single 160px card, and the whole block
  *     drew blank on a defeat with no resupply. WaveDefeatView.Bind has it.
- *   - `__grant`'s size, ink and wrap were describing a Label that has not
- *     been in this tree since the grants became CreatureCards. The rule
- *     survives as the one line the card grid does need, which is the gap
- *     under a wrapped row.
  *   - `__retry`'s top margin and full width are the CTA row's own padding and
  *     its `flex-direction: column`, and the button's whole treatment is
  *     Theme's `.btn-primary`.
  */
 .wave-defeat-view { flex-grow: 1; }
 
+/* ---------------------------------------------------------------- the band */
 
-/* Sentences, not labels, so they wrap. The headline runs to three lines at
- * 28px on a 430 frame with the wave-6 breach in it, and the diagnosis is the
- * longest single sentence in the app. */
-/* CENTRED AS TEXT, NOT AS LAYOUT. This screen's root used to carry
- * `align-items: center` and it was dropped on the claim that the scaffold's
- * content region supplies it. It does not - `.screen-scaffold__content` is
- * `flex-grow` alone and its content-container rule sets a gutter and a
- * `min-height` only, neither of which centres anything - so a short verdict
- * stretched to full content width and rendered flush left,
- * while SpliceRevealView, the third screen of the same beat, stayed centred.
+/* `:31` - `margin: 10px 12px 0`. The 12 is the scaffold's gutter and is not
+ * restated; the 10 is measured to the band's own SURFACE, and `.hero-band` is
+ * the `.elev-2` wrapper, which already carries --elev-2-spread (12px) of
+ * padding above it - that is where the drop is drawn. 12 is already more than
+ * 10, so nothing is added here and the residual is 2px the shadow is using.
  *
- * The fix is text-align rather than the container's `align-items`, because
- * this is a Label whose TEXT is off-centre, not a box in the wrong place.
- * Centring the content container instead makes every sibling shrink-wrap,
- * which collapses the stat row into overlapping cells - measured, in a
- * capture, before this was written. */
-.wave-defeat-view__headline {
-    white-space: normal;
-    -unity-text-align: middle-center;
-    margin-bottom: var(--space-3);
+ * THE BOTTOM IS THE ONE THAT NEEDED SAYING. `:60` puts the card 11px under the
+ * band; the wrapper pays 12 below the surface and `.section-card` pays another
+ * 6 above its own, so without this the gap is 18. -7 brings it to 11 exactly.
+ * A LITERAL because USS on 6000.6.0f1 has no `calc()` - the same reason
+ * `.elev-1`'s own negative margins are literals. */
+.wave-defeat-view__band { margin-bottom: -7px; }
+
+/* THE BAND IS A PADDED COLUMN, NOT A CENTRED SUBJECT, which is the shape two
+ * of the six violet instances already take (`Splice Chamber:101`,
+ * `Hybrid Growth:48`) and which `HeroBand.uss`'s own note names as the
+ * direction a screen's sheet is allowed to reach - downward into its
+ * descendants, never upward. `:31`'s `padding: 16px 18px 18px`. */
+/* `align-items: stretch` AND NOT `flex-start`, WHICH IS A DEFECT THIS SCREEN
+ * SHIPPED INTO A CAPTURE AND THE CAPTURE IS WHAT CAUGHT IT. `HeroBand`'s
+ * subject is `align-items: center` by default, and the obvious correction for
+ * a padded column is `flex-start` - which shrink-wraps every child to its own
+ * content, so the three `StatCell`s (`flex-basis: 0`, sized by the row) came
+ * out as three overlapping 12px slivers with their labels running through each
+ * other. `PostWaveView.uss` records the identical failure from the other
+ * direction ("centring the content container makes every sibling shrink-wrap,
+ * which collapses the stat row into overlapping cells"), which is how the
+ * defect was recognised rather than re-debugged. `stretch` is flexbox's own
+ * default and is what the handoff's block-level column has. */
+.wave-defeat-view__band .hero-band__subject {
+    align-items: stretch;
+    justify-content: flex-start;
+    padding-top: 16px;
+    padding-bottom: 18px;
+    padding-left: 18px;
+    padding-right: 18px;
 }
 
-.wave-defeat-view__diagnosis { white-space: normal; }
+/* `:40` - the kicker, in the handoff's own coral (`#c07f74`; --coral-text is
+ * #b3564a, 17 away in summed channel distance and the project's one
+ * coral-on-light ink). `.t-danger` after `.t-micro` carries the colour.
+ *
+ * THE HEIGHT IS 16b's RULE ON A SIXTH INSTANCE, AND THE CAPTURE IS WHAT
+ * MEASURED IT. Scanned down the band's ink rows on `WaveDefeatView.png` at the
+ * 430 frame: the band's surface opens at y=12 and its `padding-top: 16px`
+ * puts the first content at y=28, but the kicker's glyphs are at y=39..46 -
+ * eleven pixels lower, which is one whole --text-micro line box (10 x 1.36 =
+ * 13.6, `Nunito-Bold SDF.asset:149,152`) of leading that nothing declares.
+ * Every Label that is a CHILD of this column pays it once: the verdict below,
+ * the sentence under that, and `StatCell`'s two. 14 is that line box rounded
+ * up, and `middle-left` puts the glyphs back on it. */
+.wave-defeat-view__kicker {
+    height: 14px;
+    -unity-text-align: middle-left;
+}
+
+/* `:41` - 34px against `.t-hero`'s 28. The handoff's own size is six over the
+ * top of this project's type scale and --text-hero is the step below it; a
+ * ninth display size invented for one screen is the drift the scale exists to
+ * stop. Recorded as the residual rather than argued with silently - the same
+ * trade `StatCell.uss` records for its value's 11 against 12.
+ *
+ * `letter-spacing: -.02em` AT 28px IS -0.56px, and UI Toolkit's
+ * `letter-spacing` is in POINTS with no em unit. Rounded to 0 rather than
+ * spent: half a pixel of negative tracking on a two-word headline is under the
+ * rasteriser's own resolution at this size. */
+.wave-defeat-view__verdict {
+    white-space: normal;
+    height: 38px;
+    -unity-text-align: middle-left;
+    margin-top: 2px;
+}
+
+/* `:42` - the sentence under the verdict, 12.5px against `.t-card-title`'s 13,
+ * wrapping inside `max-width: 290px`. The max-width is dropped rather than
+ * translated: the band's own padding leaves 370 at the 406 content width, and
+ * pinning a paragraph to 290 in a frame whose width is not the handoff's is a
+ * line break in a fixed place rather than a measure. `white-space: normal` is
+ * what makes it a paragraph at all - this is the longest sentence on the
+ * screen with the wave-6 breach in it. */
+/* NO HEIGHT HERE, AND THAT IS THE ONE PLACE THIS SCREEN CANNOT APPLY 16b's
+ * RULE. The two Labels above are single lines with a known line box; this one
+ * WRAPS - `WaveDefeatScreen.Headline` runs to one line for "Lash broke
+ * through." and two for the wave-6 sentence - so a pinned height would either
+ * clip the long case or pad the short one. It pays the same one extra line box
+ * the kicker's note measures (~18px at --text-card-title), and that is the
+ * named residual on this screen. */
+.wave-defeat-view__headline {
+    white-space: normal;
+    margin-top: 5px;
+}
+
+/* `:43` - `display: flex; gap: 7px; margin-top: 13px`.
+ *
+ * THE -4px IS `StatCell.uss`'s OWN PRESCRIPTION AND NOT A NUDGE: a cell
+ * carries half the handoff's 8px gap on each of its own sides, and that file
+ * says what a caller that wants the row flush does about it. Without it the
+ * row is inset 4px from the band's padding on both sides. The residual is the
+ * inter-cell gap: 4+4 = 8 against the handoff's 7, one pixel over, twice. */
+.wave-defeat-view__stats {
+    flex-direction: row;
+    margin-top: 13px;
+    margin-left: -4px;
+    margin-right: -4px;
+}
+
+/* `:44` - `background: rgba(255,255,255,.72)` over the coral ramp. Composited
+ * against `#f6e2e4` that is (252, 247, 247), which is --surface to 7 in summed
+ * channel distance, so the token is the colour rather than an approximation of
+ * it - and USS here has no way to write a translucent white that is not a raw
+ * rgba(). `StatCell`'s own --surface-sunk (#f8f6fc) is a violet-white and
+ * reads cold on a coral band, which is the reason this rule exists at all.
+ *
+ * `:46` - the value in `#8e3f33`. --coral-text (#b3564a) is the project's
+ * coral-on-light ink, 74 away in summed channel distance and the only one
+ * there is; the alternative is a ninth coral invented for three numerals.
+ * The LABEL is left on `t-micro`'s --mute rather than tinted to the handoff's
+ * `#c07f74`, because a cell's caption is the component's and every other stat
+ * row in the app reads the same grey. Both are named in the report. */
+.wave-defeat-view__stats > .stat-cell { background-color: var(--surface); }
+.wave-defeat-view__stats > .stat-cell .stat-cell__value { color: var(--coral-text); }
+
+/* ------------------------------------------------------- the teaching card */
+
+/* The handoff's two-sided card header (`:61`) - an uppercase eyebrow on the
+ * left and something on the right. `SectionCard`'s own heading is one 19px
+ * Baloo line and cannot be both, which is why the card is built without one;
+ * `DeployView.CardHeader` and `SpliceChamberView.CardHeader` are the same row
+ * on the same reasoning, and this is the fourth screen in the phase to want
+ * it - which is the point at which it should become a component. Recorded.
+ *
+ * `align-items: center` RATHER THAN THE HANDOFF'S `baseline`, which UI Toolkit
+ * does not have at all. */
+.wave-defeat-view__diagnosis-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.wave-defeat-view__diagnosis {
+    white-space: normal;
+    margin-top: var(--space-2);
+}
+
+/* ------------------------------------------------------------ the resupply */
 
 .wave-defeat-view__resupply { flex-direction: column; }
 
