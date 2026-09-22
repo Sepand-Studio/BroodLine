@@ -48,6 +48,18 @@
     --violet-light: #8878cf;      /* CTA gradient start, selection ring */
     --violet-pressed: #e7e0f6;    /* secondary button :active, under --violet-tint */
 
+    /* IN the handoff, at distance 0: `Onboarding.dc.html:46`'s pool circle is
+     * `fill="#e9e0fb"`. Added in Phase 9 Task 14c fix round 2 - the palette
+     * owner's ruling on that task's flagged concern (HeroBand.uss's pool
+     * originally borrowed --violet-pressed, 7 away, for lack of a token of
+     * its own). THE REASON IS THE GENERAL RULE, NOT THIS ONE CASE:
+     * --violet-pressed is `.btn-secondary:active`'s fill (Theme.uss), and a
+     * routine interaction re-tune would otherwise silently move the hero
+     * pool on every band screen that reads it. Decoration must not borrow an
+     * interaction state's token when the handoff's own value is sitting
+     * right there. */
+    --violet-glow: #e9e0fb;       /* HeroBand's pool fill - Onboarding.dc.html:46 */
+
     /* Not in the handoff. The secondary button's drop edge - the 3px bottom
      * border that stands in for the press state USS cannot express (see
      * Theme.uss header item 3). It is NOT --hairline: against the

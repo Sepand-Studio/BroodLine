@@ -83,6 +83,22 @@ namespace Broodline.UI.Components
         public const string GlowUssClassName = "hero-band__glow";
         public const string SubjectUssClassName = "hero-band__subject";
 
+        /// PUBLIC-SHAPE ADDITION, FLAGGED - Phase 9 Task 14c fix round 2,
+        /// new finding 2 ("the subject is 36% of the ring where the
+        /// handoff's is 91%"). On `Subject` only when `ring` is true, so
+        /// `HeroBand.uss` can size a `HeroSlot` placed inside it
+        /// without touching `HeroSlot`'s own class (a Task 13 component;
+        /// its public shape, including `--hero-slot`, does not move) and
+        /// without a selector keyed off a sibling, which USS on 6000.6.0f1
+        /// cannot write - there is no `~` or `+` combinator, only descendant
+        /// and child. See `HeroBand.uss`'s note beside
+        /// `.hero-band__subject--haloed` for the measurement: the founder's
+        /// creature was 36% of the ring's diameter where the handoff reads
+        /// 91%, and this is the class that lets the fix live in ONE place
+        /// for every ring-bearing band screen (this one and Task 16's
+        /// `Splice Reveal`) rather than in each screen's own sheet.
+        public const string SubjectHaloedUssClassName = "hero-band__subject--haloed";
+
         readonly VisualElement _surface;
 
         /// Where the screen's own content goes, deliberately not `this` and
@@ -104,7 +120,11 @@ namespace Broodline.UI.Components
             _surface = this.Q<VisualElement>("surface");
             Subject = this.Q<VisualElement>("subject");
 
-            if (!ring) this.Q<VisualElement>("halo").RemoveFromHierarchy();
+            // See `SubjectHaloedUssClassName`'s own comment. `ring` is
+            // already the signal for "does this instance have the halo the
+            // handoff frames a subject in", so the same flag decides both.
+            if (ring) Subject.AddToClassList(SubjectHaloedUssClassName);
+            else this.Q<VisualElement>("halo").RemoveFromHierarchy();
         }
 
         /// The handoff's `flex: 1; min-height: <n>px` - the band takes

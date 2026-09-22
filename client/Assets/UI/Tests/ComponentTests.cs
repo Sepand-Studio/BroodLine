@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
 using Broodline.Api;
 using Broodline.UI.Components;
 using NUnit.Framework;
@@ -570,6 +573,31 @@ namespace Broodline.UI.Tests
                 "the subject did not move up when the ring layer was removed");
         }
 
+        /// PHASE 9 TASK 14c FIX ROUND 2, NEW FINDING 2. `ring` is already
+        /// the signal for "does this instance have a halo to size its
+        /// subject against" - `HeroBand.uss`'s
+        /// `.hero-band__subject--haloed .hero-slot` rule is what actually
+        /// enlarges a `HeroSlot` placed in `Subject`, and it cannot be
+        /// exercised from a panel-less tree (that is a stylesheet
+        /// question, not a structure one - `TheDefaultFormStaysContent
+        /// SizedInTheStylesheetItself` above is this project's answer to
+        /// that class of question). What a structural test CAN and must
+        /// pin is that the CLASS the CSS keys off actually tracks `ring`,
+        /// so deleting the one line in the constructor that adds it goes
+        /// unnoticed by nothing.
+        [Test]
+        public void AHeroBandsSubjectIsHaloedOnlyWhenTheRingIs()
+        {
+            var haloed = new HeroBand();
+            Assert.IsTrue(haloed.Subject.ClassListContains(HeroBand.SubjectHaloedUssClassName),
+                "a ring-bearing band's subject lost the class HeroBand.uss sizes a HeroSlot against");
+
+            var ringless = new HeroBand(ring: false);
+            Assert.IsFalse(ringless.Subject.ClassListContains(HeroBand.SubjectHaloedUssClassName),
+                "a ringless band's subject was haloed - Splice Chamber's 74px/112px parent slots "
+                + "would be silently enlarged to the halo size meant for a lone founder creature");
+        }
+
         /// A band with nothing in it is a real state, not a broken one: the
         /// handoff's splice chamber opens with neither parent picked, and
         /// `Gene Ark` draws its band around a scene that has not loaded. The
@@ -640,6 +668,83 @@ namespace Broodline.UI.Tests
                 "the content-sized form floored its surface's height by default");
             Assert.AreEqual(StyleKeyword.Null, surface.style.height.keyword,
                 "the content-sized form fixed its surface's height by default");
+        }
+
+        /// STYLESHEET-LEVEL, AND THAT DISTINCTION IS THE WHOLE TEST.
+        /// `ABareHeroBandLeavesGrowthUnset` above reads `element.style.X`,
+        /// the INLINE-style accessor. A `flex-grow: 1` rule added to
+        /// `.hero-band` in `HeroBand.uss` reaches an element only through
+        /// the CASCADE, which is read back via `resolvedStyle` - and this
+        /// suite deliberately builds no live panel to resolve one against.
+        /// So the inline check above CANNOT redden for "a default
+        /// `flex-grow` added to `.hero-band` later", the regression this
+        /// test exists to catch; it only catches an inline default added
+        /// inside the constructor. PROVEN, not assumed: the two functions
+        /// below, run standalone against a copy of this file with
+        /// `flex-grow: 1;` inserted into `.hero-band {}`, flip this test's
+        /// verdict from green to red while leaving
+        /// `ABareHeroBandLeavesGrowthUnset` green throughout - and a copy
+        /// with the same text inside a COMMENT leaves both green, so
+        /// documenting the rule does not trip the gate that enforces it.
+        ///
+        /// SOURCE-TEXT ASSERTION, ON `MainThreadAffinityTests`' PRECEDENT
+        /// (`client/Assets/Game/Tests/MainThreadAffinityTests.cs:48-112`
+        /// strips comments and strings from `.cs` files before matching, for
+        /// exactly the reason above). `StripBlockComments` below is that
+        /// idea applied to USS's one comment form. `RuleBody` then reads the
+        /// two rules the default form's contract actually depends on as
+        /// plain text. `.hero-band__subject` (`HeroBand.uss:200-205`)
+        /// legitimately carries `flex-grow: 1` on the inner layer that
+        /// fills the band once something IS in it - a different selector,
+        /// so it is untouched by either `RuleBody` call below.
+        [Test]
+        public void TheDefaultFormStaysContentSizedInTheStylesheetItself()
+        {
+            var path = Path.GetFullPath(Path.Combine(
+                UnityEngine.Application.dataPath, "UI/Components/Resources/HeroBand.uss"));
+            Assert.IsTrue(File.Exists(path), $"HeroBand.uss not found at {path}");
+
+            var stripped = StripBlockComments(File.ReadAllText(path));
+
+            Assert.IsFalse(GrowsOrSizesItself(stripped, ".hero-band"),
+                "`.hero-band` grows or sizes itself in the stylesheet - the content-sized default "
+                + "form (Gene Ark, Gene Lab, Splice Chamber, Hybrid Growth) would silently change. "
+                + "Growth belongs on `Fill`/`Fix`'s inline style, not the cascade.");
+            Assert.IsFalse(GrowsOrSizesItself(stripped, ".hero-band__surface"),
+                "`.hero-band__surface` grows or sizes itself in the stylesheet - the same "
+                + "regression, on the surface instead of the wrapper.");
+        }
+
+        static readonly Regex GrowthOrSizeProperty = new Regex(
+            @"(^|[{;])\s*(flex-grow|height|min-height)\s*:", RegexOptions.Multiline);
+
+        static bool GrowsOrSizesItself(string strippedUss, string selector)
+        {
+            var pattern = @"(?<![\w-])" + Regex.Escape(selector) + @"(?![\w-])\s*\{([^}]*)\}";
+            var m = Regex.Match(strippedUss, pattern);
+            Assert.IsTrue(m.Success, $"selector `{selector}` not found in HeroBand.uss");
+            return GrowthOrSizeProperty.IsMatch(m.Groups[1].Value);
+        }
+
+        /// Masks `/* ... */` to spaces (newlines kept, so a report against
+        /// the original line numbers would still be possible even though
+        /// this test does not need one). USS has no `//` line comments and
+        /// no string type that could itself contain an unmatched brace, so
+        /// this is the whole of what stripping USS needs - unlike the C#
+        /// stripper it has no quote states to track.
+        static string StripBlockComments(string src)
+        {
+            var outp = new StringBuilder(src.Length);
+            var inComment = false;
+            for (var i = 0; i < src.Length; i++)
+            {
+                var c = src[i];
+                var next = i + 1 < src.Length ? src[i + 1] : '\0';
+                if (!inComment && c == '/' && next == '*') { inComment = true; i++; continue; }
+                if (inComment && c == '*' && next == '/') { inComment = false; i++; continue; }
+                outp.Append(inComment && c != '\n' ? ' ' : c);
+            }
+            return outp.ToString();
         }
 
         /// THE TASK 14b REGRESSION, PINNED. `flex-grow` on an elevation

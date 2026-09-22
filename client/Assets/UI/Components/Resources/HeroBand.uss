@@ -149,43 +149,18 @@
  * A LITERAL rather than a token because one file reads it, which is this
  * project's standing rule for one-off geometry.
  *
- * --violet-pressed IS A TOKEN BORROWED FOR ITS VALUE AND THE NAME IS AN
- * INTERACTION STATE'S. Said out loud because it should be argued with. The
- * handoff's pool is #e9e0fb; the candidates are --violet-pressed (#e7e0f6, 7
- * away), --hairline (#ece7f6, 15) and --violet-tint (#f1ecfa, 21). Inventing
- * an eighth violet 7 units from one already in the file is the drift
- * verify-uss-tokens.sh exists to stop, so the choice was between the three.
- * Measured on the two surfaces this is actually composited on - the band's
- * ramp runs #ffffff to --violet-tint, so the pool has to read at both ends:
- *   --violet-pressed  64 from the white end, 26 from the deep end
- *   --hairline        52 from the white end, 14 from the deep end
- *   --violet-tint     38 from the white end,  0 from the deep end
- * --violet-tint is invisible in the band's lower half by construction, and
- * --hairline's 14 is the neighbourhood the Pale hero disc was moved OUT of
- * for reading as a bare ring on the page it was drawn on (HeroSlot.uss's
- * note, twice). --violet-pressed is the only one of the three that clears
- * both ends, and it is the closest to the handoff besides. Precedent for
- * taking a token whose NAME came from elsewhere when its value is the right
- * one: --hairline is "unselected option outline" and is Pale's disc fill,
- * and --amber-text is the MutationBanner sparkle.
- *
- * THE REAL COST IS NOT THE NAME, IT IS THE COUPLING - flagged in review and
- * not yet ruled on, so the value below is UNCHANGED pending that ruling.
- * `--violet-pressed` is the secondary button's `:active` fill (Theme.uss).
- * Reading it here means a routine interaction re-tune - nudging what the
- * secondary button looks like pressed - silently moves the hero pool on
- * every band screen too, because the two have no reason to be the same
- * colour other than this borrow. The anti-drift argument above is also
- * weaker than it reads: this file already carries two violets marked "not
- * in the handoff" at `Tokens.uss:60` (`--violet-edge`, `#ddd3f0`) and `:66`
- * (`--violet-pale`, `#d9cdf5`) - 15 apart in summed channel distance, i.e.
- * this project already accepts a new violet closer together than that. A
- * `--violet-glow: #e9e0fb` would be the handoff's OWN value, at distance 0,
- * and would satisfy "a new value adds a token with its measurement" more
- * cleanly than borrowing an interaction state's token for an unrelated
- * surface. If the palette owner wants a named --violet-glow, that is a
- * palette ruling and this note is the measurement it would be made against;
- * this file does not make that ruling and does not add the token.
+ * --violet-glow IS THE PALETTE OWNER'S RULING, AT THE HANDOFF'S OWN VALUE.
+ * The pool first borrowed --violet-pressed (#e7e0f6, 7 from the handoff's
+ * #e9e0fb) for lack of a token of its own - flagged as a concern because the
+ * name is an interaction state's, not decoration's. The real cost was never
+ * the name, it was the coupling: --violet-pressed is `.btn-secondary:active`'s
+ * fill (`Theme.uss:383`), so a routine interaction re-tune would otherwise
+ * silently move the hero pool on every band screen too, for no reason the
+ * two colours share on purpose. The ruling is --violet-glow, the handoff's
+ * own value at distance 0 - `Tokens.uss`'s own note beside it has the full
+ * measurement history and states the general rule: decoration must not
+ * borrow an interaction state's token. --violet-pressed ITSELF DOES NOT
+ * CHANGE and keeps its own reader at `Theme.uss:383`.
  *
  * NAMED AFTER AN ANIMATION IT DOES NOT PERFORM. All six handoff pools carry
  * `animation: glow 3.xs ease-in-out infinite` (`Onboarding.dc.html:46`,
@@ -198,7 +173,7 @@
     width: 196px;
     height: 196px;
     border-radius: 98px;
-    background-color: var(--violet-pressed);
+    background-color: var(--violet-glow);
     flex-shrink: 0;
 }
 
@@ -227,4 +202,65 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
+}
+
+/* THE SUBJECT GROWS TO FILL THE HALO IT SITS IN, WHEN THERE IS ONE. Phase 9
+ * Task 14c fix round 2, new finding 2, measured against the handoff:
+ * `Onboarding.dc.html:45` rings at r 132 (264px, --band-ring), `:46` pools
+ * at r 98 (196px, this file's own `.hero-band__glow`), `:49-51` draws its
+ * subject at 240x240 - 91% of the ring's diameter. A bare `HeroSlot`
+ * (`--hero-slot: 96px`, `Tokens.uss`) is 36% of it - the founder reads as a
+ * speck inside a large ornament, a measured gap against the handoff and not
+ * taste.
+ *
+ * REACHES INTO `HeroSlot`, A DESCENDANT WHEN ONE IS PLACED IN `Subject`, ON
+ * `HeroSlot.uss`'s OWN PRECEDENT: "a component's stylesheet reaches its own
+ * descendants ... and nothing else" (StatCell.uss's closing note), and
+ * `HeroSlot.uss` already reaches into ITS descendant `CreatureStage` for
+ * exactly this reason. `HeroSlot`'s own public shape, and `--hero-slot`
+ * itself, DO NOT CHANGE - 96px stays correct where HeroSlot is a list
+ * element, in the roster and in Splice Chamber's parent cards. A creature
+ * standing alone inside a HeroBand's ring is a different context, and this
+ * is that context's own answer.
+ *
+ * SCOPED TO `--haloed`, NOT TO EVERY `.hero-band__subject`, so a FUTURE
+ * HeroSlot inside a RINGLESS band (Splice Chamber's padded column of
+ * 74px/112px parent cards, `ring: false`) is untouched - `--haloed` is only
+ * added when `ring` is true (`HeroBand.cs`), because USS here has no
+ * sibling combinator to key off the halo's presence any other way.
+ *
+ * 160, NOT 240 OR 196. Made to fit HeroBand's OWN chrome rather than matched
+ * to the handoff's literal 240, because the handoff's 240 is the Ark PRISM
+ * at onboarding step 1 (`isS1`) - a different asset the founder's band
+ * borrows its CHROME from and not its content, and there is no handoff
+ * reference for a creature inside this exact ring. 196 (the pool's own
+ * size) was rejected: a disc that size would sit exactly on the pool's edge
+ * and hide it completely, wasting the palette owner's `--violet-glow`
+ * ruling two rules above. 160 leaves 18px of the pool visible on each side
+ * - a clear violet halo behind the creature - and is still comfortably
+ * inside `vetch.png`'s own 192x192 native resolution
+ * (`client/Assets/UI/Resources/Art/creatures/bodies/`), so this reads
+ * closer to the art's native size than the old 80px disc did, not a blur.
+ *
+ * `.hero-slot__ring` IS HIDDEN HERE, NOT STRETCHED. HeroSlot.uss's own ring
+ * is `hero-ring.png`, 30 dashes at a 2px stroke authored for a 96px slot
+ * (`generate-textures.py:268-272`); stretched to 160px the same way that
+ * script's own comment measured stretching it to the band's 264px
+ * (`generate-textures.py:176-180`: "stroke 2px -> 2 * 264/96 = 5.5px"), the
+ * stroke comes out 2 x 160/96 = 3.3px - heavier than authored, and a
+ * second dashed ring only 52px inside `--band-ring`'s own radius (132 - 80)
+ * besides - close enough to compete with it rather than read as a separate
+ * detail. HeroBand's own ring already frames the subject; HeroSlot's does
+ * not need to draw a second one here. */
+.hero-band__subject--haloed .hero-slot {
+    width: 160px;
+    height: 160px;
+}
+.hero-band__subject--haloed .hero-slot__ring {
+    display: none;
+}
+.hero-band__subject--haloed .hero-slot__disc {
+    width: 160px;
+    height: 160px;
+    border-radius: 80px;
 }
