@@ -34,6 +34,19 @@
     margin-bottom: var(--space-2);
 }
 
+/* GROWTH BELONGS ON THE SURFACE, NOT ON THE ROOT.
+ *
+ * `.section-card` IS the `.elev-1` wrapper. Putting `flex-grow` on it
+ * stretches the wrapper while the surface keeps its own height, so the
+ * nine-slice draws its drop around bare paper - measured on the founder
+ * screen's hero at 460px of wrapper around a 300px surface, with ~160px of
+ * shadow-on-nothing below it. NO TEST SAW IT; the capture corpus did.
+ *
+ * A card that must fill its parent grows `.section-card__surface` instead,
+ * as `FounderNamingView.uss`'s hero rule does. This is the third time the
+ * wrapper/surface distinction has cost a capture - the other two are in
+ * Theme.uss's elevation block, and they were both about paint rather than
+ * layout. This one is layout. */
 .section-card__surface {
     flex-direction: column;
     background-color: var(--surface);

@@ -156,6 +156,15 @@ namespace Broodline.UI.Components
             // is inside the row this hides, so a headerless screen puts its
             // per-screen furniture in `Content` instead - which is where
             // `Onboarding.dc.html` draws its progress row anyway.
+            //
+            // AND THE SLOT IS NOT THE ONLY THING INSIDE THAT ROW. `#header`
+            // also holds the back chevron, the eyebrow and the resource
+            // pill, so a headerless screen silently loses all four - and
+            // `Eyebrow` and `SetResourcePill` are documented as re-settable
+            // at bind time, which means a caller can set one long after the
+            // constructor decided it would never be seen. No screen does
+            // either today. `ScaffoldTests` pins the nine titled screens
+            // against acquiring the habit by accident.
             _header.style.display = string.IsNullOrEmpty(title)
                 ? DisplayStyle.None : DisplayStyle.Flex;
 

@@ -307,6 +307,56 @@ namespace Broodline.UI.Tests
                 "and no scrolling content region:\n  " + string.Join("\n  ", bare));
         }
 
+        [Test]
+        public void EveryTitledScreenStillDrawsItsPageHeader()
+        {
+            // Task 14b gave `ScreenScaffold` a headerless mode: a null or
+            // empty title hides `#header` outright, because
+            // `Onboarding.dc.html` has no page header and draws its progress
+            // row straight into the content column.
+            //
+            // EXACTLY ONE SCREEN WANTS THAT. The other nine pass a non-empty
+            // `const string Title` and must still get a header - and with it
+            // the back chevron, the eyebrow and the resource pill, all of
+            // which live inside the row the headerless branch hides.
+            //
+            // Until this test, that rested on a report claim and a capture
+            // corpus that is gitignored. A screen that lost its header would
+            // look exactly like a screen that never had one, and the loss
+            // would be one empty string away.
+            var noScaffold = new[] { "CodexSheet", "WaveHudView" };
+            var headerless = new[] { "FounderNamingView" };
+
+            var titled = typeof(Broodline.UI.Screens.RosterView).Assembly
+                .GetTypes()
+                .Where(t => t.Namespace == "Broodline.UI.Screens"
+                            && typeof(VisualElement).IsAssignableFrom(t)
+                            && !t.IsAbstract
+                            && t.GetConstructor(Type.EmptyTypes) != null
+                            && !noScaffold.Contains(t.Name)
+                            && !headerless.Contains(t.Name))
+                .ToList();
+
+            Assert.That(titled.Count, Is.EqualTo(9),
+                "nine screens pass a non-empty title; if this moved, decide which list the " +
+                "new screen belongs in rather than widening one silently");
+
+            var lost = titled
+                .Where(t =>
+                {
+                    var header = ((VisualElement)Activator.CreateInstance(t)).Q<VisualElement>("header");
+                    return header == null
+                        || header.style.display.value == DisplayStyle.None;
+                })
+                .Select(t => t.Name)
+                .ToList();
+
+            Assert.IsEmpty(lost,
+                "these screens compose ScreenScaffold but draw no page header, so they have " +
+                "silently lost their back chevron, eyebrow and resource pill:\n  " +
+                string.Join("\n  ", lost));
+        }
+
         /// Raises a `Button`'s `clicked` with no `Panel` attached.
         ///
         /// THE ONE LINE THIS TASK'S PLAN WROTE - `back.clicked?.Invoke()` -
