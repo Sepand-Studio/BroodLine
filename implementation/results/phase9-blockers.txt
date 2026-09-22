@@ -213,9 +213,18 @@ regressions; each needs a look and a ruling.
   D2. Skitter's dorsal/flank curvature ratio is 3.08. Fixing it costs 69% of
       every flank part's pixels - a recorded trade, and the user owns it.
   D3. Loam's "segmented" body does not read at 40px.
-  D4. `--teal-text` is 3.97:1 on `--teal-tint`, under AA, and BOTH values come
-      from the handoff. It ships at 10px in two places. This needs a palette
-      ruling, not a component-local repaint.
+  D4. WITHDRAWN - ALREADY RULED ON AND ALREADY SHIPPED. Do not spend a
+      judgement here.
+      This item was carried from the ledger as "--teal-text is 3.97:1 on
+      --teal-tint, under AA, needs a palette ruling". That WAS true of
+      #3c7f98. The user ruled on it during Task 14 and chose #336b81, which
+      landed in commit a6d5602 and was independently re-derived at 5.2195:1
+      by that task's review.
+      VERIFIED 2026-09-22 against the shipped file: Tokens.uss:149 is
+      --teal-text: #336b81 and Tokens.uss:95 is --teal-tint: #e7f3f9, which
+      measure 5.22:1 - CLEAR OF AA's 4.5:1 for small text. Nothing is owed.
+      Recorded rather than deleted because the stale figure appears in the
+      ledger too, and the next reader should know which number is live.
 
   Corpus to look at: implementation/results/screens/ (20 PNGs at 430x932,
   regenerated 2026-09-22), plus creature-contact-sheet.png and cinderplate.png.
