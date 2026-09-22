@@ -85,14 +85,32 @@ namespace Broodline.Game.Shell
 
             try
             {
-                await _session.ColdStartAsync();
+                // THE NOTICE IS WHY THIS PASSES A CALLBACK AT ALL. A packaged
+                // player's first launch was measured timing out on this call
+                // against a cold Cloud Run service, and `Retry` now spends up
+                // to eleven seconds getting past that - eleven seconds in
+                // which a tester on a fresh install has a blank shell and no
+                // reason to believe anything is happening. One row, on the
+                // first failed attempt, for the reason `FightAsync` gives.
+                await _session.ColdStartAsync(
+                    onRetry: (attempt, _) =>
+                    {
+                        if (attempt == 1) OnNotice(FtueNotice.ServerWakingUp);
+                    });
             }
             catch (Exception e)
             {
                 // No error screen exists yet - that is later-task work. This
                 // keeps a failed cold start from vanishing as an unobserved
                 // exception out of this async void Start.
+                //
+                // AND IT IS SAID ON THE SCREEN, not only in a log nobody on a
+                // device can read. The walk below does reach
+                // `FtueNotice.LoadRoster` when the snapshot is null, but only
+                // if the director gets that far, and a log line is not
+                // something a tester can report.
                 Debug.LogError("[BootController] cold start failed: " + e);
+                OnNotice(FtueNotice.ColdStartFailed);
             }
 
             // The outbox, and the pump that drains it. `OutboxStore`'s path

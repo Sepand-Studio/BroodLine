@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading.Tasks;
 using Broodline.Api;
+using Broodline.Net;
 
 namespace Broodline.UI
 {
@@ -486,15 +487,63 @@ namespace Broodline.UI
         /// Ask for an issuance. The deployment is resolved SERVER-SIDE off the
         /// rows the player owns - the request contributes only which creature
         /// and which pocket - so nothing on this screen can influence a stat.
+        ///
+        /// **RETRIED, AND THE REASON IS NOT AN IDEMPOTENCY-KEY.**
+        /// `POST /v1/wave/start` takes no `Idempotency-Key` and never has.
+        /// It is nonetheless safe to replay with the SAME body after a
+        /// transport failure, because the server makes it so by a different
+        /// mechanism - the one-live-issuance rule:
+        ///
+        ///   - `services/api/src/wave/issuance.ts:244` is check 4, "A live
+        ///     issuance is RETURNED, not replaced - design 2.1". It runs
+        ///     BEFORE `resolveDeployment`, and the comment at line 275 says
+        ///     why in as many words: "Running these checks in front of check
+        ///     4 makes the second call of every honest double-tap a 409."
+        ///   - So a replay whose first attempt DID arrive gets that first
+        ///     issuance back - same `issuanceId`, same `seed`, same
+        ///     `deployment`, same `expiresAt` - and commits nothing new.
+        ///     `services/api/test/wave-start.test.ts:828` ("a second start
+        ///     returns the FIRST issuance and its stored deployment, and
+        ///     commits nothing new") pins it, and its "honest double-tap"
+        ///     half uses the SAME creatures, which is exactly this case.
+        ///   - A replay whose first attempt did NOT arrive mints a fresh
+        ///     issuance, which is the ordinary path.
+        ///   - `wave/start` PAYS NOTHING. Nothing is debited, no reward is
+        ///     granted and the replay cap counts only `settlement =
+        ///     'consumed'` rows (issuance.ts:198), which an unsettled live
+        ///     issuance is not. So neither outcome can cost the player
+        ///     anything, which is what makes the third outcome - the first
+        ///     attempt arrived and its issuance has since expired - harmless
+        ///     too: `settleExpiredForPlayer` settles it 'expired' and issues
+        ///     a new one.
+        ///
+        /// MEASURED, NOT ONLY READ, against the deployed stack on
+        /// 2026-09-22: two identical `POST /v1/wave/start` calls in
+        /// succession both answered 200 with the identical issuanceId, seed,
+        /// deployment and expiresAt. The 409 `creature_committed` that
+        /// `routes/wave.ts:420` writes is not on this path - check 4 returns
+        /// before `resolveDeployment` can reach that refusal.
+        ///
+        /// THE COUPLING THIS CREATES, said here because it is invisible from
+        /// the server: if anyone moves `resolveDeployment` in front of check
+        /// 4, this retry becomes a defect and every honest double-tap
+        /// becomes a 409. `wave-start.test.ts:828` is the test that reddens.
+        ///
+        /// `onRetry` is how the player hears about the wait. See `Retry`.
         public static async Task<WaveStartResponse> StartAsync(
-            BroodlineApiClient api, DeployScreenModel deployment)
+            BroodlineApiClient api, DeployScreenModel deployment,
+            Action<int, Exception> onRetry = null, Retry.Wait wait = null)
         {
             if (api == null) throw new ArgumentNullException("api");
             if (deployment == null) throw new ArgumentNullException("deployment");
 
             // Throws for an illegal deployment before any request is built.
+            // OUTSIDE the retry, deliberately: an illegal deployment is this
+            // build's own defect and fails identically every time.
             var body = deployment.ToRequest();
-            return await api.StartWaveAsync(body);
+
+            return await Retry.TransientAsync(
+                () => api.StartWaveAsync(body), onRetry: onRetry, wait: wait);
         }
 
         /// Submit the replay for the issuance this screen started.

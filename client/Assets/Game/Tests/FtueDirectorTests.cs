@@ -599,5 +599,85 @@ namespace Broodline.Game.Tests
                 FtueNotice.For(OutboxOutcome.Unavailable, FtueNotice.SpliceCommit),
                 FtueNotice.For(OutboxOutcome.Unavailable, FtueNotice.NameFounder));
         }
+
+        // ---------------------------------------------------------------
+        // A wave/start that did not land: what is said, and whether the
+        // walk survives it
+        // ---------------------------------------------------------------
+
+        [Test]
+        public void ATransportFailureOnStart_LeavesTheWalkAliveAndNamesTheRemedy()
+        {
+            // THE DEFECT. One tap on Start against a cold backend, one
+            // notice, and the walk ended - leaving the player on a deploy
+            // screen whose Start button no longer resumed anything. A tester
+            // who taps once concludes the button is broken.
+            var dropped = new System.Net.Http.HttpRequestException(
+                "An error occurred while sending the request.");
+
+            Assert.IsTrue(FtueDirector.StartLeavesTheWalkAlive(dropped),
+                "the deploy screen must come back with a live Start button");
+            Assert.AreEqual(FtueNotice.StartWaveUnreached,
+                FtueDirector.StartFailureNotice(dropped));
+
+            // The sentence names the action, which is the only reason it is
+            // better than the transport exception's own text.
+            StringAssert.Contains("Start", FtueNotice.StartWaveUnreached);
+        }
+
+        [Test]
+        public void TheSameIsTrueOfTheTimeoutAPackagedPlayerActuallyHit()
+        {
+            // Sighting 3's shape: HttpClient's own timeout, which arrives as
+            // a cancellation because nothing here passes a token.
+            var timedOut = new System.Threading.Tasks.TaskCanceledException();
+            Assert.IsTrue(FtueDirector.StartLeavesTheWalkAlive(timedOut));
+            Assert.AreEqual(FtueNotice.StartWaveUnreached, FtueDirector.StartFailureNotice(timedOut));
+
+            // And a 503, which is the server ASKING to be retried -
+            // routes/wave.ts writes "Retry." into the message itself.
+            var unavailable = Refusal(503, "sim_unavailable", "Verification is temporarily unavailable. Retry.");
+            Assert.IsTrue(FtueDirector.StartLeavesTheWalkAlive(unavailable));
+        }
+
+        [Test]
+        public void AVerdictOnStart_StopsTheWalkAndShowsTheSERVERsOwnSentence()
+        {
+            // The other arm, and it must not be smoothed into the first.
+            // Putting the same screen back so the player can produce the same
+            // refusal again is a loop, not a remedy - and "tap Start again"
+            // would be this client inventing a remedy for a refusal that has
+            // none.
+            var locked = Refusal(409, "wave_locked", "That wave is not available to you right now.");
+
+            Assert.IsFalse(FtueDirector.StartLeavesTheWalkAlive(locked));
+            Assert.AreEqual("That wave is not available to you right now.",
+                FtueDirector.StartFailureNotice(locked));
+            Assert.AreNotEqual(FtueNotice.StartWaveUnreached, FtueDirector.StartFailureNotice(locked));
+        }
+
+        [Test]
+        public void TheTwoStartNotices_AreDistinctAndNeitherIsEmpty()
+        {
+            // ServerWakingUp is said while the retries run; StartWaveUnreached
+            // when they are spent. One sentence doing both jobs would tell a
+            // player who can still be helped the same thing as one who
+            // cannot.
+            Assert.IsNotEmpty(FtueNotice.ServerWakingUp);
+            Assert.IsNotEmpty(FtueNotice.StartWaveUnreached);
+            Assert.IsNotEmpty(FtueNotice.ColdStartFailed);
+            Assert.AreNotEqual(FtueNotice.ServerWakingUp, FtueNotice.StartWaveUnreached);
+            Assert.AreNotEqual(FtueNotice.StartWaveUnreached, FtueNotice.ColdStartFailed);
+
+            // The cold-start one promises a RELAUNCH rather than a button,
+            // because nothing in this build re-runs the cold start on demand.
+            StringAssert.Contains("reopen", FtueNotice.ColdStartFailed);
+        }
+
+        static BroodlineApiException Refusal(int status, string code, string message)
+        {
+            return new BroodlineApiException("server", status,
+                "{\"code\":\"" + code + "\",\"message\":\"" + message + "\"}", null, null);
+        }
     }
 }

@@ -84,6 +84,51 @@ namespace Broodline.Game
         /// roster - the server refused, or the call failed.
         public const string ForfeitFailed =
             "Your creatures are still out fighting and the wave could not be forfeited. Try again in a moment.";
+
+        /// Said the MOMENT the first attempt at a call fails, not after the
+        /// last one - `Retry.TransientAsync` calls `onRetry` before it waits,
+        /// for this sentence's sake.
+        ///
+        /// THE SILENCE WAS HALF THE DEFECT. A developer pressed Start on the
+        /// deploy screen against a cold backend, got one notice and nothing
+        /// else, and a second press worked. A tester who presses once
+        /// concludes the button is broken. This is what fills the gap while
+        /// the retries run, and it says WAKING UP rather than "failed"
+        /// because that is what is actually happening: `min_instance_count`
+        /// is 0 on both Cloud Run services, so the first call of a session
+        /// is waiting on a container to start.
+        public const string ServerWakingUp =
+            "The server is waking up. Still trying...";
+
+        /// Said when every attempt has been spent and the wave still has no
+        /// issuance.
+        ///
+        /// "NOTHING WAS SPENT" IS A CLAIM THIS FILE IS ENTITLED TO MAKE, and
+        /// it is the only reassurance offered because it is the only one
+        /// that is true. `POST /v1/wave/start` debits no currency, grants no
+        /// reward, and does not count against the replay cap (which counts
+        /// `settlement = 'consumed'` rows only). What it MAY have done is
+        /// commit the deployment to a live issuance, which is why the
+        /// sentence does not say "nothing happened" - tapping Start again is
+        /// what resolves that, because the server hands the same issuance
+        /// back rather than refusing it (see `DeployScreen.StartAsync`).
+        ///
+        /// AND THE BUTTON IS LIVE WHEN THEY READ IT. The sentence would be a
+        /// lie on a stranded screen: `FightAsync` returns the walk to the
+        /// deploy screen for this failure rather than ending it.
+        public const string StartWaveUnreached =
+            "The server did not answer. Nothing was spent - tap Start again.";
+
+        /// The cold start itself failed, after every retry. `BootController`
+        /// used to answer this with a `Debug.LogError` alone, which a tester
+        /// holding a device cannot read.
+        ///
+        /// IT PROMISES A RELAUNCH RATHER THAN A BUTTON, because there is no
+        /// button: nothing in this build re-runs the cold start on demand,
+        /// and naming a remedy that does not exist is the failure
+        /// `ServerError.Remedy.None` exists to avoid.
+        public const string ColdStartFailed =
+            "Could not reach the server. Check your connection and reopen the app.";
     }
 
     /// The first hour, walked.
@@ -364,12 +409,43 @@ namespace Broodline.Game
 
                 try
                 {
-                    start = await DeployScreen.StartAsync(_api, deployment);
+                    // ONLY THE FIRST RETRY SPEAKS. `NoticeToast` "STACKS,
+                    // NEVER REPLACES" and holds each row for four seconds,
+                    // so noticing every attempt would pile three identical
+                    // rows on top of each other across the backoff. One row
+                    // at the first failure is the fact; the rest is repetition.
+                    start = await DeployScreen.StartAsync(_api, deployment,
+                        onRetry: (attempt, _) =>
+                        {
+                            if (attempt == 1) _notice(FtueNotice.ServerWakingUp);
+                        });
                 }
                 catch (Exception error)
                 {
-                    _notice(ServerError.From(error).PlayerMessage);
-                    return false;
+                    _notice(StartFailureNotice(error));
+
+                    // **RETURNING `true` HERE IS THE OTHER HALF OF THE FIX,
+                    // AND IT IS NOT A TYPO.**
+                    //
+                    // `true` means "the walk may continue", not "the beat
+                    // advanced" - nothing advanced, `start` was never
+                    // assigned and nothing below this `catch` runs. What it
+                    // buys is the SCREEN: `RunAsync` re-syncs, re-derives the
+                    // same beat and shows the deploy screen again with a live
+                    // Start button, and `CampaignAsync` returns to Campaign
+                    // Select. `false` ended the walk outright, which is what
+                    // the developer actually met - one tap, a notice, and a
+                    // Start button that no longer resumed anything, because
+                    // Start is the ONLY thing that resumes this turn (see the
+                    // `CanDeploy` comment above). A tester who taps once and
+                    // gets that concludes the button is broken.
+                    //
+                    // A DEFINITIVE REFUSAL STILL STOPS THE WALK. A 409, a
+                    // 400, a `wave_locked` - those are verdicts, and putting
+                    // the same screen back so the player can produce the same
+                    // refusal again is a loop, not a remedy. `StartFailure
+                    // Notice` shows the server's own sentence for those.
+                    return StartLeavesTheWalkAlive(error);
                 }
 
                 // GUARDED FOR THE SAME REASON `StartAsync` IS, six lines up, and
@@ -1155,6 +1231,46 @@ namespace Broodline.Game
         // ---------------------------------------------------------------
         // Pure helpers - the parts a headless test can reach
         // ---------------------------------------------------------------
+
+        /// What a failed `wave/start` is told to the player.
+        ///
+        /// PURE AND PUBLIC FOR ONE REASON: it is the whole of the policy this
+        /// task changed, and `FightAsync` is private and unreachable from
+        /// EditMode (this suite's header records why - the walk advances on a
+        /// `Button.clicked` that needs an attached `Panel`). Left inside the
+        /// `catch`, the decision would be read and never executed by a test.
+        /// Out here, `FtueDirectorTests` drives both arms.
+        ///
+        /// The two arms are the two kinds of failure, and they are
+        /// `Retry.IsTransient`'s division, not a second one:
+        ///
+        ///   - The server never answered, or answered 5xx. It may answer next
+        ///     time, nothing was spent, and the remedy is to tap Start again -
+        ///     so this build's own sentence, which names that remedy.
+        ///   - The server answered with a verdict. `ServerError` already owns
+        ///     what to say about those and says the SERVER's own sentence,
+        ///     which solo_execution 6.2 makes the better one. Substituting
+        ///     "tap Start again" for `wave_locked` would be this client
+        ///     inventing a remedy for a refusal that has none.
+        public static string StartFailureNotice(Exception error)
+        {
+            return Retry.IsTransient(error)
+                ? FtueNotice.StartWaveUnreached
+                : ServerError.From(error).PlayerMessage;
+        }
+
+        /// Whether a failed `wave/start` leaves the walk able to go on.
+        ///
+        /// True means `RunAsync` loops and puts the deploy screen back with a
+        /// live Start button; false ends the walk on the notice. Same
+        /// division as `StartFailureNotice`, and deliberately the same
+        /// predicate rather than a parallel one that could drift: a sentence
+        /// that says "tap Start again" beside a screen that has gone is worse
+        /// than either half alone.
+        public static bool StartLeavesTheWalkAlive(Exception error)
+        {
+            return Retry.IsTransient(error);
+        }
 
         /// How many creatures to pre-select for a wave.
         ///
