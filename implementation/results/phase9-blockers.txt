@@ -71,8 +71,38 @@ the few frames the unload takes. Deliberate - restoring after an unbounded
 await could strand the shell hidden forever.
 
 ===============================================================================
-C. THE DEPLOY AND THE SMOKE LOOP - BLOCKED, AND NOT ON A DECISION
+C. THE SMOKE LOOP - THE STEP IS WRITTEN, IT STILL NEEDS ONE RUN
 ===============================================================================
+*** UPDATED 2026-09-22, AFTER THE USER RESTORED THE STACK. ***
+The stack is UP and the deploy is DONE - none of the deploy text below is
+owed any more; it is kept only as the record of what was measured.
+
+Re-verified independently, with controls: POST /v1/wave/abandon -> 401 with
+the app's own {"code":"unauthorized"} body, POST /v1/wave/start -> 401,
+POST /nope-not-a-route -> 404, both services Ready: True.
+
+Task 3's abandon step IS NOW WRITTEN AND COMMITTED (1683308) into
+implementation/scripts/smoke-loop.ts, parse-checked, with the [C] invariant
+verified (issuanceIds.push still 3, none in the new block).
+
+WHAT IS STILL OWED - ONE COMMAND:
+
+    bash implementation/scripts/smoke-loop.sh 2>&1 | tail -30
+
+Running it was DENIED BY THE SANDBOX as a production write, and that is a
+fair reading: the loop splices creatures, starts and settles waves, and
+writes ledger rows against the live stack. So the step's pass/fail is
+UNKNOWN and no result is claimed for it anywhere.
+
+Expect: the new step's tick, the later replayed wave 1 still winning,
+[A]-[C] passing, final PASS. Abandon pays nothing, so ledger expectations
+are unchanged. Needs DATABASE_URL as an owner-role connection through the
+Cloud SQL Auth Proxy for the ledger assertion.
+
+IF IT FAILS FOR A REASON THAT IS NOT THE ABANDON STEP, that is a finding
+about the deployed stack - report it, do not fix it.
+
+--- the original record, superseded, kept for the measurements ---
 Task 3 could not run. This is the one item here that is blocked on a SECRET
 rather than on an Editor.
 
