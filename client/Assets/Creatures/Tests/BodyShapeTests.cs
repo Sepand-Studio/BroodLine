@@ -218,7 +218,7 @@ namespace Broodline.Creatures.Tests
         ///   Pale has no limbs either - same problem.
         ///   Hollow has two stilts, and Ember has two legs, so the count cannot
         ///   tell the two upright bodies apart - which is the one pair the 40px
-        ///   detector says is closest (9.9% against an 8% floor).
+        ///   detector says is closest (9.6% against an 8% floor).
         ///
         /// So each species is pinned by what bible 1.2's silhouette column
         /// actually names for it, and the measurement is chosen to match:
@@ -529,6 +529,86 @@ namespace Broodline.Creatures.Tests
                           "resting on the ground between them."
                         : ""));
             }
+        }
+
+        /// COURSER AND LASH NEEDED A CLAIM THAT CAN FAIL. The island count above
+        /// expects 1 for both, which is right and is also satisfied by a
+        /// sphere, a box, or anything else with no limbs - by the standard this
+        /// file sets one screen up for Loam and Pale, that is not a claim. The
+        /// character bible's shape column names something measurable for each,
+        /// so here it is measured.
+        ///
+        /// "Forward-raked diamond": a diamond tapers at BOTH ends, so its
+        /// height profile peaks in the middle rather than at an end, and the
+        /// rake is which end is sharper. Measured on the shipped recipe: the
+        /// peak is interior, the tail is 45% of it and the nose 25%, so the
+        /// nose is the sharp end at 56% of the tail. A box reads 100% and 100%.
+        [Test]
+        public void Courser_IsADiamondRakedForward_NotABoxOnWheels()
+        {
+            var h = Profile(Committed("courser"), out _);
+            int peak = 0;
+            for (int i = 0; i < h.Length; i++) if (h[i] > h[peak]) peak = i;
+            Assert.IsTrue(peak > 0 && peak < h.Length - 1,
+                "Courser's tallest section is at one end (bin " + peak + " of " + h.Length +
+                ") - that is a wedge, and the character bible says diamond");
+
+            float nose = h[h.Length - 1], tail = h[0];
+            Assert.LessOrEqual(nose, h[peak] * 0.55f,
+                "Courser's nose is " + nose.ToString("F3") + " tall against a peak of " +
+                h[peak].ToString("F3") + " (" + (nose / h[peak]).ToString("P0") + ") - a diamond comes to a point");
+            Assert.LessOrEqual(tail, h[peak] * 0.55f,
+                "Courser's tail is " + tail.ToString("F3") + " tall against a peak of " +
+                h[peak].ToString("F3") + " (" + (tail / h[peak]).ToString("P0") + ") - it tapers at BOTH ends or it is not a diamond");
+            Assert.LessOrEqual(nose, tail * 0.70f,
+                "Courser's nose (" + nose.ToString("F3") + ") is not meaningfully sharper than its tail (" +
+                tail.ToString("F3") + ") - the character bible says FORWARD-raked, so the point goes at the front");
+        }
+
+        /// "Wedge body, long trailing whip." The whip is the half of that the
+        /// island count cannot see: a long thin thing behind a wide thing.
+        /// Measured: the rearmost 40% of the length is 38% as wide as the
+        /// widest point, and 44% of the body's length is whip.
+        [Test]
+        public void Lash_TrailsALongThinWhipBehindItsWedge()
+        {
+            Profile(Committed("lash"), out var w);
+            float widest = w.Max();
+            int rear = Mathf.RoundToInt(w.Length * 0.4f);
+            float rearWidest = 0f;
+            for (int i = 0; i < rear; i++) rearWidest = Mathf.Max(rearWidest, w[i]);
+            Assert.LessOrEqual(rearWidest, widest * 0.55f,
+                "Lash's rearmost 40% is " + rearWidest.ToString("F3") + " wide against a widest point of " +
+                widest.ToString("F3") + " (" + (rearWidest / widest).ToString("P0") + ") - that is a tail on a " +
+                "body, not the whip the character bible names");
+
+            int whip = w.Count(v => v > 0f && v <= widest * 0.5f);
+            Assert.GreaterOrEqual(whip / (float)w.Length, 0.30f,
+                "only " + (whip / (float)w.Length).ToString("P0") + " of Lash's length is thin enough to read " +
+                "as whip rather than body - the character bible says LONG");
+        }
+
+        /// The committed mesh's height and plan half-width at each of 16
+        /// stations along x. Sixteen because the raiders mesh at grid 18-20, so
+        /// finer bins would be reading the mesher's own cell rather than the
+        /// shape; the slab overlaps by 0.02 so no bin comes back empty.
+        static float[] Profile(Mesh mesh, out float[] halfWidth)
+        {
+            const int bins = 16;
+            var v = mesh.vertices;
+            var b = mesh.bounds;
+            var height = new float[bins];
+            halfWidth = new float[bins];
+            for (int i = 0; i < bins; i++)
+            {
+                float lo = b.min.x + b.size.x * i / bins - 0.02f;
+                float hi = b.min.x + b.size.x * (i + 1) / bins + 0.02f;
+                var slab = v.Where(p => p.x >= lo && p.x < hi).ToArray();
+                if (slab.Length == 0) continue;
+                height[i] = slab.Max(p => p.y) - slab.Min(p => p.y);
+                halfWidth[i] = slab.Max(p => Mathf.Abs(p.z));
+            }
+            return height;
         }
 
         // -------------------------------------------------------- field probes

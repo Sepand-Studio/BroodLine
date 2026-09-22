@@ -14,6 +14,25 @@ namespace Broodline.Creatures.Editor
         const string Root = "Assets/Creatures/Resources/";
         const string ShaderName = "Broodline/Creature";
 
+        /// THE RIM IS TURNED DOWN ON PARTS, AND ONLY ON PARTS.
+        /// `Creature.shader` adds `_RimColor * pow(1 - dot(n, v), _RimPower) *
+        /// _RimStrength` - additive WHITE - and a trait part is small, so it is
+        /// disproportionately rim pixels. That is what compresses a part's
+        /// separation from the hide under it: measured over all 144 body x part
+        /// x socket combinations, dropping it from the shader's 0.35 to 0.20 is
+        /// worth about as much as one whole step of `PartRecipes.PartValue`.
+        ///
+        /// It costs nothing on the other side. The rim exists so a body
+        /// separates from a near-white card (design 3.6), and a part darkened
+        /// to 0.68 of its species' value does that by being dark: measured
+        /// where a part hangs off the body against the card, LESS rim reads
+        /// BETTER, deltaE 51.5 to 53.1 on the taunt and 2.09:1 to 2.16:1 in
+        /// WCAG terms. Additive white was working against both jobs at once.
+        ///
+        /// Bodies keep the shader's own 0.35, which is what they were tuned at.
+        public const float PartRimStrength = 0.20f;
+        public const float BodyRimStrength = 0.35f;
+
         [MenuItem("Broodline/Generate Creatures")]
         public static void Generate()
         {
@@ -121,7 +140,7 @@ namespace Broodline.Creatures.Editor
             var g = Regenerate(p);
             Debug.Log("[creatures] part-" + p.Id + ": " + g.Vertices.Length + " verts, " + (g.Triangles.Length / 3) + " tris, grid " + p.Grid);
             var mesh = WriteMesh(Root + CreaturePaths.MeshDir + "/part-" + p.Id + ".asset", g);
-            var material = WriteMaterial(Root + CreaturePaths.MaterialDir + "/part-" + p.Id + ".mat", p.Base, p.Under);
+            var material = WriteMaterial(Root + CreaturePaths.MaterialDir + "/part-" + p.Id + ".mat", p.Base, p.Under, PartRimStrength);
             var go = new GameObject(p.Id);
             try
             {
@@ -147,7 +166,7 @@ namespace Broodline.Creatures.Editor
             return mesh;
         }
 
-        static Material WriteMaterial(string path, Color baseColour, Color under)
+        static Material WriteMaterial(string path, Color baseColour, Color under, float rim = BodyRimStrength)
         {
             var shader = Shader.Find(ShaderName);
             if (shader == null) throw new System.InvalidOperationException("no shader " + ShaderName);
@@ -156,6 +175,7 @@ namespace Broodline.Creatures.Editor
             mat.shader = shader;
             mat.SetColor("_BaseColor", baseColour);
             mat.SetColor("_UnderColor", under);
+            mat.SetFloat("_RimStrength", rim);
             EditorUtility.SetDirty(mat);
             return mat;
         }

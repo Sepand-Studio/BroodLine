@@ -13,7 +13,63 @@ namespace Broodline.Creatures
     /// largest that fits in 400, measured on the recipe beside it.
     public static class PartRecipes
     {
-        static Color C(string hex) => SpeciesColours.Parse(hex);
+        /// A PART IS ITS OWNER SPECIES' COLOUR AT 0.65 OF ITS VALUE, DERIVED
+        /// HERE RATHER THAN TYPED PER PART - AND THE RULE THAT SHIPPED FIRST
+        /// WAS WRONG BY A MEASURABLE 1.00.
+        ///
+        /// "Colour comes from the species that owns the trait" is true and
+        /// insufficient: applied literally against `SpeciesColours`, TEN of the
+        /// twelve parts got a base hex BYTE-IDENTICAL to the body they mount on
+        /// for base stock. Measured through `Creature.shader` over all 144
+        /// body x part x socket combinations, `pale screen@sk_flank` came out
+        /// at deltaE 0.93 and `ember splash@sk_flank` at 1.98 - against a
+        /// median of 47 for cross-species pairs. bible 1.2 records the
+        /// palette's worst colour-blind pair as deltaE 7.2 and calls that bad
+        /// enough to change a species colour over. These were worse.
+        ///
+        /// bible 10.4 predicted it: "Pale specifically will need its own value
+        /// structure, an outline, or a darker slot behind it. Hue alone will
+        /// not carry it" - and calls trait visibility "the single most
+        /// important functional requirement in the art direction". The carapace
+        /// was the only part that had a deliberate value step from its owner,
+        /// and it was the BEST of the twelve rather than the exception it
+        /// looked like.
+        ///
+        /// BOTH NUMBERS ARE MEASURED, NEITHER IS CHOSEN. Sweeping value against
+        /// the part rim over all 144 combinations: at full value the floor is
+        /// deltaE 0.95 and no rim setting rescues it, because there is nothing
+        /// to amplify when two colours are equal - a rim change ALONE would
+        /// have fixed nothing. 0.85 of value reaches 7.7, 0.75 reaches 12.5,
+        /// 0.70 reaches 15.6. 0.68 predicts 17.46 and the bake measures 17.18,
+        /// which is where bible 1.2's own accepted number sits: the 17.3 the
+        /// Vetch/Pale pair was moved TO when it was the palette's worst. This
+        /// stops at the first value that clears the bar the project already
+        /// set, because darker keeps eating the species hue that carries a
+        /// part's provenance.
+        ///
+        /// AND THE SATURATION GOES UP, BECAUSE THE MASCOT IS A SPEC. Dropping
+        /// value alone took Ember's parts to #95574f, and bible 10.9 and the
+        /// character bible both describe Cinderplate as "a teal dome plus three
+        /// coral spikes" - at #95574f they are brown. Value 0.68 with
+        /// saturation x1.40 puts them at #9c4136, still plainly coral, and
+        /// measures 17.18 against 16.71 for the duller version. Chroma is free
+        /// here: deltaE counts it, and the spec asks for it.
+        ///
+        /// The residual worst pair is now `vetch chill@sk_flank` - Pale's grey
+        /// parts on Vetch's teal, a CROSS-species pairing. Every own-species
+        /// case has been lifted above it, which is the shape of a fixed
+        /// problem. `PartVisibilityTests` is the standing gate, floor deltaE 8.
+        public const float PartValue = 0.68f;
+        public const float PartSaturation = 1.40f;
+
+        static Color OwnedBase(string owner) => Scale(SpeciesColours.For(owner).Base);
+        static Color OwnedUnder(string owner) => Scale(SpeciesColours.For(owner).Under);
+
+        static Color Scale(Color c)
+        {
+            Color.RGBToHSV(c, out var h, out var sat, out var val);
+            return Color.HSVToRGB(h, Mathf.Clamp01(sat * PartSaturation), val * PartValue);
+        }
 
         /// SEATED, NOT HOVERING. The first pass authored this as flat boxes
         /// standing on y = 0.01 - a plane - and mounted it on a dome. A plane
@@ -35,7 +91,7 @@ namespace Broodline.Creatures
         /// Grid 9: 384 triangles. 10 gives 444, over the 400 budget.
         public static readonly PartRecipe Carapace = new PartRecipe
         {
-            Id = "carapace", Base = C("#5d93ab"), Under = C("#355d70"), Blend = 0.04f, Grid = 9,
+            Id = "carapace", Base = OwnedBase("vetch"), Under = OwnedUnder("vetch"), Blend = 0.04f, Grid = 9,
             Primitives = new[]
             {
                 Primitive.Box(new Vector3(0f, -0.1f, 0f), new Vector3(0.26f, 0.16f, 0.23f), "root"),   // the rim plate, top at +0.06
@@ -64,7 +120,7 @@ namespace Broodline.Creatures
         /// that made the old one need 16: 12 through 16 are all clean now.
         public static readonly PartRecipe Taunt = new PartRecipe
         {
-            Id = "taunt", Base = C("#e5867a"), Under = C("#a8574d"), Blend = 0.05f, Grid = 13,
+            Id = "taunt", Base = OwnedBase("vetch"), Under = OwnedUnder("vetch"), Blend = 0.05f, Grid = 13,
             Primitives = new[]
             {
                 Primitive.Capsule(new Vector3(0f, 0f, 0f), new Vector3(0f, 0.46f, 0f), 0.055f, "root"),  // the mast
@@ -77,7 +133,7 @@ namespace Broodline.Creatures
         /// two of the spikes into one blob.
         public static readonly PartRecipe Cinder = new PartRecipe
         {
-            Id = "cinder", Base = C("#e5867a"), Under = C("#a8574d"), Blend = 0.05f, Grid = 10,
+            Id = "cinder", Base = OwnedBase("ember"), Under = OwnedUnder("ember"), Blend = 0.05f, Grid = 10,
             Primitives = new[]
             {
                 Primitive.Capsule(new Vector3(-0.22f, 0f, 0f), new Vector3(-0.26f, 0.32f, 0f), 0.07f, "root"),
@@ -86,18 +142,19 @@ namespace Broodline.Creatures
             },
         };
 
-        /// THE NINE THAT TASK 15 ADDED, AND THE TWO RULES THEY ALL OBEY.
+        /// THE NINE THAT TASK 15 ADDED.
         ///
-        /// COLOUR COMES FROM THE SPECIES THAT OWNS THE TRAIT (bible 1.2), AND
-        /// THE UNDERSIDE IS DARKENED A STEP BEYOND THAT SPECIES' OWN. The
-        /// shader does `lerp(_BaseColor, _UnderColor, saturate(-n.y))`, so
-        /// `Under` is the only value structure a part has where it meets the
-        /// body - and base stock always wears its own species' colour, which
-        /// means a part in the species' exact pair has nothing separating it
-        /// from the hide behind it. Task 12b's note on the carapace says the
-        /// cheap fix is the Under, not the base; these nine take that as the
-        /// rule rather than waiting to be told. bible 10.4 is why it matters
-        /// most on Pale, whose base is the palest colour in the game.
+        /// THE UNDERSIDE IS NOT WHERE A PART'S SEPARATION COMES FROM, and round
+        /// one spent its reasoning there before measuring. `Creature.shader`
+        /// does `lerp(_BaseColor, _UnderColor, saturate(-n.y))` on a WORLD-space
+        /// normal, and from the one fixed bake camera only 10.5% (dorsal) and
+        /// 14.6% (flank) of a part's camera-facing vertices point downward at
+        /// all. Darkening the carapace's `Under` end to end, #355d70 all the
+        /// way to #16303f, moved its rendered read from 1.080 to 1.089 at the
+        /// flank and not at all at the dorsal. The `Under` is still authored a
+        /// step darker - it is what gives a part its own value structure where
+        /// it IS visible - but it is not the lever, and the class comment above
+        /// is.
         ///
         /// GRIDS ARE MEASURED, NEVER COPIED, for the reason the class comment
         /// above already gives - and the second reason is the manifold. Every
@@ -112,7 +169,7 @@ namespace Broodline.Creatures
             // that stops at its mount point meets a curved body at one point
             // and hangs off it everywhere else. The plate runs from -0.19 to
             // +0.05 so only its top is ever outside the hide.
-            Id = "splash", Base = C("#e5867a"), Under = C("#8c4238"), Blend = 0.05f, Grid = 10, Padding = 0.12f,
+            Id = "splash", Base = OwnedBase("ember"), Under = OwnedUnder("ember"), Blend = 0.05f, Grid = 10, Padding = 0.12f,
             Primitives = new[]
             {
                 Primitive.Box(new Vector3(0f, -0.07f, 0f), new Vector3(0.18f, 0.12f, 0.18f), "root"),
@@ -124,7 +181,7 @@ namespace Broodline.Creatures
 
         public static readonly PartRecipe Sprint = new PartRecipe
         {
-            Id = "sprint", Base = C("#e8b34a"), Under = C("#8a6212"), Blend = 0.045f, Grid = 11, Padding = 0.10f,
+            Id = "sprint", Base = OwnedBase("skitter"), Under = OwnedUnder("skitter"), Blend = 0.045f, Grid = 11, Padding = 0.10f,
             Primitives = new[]
             {
                 Primitive.Capsule(new Vector3(0.05f, -0.04f, 0.09f), new Vector3(-0.19f, 0.27f, 0.115f), 0.06f, "root"),
@@ -137,7 +194,7 @@ namespace Broodline.Creatures
         /// welded them into one lump, which is the opposite of a clutch.
         public static readonly PartRecipe Litter = new PartRecipe
         {
-            Id = "litter", Base = C("#e8b34a"), Under = C("#8a6212"), Blend = 0.05f, Grid = 11, Padding = 0.12f,
+            Id = "litter", Base = OwnedBase("skitter"), Under = OwnedUnder("skitter"), Blend = 0.05f, Grid = 11, Padding = 0.12f,
             Primitives = new[]
             {
                 Primitive.Sphere(new Vector3(0f, 0.13f, 0f), 0.10f, "root"),
@@ -156,7 +213,7 @@ namespace Broodline.Creatures
         /// still the longest diagonal reach of the twelve.
         public static readonly PartRecipe Reach = new PartRecipe
         {
-            Id = "reach", Base = C("#7a6ac0"), Under = C("#3a2f6b"), Blend = 0.05f, Grid = 11, Padding = 0.08f,
+            Id = "reach", Base = OwnedBase("hollow"), Under = OwnedUnder("hollow"), Blend = 0.05f, Grid = 11, Padding = 0.08f,
             Primitives = new[]
             {
                 Primitive.Capsule(new Vector3(0f, 0f, 0f), new Vector3(0.24f, 0.37f, 0f), 0.07f, "root"),
@@ -166,7 +223,7 @@ namespace Broodline.Creatures
 
         public static readonly PartRecipe Pierce = new PartRecipe
         {
-            Id = "pierce", Base = C("#7a6ac0"), Under = C("#3a2f6b"), Blend = 0.05f, Grid = 11, Padding = 0.12f,
+            Id = "pierce", Base = OwnedBase("hollow"), Under = OwnedUnder("hollow"), Blend = 0.05f, Grid = 11, Padding = 0.12f,
             Primitives = new[]
             {
                 Primitive.Capsule(new Vector3(0.15f, 0f, 0f), new Vector3(0f, 0.42f, 0f), 0.05f, "root"),
@@ -177,7 +234,7 @@ namespace Broodline.Creatures
 
         public static readonly PartRecipe Regrow = new PartRecipe
         {
-            Id = "regrow", Base = C("#7cc492"), Under = C("#3a7049"), Blend = 0.045f, Grid = 11, Padding = 0.12f,
+            Id = "regrow", Base = OwnedBase("loam"), Under = OwnedUnder("loam"), Blend = 0.045f, Grid = 11, Padding = 0.12f,
             Primitives = new[]
             {
                 Primitive.Capsule(new Vector3(0f, -0.02f, 0f), new Vector3(0f, 0.20f, 0f), 0.06f, "root"),
@@ -188,7 +245,7 @@ namespace Broodline.Creatures
 
         public static readonly PartRecipe Burrow = new PartRecipe
         {
-            Id = "burrow", Base = C("#7cc492"), Under = C("#3a7049"), Blend = 0.045f, Grid = 10, Padding = 0.12f,
+            Id = "burrow", Base = OwnedBase("loam"), Under = OwnedUnder("loam"), Blend = 0.045f, Grid = 10, Padding = 0.12f,
             Primitives = new[]
             {
                 Primitive.Box(new Vector3(-0.03f, 0.04f, 0f), new Vector3(0.16f, 0.11f, 0.13f), "root"),
@@ -206,7 +263,7 @@ namespace Broodline.Creatures
         /// them; that reads as a fan at 40px and is expressible.
         public static readonly PartRecipe Screen = new PartRecipe
         {
-            Id = "screen", Base = C("#c6cede"), Under = C("#6e7b98"), Blend = 0.05f, Grid = 11, Padding = 0.12f,
+            Id = "screen", Base = OwnedBase("pale"), Under = OwnedUnder("pale"), Blend = 0.05f, Grid = 11, Padding = 0.12f,
             Primitives = new[]
             {
                 Primitive.Capsule(new Vector3(0f, 0.02f, 0f), new Vector3(0f, 0.34f, 0.11f), 0.05f, "root"),
@@ -225,7 +282,7 @@ namespace Broodline.Creatures
         /// here, so the facets stay facets.
         public static readonly PartRecipe Chill = new PartRecipe
         {
-            Id = "chill", Base = C("#c6cede"), Under = C("#6e7b98"), Blend = 0.03f, Grid = 11, Padding = 0.12f,
+            Id = "chill", Base = OwnedBase("pale"), Under = OwnedUnder("pale"), Blend = 0.03f, Grid = 11, Padding = 0.12f,
             Primitives = new[]
             {
                 Primitive.Box(new Vector3(0f, 0.17f, 0f), new Vector3(0.075f, 0.20f, 0.075f), "root"),

@@ -214,6 +214,69 @@ namespace Broodline.Creatures.Tests
             Assert.IsNotNull(mat, "no committed material at " + MaterialPath(id) + " - run generate-creatures.sh");
             AssertColour(id, "_BaseColor", mat.GetColor("_BaseColor"), expectedBase);
             AssertColour(id, "_UnderColor", mat.GetColor("_UnderColor"), expectedUnder);
+
+            // `_RimStrength` is pure recipe data in the same way a colour is -
+            // it never touches a vertex, so the hash is blind to it - and it is
+            // turned down on parts and only on parts. A material regenerated
+            // without it silently gives a part back the 0.35 that was
+            // compressing its separation from the body in the first place.
+            float expectedRim = id.StartsWith("part-")
+                ? CreatureGenerator.PartRimStrength
+                : CreatureGenerator.BodyRimStrength;
+            Assert.AreEqual(expectedRim, mat.GetFloat("_RimStrength"), 1e-4f,
+                id + " material _RimStrength is " + mat.GetFloat("_RimStrength") + ", expected " +
+                expectedRim + " - run generate-creatures.sh and commit");
+        }
+
+        /// THE BAKE HAS TO BE REPRODUCIBLE, AND ONE LINE IN `CreatureMotion` IS
+        /// ALL THAT EVER STOOD BETWEEN IT AND NOT BEING.
+        ///
+        /// `CreatureBaker.Shoot` used to call `Tick(0, 0)` believing it a rest
+        /// pose. It is not: `CreatureMotion.Awake` seeds its breath phase from
+        /// `Random.value` and `Tick` reads `sin((time + phase) * ...)`, so the
+        /// root carried a random scale of up to +-3.5% into every frame the
+        /// baker took. Two bakes of an UNCHANGED Vetch produced a 100px sprite
+        /// and then a 101px one; `SilhouetteTests` reads those sprites at 40px
+        /// against an 8% floor with its closest pair at 9.6%.
+        ///
+        /// `CreatureBaker.RestPose` flattens the breath back out, and it works
+        /// because root SCALE is `Tick`'s only nondeterministic output. That is
+        /// the assumption this test exists to keep true: a random sway added to
+        /// `localPosition`, or a second seeded term, fails here rather than
+        /// quietly returning the 40px gate to passing by luck - which is the
+        /// state it was in for this entire phase.
+        [Test]
+        public void TheBakesRestPose_IsDeterministic()
+        {
+            foreach (var r in SpeciesRecipes.All.Concat(RaiderRecipes.All))
+            {
+                var look = r.Raider
+                    ? new CreatureLook { RaiderType = r.Id }
+                    : new CreatureLook { Species = r.Id, Trait1 = "carapace", Trait2 = "taunt" };
+                var a = CreatureAssembler.Build(look);
+                var b = CreatureAssembler.Build(look);
+                try
+                {
+                    CreatureBaker.RestPose(a);
+                    CreatureBaker.RestPose(b);
+
+                    var left = a.GetComponentsInChildren<Transform>(true);
+                    var right = b.GetComponentsInChildren<Transform>(true);
+                    Assert.AreEqual(left.Length, right.Length, r.Id + " built two different hierarchies");
+                    for (int i = 0; i < left.Length; i++)
+                    {
+                        Assert.AreEqual(left[i].name, right[i].name, r.Id + " transform " + i + " differs by name");
+                        Assert.AreEqual(0f, (left[i].localPosition - right[i].localPosition).magnitude, 1e-6f,
+                            r.Id + "/" + left[i].name + " localPosition is not the same twice - CreatureBaker" +
+                            ".RestPose only flattens SCALE, so the bake is nondeterministic again");
+                        Assert.AreEqual(0f, (left[i].localScale - right[i].localScale).magnitude, 1e-6f,
+                            r.Id + "/" + left[i].name + " localScale is not the same twice");
+                        Assert.AreEqual(0f, Quaternion.Angle(left[i].localRotation, right[i].localRotation), 1e-3f,
+                            r.Id + "/" + left[i].name + " localRotation is not the same twice");
+                    }
+                }
+                finally { Object.DestroyImmediate(a); Object.DestroyImmediate(b); }
+            }
         }
 
         static void AssertColour(string id, string property, Color actual, Color expected)

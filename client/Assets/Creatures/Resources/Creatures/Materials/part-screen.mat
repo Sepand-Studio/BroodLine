@@ -27,13 +27,13 @@ Material:
     m_Floats:
     - _Desaturate: 0
     - _RimPower: 3
-    - _RimStrength: 0.35
+    - _RimStrength: 0.2
     m_Colors:
-    - _BaseColor: {r: 0.7764706, g: 0.80784315, b: 0.87058824, a: 1}
+    - _BaseColor: {r: 0.5024, g: 0.5322667, b: 0.592, a: 1}
     - _FillColor: {r: 0.65999997, g: 0.7, b: 0.8399999, a: 1}
     - _KeyColor: {r: 1, g: 0.96999997, b: 0.9, a: 1}
     - _RimColor: {r: 1, g: 1, b: 1, a: 1}
     - _Tint: {r: 1, g: 1, b: 1, a: 1}
-    - _UnderColor: {r: 0.43137255, g: 0.48235294, b: 0.59607846, a: 1}
+    - _UnderColor: {r: 0.34080002, g: 0.38560003, b: 0.48266667, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

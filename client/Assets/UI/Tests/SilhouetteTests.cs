@@ -37,7 +37,7 @@ namespace Broodline.UI.Tests
     /// recording. They are the only two upright bodies in the cast, so their
     /// masks are both tall, narrow and SPARSE - 236 and 144 of 1600 cells -
     /// and two sparse masks cannot differ on more of the field than their
-    /// combined fill, however unlike they are. 9.9% against a ceiling of
+    /// combined fill, however unlike they are. 9.6% against a ceiling of
     /// 23.8% means they overlap on very little; it is not a near-miss on
     /// shape. `Broodline.Creatures.Tests.BodyShapeTests` carries the positive
     /// claims that hold them apart: Ember is 2.06x as tall as it is wide and
@@ -148,7 +148,14 @@ namespace Broodline.UI.Tests
             // be a second, tighter threshold nobody agreed to, and tightening
             // this detector is how it stops detecting. `verify-uss-tokens.sh`
             // makes the same distinction - measure, print, gate on one line.
-            // Fifteen pairs since Task 15. Closest measured: ember/hollow.
+            // Fifteen pairs since Task 15. Closest measured: ember/hollow at
+            // 9.6%. THIS LOG IS THE ONLY PLACE THE SHIPPED NUMBER EXISTS, and
+            // the project's test command does not surface it - which is how
+            // three different values for it (9.3, 9.6, 9.9) ended up quoted in
+            // four different comments. 9.3 was a reading taken BEFORE
+            // `CreatureBaker.RestPose` made the bake reproducible; 9.9 came
+            // from an offline approximation of this downsample. Anything that
+            // quotes the margin should quote what this line prints.
             Debug.Log("bible 10.2 rule 1, pairwise at 40px (floor " +
                       $"{MinDifferingFraction:P0}): " + string.Join(", ", measured));
 

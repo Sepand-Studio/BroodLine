@@ -123,7 +123,7 @@ namespace Broodline.Creatures
         /// TALLER THAN IT IS WIDE, BY 2.06. Height 1.263 against a widest
         /// horizontal span of 0.613. That ratio is the measurable form of "tall
         /// narrow", and it is what holds Ember apart from Hollow - the only
-        /// other upright body, and the closest pair at 40px (9.9%, floor 8%).
+        /// other upright body, and the closest pair at 40px (9.6%, floor 8%).
         ///
         /// SHORTER THAN THE FIRST PASS, BECAUSE THE BAKE CAMERA CROPS. At 1.40
         /// tall the crest ran off the top of `CreatureBaker`'s 192px frame - row
@@ -196,6 +196,28 @@ namespace Broodline.Creatures
         /// SIX ISLANDS, NOT FOUR. The body sphere's underside is 0.229 and the
         /// legs reach -0.010, so the clearance band is [0, 0.229] and the slice
         /// at 0.12 finds six separate legs.
+        ///
+        /// EIGHT BONES, WHICH IS THE CAP. `RecipeTests.EveryBody_NamesOnlyBones
+        /// ItDeclares` enforces eight and six legs plus a head plus a root is
+        /// exactly that. There is no headroom here: a Skitter that wants a
+        /// jaw, a tail or a second head segment has to take a bone off a leg
+        /// first, or the cap has to move and the Mobile tier's two-influence
+        /// skinning limit has to be re-checked with it.
+        ///
+        /// ITS FLANK SOCKET SITS ON A LEG'S BULGE, AND THAT IS A TRADE, NOT AN
+        /// OVERSIGHT. rig_proof 3 asks the two combat sockets to present
+        /// similar local curvature; Skitter's dorsal sits on the 0.200 torso
+        /// and its flank on a 0.065 leg, a ratio of 3.08 and the worst of the
+        /// six. Moving the flank onto the torso IS possible - (0.00, 0.48,
+        /// -0.208) reaches a clearance of +0.028, better than Vetch's own
+        /// 0.022 - but only at socket scales 0.50/0.25, which costs 69% of
+        /// every flank part's pixels. Section 3 states the collision clause as
+        /// a requirement and the curvature clause as advice that "costs
+        /// nothing at authoring time"; on a body 0.40 across it costs bible
+        /// 10.4's single most important functional requirement, so the parts
+        /// stay big. `RecipeTests.EveryCombatSocket_SitsOnTheBodysSurface`
+        /// logs the ratio for all six rather than gating on a number nobody
+        /// agreed to.
         public static readonly BodyRecipe Skitter = new BodyRecipe
         {
             Id = "skitter",
@@ -384,6 +406,16 @@ namespace Broodline.Creatures
         ///
         /// Grid 22, padding 0.12: 2100 triangles, and the 0.12-thick wing plates
         /// span 2.6 cells.
+        ///
+        /// ITS FLANK SOCKET STAYS AT y 0.15, AND BOTH REASONS FOR MOVING IT
+        /// WERE MEASURED AND FOUND FALSE. It is not occluded: rendered in 3D
+        /// with depth, 100% of every part's pixels survive at both of Pale's
+        /// sockets, and the CARD cannot occlude at all because `CreatureBaker`
+        /// stacks flat sprites part-over-body. Nor is it on the underside
+        /// curve: the body capsule runs from y 0.17 to 0.44 at radius 0.17, so
+        /// at y 0.15 it is 0.169 wide - 99.3% of its own maximum. Raising it to
+        /// y 0.24 changes the part's pixel count by under 1% (610 to 612 on the
+        /// carapace) and spends 0.09 of dorsal/flank clearance for it.
         public static readonly BodyRecipe Pale = new BodyRecipe
         {
             Id = "pale",

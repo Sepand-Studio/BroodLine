@@ -84,6 +84,29 @@ namespace Broodline.Creatures.Editor
             Debug.Log("[bake] wrote " + n + " sprites under " + OutRoot);
         }
 
+        /// THE REST POSE THE BAKE ACTUALLY NEEDS, AND THE ONLY THING STANDING
+        /// BETWEEN THIS PIPELINE AND A BAKE THAT DIFFERS EVERY RUN.
+        ///
+        /// `Tick(0, 0)` reads `sin((time + phase) * ...)` and `CreatureMotion`
+        /// seeds that phase from `Random.value`, so at time 0 the root still
+        /// carries a random breath. `Vector3.one * GrowthScale` is exactly what
+        /// `Tick` writes when the breath term is 1, so this is the rest pose
+        /// rather than an override of one.
+        ///
+        /// IT ASSUMES ROOT SCALE IS `Tick`'s ONLY NONDETERMINISTIC OUTPUT.
+        /// `DriftTests.TheBakesRestPose_IsDeterministic` is what holds that
+        /// true: it builds the same creature twice and compares every transform
+        /// in both hierarchies, so a second seeded term added to `Tick` fails
+        /// there instead of quietly returning the 40px gate to passing by luck.
+        public static void RestPose(GameObject creature)
+        {
+            var motion = creature.GetComponent<CreatureMotion>();
+            if (motion == null) return;
+            motion.Tick(0f, 0f);
+            var rest = creature.transform.Find("root") ?? creature.transform;
+            rest.localScale = Vector3.one * motion.GrowthScale;
+        }
+
         /// One frame. `partOnly` hides the body so the part PNG holds only the
         /// part, at its socket, from the same camera - aligned with the body PNG.
         static void Shoot(GameObject rig, Camera camera, RenderTexture rt, CreatureLook look, string path, string partOnly, bool composite = false)
@@ -113,7 +136,7 @@ namespace Broodline.Creatures.Editor
                 //
                 // It matters beyond the churn. `SilhouetteTests` reads these
                 // PNGs at 40px against an 8% floor, and with six species its
-                // closest pair (ember/hollow) measures 9.3% - a bake that
+                // closest pair (ember/hollow) measures 9.6% - a bake that
                 // wobbles is a gate that wobbles, and this project's own rule
                 // is that a stale or lucky pass is worse than a failure.
                 //
@@ -121,10 +144,7 @@ namespace Broodline.Creatures.Editor
                 // makes the sprite the creature at its AUTHORED size and the
                 // bake reproducible. `CreatureMotion` is untouched: a wave is
                 // still not a chorus line.
-                var motion = creature.GetComponent<CreatureMotion>();
-                motion.Tick(0f, 0f);
-                var rest = creature.transform.Find("root") ?? creature.transform;
-                rest.localScale = Vector3.one * motion.GrowthScale;
+                RestPose(creature);
 
                 camera.Render();
                 var prev = RenderTexture.active;
