@@ -603,7 +603,16 @@ namespace Broodline.Game
         /// in pocket 0 renumbers the rest, which is what the lane picture and
         /// the row badges then redraw - the screen showing the player exactly
         /// what the request will say.
-        static bool Toggle(List<Guid> selected, Guid id)
+        ///
+        /// PUBLIC AND STATIC SO A HEADLESS TEST CAN REACH IT, which is the
+        /// same reason `WantedFor` and `SpecsFor` are - "the parts a headless
+        /// test can reach". The rest of the toggle loop cannot be reached
+        /// that way: it lives inside `ScreenFlow.ShowAsync`'s bind callback
+        /// and answers a `ClickEvent` that needs an attached Panel
+        /// (`FtueDirectorTests`' class comment has the dead ends). This
+        /// method is the whole of the RULE, and the rule is asymmetric, so it
+        /// is the half that must not be trusted by inspection.
+        public static bool Toggle(List<Guid> selected, Guid id)
         {
             if (selected.Remove(id)) return true;
             if (selected.Count >= DeployScreen.Cap) return false;

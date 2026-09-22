@@ -9,15 +9,26 @@ namespace Broodline.View
     {
         // Mirrors: --paper #f7f4fb, --green-tint #e8f5ec, the handoff's path #e5d9c7, --violet #7a6ac0, --surface #ffffff.
         //
-        /// PUBLIC, ALONE AMONG THE FIVE, AND FOR ONE READER. `LaneStage`
-        /// (Phase 9 Task 17) clears its camera to this colour so the ground
-        /// past the dressing's finite quads is the same colour as the ground
-        /// inside them - which is the call `WaveSceneBuilder` already made
-        /// for its own camera, in a literal `new Color(0.91f, 0.96f, 0.93f)`
-        /// that this constant is the source of. Exposed rather than copied a
-        /// third time: it is also `--green-tint`, which is
-        /// `.lane-preview-card`'s fill, so three files now depend on the four
-        /// of them being one colour.
+        /// PUBLIC, ALONE AMONG THE FIVE, AND FOR TWO READERS - Phase 9 Task
+        /// 17.
+        ///
+        /// The first is `LaneStage`, which clears its camera to this colour
+        /// so the ground past the dressing's finite quads is the same colour
+        /// as the ground inside them - the call `WaveSceneBuilder` already
+        /// made for its own camera, in a literal `new Color(0.91f, 0.96f,
+        /// 0.93f)` that this constant is the source of.
+        ///
+        /// The second is what actually made the widening necessary rather
+        /// than merely tidy: `LaneStageTests` and `LaneStagePlayTests` read
+        /// it to THRESHOLD the render. "Did the stage draw a lane?" is
+        /// "how many pixels are not the clear colour?", and a test that
+        /// answered that against a copy of the hex would pass a stage whose
+        /// clear colour had drifted away from the dressing's - which is the
+        /// one failure the assertion exists to catch.
+        ///
+        /// Exposed rather than copied a fourth time. It is also
+        /// `--green-tint`, which is `.lane-preview-card`'s own fill, so four
+        /// files now depend on the five of them being one colour.
         public static readonly Color Field = Hex("#e8f5ec");
         static readonly Color Path = Hex("#e5d9c7");
         static readonly Color Dash = Hex("#ffffff");

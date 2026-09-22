@@ -36,8 +36,13 @@ namespace Broodline.Game.Shell
     /// `CreatureAssembler.StudioLayer`, so overlapping them would put a lane
     /// in the founder's portrait.
     ///
-    /// THE CAMERA IS ENABLED ONLY WHILE SHOWN, which is `PortraitStudio`'s
-    /// rule and costs nothing until the deploy screen asks for a frame.
+    /// THE CAMERA IS NEVER ENABLED AT ALL. `PortraitStudio` leaves its own
+    /// running because it has an `Update()` that turns the creature; this
+    /// class has none, so `Show` paints exactly one frame through
+    /// `Camera.SubmitRenderRequest` and the camera stays off. `Paint`'s own
+    /// note has the measurement that changed this and the two things it buys
+    /// - no render target painted through the fight, and a rig an EditMode
+    /// test can drive without a player loop.
     public sealed class LaneStage : MonoBehaviour
     {
         /// 3:2. The card this fills, `LanePreviewCard`, is a fixed
@@ -55,6 +60,15 @@ namespace Broodline.Game.Shell
         /// The camera's vertical half-extent in world units. At Width:Height
         /// it covers 2 * 5.5 * 1.5 = 16.5 units across, which is what decides
         /// the framing arithmetic beside `Aim`.
+        ///
+        /// PUBLIC BECAUSE THE FRAMING IS TESTED AND NOT ONLY DOCUMENTED.
+        /// `LaneStageTests.EveryPocketOfEveryAuthoredWaveStandsInsideTheFrame`
+        /// recomputes that half-extent from this and `Width`/`Height` and
+        /// checks every pocket of every authored lane against it - which is
+        /// the one thing about this rig no capture can show and no pixel
+        /// count can answer. Without that reader this would be a public
+        /// constant the brief did not ask for and nothing outside this file
+        /// read, which is drift.
         public const float OrthographicSize = 5.5f;
 
         /// Below `PortraitStudio.Far` (-400) by more than either camera can
@@ -123,7 +137,12 @@ namespace Broodline.Game.Shell
             // midpoint, which is `WaveSceneBuilder.laneMidX` exactly.
             stage.Aim(WaveRunner.LaneTiles * WaveView.TileSize * 0.5f);
 
-            cam.enabled = false;   // costs nothing until Show
+            // AND IT STAYS DISABLED. `Paint` renders one frame on demand
+            // rather than letting the player loop drive this camera - see
+            // that method for why, and for what the first round of this task
+            // cost by copying `PortraitStudio`'s enabled camera across
+            // without its `Update()`.
+            cam.enabled = false;
             return stage;
         }
 
@@ -203,14 +222,90 @@ namespace Broodline.Game.Shell
                 CreatureAssembler.SetLayerRecursively(body, CreatureAssembler.StudioLayer);
             }
 
-            _camera.enabled = true;
+            Paint();
             return _texture;
+        }
+
+        /// ONE FRAME, NOW, AND THEN NOTHING - which is the whole difference
+        /// between this rig and `PortraitStudio`.
+        ///
+        /// That one leaves `_camera.enabled = true` because it has an
+        /// `Update()` that turns its creature every frame
+        /// (`PortraitStudio.cs:88-90`), so a live camera is what the feature
+        /// IS. This class has no `Update` and its own header says so -
+        /// "Nothing here ticks". Phase 9 Task 17's first round copied the
+        /// enabled camera across with the pattern and not the reason, and the
+        /// cost was an orthographic camera painting a 720x480 target every
+        /// frame of the fight, on a phone, at the one moment the frame budget
+        /// matters: `FtueDirector`'s `finally` spans `_play(...)`, so it ran
+        /// for the whole wave.
+        ///
+        /// A PICTURE IS A FRAME, NOT A LOOP. The camera stays disabled and
+        /// this paints on demand. `Show` is the only caller and calls it
+        /// once, after the creatures are in place.
+        ///
+        /// `SubmitRenderRequest` FIRST, `Camera.Render()` AS THE FALLBACK,
+        /// AND THE ORDER IS FORCED. `Camera.Render()` is documented as
+        /// unsupported under a Scriptable Render Pipeline - this project is
+        /// URP - and 2022.2 added `RenderPipeline.StandardRequest` as the
+        /// supported way to drive one camera into one target on demand.
+        /// `GraphicsSettings.currentRenderPipeline` is the probe: it is the
+        /// pipeline ASSET the project is configured with, so it answers
+        /// before anything has rendered - where
+        /// `RenderPipelineManager.currentPipeline` is created lazily on the
+        /// first frame and is null in an EditMode test that has not drawn
+        /// yet. A build with no SRP takes `Camera.Render()` and still
+        /// renders rather than silently producing nothing. A SILENT NOTHING
+        /// IS THE FAILURE MODE THAT MATTERS HERE: the deploy screen's
+        /// fallback for a null or blank texture is the card's own flat fill,
+        /// which looks exactly like a stage that has not been given one.
+        ///
+        /// NEITHER `Camera.SupportsRenderRequest` NOR
+        /// `Camera.RenderRequestSupported` EXISTS, though both names appear
+        /// in `UnityEngine.CoreModule.dll`'s string table - they are bindings
+        /// on other types. Both were tried and both failed to compile on
+        /// 6000.6.0f1; recorded so the next reader does not spend the same
+        /// two runs finding out.
+        ///
+        /// AND THIS IS WHAT MAKES THE RIG TESTABLE HEADLESSLY. An enabled
+        /// camera paints during the player loop, which EditMode does not run
+        /// - so the old shape could only ever be proven by a human in Play
+        /// mode. An explicit request renders synchronously, so
+        /// `LaneStageTests` can call `Show` and read the pixels back in the
+        /// EditMode suite that runs on every gate.
+        void Paint()
+        {
+            if (UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline != null)
+            {
+                _camera.SubmitRenderRequest(
+                    new UnityEngine.Rendering.RenderPipeline.StandardRequest { destination = _texture });
+            }
+            else
+            {
+                _camera.Render();
+            }
         }
 
         public void Clear()
         {
-            if (_creatures != null) Destroy(_creatures);
+            // DEFERRED IN PLAY MODE, IMMEDIATE OUTSIDE IT, which is
+            // `LaneDressing.Paint`'s own branch and is here for its reason:
+            // `Object.Destroy` runs at the end of the frame, and an EditMode
+            // test (or a batch `-executeMethod`) never reaches one - so the
+            // creatures would still be standing when the next `Show` built a
+            // second set on top of them, and the test that reads the texture
+            // back would be reading two waves at once.
+            if (_creatures != null)
+            {
+                if (Application.isPlaying) Destroy(_creatures);
+                else DestroyImmediate(_creatures);
+            }
             _creatures = null;
+
+            // Belt and braces: `Paint` leaves this false, so this is the
+            // state the camera is already in. Kept so that a future caller
+            // that enables it for its own reasons cannot leave it running
+            // past a Clear.
             if (_camera != null) _camera.enabled = false;
 
             // `PortraitStudio.Clear`'s note, and it applies here for exactly

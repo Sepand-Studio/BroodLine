@@ -296,7 +296,7 @@ public static class ScreenFixtures
     /// `specs/Designs/shots/wave-defense.png` can be laid side by side
     /// without first translating one into the other. Its numbers are the
     /// handoff's too - 145 energy, five foes, 120 shards - except the two
-    /// this project states differently and says why: `DEPLOYED 3 / 5`
+    /// this project states differently and says why: `DEPLOYED 2 / 5`
     /// against the handoff's `2 / 4`, because `DeployScreen.Cap` is the
     /// server's (services/api/src/wave/issuance.ts) and its 4 is a drawing;
     /// and `ARK INTEGRITY 100%` against its 82%, because this screen is

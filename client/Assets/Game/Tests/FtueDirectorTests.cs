@@ -87,6 +87,107 @@ namespace Broodline.Game.Tests
         }
 
         // ---------------------------------------------------------------
+        // What a tap on a field row does to the selection
+        //
+        // THE RULE IS ASYMMETRIC, WHICH IS WHY IT IS TESTED AT ALL. A removal
+        // is always allowed and an add past the cap is refused, and those two
+        // halves have different justifications - so "it toggles" is not a
+        // description a reader can check the code against. `DeployView` draws
+        // the second half (every undeployed row dimmed and disabled at the
+        // cap); this is the half that decides it.
+        //
+        // The loop AROUND this - the closure in `FightAsync` that rebuilds
+        // the model and re-binds without ending the turn - is still read
+        // rather than executed, for the reason this file's class comment
+        // gives: it answers a `ClickEvent` that needs an attached Panel.
+        // Named in the task report as owed to the PlayMode pass.
+        // ---------------------------------------------------------------
+
+        [Test]
+        public void Toggle_AddsACreatureThatIsNotSelected_AtTheEnd()
+        {
+            // ORDER IS PART OF THE REQUEST. "Index == deployment order", and
+            // `deploymentMatches` compares the replay's deployment against
+            // the stored one IN ORDER - so an add that inserted anywhere but
+            // the end would silently renumber pockets the player had already
+            // filled.
+            var a = Guid.NewGuid();
+            var b = Guid.NewGuid();
+            var selected = new List<Guid> { a };
+
+            Assert.IsTrue(FtueDirector.Toggle(selected, b), "an add must report that something changed");
+            CollectionAssert.AreEqual(new[] { a, b }, selected);
+        }
+
+        [Test]
+        public void Toggle_RemovesASelectedCreature_EvenWhenItIsTheLastOne()
+        {
+            // THE FLOOR IS THE MODEL'S TO STATE, NOT THIS METHOD'S.
+            // `DeployScreen.Build` answers an empty selection with "Send at
+            // least one creature..." and `DeployView` renders it in coral
+            // above a greyed Start; any tap undoes it. Refusing the tap here
+            // would make the screen silent about a rule it can state, and
+            // `WantedFor`'s own comment already says its number is "A FLOOR,
+            // NOT A PROMISE" that sizes the OPENING selection and nothing
+            // else.
+            var a = Guid.NewGuid();
+            var selected = new List<Guid> { a };
+
+            Assert.IsTrue(FtueDirector.Toggle(selected, a));
+            CollectionAssert.IsEmpty(selected);
+
+            // And the model really does refuse it rather than merely
+            // disliking it - which is what makes the removal safe.
+            var roster = new RosterScreen();
+            roster.ApplyRoster(new RosterResponse { Creatures = { Creature("Vetch", id: a) }, Cap = 20 });
+            var model = DeployScreen.Build(1, roster, selected);
+            Assert.IsFalse(model.CanDeploy);
+            Assert.IsNotEmpty(model.Blocker);
+        }
+
+        [Test]
+        public void Toggle_RefusesAnAddAtTheCap_ButStillLetsOneGo()
+        {
+            // THE ASYMMETRY, ASSERTED AS AN ASYMMETRY. Over the cap the
+            // model's sentence is "A deployment is at most 5 creatures." and,
+            // unlike the floor, no single tap undoes it - the player would
+            // have to work out which of six to remove. So the add is refused
+            // and the removal beside it is not, in the same state.
+            var selected = new List<Guid>();
+            for (var i = 0; i < DeployScreen.Cap; i++) selected.Add(Guid.NewGuid());
+            var atTheCap = new List<Guid>(selected);
+
+            Assert.IsFalse(FtueDirector.Toggle(selected, Guid.NewGuid()),
+                "a sixth creature was added past DeployScreen.Cap");
+            CollectionAssert.AreEqual(atTheCap, selected, "a refused add must not disturb the selection");
+
+            Assert.IsTrue(FtueDirector.Toggle(selected, atTheCap[0]),
+                "at the cap a REMOVAL must still work, or the screen is stuck");
+            Assert.AreEqual(DeployScreen.Cap - 1, selected.Count);
+        }
+
+        [Test]
+        public void Toggle_RoundTripsToWhereItStarted()
+        {
+            // The property the two cases above do not state between them: a
+            // tap and a second tap on the same row leave the deployment - and
+            // therefore every pocket in it - exactly as they were.
+            var ids = new List<Guid> { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+            var selected = new List<Guid>(ids);
+
+            Assert.IsTrue(FtueDirector.Toggle(selected, ids[0]));
+            Assert.IsTrue(FtueDirector.Toggle(selected, ids[0]));
+
+            // NOT the same ORDER - the re-added creature goes to the end,
+            // which is the pocket it now holds and what the lane picture and
+            // the row badges redraw. Asserted as a set plus a count so the
+            // test says what it means rather than pinning the wrong half.
+            CollectionAssert.AreEquivalent(ids, selected);
+            Assert.AreEqual(ids[0], selected[selected.Count - 1],
+                "a re-added creature takes the last pocket, not the one it had");
+        }
+
+        // ---------------------------------------------------------------
         // The issuance's deployment, as engine structs
         // ---------------------------------------------------------------
 

@@ -17,17 +17,34 @@ namespace Broodline.UI.Components
     /// tasks inventing the same band three times - which is the trade Task
     /// 13's brief was written to stop.
     ///
-    /// SIX MORE OF THE SAME FURNITURE EXIST IN OTHER TINTS, NOT COUNTED
+    /// FIVE MORE OF THE SAME FURNITURE EXIST IN OTHER TINTS, NOT COUNTED
     /// ABOVE BECAUSE THIS PHASE HAS NO SCREEN THAT DRAWS THEM. The same
     /// `linear-gradient(170deg, ...)` band at the same 22-26 radius also
-    /// appears on `Collector Intercept:46` and `Wave Defense:69`
-    /// (`#eef4f7 -> #e2edf3`), `Alliance Hub:50`, `Alliance Rally:45`,
-    /// `Relocate Ark:45` (`#eef4f7 -> #e4eef4`) and `Wave Defeat:31`
-    /// (`#fbeee9 -> #f6e2e4`). `.hero-band__surface` (`HeroBand.uss`)
-    /// hard-codes `band-ramp.png` and `--violet-tint` with NO TINT HOOK, so
-    /// a later task reaching for one of these six will need to add one. Not
-    /// built here - Phase 9's six are the violet ones, and that is what this
-    /// component is for now.
+    /// appears on `Collector Intercept:46` (`#eef4f7 -> #e2edf3`),
+    /// `Alliance Hub:50`, `Alliance Rally:45` and `Relocate Ark:45`
+    /// (`#eef4f7 -> #e4eef4`), and `Wave Defeat:31`
+    /// (`#fbeee9 -> #f6e2e4`, radius 26, `box-shadow: 0 4px 16px` - the
+    /// `.elev-2` pair, so it is this band in coral and nothing else).
+    /// `.hero-band__surface` (`HeroBand.uss`) hard-codes `band-ramp.png` and
+    /// `--violet-tint` with NO TINT HOOK, so a later task reaching for one of
+    /// these five will need to add one. Not built here - Phase 9's six are
+    /// the violet ones, and that is what this component is for now.
+    ///
+    /// SIX UNTIL PHASE 9 TASK 17 MEASURED THE LIST, AND THE ONE THAT LEFT IT
+    /// WAS `Wave Defense:69`. Two things were wrong about it and both were
+    /// load-bearing for the task that reached for it:
+    ///   - `:69` is not a band at all. It is the LANE VIEWPORT - the very
+    ///     next line is `<svg viewBox="0 0 406 300">` carrying the lane's
+    ///     path, its tree circles and its Ark - and `LanePreviewCard` is
+    ///     already that element, quoting `:69`'s own declaration verbatim in
+    ///     its stylesheet header.
+    ///   - The colour attributed to it here was another screen's.
+    ///     `#eef4f7 -> #e2edf3` is `Collector Intercept:46` and appears
+    ///     nowhere else in the bundle; `Wave Defense:69` is a third ramp,
+    ///     `#eef4f0 -> #e4eff5`, green-to-blue rather than blue-grey.
+    /// Corrected rather than left, because the next task to want the tint
+    /// hook is Task 18 and `Wave Defeat:31` is the band it actually needs.
+    /// No shape changed here - this is a comment.
     ///
     /// THE RING IS NOT THE BAND, AND THE HANDOFF IS CLEARER ABOUT THAT THAN
     /// A COUNT OF `class="spin"` IS. Three of the six band screens draw the
