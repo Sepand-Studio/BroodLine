@@ -81,6 +81,12 @@ public static class ScreenFixtures
         "CodexSheet",
         "DeployView",
         "FounderNamingView",
+        // THE SCREEN NOBODY IS SUPPOSED TO SEE, WHICH IS EXACTLY WHY IT IS
+        // CAPTURED - Phase 9 Task 21g. It goes up only when the walk stops,
+        // so it is the one screen in the app a play-through does not reach on
+        // purpose; a corpus that skipped it would leave the failure path as
+        // the only unlooked-at surface in a phase about the look.
+        "InterruptedView",
         "LineageView",
         "PostWaveView",
         // THE OTHER ARM OF THE ONE SCREEN THAT RENDERS BOTH VERDICTS.
@@ -160,6 +166,7 @@ public static class ScreenFixtures
             case "CodexSheet": return Codex();
             case "DeployView": return Deploy();
             case "FounderNamingView": return FounderNaming();
+            case "InterruptedView": return Interrupted();
             case "LineageView": return Lineage();
             case "PostWaveView": return PostWave();
             case "PostWaveLoss": return PostWaveLost();
@@ -383,6 +390,24 @@ public static class ScreenFixtures
         var founder = Creature("Vetch", 1, name: null, founder: true, id: FounderId);
         var view = new FounderNamingView();
         view.Bind(founder, FounderNamingScreen.DefaultFor(founder), onName: _ => { }, onSkip: () => { });
+        return view;
+    }
+
+    static VisualElement Interrupted()
+    {
+        var view = new InterruptedView();
+
+        // A REAL SENTENCE OFF THE REAL PATH, not lorem, and the LONGEST one
+        // this build authors for this screen (97 characters against
+        // `ColdStartFailed`'s 69) - so the capture shows the wrapping case
+        // rather than the flattering one. A server's own refusal can be
+        // longer still; nothing in this client bounds that.
+        //
+        // FULLY QUALIFIED rather than imported: `Broodline.Game` also holds
+        // a type `Ftue` and `Broodline.Api` (imported above) holds another,
+        // so a `using` for it would make a bare `Ftue` ambiguous in this file
+        // for one constant's sake.
+        view.Bind(Broodline.Game.FtueNotice.ForfeitFailed, onRetry: () => { });
         return view;
     }
 

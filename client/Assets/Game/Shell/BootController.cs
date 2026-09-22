@@ -165,7 +165,23 @@ namespace Broodline.Game.Shell
                 // Same reason the cold start is wrapped: this is an `async
                 // void Start`, so anything that escapes here is an
                 // unobserved exception with no stack anyone will see.
+                //
+                // WHAT REACHES THIS CATCH CHANGED IN PHASE 9 TASK 21G, and
+                // what it can do about it did not. `RunAsync` now catches its
+                // own throws and answers them with a screen carrying a live
+                // control, so the only thing that still lands here is a throw
+                // out of THAT - the recovery itself failing. At which point
+                // there is no live control to offer: the mechanism that shows
+                // screens is what just failed, and a second attempt at it
+                // would be the same call.
+                //
+                // SO IT SAYS SOMETHING RATHER THAN ONLY LOGGING. A toast is
+                // four seconds and a relaunch is genuinely the remedy, which
+                // is what the sentence names. `Debug.LogError` alone is what
+                // a tester holding a device cannot read, and that gap is the
+                // one Task 4 closed everywhere else.
                 Debug.LogError("[BootController] the first hour stopped: " + e);
+                OnNotice(FtueNotice.WalkUnrecoverable);
             }
         }
 
@@ -193,8 +209,15 @@ namespace Broodline.Game.Shell
         /// progression data and every tab is tappable; a tap does nothing,
         /// because nothing routes a tab to a screen. `FtueDirector` is the
         /// ONLY production file in the client that constructs a screen, so
-        /// `RosterView` and `RegionView` are never built outside tests, and
-        /// after `Beat.Done` the walk ends with no screen taking the shell.
+        /// `RosterView` and `RegionView` are never built outside tests.
+        ///
+        /// THE SENTENCE THAT USED TO FOLLOW - "after `Beat.Done` the walk
+        /// ends with no screen taking the shell" - WAS TRUE AND IS NOT ANY
+        /// MORE, Phase 9 Task 21g. The walk cannot end without putting a
+        /// screen up with a live control on it; `FtueDirector.RunAsync` has
+        /// the whole reasoning. What that does NOT do is give the tabs
+        /// anywhere to go, so this method is still empty and still the
+        /// largest limitation of this build.
         ///
         /// An earlier version of this comment read "no screens exist yet for
         /// any tab (they arrive in later tasks)". They arrived, in Tasks

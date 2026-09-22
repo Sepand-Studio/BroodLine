@@ -129,6 +129,52 @@ namespace Broodline.Game
         /// `ServerError.Remedy.None` exists to avoid.
         public const string ColdStartFailed =
             "Could not reach the server. Check your connection and reopen the app.";
+
+        /// Campaign Select needs a snapshot and there is none.
+        ///
+        /// SAID AT ALL BECAUSE IT USED TO BE SILENT - Phase 9 Task 21g. Both
+        /// of `CampaignAsync`'s opening guards ended the walk with a bare
+        /// `return` and no sentence anywhere, which left the player on
+        /// whatever screen was up with nothing to read and nothing to tap.
+        /// The recovery screen shows the LAST thing the walk said, so an exit
+        /// that says nothing is an exit that shows the previous exit's
+        /// sentence - a wrong explanation is worse than a vague one.
+        public const string CampaignUnreadable =
+            "The wave list has not arrived yet. Try again in a moment.";
+
+        /// The snapshot arrived and `config.waves` is empty.
+        ///
+        /// A SECOND SENTENCE FOR WHAT LOOKS LIKE THE SAME THING, and the
+        /// difference is real even though the player's remedy is the same:
+        /// one means nothing synced, the other means the sync landed and the
+        /// bundle authored no waves. `BootController.OnNotice` logs every
+        /// sentence, so this distinction is what a developer reading a device
+        /// log has to tell them apart with.
+        public const string NoWavesAuthored =
+            "There are no waves to fight yet. Try again in a moment.";
+
+        /// Something threw its way out of the whole walk.
+        ///
+        /// NOT `ServerError.From(error).PlayerMessage`, AND THAT IS THE
+        /// DECISION. Every refusal the walk can meet is already caught and
+        /// translated where the call was made - `ServerError` is how, and its
+        /// sentences are the server's own. What reaches the outermost catch
+        /// is therefore not a refusal but a defect, and for a defect
+        /// `PlayerMessage` degrades to the raw `Exception.Message`: "Object
+        /// reference not set to an instance of an object" is a stack trace
+        /// wearing a sentence's clothes. The exception goes to the log where
+        /// a developer can use it; the player gets this.
+        public const string WalkThrew =
+            "The game hit an unexpected problem. Try again.";
+
+        /// The last resort, in `BootController`, when even the recovery
+        /// screen could not be put up.
+        ///
+        /// IT PROMISES A RELAUNCH RATHER THAN A BUTTON, for `ColdStartFailed`'s
+        /// reason and more literally: by the time this is said the thing that
+        /// shows buttons is what failed, so there is no button to name.
+        public const string WalkUnrecoverable =
+            "The game stopped and could not recover. Reopen the app.";
     }
 
     /// The first hour, walked.
@@ -192,7 +238,31 @@ namespace Broodline.Game
         readonly ScreenFlow _flow;
         readonly Func<PlayerSnapshot> _snapshot;
         readonly Func<Task> _resync;
+
+        /// The caller's notice, WRAPPED so that everything said through it is
+        /// also remembered - see the constructor.
         readonly Action<string> _notice;
+
+        /// The last sentence the walk said, and the thing the recovery screen
+        /// reads when the walk stops.
+        ///
+        /// WHY THE LAST NOTICE IS THE RIGHT ANSWER, and why nothing carries a
+        /// reason out of the walk instead. Every `return` that ends the walk
+        /// is bare and carries nothing; turning fourteen of them into
+        /// something that did would be an audit that the fifteenth silently
+        /// fails. What every one of them DOES do is say its sentence through
+        /// `_notice` immediately before returning - including
+        /// `CampaignAsync`'s two, which were made to as part of this change -
+        /// so "the last thing said" and "why it stopped" are the same string
+        /// for every exit that exists, and for any exit added later that
+        /// follows the file's own habit of speaking before it stops.
+        ///
+        /// THE FAILURE MODE IS A STALE SENTENCE, NOT A MISSING ONE, and it is
+        /// bounded by that property: a notice said mid-beat (`ServerWakingUp`
+        /// on the first retry) is overwritten by the sentence of whatever
+        /// eventually stops the walk. It would only survive to be shown if a
+        /// future exit stopped without speaking.
+        string _lastNotice;
 
         readonly RosterScreen _roster = new RosterScreen();
 
@@ -210,8 +280,11 @@ namespace Broodline.Game
         /// off-screen rigs. Optional and nullable for `_studio`'s reasons,
         /// which apply here unchanged: `BootController` is the only
         /// production call site and always passes the real one, and
-        /// `FtueDirectorTests` builds a director with no scene to construct a
-        /// camera in. A director without a stage shows the deploy screen with
+        /// `WalkRecoveryTests` builds a director with no scene to construct a
+        /// camera in. (That sentence named `FtueDirectorTests` until Phase 9
+        /// Task 21g and was wrong when it was written: nothing constructed a
+        /// director outside `BootController` at all. It is true now, of the
+        /// suite that does.) A director without a stage shows the deploy screen with
         /// the lane card on its own fill, which is what every capture in
         /// `implementation/results/screens` shows too.
         readonly LaneStage _stage;
@@ -235,7 +308,22 @@ namespace Broodline.Game
             _flow = flow ?? throw new ArgumentNullException(nameof(flow));
             _snapshot = snapshot ?? throw new ArgumentNullException(nameof(snapshot));
             _resync = resync ?? throw new ArgumentNullException(nameof(resync));
-            _notice = notice ?? throw new ArgumentNullException(nameof(notice));
+            if (notice == null) throw new ArgumentNullException(nameof(notice));
+
+            // WRAPPED HERE RATHER THAN AT THE FIFTEEN CALL SITES, so that a
+            // sentence cannot be said without being remembered. Changing
+            // every `_notice(...)` to a recording method would work today and
+            // would be one forgotten call away from a recovery screen showing
+            // the wrong reason; this way there is nothing to forget.
+            //
+            // EMPTY IS NOT A SENTENCE. `FtueNotice.For` answers `Sent` with
+            // `string.Empty` and `BootController.OnNotice` drops it; letting
+            // one through here would blank a real reason.
+            _notice = sentence =>
+            {
+                if (!string.IsNullOrEmpty(sentence)) _lastNotice = sentence;
+                notice(sentence);
+            };
             _studio = studio;
             _stage = stage;
         }
@@ -244,7 +332,71 @@ namespace Broodline.Game
         // The walk
         // ---------------------------------------------------------------
 
+        /// The walk, and the thing that catches it when it stops.
+        ///
+        /// **NO EXIT FROM THE WALK MAY LEAVE THE PLAYER WITH NO LIVE
+        /// CONTROL**, and this loop is where that is established - Phase 9
+        /// Task 21g, off the exit gate's device walks.
+        ///
+        /// WHAT A PLAYER MET. `WalkAsync` below has nine `return`s,
+        /// `CampaignAsync` has five, `FightAsync` has four exits that can end
+        /// it and the splice beat has seven across its two halves - and every
+        /// one of them ended the whole walk. Counting them is the wrong
+        /// answer and is recorded here only to show the size of the wrong
+        /// answer.
+        ///
+        /// `ScreenFlow.ShowAsync` presents with `after: null`, so the
+        /// screen that was up stayed up - a deploy screen with a Start button
+        /// that no longer resumed anything, or a campaign list whose picks
+        /// did nothing. `BootController` awaited this, caught nothing, and
+        /// did nothing. The sentence explaining it went to `NoticeToast`,
+        /// which holds a row for four seconds. After that the player had a
+        /// live-looking screen, no explanation, and a relaunch.
+        ///
+        /// ONE SURFACE AT THE BOUNDARY, NOT FOURTEEN AT THE EXITS. The walk
+        /// stops in exactly one place as seen from outside - here - so this
+        /// covers every `return` above, every `return` any future beat adds,
+        /// and the throw that used to land in `BootController`'s log. The
+        /// per-exit alternative needs an audit that the next exit fails.
+        ///
+        /// **AND IT CANNOT SPIN, BECAUSE THE PLAYER IS THE GATE.**
+        /// `AnotherTryAsync` awaits a tap, so there is always a human between
+        /// two attempts and nothing here retries on its own. That is a
+        /// stronger answer than sorting exits into transient and definitive,
+        /// which a bare `return` carries no information to do:
+        /// `FightAsync`'s `StartAsync` catch was right that "putting the same
+        /// screen back so the player can produce the same refusal again is a
+        /// loop, not a remedy" - and this does not put the same screen back.
+        /// A definitive refusal lands on a DIFFERENT screen, which states the
+        /// server's own sentence and re-offers nothing until it is asked to.
+        /// `StartLeavesTheWalkAlive` still decides whether the walk goes
+        /// straight back to a live Start button, and it is untouched: a
+        /// transient failure never reaches this loop at all.
         public async Task RunAsync()
+        {
+            while (true)
+            {
+                try
+                {
+                    await WalkAsync();
+                }
+                catch (Exception error)
+                {
+                    // LOGGED WITH THE EXCEPTION AND SAID WITHOUT IT. See
+                    // `FtueNotice.WalkThrew` for why the player does not get
+                    // `ServerError.From(error).PlayerMessage` here.
+                    UnityEngine.Debug.LogError("[FtueDirector] the walk threw: " + error);
+                    _notice(FtueNotice.WalkThrew);
+                }
+
+                await AnotherTryAsync();
+            }
+        }
+
+        /// One pass of the first hour, from the snapshot to the beat and
+        /// round again. Every `return` in here ends it; `RunAsync` above is
+        /// what stops that from ending the game.
+        async Task WalkAsync()
         {
             while (true)
             {
@@ -296,6 +448,15 @@ namespace Broodline.Game
                         // the derivation is a visible decision here.
                         goto case Beat.Lineage;
 
+                    // NEITHER OF THE TWO `return`s BELOW IS A TERMINAL ONE,
+                    // and calling them that is how this file read for two
+                    // phases. `CampaignAsync` is a `while (true)` that the
+                    // player never leaves by playing: it comes back only when
+                    // it has GIVEN UP - no snapshot, no waves, a roster that
+                    // would not load, a fight that stopped, a resync that
+                    // failed. So "the first hour is over" and "the game
+                    // stopped" arrive here as the same statement, which is
+                    // why `RunAsync` treats every way out of the walk alike.
                     case Beat.Lineage:
                         await LineageAsync(lineage: null);
                         await CampaignAsync();
@@ -308,6 +469,42 @@ namespace Broodline.Game
 
                 if (!await ResyncAsync()) return;
             }
+        }
+
+        /// The screen the walk stops on, and the tap that restarts it.
+        ///
+        /// A SCREEN RATHER THAN A SHEET, AND THAT IS THE POINT OF IT.
+        /// `ScreenHost.Show` REPLACES what is presented; `ShowSheet` overlays
+        /// it. The defect here is a screen whose control is dead, so leaving
+        /// that screen underneath an overlay would leave the player able to
+        /// reach the dead control and would keep the thing that misled them
+        /// on the glass. The stranded screen has to GO.
+        ///
+        /// THE SENTENCE OUTLIVES THE TOAST, WHICH IS HALF THE FIX. Every exit
+        /// already said its own sentence, and `NoticeToast.HoldMs` is 4000 -
+        /// so a player who looked away got four seconds of explanation and
+        /// then a silent screen. `_lastNotice` is that sentence, and it sits
+        /// on this screen for as long as the player leaves it there.
+        ///
+        /// CONSUMED RATHER THAN READ, so a second stop that somehow said
+        /// nothing shows `InterruptedView.UnexplainedReason` instead of
+        /// inheriting the previous stop's reason.
+        ///
+        /// THE TAP RE-ENTERS THE WALK AND DOES NOT RE-SYNC FIRST. `WalkAsync`
+        /// re-reads `_snapshot()` and re-loads the roster on every pass and
+        /// holds no progress of its own, which is this class's own stated
+        /// design - so a retry derives the beat from what the server last
+        /// said, and the resync the walk does at the end of each beat is
+        /// still where a stale snapshot is refreshed. Forcing one here would
+        /// put a network call in front of the recovery from a network
+        /// failure.
+        async Task AnotherTryAsync()
+        {
+            var reason = _lastNotice;
+            _lastNotice = null;
+
+            var interrupted = new InterruptedView();
+            await _flow.ShowAsync(interrupted, resume => interrupted.Bind(reason, onRetry: resume));
         }
 
         // ---------------------------------------------------------------
@@ -1110,7 +1307,13 @@ namespace Broodline.Game
             // from.
             await LineageAsync(lineage);
             await CampaignAsync();
-            return false;    // the walk is over; session one ended on the tree.
+
+            // `false` MEANS "STOP THE WALK", AND IT IS NOT A CELEBRATION.
+            // Session one does end on the tree, but control does not stop
+            // here - it stops wherever `CampaignAsync` gave up, one line up,
+            // and that is a failure every time. See the same correction at
+            // `WalkAsync`'s two post-`CampaignAsync` returns.
+            return false;
         }
 
         /// One confirmation, as a sheet that answers.
@@ -1173,11 +1376,27 @@ namespace Broodline.Game
         {
             while (true)
             {
+                // THESE TWO USED TO BE SILENT, AND THEY ARE THE REASON THE
+                // RECOVERY SCREEN CAN TRUST `_lastNotice` - Phase 9 Task 21g.
+                // A bare `return` here ends `CampaignAsync`, which ends
+                // `WalkAsync`, which is the whole walk; with nothing said,
+                // the recovery screen would have shown whatever sentence the
+                // LAST beat happened to leave behind. A wrong explanation is
+                // worse than a vague one. See the two constants for why they
+                // are two sentences and not one.
                 var snapshot = _snapshot();
-                if (snapshot == null) return;
+                if (snapshot == null)
+                {
+                    _notice(FtueNotice.CampaignUnreadable);
+                    return;
+                }
 
                 var waves = WaveIdsIn(snapshot);
-                if (waves.Count == 0) return;
+                if (waves.Count == 0)
+                {
+                    _notice(FtueNotice.NoWavesAuthored);
+                    return;
+                }
 
                 var view = new CampaignSelectView();
                 var picked = await _flow.ShowAsync<int>(view, resume =>

@@ -35,6 +35,21 @@ namespace Broodline.Game.Tests
     /// is the one that resumes this turn" - is read, not executed. A PlayMode
     /// test with a live `UIDocument` is where that join can actually be
     /// proven, and it is owed.
+    ///
+    /// **THE PARAGRAPH ABOVE WAS OVERTAKEN IN PHASE 9 TASK 21g** and is left
+    /// standing because it is still true OF THIS FILE. `WalkRecoveryTests`
+    /// does drive `RunAsync` end to end, past the deploy screen and into
+    /// `FightAsync`'s exits, and the dead end this comment records turned out
+    /// to have been solved next door: `ScaffoldTests.RaiseClicked` reaches
+    /// `Clickable`'s backing `Action` by reflection and needs no `Panel` at
+    /// all. Nothing test-only was added to production code to make that work
+    /// - the director's dependencies were already seams - so the objection
+    /// this comment raises against one ("a seam that exists only for tests to
+    /// reach into") was never the thing standing in the way.
+    ///
+    /// The join itself is still read rather than executed HERE, and the
+    /// PlayMode debt above still stands: a reflected `clicked` proves the
+    /// subscriber list, not that a real `ClickEvent` reaches it.
     public class FtueDirectorTests
     {
         // ---------------------------------------------------------------

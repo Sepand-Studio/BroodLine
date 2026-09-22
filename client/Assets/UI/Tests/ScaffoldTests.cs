@@ -293,12 +293,17 @@ namespace Broodline.UI.Tests
                             && t.GetConstructor(Type.EmptyTypes) != null)
                 .ToList();
 
-            Assert.That(all.Count, Is.EqualTo(12),
-                "the namespace holds 12 constructible VisualElements; if this moved, the " +
+            // THE THIRTEENTH IS `InterruptedView` - Phase 9 Task 21g. It is a
+            // screen and not an overlay, deliberately: it replaces the
+            // stranded screen the walk left behind rather than sitting on top
+            // of one whose control is dead. So it takes the frame like the
+            // other ten and is NOT added to the exemption list above.
+            Assert.That(all.Count, Is.EqualTo(13),
+                "the namespace holds 13 constructible VisualElements; if this moved, the " +
                 "sweep's exemption list below needs re-deciding rather than silently widening");
 
             var screens = all.Where(t => !exempt.Contains(t.Name)).ToList();
-            Assert.That(screens.Count, Is.EqualTo(10), "10 screens must carry the frame");
+            Assert.That(screens.Count, Is.EqualTo(11), "11 screens must carry the frame");
 
             var bare = screens
                 .Where(t => ((VisualElement)Activator.CreateInstance(t))
@@ -371,8 +376,15 @@ namespace Broodline.UI.Tests
                             && !headerless.Contains(t.Name))
                 .ToList();
 
-            Assert.That(titled.Count, Is.EqualTo(6),
-                "six screens pass a non-empty title; if this moved, decide which list the " +
+            // `InterruptedView` IS THE SEVENTH AND IT IS IN THE TITLED LIST ON
+            // PURPOSE - Phase 9 Task 21g. The four headerless screens are
+            // headerless because the handoff draws them that way, over a hero
+            // band; this one has no handoff source at all and no hero, so it
+            // gets the page header every other headerless-less screen gets.
+            // Putting it in `headerless` would have been the cheaper edit and
+            // would have made that list mean two different things.
+            Assert.That(titled.Count, Is.EqualTo(7),
+                "seven screens pass a non-empty title; if this moved, decide which list the " +
                 "new screen belongs in rather than widening one silently");
 
             var lost = titled
