@@ -1029,6 +1029,66 @@ namespace Broodline.UI.Tests
                 "a null tier must not render as a '0' or as a stray space");
         }
 
+        /// THE CHIP'S BOX IS PINNED IN THE SHEET, BECAUSE NOTHING ELSE IN
+        /// THIS SUITE CAN SEE IT.
+        /// `TheDefaultFormStaysContentSizedInTheStylesheetItself` is the
+        /// pattern and its comment carries the full argument: a rule in a
+        /// stylesheet reaches an element only through a live panel's
+        /// cascade, this suite deliberately builds no panel, and
+        /// `chip.style.height` is the INLINE accessor - it reads `auto`
+        /// however Theme.uss is written.
+        ///
+        /// WHAT IT CATCHES, MEASURED. Task 16 shipped `.chip` as 4px of
+        /// vertical padding with no height, and the two components that wear
+        /// it as a CONTAINER rendered 37-38px against the handoff's 15-19,
+        /// because the Label INSIDE a chip measures two line boxes where the
+        /// same Label as the chip itself measures one. The height is what
+        /// contains that to the chip. Taking it out again - or putting the
+        /// vertical padding back beside it, which is border-box and so would
+        /// only shrink the box the label centres in - returns four captured
+        /// screens to 37px with every gate in this repo still green and only
+        /// the capture corpus able to say so.
+        ///
+        /// THE RANGE IS THE HANDOFF'S OWN, NOT A TOLERANCE.
+        /// `Creature Roster.dc.html:56` is 15 and `Splice Chamber
+        /// .dc.html:67` is 19; 20 is that 19 with our 10px micro type in
+        /// place of its 9.5. Anything above 20 is the defect returning by
+        /// degrees.
+        [Test]
+        public void TheChipPinsItsOwnHeightInTheStylesheetItself()
+        {
+            var theme = Path.GetFullPath(Path.Combine(
+                UnityEngine.Application.dataPath, "UI/Shell/Theme.uss"));
+            var tokens = Path.GetFullPath(Path.Combine(
+                UnityEngine.Application.dataPath, "UI/Shell/Tokens.uss"));
+            Assert.IsTrue(File.Exists(theme), $"Theme.uss not found at {theme}");
+            Assert.IsTrue(File.Exists(tokens), $"Tokens.uss not found at {tokens}");
+
+            var rule = Regex.Match(
+                StripBlockComments(File.ReadAllText(theme)),
+                @"(?<![\w-])\.chip(?![\w-])\s*\{([^}]*)\}");
+            Assert.IsTrue(rule.Success, "`.chip` is gone from Theme.uss");
+            var body = rule.Groups[1].Value;
+
+            StringAssert.Contains("height: var(--chip-height)", body,
+                "`.chip` no longer sets its own height, so every chip is as tall as the Label "
+                + "inside it again - 37-38px against the handoff's 15-19");
+            StringAssert.Contains("-unity-text-align: middle-center", body,
+                "without the inherited middle alignment a label sits at the top of the box the "
+                + "height just fixed, which looks worse than the overrun did");
+            Assert.IsFalse(Regex.IsMatch(body, @"padding-(top|bottom)\s*:"),
+                "`height` in UI Toolkit is border-box, so vertical padding on `.chip` decides "
+                + "nothing but the content box the label centres in - it was removed when the "
+                + "height arrived and reads as the old sizing model if it comes back");
+
+            var h = Regex.Match(StripBlockComments(File.ReadAllText(tokens)),
+                @"--chip-height\s*:\s*(\d+)px\s*;");
+            Assert.IsTrue(h.Success, "--chip-height is gone from Tokens.uss");
+            Assert.That(int.Parse(h.Groups[1].Value), Is.InRange(15, 20),
+                "the handoff's chips measure 15px (Creature Roster) to 19px (Splice Chamber); "
+                + "20 is the 19 carried onto our 10px micro type and is the ceiling");
+        }
+
         [Test]
         public void HeroSlot_StacksThreeLayers_AndClearsOnNull()
         {

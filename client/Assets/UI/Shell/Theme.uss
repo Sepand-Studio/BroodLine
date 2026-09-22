@@ -210,7 +210,19 @@ Label {
  * NOT `.btn-primary--hybrid`, which is what this task's brief named. That
  * would be a modifier on the primary CTA, and nothing in the phase composes
  * one: the ramp belongs to a SectionCard in the splice chamber, which is a
- * panel. Named for what it is. */
+ * panel. Named for what it is.
+ *
+ * NO CONSUMER IN THE APP AS OF PHASE 9 TASK 16, AND NOT RETIRED - DO NOT
+ * REACH FOR IT. The predicted-hybrid panel turned out to be `HeroBand`,
+ * measured property by property against `Splice Chamber.dc.html:101`: this
+ * class would be carried by a `SectionCard`, which is `.elev-1` (0 2px 8px
+ * .06) where the handoff's own surface is `0 4px 16px rgba(63,58,82,.08)` -
+ * `.elev-2`, a whole elevation step wrong - and --hybrid-tint-deep is 25 in
+ * summed channel distance from the handoff's `#f4f0fb` against the band's
+ * 8. `hybrid-ramp.png` has no consumer either, for the same reason.
+ * Retiring a Theme class and an asset is a palette-owner call and is not
+ * Task 16b's; this line exists so Tasks 17-19 do not compose a surface that
+ * was already measured and beaten. */
 .panel-hybrid {
     background-image: url("project:///Assets/UI/Art/hybrid-ramp.png");
     -unity-background-scale-mode: stretch-to-fill;
@@ -419,12 +431,48 @@ TextField:focus > * {
 
 /* ------------------------------------------------------------------ chips */
 
+/* THE HEIGHT IS THE CHIP'S, NOT THE LABEL'S, AND THAT IS THE WHOLE FIX.
+ * Phase 9 Task 16b. Measured off the capture corpus rather than reasoned:
+ *
+ *   - `.chip` WORN BY A LABEL rendered 22px - this rule's old 4+4 of
+ *     vertical padding around a 14px line box. `InheritanceBar`'s DOM/REC
+ *     tag (SpliceChamberView.png, y=665..686) and `CampaignSelectView`'s
+ *     Cleared chip (CampaignSelectView.png, y=133..154) are both that shape
+ *     and both measured exactly 22.
+ *   - `.chip` WORN BY A CONTAINER with a Label inside it rendered 37-38:
+ *     `GenChip` 37 (RosterView.png, y=109..145), `TraitChip` 38
+ *     (y=300..337). Same 8px of padding, plus TraitChip's 1px border a
+ *     side - so the INNER Label was measuring 28-29, which is TWO line
+ *     boxes, where the identical Label as the chip itself measures one.
+ *
+ * SO IT WAS NEVER THE FONT'S LINE METRICS. Nunito-Bold SDF is m_LineHeight
+ * 122.76 on m_PointSize 90 = 1.36em: 13.6px at --text-micro, 15.0 at
+ * --text-secondary, and `.pill`'s own note below measured the same 1.36
+ * independently at --text-body (25px = 8 + 16.4). Changing the asset's
+ * metrics would move every Label in the application to fix a number that is
+ * already right. WHY a child Label measures two line boxes where a leaf
+ * measures one is NOT instrumented here and is not claimed; what is
+ * measured is that a height on the chip makes both shapes one box.
+ *
+ * THE VERTICAL PADDING IS GONE RATHER THAN LEFT BESIDE THE HEIGHT. `height`
+ * in UI Toolkit is border-box - Yoga sizes padding and border INSIDE it -
+ * so with a height those two declarations could only shrink the content box
+ * the label is centred in, which is a declaration that no longer decides
+ * anything. The horizontal padding still does, and stays.
+ *
+ * `-unity-text-align` IS INHERITED, which is what puts a CHILD label on the
+ * chip's centre line as well as a label that IS the chip - the same
+ * inheritance TraitChip.uss and GenChip.uss already cancel
+ * `-unity-font-style: bold` through, one level down. `justify-content`
+ * centres the child ELEMENT, because a Label that still measures taller
+ * than the chip has to straddle the middle rather than hang below it. */
 .chip {
     background-color: var(--violet-tint);
     color: var(--violet-text);
     border-radius: var(--radius-chip);
-    padding-top: var(--space-1);
-    padding-bottom: var(--space-1);
+    height: var(--chip-height);
+    justify-content: center;
+    -unity-text-align: middle-center;
     padding-left: var(--space-2);
     padding-right: var(--space-2);
     font-size: var(--text-micro);
@@ -438,7 +486,13 @@ TextField:focus > * {
  * NOT VERIFIED IN THE CORPUS: nothing in client/ carries `.pill` today, so
  * no capture renders it and this number is a forward commitment. If a screen
  * gives it a different font-size or padding, re-measure - the height and
- * this radius are coupled. */
+ * this radius are coupled.
+ *
+ * AND `.chip` SETS A HEIGHT NOW, SO A PILL THAT IS ALSO A CHIP IS 20px
+ * WHATEVER THIS PADDING SAYS - --chip-height is border-box and wins over
+ * four paddings that only move the content box inside it. At 20 the
+ * semicircle is 10, not 12. Compose the two and re-measure; that is the
+ * coupling the paragraph above means, reached from the other side. */
 .pill {
     border-radius: 12px;
     padding-top: var(--space-1);

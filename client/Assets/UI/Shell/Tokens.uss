@@ -295,10 +295,12 @@
     /* ---- Component geometry ----
      *
      * FOUR SIZES, AND THEY ARE HERE RATHER THAN IN A STYLESHEET BECAUSE TWO
-     * FILES EACH NEED THEM. Everything else quoted from the handoff stays a
-     * literal beside the sentence it came from (ScreenScaffold.uss's header
-     * settled that convention and StatCell.uss restates it): the token layer
-     * holds the SCALE, and one-off geometry is written where it is read.
+     * FILES EACH NEED THEM - plus --chip-height below them, which is here on
+     * a different test and says so in its own note. Everything else quoted
+     * from the handoff stays a literal beside the sentence it came from
+     * (ScreenScaffold.uss's header settled that convention and StatCell.uss
+     * restates it): the token layer holds the SCALE, and one-off geometry is
+     * written where it is read.
      * These four are not one-off - a hero slot is sized in HeroSlot.uss and
      * framed in the two screens that put a live portrait in one, a lane card
      * is sized here and measured by the stage that renders into it, and a
@@ -308,6 +310,27 @@
     --hero-ring: 2px;             /* HeroSlot dotted ring width - the handoff's 1.6-2px ring stroke */
     --lane-card-height: 274px;    /* LanePreviewCard - 4:3 at the 366px content width, the handoff's own 406x300 lane */
     --field-badge: 18px;          /* FieldSlotRow letter badge - the handoff's 18px square */
+
+    /* THE CHIP'S BOX, AND IT IS A TOKEN THOUGH ONE FILE READS IT. Phase 9
+     * Task 16b. The paragraph above says one-off geometry is written where
+     * it is read, and by that rule this would be a literal in Theme.uss
+     * beside `.chip` - which is where `.pill`'s radius is. It is here
+     * instead because it is the opposite of one-off: `.chip` is worn by
+     * `TraitChip`, `GenChip`, `InheritanceBar`'s DOM/REC tag and
+     * `CampaignSelectView`'s Cleared chip today, on four captured screens,
+     * and Tasks 17-19 compose more. A number that decides whether four
+     * components match the handoff is the token layer's business, and
+     * naming it is what stops the next screen re-deriving its own.
+     *
+     * 20px IS MEASURED, NOT PICKED. `Splice Chamber.dc.html:67` is
+     * `padding: 3px 6px` on a 9.5px label, which is 3 + 12.9 + 3 = 19;
+     * `Creature Roster.dc.html:56` is `2px 6px` on 9px = 15. Our micro type
+     * is 10px and the gen chip's numeral is 11 (bible 10.6's floor), and
+     * Nunito-Bold SDF's line box is 1.36em - m_LineHeight 122.76 on
+     * m_PointSize 90 - so the handoff's own 3px padding on our 13.6px line
+     * box is 19.6. Theme.uss's `.chip` note has what it replaced and why the
+     * height has to be on the chip rather than on the label inside it. */
+    --chip-height: 20px;          /* Theme.uss `.chip` - Splice Chamber.dc.html:67's 3px padding on our 13.6px line box */
 
     /* HeroBand's dashed ring, and a token on the same test as --hero-slot:
      * two files have to agree on it. `generate-textures.py` DRAWS band-ring
