@@ -470,7 +470,7 @@ namespace Broodline.Game
                 //
                 // THE COST OF SPANNING THE WHOLE BEAT, NAMED: the stage's
                 // camera stays enabled through the hosted wave, painting a
-                // 720x480 target it is not being looked at for. The
+                // 640x480 target it is not being looked at for. The
                 // alternative - clearing when the turn resolves - blanks the
                 // lane card while the deploy screen is still presented, which
                 // is the defect this shape exists to avoid. Freezing the

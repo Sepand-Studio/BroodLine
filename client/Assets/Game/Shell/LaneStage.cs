@@ -32,7 +32,7 @@ namespace Broodline.Game.Shell
     /// `PortraitStudio`: no scene camera sees this rig and this rig sees no
     /// scene. Further down than the studio (-800 against -400) so the two
     /// cannot see each other either - the studio's camera is orthographic
-    /// with a 0.9 half-extent and this one's is 5.5, and both cull to layer
+    /// with a 0.9 half-extent and this one's is 6.0, and both cull to layer
     /// `CreatureAssembler.StudioLayer`, so overlapping them would put a lane
     /// in the founder's portrait.
     ///
@@ -45,21 +45,61 @@ namespace Broodline.Game.Shell
     /// test can drive without a player loop.
     public sealed class LaneStage : MonoBehaviour
     {
-        /// 3:2. The card this fills, `LanePreviewCard`, is a fixed
+        /// 4:3, AND IT WAS 3:2 UNTIL PHASE 9 TASK 21B MEASURED WHAT THAT COST.
+        ///
+        /// The card this fills, `LanePreviewCard`, is a fixed
         /// `--lane-card-height` (274px) inside the content column, so its
-        /// ASPECT follows the frame: 406/274 = 1.48 at the 430 capture frame
-        /// and 366/274 = 1.34 at the 390 design frame. 720x480 is 1.50, so
-        /// this is within 1.3% at 430 and `-unity-background-scale-mode:
-        /// scale-and-crop` trims ~11% of the width at 390. Cropping rather
-        /// than letterboxing is `LanePreviewCard.uss`'s own decision, stated
-        /// there: "a LANE that does not fit its card should fill it and lose
-        /// an edge". The crop is taken off the left and right, which is why
-        /// the framing below centres on the POCKETS and leaves margin.
-        public const int Width = 720, Height = 480;
+        /// ASPECT follows the frame: 366/274 = 1.3358 at the 390 design frame
+        /// and 406/274 = 1.4818 at the 430 capture frame.
+        /// `-unity-background-scale-mode: scale-and-crop` scales this texture
+        /// to COVER that box and cuts the overflow off both ends of whichever
+        /// axis is long. Cropping rather than letterboxing is
+        /// `LanePreviewCard.uss`'s own decision, stated there: "a LANE that
+        /// does not fit its card should fill it and lose an edge."
+        ///
+        /// AT 720x480 THE LONG AXIS WAS THE HORIZONTAL ONE, AND THE EDGE IT
+        /// LOST HAD A CREATURE STANDING ON IT. 1.5000 against the design
+        /// frame's 1.3358 put 39.4 texture pixels - 0.903 world units - under
+        /// the crop on each side, so the pockets at tiles 6 and 20 kept 0.347
+        /// units of margin where `LaneStageTests` guarantees 1.0, and both end
+        /// creatures were cut in half in the shipped card. Nothing in the
+        /// project could see it: this rig's own suites read the render
+        /// texture, whose frame was correct, and the capture corpus passes no
+        /// texture at all.
+        ///
+        /// 4:3 IS WHAT THE OTHER SIDE ALREADY THOUGHT THIS WAS.
+        /// `LanePreviewCard.uss` says "the stage renders 4:3 into a 4:3 card,
+        /// so nothing is cropped in practice" and `LanePreviewCard`'s class
+        /// comment says `--lane-card-height` "is a token rather than a literal
+        /// because the stage's render texture is sized to match it". Both
+        /// described a contract this constant had drifted off; 640x480 is that
+        /// contract, and it is 11% fewer pixels than 720x480 besides.
+        ///
+        /// SO THE CROP IS NOW VERTICAL, WHICH IS THE HARMLESS DIRECTION. At
+        /// 1.3333 this is a hair narrower in aspect than the 390 frame's card,
+        /// so the cover fits the width and spills 0.5px of height; at the 430
+        /// frame it spills 15px of height off each of top and bottom, which is
+        /// empty ground above the trees and empty ground below the path. No
+        /// frame at or above the design width takes anything off the ends of
+        /// the lane. `LaneStageTests.EveryPocketStandsInsideTheRECTANGLETHE
+        /// CARDSHOWS_NotOnlyInsideTheTexture` is the reader that holds this.
+        public const int Width = 640, Height = 480;
 
         /// The camera's vertical half-extent in world units. At Width:Height
-        /// it covers 2 * 5.5 * 1.5 = 16.5 units across, which is what decides
-        /// the framing arithmetic beside `Aim`.
+        /// it covers 2 * 6.0 * 1.3333 = 16.0 units across, which is what
+        /// decides the framing arithmetic beside `Aim`.
+        ///
+        /// 6.0 AND NOT 5.5, AND THE ASPECT CHANGE IS WHY - Phase 9 Task 21b.
+        /// The half-extent is `OrthographicSize * Width / Height`, so moving
+        /// the texture from 3:2 to 4:3 to stop the card cropping the ends of
+        /// the lane would have taken it from 8.25 to 7.333 and pulled the
+        /// frame IN past the outer pockets - tiles 6 and 20 need 7 units each
+        /// side of the span's centre, plus the unit of margin a body needs.
+        /// 6.0 puts it back at exactly 8.0, which is that 7 + 1 with nothing
+        /// spare, and the card now shows all of it rather than 89% of it. The
+        /// visible span is therefore WIDER than it was before this change
+        /// (8.00 against 7.35), so a creature is about 8% smaller on the card
+        /// and nothing is cut off it. That is the trade, stated.
         ///
         /// PUBLIC BECAUSE THE FRAMING IS TESTED AND NOT ONLY DOCUMENTED.
         /// `LaneStageTests.EveryPocketOfEveryAuthoredWaveStandsInsideTheFrame`
@@ -69,7 +109,7 @@ namespace Broodline.Game.Shell
         /// count can answer. Without that reader this would be a public
         /// constant the brief did not ask for and nothing outside this file
         /// read, which is drift.
-        public const float OrthographicSize = 5.5f;
+        public const float OrthographicSize = 6.0f;
 
         /// Below `PortraitStudio.Far` (-400) by more than either camera can
         /// see - see the class comment.
@@ -235,7 +275,7 @@ namespace Broodline.Game.Shell
         /// IS. This class has no `Update` and its own header says so -
         /// "Nothing here ticks". Phase 9 Task 17's first round copied the
         /// enabled camera across with the pattern and not the reason, and the
-        /// cost was an orthographic camera painting a 720x480 target every
+        /// cost was an orthographic camera painting a 640x480 target every
         /// frame of the fight, on a phone, at the one moment the frame budget
         /// matters: `FtueDirector`'s `finally` spans `_play(...)`, so it ran
         /// for the whole wave.
@@ -338,20 +378,26 @@ namespace Broodline.Game.Shell
         /// The camera sits 9 up and 7 back and looks at ground z = +0.5, so
         /// its forward is (0, -0.768, 0.640) - 50.2 degrees below horizontal.
         /// `LookAt`'s default world up makes the camera's right world +X, so
-        /// the 16.5 units of horizontal coverage lie along the lane and the
-        /// vertical half-extent of 5.5 covers 5.5 / 0.768 = 7.2 units of
+        /// the 16.0 units of horizontal coverage lie along the lane and the
+        /// vertical half-extent of 6.0 covers 6.0 / 0.768 = 7.8 units of
         /// ground on each side of z = 0.5 - comfortably past both the path
         /// (z = 0) and the pockets (z = +1).
         ///
-        /// CENTRED ON THE POCKETS AND NOT ON THE LANE, AND THE 8.25 IS WHY.
+        /// CENTRED ON THE POCKETS AND NOT ON THE LANE, AND THE 8.0 IS WHY.
         /// Both authored lanes put their pockets between tiles 6 and 20, so
         /// the span's centre is 13 and the lane's midpoint is 12. At the
-        /// lane's midpoint the frame runs x in [3.75, 20.25] and the last
-        /// pocket stands 0.25 units inside the right edge - a creature there
-        /// is half off the picture. At the span's centre it runs
-        /// [4.75, 21.25] and every pocket has 1.25 units of margin. The
-        /// resting aim in `Create` is still the lane's midpoint, because at
-        /// that moment no wave has been named.
+        /// lane's midpoint the frame runs x in [4, 20] and the last pocket
+        /// stands ON the right edge - a creature there is half off the
+        /// picture. At the span's centre it runs [5, 21] and every pocket has
+        /// exactly 1 unit of margin. The resting aim in `Create` is still the
+        /// lane's midpoint, because at that moment no wave has been named.
+        ///
+        /// THERE IS NO SLACK LEFT IN THAT 1 UNIT, which is new as of Task 21b
+        /// and is the cost of the card showing the whole frame rather than
+        /// 89% of it. Widening the lane's pocket span, or narrowing
+        /// `OrthographicSize`, now reddens
+        /// `EveryPocketStandsInsideTheRECTANGLETHECARDSHOWS_NotOnlyInside
+        /// TheTexture` immediately rather than quietly clipping a creature.
         void Aim(float centreX)
         {
             _camera.transform.localPosition = new Vector3(centreX, 9f, -7f);

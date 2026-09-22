@@ -129,7 +129,7 @@ namespace Broodline.Game.Tests
                 // `PixelsUnlikeTheField(...) > 0` and COULD NOT FAIL: `Show` calls
                 // `Clear()` first, which `GL.Clear`s to (0,0,0,0), and transparent
                 // black is maximally unlike the field colour - so an unpainted
-                // texture scored every one of its 345,600 pixels and passed. The
+                // texture scored every one of its 307,200 pixels and passed. The
                 // message described exactly the case it could not detect.
                 // Only a real render writes alpha 1, because the camera clears to
                 // `LaneDressing.Field`, so opacity is what separates painted from
@@ -140,7 +140,7 @@ namespace Broodline.Game.Tests
                 var camera = host.GetComponentInChildren<Camera>(includeInactive: true);
                 Assert.IsNotNull(camera, "the stage built no camera");
                 Assert.IsFalse(camera.enabled,
-                    "the camera is left enabled, so it repaints a 720x480 target every frame of the fight");
+                    "the camera is left enabled, so it repaints a 640x480 target every frame of the fight");
 
                 // AND IT IS AIMED WHERE `Aim` SAYS, not merely aimed.
                 // `EveryPocketOfEveryAuthoredWaveStandsInsideTheFrame` proves the
@@ -246,20 +246,27 @@ namespace Broodline.Game.Tests
         /// changes. Only eyes or this can say it is IN frame.
         ///
         /// It re-derives the half-extent from `LaneStage`'s own constants
-        /// rather than restating 8.25, so a later change to
+        /// rather than restating 8.0, so a later change to
         /// `OrthographicSize` or to the texture's aspect reddens here instead
         /// of silently cropping a pocket. `Aim` centres on the pocket span,
         /// which is what this checks the consequence of: at the LANE's
-        /// midpoint (12) the frame is [3.75, 20.25] and tile 20 sits 0.25
-        /// inside it, which is half a creature off the picture.
+        /// midpoint (12) the frame is [4, 20] and tile 20 sits ON its right
+        /// edge, which is half a creature off the picture.
+        ///
+        /// THIS MEASURES THE TEXTURE'S FRAME AND NOT THE CARD'S, WHICH IS THE
+        /// HOLE TASK 21B FOUND. The card crops before the player sees any of
+        /// this - `EveryPocketStandsInsideTheRECTANGLETHECARDSHOWS_NotOnly
+        /// InsideTheTexture` is the one that asks the same question of the
+        /// rectangle that reaches the screen. Both are kept: this one holds
+        /// the rig's own contract, that one holds the join's.
         ///
         /// NO GRAPHICS NEEDED, so this runs on every runner.
         [Test]
         public void EveryPocketOfEveryAuthoredWaveStandsInsideTheFrame()
         {
             var halfExtent = LaneStage.OrthographicSize * LaneStage.Width / LaneStage.Height;
-            Assert.AreEqual(8.25f, halfExtent, 0.01f,
-                "the framing arithmetic in LaneStage.Aim's note is written against 8.25");
+            Assert.AreEqual(8f, halfExtent, 0.01f,
+                "the framing arithmetic in LaneStage.Aim's note is written against 8.0");
 
             foreach (var waveId in new[] { 1, 2, 6, 7 })
             {
@@ -289,6 +296,119 @@ namespace Broodline.Game.Tests
                         "wave " + waveId + " pocket " + p + " is against the frame's right edge");
                 }
             }
+        }
+
+        /// THE SAME QUESTION ASKED OF THE RECTANGLE THE PLAYER ACTUALLY SEES,
+        /// WHICH IS NOT THE ONE ABOVE. Phase 9 Task 21b.
+        ///
+        /// `EveryPocketOfEveryAuthoredWaveStandsInsideTheFrame` measures the
+        /// RENDER TEXTURE's frame. The card does not show the render texture's
+        /// frame: `.lane-preview-card__lane` is
+        /// `-unity-background-scale-mode: scale-and-crop`, so the texture is
+        /// scaled to COVER a box whose aspect is the content column's width
+        /// over `--lane-card-height`, and whatever overflows is cut off - from
+        /// the left and right whenever the texture is wider in aspect than the
+        /// card, which is the case that loses creatures.
+        ///
+        /// SO THE TWO FILES CAN SATISFY THEIR OWN RULES AND STILL CLIP A
+        /// CREATURE, AND THEY DID. Measured on `c21093d`, at the 390 design
+        /// frame: the card is 366x274 (1.3358), the stage rendered 720x480
+        /// (1.5000), the crop took 39.4 texture pixels - 0.903 world units -
+        /// off each side, and the pockets at tiles 6 and 20 were left with
+        /// 0.347 units of margin against the 1.0 the test above guarantees.
+        /// Both end creatures were cut. Nothing could see it: the stage's own
+        /// suites read the texture, the capture corpus passes no texture at
+        /// all, and `LanePreviewCard.uss` states in its own comment that "the
+        /// stage renders 4:3 into a 4:3 card, so nothing is cropped in
+        /// practice" - which was the contract the stage had drifted off.
+        ///
+        /// THE TOKENS ARE READ, NOT COPIED. `--lane-card-height` and
+        /// `--gutter` live in `Tokens.uss` and this arithmetic is worthless
+        /// against stale copies of them, so it parses the sheet. A rename
+        /// there fails this test loudly rather than letting it keep checking
+        /// numbers nothing uses.
+        ///
+        /// WHAT THIS DOES NOT COVER: a frame narrower than 390. Below that the
+        /// card's aspect drops under the texture's and the crop moves to the
+        /// left and right again. `PanelSettings` is `ScaleWithScreenSize`
+        /// against a 390x844 reference with `match: 0.5`, so the LOGICAL width
+        /// stays near the design frame on any real phone - but that is the
+        /// scaler's promise, not this test's.
+        [Test]
+        public void EveryPocketStandsInsideTheRECTANGLETHECARDSHOWS_NotOnlyInsideTheTexture()
+        {
+            const float DesignFrame = 390f;    // PanelSettings reference resolution, Boot's own.
+            const float CaptureFrame = 430f;   // capture-screens.sh, and the handoff's frame.
+
+            var cardHeight = TokenPixels("--lane-card-height");
+            var gutter = TokenPixels("--gutter");
+
+            var halfExtent = LaneStage.OrthographicSize * LaneStage.Width / LaneStage.Height;
+
+            foreach (var frame in new[] { DesignFrame, CaptureFrame })
+            {
+                var cardWidth = frame - 2f * gutter;
+
+                // `scale-and-crop` is COVER: scale so neither axis falls short,
+                // then cut the overflow off both ends of the long one.
+                var scale = Mathf.Max(cardWidth / LaneStage.Width, cardHeight / LaneStage.Height);
+                var shownWidth = LaneStage.Width * scale;
+                var croppedTexturePixels = Mathf.Max(0f, (shownWidth - cardWidth) / 2f) / scale;
+                var croppedUnits = croppedTexturePixels * (2f * halfExtent) / LaneStage.Width;
+
+                foreach (var waveId in new[] { 1, 2, 6, 7 })
+                {
+                    var lane = WaveDef.ForId(waveId).Lane;
+                    int min = lane.PocketTiles[0], max = min;
+                    for (var p = 1; p < lane.PocketCount; p++)
+                    {
+                        if (lane.PocketTiles[p] < min) min = lane.PocketTiles[p];
+                        if (lane.PocketTiles[p] > max) max = lane.PocketTiles[p];
+                    }
+
+                    var centre = (min + max) * 0.5f * WaveView.TileSize;
+                    var left = centre - halfExtent + croppedUnits;
+                    var right = centre + halfExtent - croppedUnits;
+
+                    for (var p = 0; p < lane.PocketCount; p++)
+                    {
+                        var x = lane.PocketTiles[p] * WaveView.TileSize;
+
+                        // One unit, the same floor and for the same reason as
+                        // the test above: a body is about a unit across, so
+                        // less than that is a creature cut in half.
+                        Assert.GreaterOrEqual(x - left, 1f,
+                            "at a " + frame + "px frame the card crops " + croppedUnits.ToString("F3")
+                            + " units off each side, and wave " + waveId + " pocket " + p
+                            + " is left with " + (x - left).ToString("F3") + " - it is cut off the card's left edge");
+                        Assert.GreaterOrEqual(right - x, 1f,
+                            "at a " + frame + "px frame the card crops " + croppedUnits.ToString("F3")
+                            + " units off each side, and wave " + waveId + " pocket " + p
+                            + " is left with " + (right - x).ToString("F3") + " - it is cut off the card's right edge");
+                    }
+                }
+            }
+        }
+
+        /// A `--name: 274px;` declaration out of `Tokens.uss`, in pixels.
+        static float TokenPixels(string token)
+        {
+            var path = System.IO.Path.Combine(Application.dataPath, "UI/Shell/Tokens.uss");
+            Assert.IsTrue(System.IO.File.Exists(path), "Tokens.uss is not at " + path);
+
+            foreach (var line in System.IO.File.ReadAllLines(path))
+            {
+                var at = line.IndexOf(token + ":", System.StringComparison.Ordinal);
+                if (at < 0) continue;
+                var rest = line.Substring(at + token.Length + 1);
+                var px = rest.IndexOf("px", System.StringComparison.Ordinal);
+                Assert.Greater(px, 0, token + " is not declared in px: " + line);
+                return float.Parse(rest.Substring(0, px).Trim(),
+                    System.Globalization.CultureInfo.InvariantCulture);
+            }
+
+            Assert.Fail(token + " is no longer declared in Tokens.uss, so this arithmetic is checking nothing");
+            return 0f;
         }
 
         // ---------------------------------------------------------------

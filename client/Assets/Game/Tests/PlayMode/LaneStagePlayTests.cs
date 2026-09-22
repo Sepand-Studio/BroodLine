@@ -91,7 +91,7 @@ namespace Broodline.Game.PlayTests
 
             // AND THE CAMERA IS NOT LEFT RUNNING. `FtueDirector`'s `finally`
             // spans the hosted wave, so a camera enabled here would paint a
-            // 720x480 target every frame of the fight. Checked in Play mode
+            // 640x480 target every frame of the fight. Checked in Play mode
             // as well as in EditMode because this is the mode where a live
             // camera would actually cost something.
             var camera = host.GetComponentInChildren<Camera>(includeInactive: true);
