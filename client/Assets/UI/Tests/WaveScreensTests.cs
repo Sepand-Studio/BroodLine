@@ -5,6 +5,7 @@ using Broodline.Model;
 using Broodline.UI.Components;
 using Broodline.UI.Screens;
 using NUnit.Framework;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Broodline.UI.Tests
@@ -808,5 +809,338 @@ namespace Broodline.UI.Tests
         static string ValueOf(VisualElement cell) => cell.Q<Label>("value").text;
 
         static string RewardOf(PostWaveView view) => ValueOf(view.Q<StatCell>("reward"));
+
+        // ---------------------------------------------------------------
+        // DeployView - Phase 9 Task 17, `Wave Defense.dc.html` in
+        // `phase: 'placing'`.
+        //
+        // WHERE THE OTHER DEPLOY TESTS ARE, AND WHY THESE ARE HERE INSTEAD.
+        // `ScreenBindingTests` owns the MODEL-TO-VIEW property for this
+        // screen - Start follows `CanDeploy` and never a count, the blocker
+        // is the model's sentence verbatim, the CTA is the model's label -
+        // and those are untouched by this task. What is here is the
+        // HANDOFF's half: the four things the deploy screen states about a
+        // wave, and the list a player acts on. Same file as the other two
+        // wave screens because it is the third face of the same beat.
+        // ---------------------------------------------------------------
+
+        /// A roster of `count` creatures with the first `selected` of them
+        /// deployed, and the model built from exactly that.
+        static (DeployScreenModel model, RosterScreen roster) Deployment(int count, int selected)
+        {
+            var roster = new RosterScreen();
+            var response = new RosterResponse { Cap = 20 };
+            var ids = new List<Guid>();
+            for (var i = 0; i < count; i++)
+            {
+                var creature = Creature("Species" + i);
+                response.Creatures.Add(creature);
+                if (i < selected) ids.Add(creature.CreatureId);
+            }
+            roster.ApplyRoster(response);
+            return (DeployScreen.Build(waveId: 7, roster: roster, selected: ids), roster);
+        }
+
+        static DeployView BoundDeploy(
+            int count, int selected, Texture lane = null,
+            Action<Guid> onToggle = null, DeployWaveFacts facts = null)
+        {
+            var (model, roster) = Deployment(count, selected);
+            var view = new DeployView();
+            view.Bind(model, onStart: () => { }, lane: lane,
+                roster: roster.Known, onToggle: onToggle, facts: facts);
+            return view;
+        }
+
+        [Test]
+        public void Deploy_TheLaneCardShowsTheTextureItWasHandedAndNothingElse()
+        {
+            // THE INLINE ACCESSOR, NOT `resolvedStyle`. In a suite with no
+            // live panel a stylesheet rule cannot be read back, and
+            // `LanePreviewCard.SetTexture` writes `style.backgroundImage`
+            // inline - which is exactly what makes it readable here.
+            var texture = new Texture2D(2, 2);
+            try
+            {
+                var lane = BoundDeploy(3, 3, lane: texture).Q<LanePreviewCard>("lane-card");
+                Assert.IsNotNull(lane, "the deploy screen draws no lane card at all");
+                Assert.AreEqual(texture, PictureOf(lane).style.backgroundImage.value.texture,
+                    "the card is showing something other than the stage's texture");
+
+                // THE COMPLEMENT, and it is the half that matters: a card
+                // that ignored its argument and drew a fixed image would
+                // pass the assertion above only by accident and this one
+                // never. Null is the ordinary state - every capture and
+                // every test binds without a stage.
+                var blank = BoundDeploy(3, 3).Q<LanePreviewCard>("lane-card");
+                Assert.IsNull(PictureOf(blank).style.backgroundImage.value.texture,
+                    "a screen with no stage still drew a picture");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(texture);
+            }
+        }
+
+        [Test]
+        public void Deploy_TheLaneCardTagsOnePocketPerDeployableSlot_FilledUpToTheDeployment()
+        {
+            // `DeployScreen.Cap` is the server's (wave/issuance.ts), not the
+            // handoff's four, and the tags are what say so on the picture.
+            var tags = BoundDeploy(6, 2).Q<LanePreviewCard>("lane-card")
+                .Query<Label>(className: LanePreviewCard.SlotUssClassName).ToList();
+
+            Assert.AreEqual(DeployScreen.Cap, tags.Count, "one tag per deployable pocket");
+            for (var i = 0; i < tags.Count; i++)
+            {
+                Assert.AreEqual(DeployScreen.PocketTag(i), tags[i].text);
+                Assert.AreEqual(i < 2, tags[i].ClassListContains(LanePreviewCard.SlotFilledUssClassName),
+                    "pocket " + i + " is drawn as the wrong occupancy for a deployment of 2");
+            }
+        }
+
+        [Test]
+        public void Deploy_TheFieldListHoldsEveryRosterCreature_DeployedOnesFirst_BadgedWithTheirPocket()
+        {
+            // THE ORDER IS WHAT MAKES THE BADGE HONEST. Row i is pocket i for
+            // every deployed creature only because the deployed ones are
+            // listed first - so this asserts the ordering and the letters
+            // together, which is the invariant rather than two facts.
+            var rows = BoundDeploy(5, 2).Query<FieldSlotRow>().ToList();
+
+            Assert.AreEqual(5, rows.Count, "one row per roster creature");
+            Assert.AreEqual(DeployScreen.PocketTag(0), rows[0].Q<Label>("letter").text);
+            Assert.AreEqual(DeployScreen.PocketTag(1), rows[1].Q<Label>("letter").text);
+            Assert.IsTrue(rows[0].ClassListContains(FieldSlotRow.FilledUssClassName));
+            Assert.IsTrue(rows[1].ClassListContains(FieldSlotRow.FilledUssClassName));
+
+            for (var i = 2; i < rows.Count; i++)
+            {
+                Assert.IsFalse(rows[i].ClassListContains(FieldSlotRow.FilledUssClassName),
+                    "row " + i + " is drawn as occupied and nothing is standing in it");
+                Assert.AreEqual(DeployScreen.EmptyPocketTag, rows[i].Q<Label>("letter").text,
+                    "an undeployed creature was badged with a pocket it does not hold");
+            }
+        }
+
+        [Test]
+        public void Deploy_ADifferentDeployment_MovesTheBadges()
+        {
+            // WITHOUT THIS, the test above is satisfied by a list that
+            // letters its rows A, B, C... by position and calls them pockets.
+            // Four of five deployed puts a pocket letter on row 3, where two
+            // of five puts the empty mark.
+            var two = BoundDeploy(5, 2).Query<FieldSlotRow>().ToList();
+            var four = BoundDeploy(5, 4).Query<FieldSlotRow>().ToList();
+
+            Assert.AreEqual(DeployScreen.EmptyPocketTag, two[3].Q<Label>("letter").text);
+            Assert.AreEqual(DeployScreen.PocketTag(3), four[3].Q<Label>("letter").text);
+        }
+
+        [Test]
+        public void Deploy_AtTheCap_AnUndeployedRowIsVisiblyOutOfReachRatherThanSilentlyInert()
+        {
+            // `DeployScreen.Cap` is 5 and the model refuses a sixth, so a tap
+            // on row 6 cannot do anything - and a control that answers a tap
+            // with nothing reads as broken. Both halves, because either one
+            // alone is a state the other can drift out of.
+            var rows = BoundDeploy(6, DeployScreen.Cap, onToggle: _ => { }).Query<FieldSlotRow>().ToList();
+            var last = rows[rows.Count - 1];
+
+            Assert.IsTrue(last.ClassListContains(DeployView.RowFullUssClassName));
+            Assert.IsFalse(last.enabledSelf);
+
+            // And below the cap nothing is dimmed, which is the complement a
+            // view that always dimmed its last row would fail.
+            var room = BoundDeploy(6, 2, onToggle: _ => { }).Query<FieldSlotRow>().ToList();
+            foreach (var row in room)
+            {
+                Assert.IsFalse(row.ClassListContains(DeployView.RowFullUssClassName));
+                Assert.IsTrue(row.enabledSelf);
+            }
+        }
+
+        [Test]
+        public void Deploy_EveryFieldRowAnswersToItsCreaturesId()
+        {
+            // The handle `RosterView` and `SpliceChamberView` give a
+            // creature's element, and the one `onToggle` reports back - a
+            // caller reaching one row must not have to count children.
+            var (model, roster) = Deployment(4, 2);
+            var view = new DeployView();
+            view.Bind(model, onStart: () => { }, roster: roster.Known, onToggle: _ => { });
+
+            foreach (var creature in roster.Known)
+            {
+                Assert.IsNotNull(view.Q<FieldSlotRow>(creature.CreatureId.ToString()),
+                    "no field row answers to " + creature.CreatureId);
+            }
+        }
+
+        [Test]
+        public void Deploy_TheIncomingCardStatesTheFoesTheCountAndTheReward()
+        {
+            var cells = BoundDeploy(6, 3, facts: new DeployWaveFacts
+            {
+                Foes = 5,
+                RewardCurrency = "shards",
+                RewardAmount = 120,
+            }).Query<StatCell>().ToList();
+
+            Assert.AreEqual(3, cells.Count, "the handoff's incoming-wave card is three cells");
+            Assert.AreEqual(DeployScreen.FoesStatValue(5), ValueOf(cells[0]));
+            Assert.AreEqual(DeployScreen.DeployedStatValue(3), ValueOf(cells[1]));
+            Assert.AreEqual(DeployScreen.RewardValue("shards", 120), ValueOf(cells[2]));
+
+            // Every one of the three is a number a decision depends on, so
+            // every one wears bible 10.6's marker - which is `StatCell`'s
+            // whole reason for existing.
+            foreach (var cell in cells) Assert.IsTrue(cell.Q<Label>("value").ClassListContains("t-num"));
+        }
+
+        [Test]
+        public void Deploy_WithNoWaveFacts_StatesNothingRatherThanZero()
+        {
+            // A readout that prints 0 for a number it was never told is a
+            // screen that lies about the player's wallet and about the wave.
+            // `WaveDefeatScreen.Resupply` makes the same call on an empty
+            // grant: "says nothing rather than promising a resupply that is
+            // not there."
+            var view = BoundDeploy(3, 2);
+            var cells = view.Query<StatCell>().ToList();
+
+            Assert.AreEqual(string.Empty, ValueOf(cells[0]), "FOES claimed a number it was not given");
+            Assert.AreEqual(string.Empty, ValueOf(cells[2]), "REWARD claimed a number it was not given");
+            Assert.AreEqual(string.Empty, EnergyValueOf(view),
+                "GENE ENERGY claimed a balance it was not given");
+
+            // The one readout that does NOT vary, and it is a fact rather
+            // than a blank: nothing has broken through before the wave.
+            Assert.AreEqual(DeployScreen.IntegrityFull, IntegrityValueOf(view));
+        }
+
+        [Test]
+        public void Deploy_TheHeaderIsTheHandoffsKickerAndAWaveNumberInTheNumeralFace()
+        {
+            var view = BoundDeploy(3, 2);
+
+            Assert.AreEqual(DeployScreen.Eyebrow, view.Q<Label>("eyebrow").text);
+            Assert.AreEqual(DeployScreen.Title, view.Q<Label>("title").text);
+            Assert.AreEqual(DeployScreen.WaveStatValue(7), view.Q<Label>("wave-number").text);
+
+            // THE TWO LABELS ARE THE HANDOFF'S ONE LINE. A screen that put
+            // the number into the title Label would pass neither of the two
+            // assertions above, and one that dropped it would pass both of
+            // the first two - this is what pins the pair.
+            Assert.AreEqual(DeployScreen.WaveTitle(7),
+                view.Q<Label>("title").text + " " + view.Q<Label>("wave-number").text);
+
+            // The numeral is in the tabular face and the word is not, which
+            // is the reason there are two Labels at all: bible 10.6 keeps
+            // tabular figures for a number a decision depends on, and this
+            // project never renders a numeral in the display face.
+            Assert.IsTrue(view.Q<Label>("wave-number").ClassListContains("t-num"));
+            Assert.IsFalse(view.Q<Label>("title").ClassListContains("t-num"));
+        }
+
+        [Test]
+        public void Deploy_ADifferentWave_MovesEveryPlaceTheWaveIsNamed()
+        {
+            // The header and the incoming card both state the wave, and a
+            // view holding either as a literal passes a single-wave test.
+            var (model, roster) = Deployment(3, 2);
+            var one = new DeployView();
+            one.Bind(model, onStart: () => { }, roster: roster.Known);
+
+            var otherRoster = new RosterScreen();
+            var creature = Creature("Vetch");
+            otherRoster.ApplyRoster(new RosterResponse { Creatures = { creature }, Cap = 20 });
+            var two = new DeployView();
+            two.Bind(
+                DeployScreen.Build(waveId: 2, roster: otherRoster, selected: new List<Guid> { creature.CreatureId }),
+                onStart: () => { }, roster: otherRoster.Known);
+
+            Assert.AreEqual(DeployScreen.WaveStatValue(7), one.Q<Label>("wave-number").text);
+            Assert.AreEqual(DeployScreen.WaveStatValue(2), two.Q<Label>("wave-number").text);
+            Assert.AreEqual(DeployScreen.IncomingHeading(7), one.Q<Label>("incoming-heading").text);
+            Assert.AreEqual(DeployScreen.IncomingHeading(2), two.Q<Label>("incoming-heading").text);
+            Assert.AreNotEqual(
+                one.Q<Label>("incoming-heading").text, two.Q<Label>("incoming-heading").text);
+        }
+
+        [Test]
+        public void Deploy_TheWaveSentenceIsTheFactsWhenThereIsOne_AndTheDefaultWhenThereIsNot()
+        {
+            Assert.AreEqual(DeployScreen.DefaultBrief, BoundDeploy(3, 2).Q<Label>("brief").text);
+            Assert.AreEqual("Two armoured brutes lead this one.",
+                BoundDeploy(3, 2, facts: new DeployWaveFacts { Brief = "Two armoured brutes lead this one." })
+                    .Q<Label>("brief").text);
+        }
+
+        /// THE UPPERCASE IS IN THE CONSTANT AND NOWHERE ELSE, WHICH IS WHAT
+        /// THIS ASSERTS. USS has no `text-transform`, so the handoff's `.lbl`
+        /// casing has to be baked into the string - and the user's ruling at
+        /// the Task 13/14 boundary is that it lives in the NAMED CONSTANT and
+        /// is never scattered as a literal in markup or in a test. So this
+        /// test names no uppercase string of its own: it reads the constants
+        /// and checks they ARE uppercase, which is the property, and reads
+        /// the view against the constants, which is the wiring.
+        [Test]
+        public void Deploy_EveryLblShipsUppercaseInItsOwnConstant()
+        {
+            foreach (var eyebrow in new[]
+                     {
+                         DeployScreen.Eyebrow, DeployScreen.StandardTag, DeployScreen.FieldHeading,
+                         DeployScreen.FoesStatLabel, DeployScreen.DeployedStatLabel,
+                         DeployScreen.RewardStatLabel, DeployScreen.EnergyLabel,
+                         DeployScreen.IntegrityLabel, DeployScreen.IncomingHeading(7),
+                     })
+            {
+                Assert.AreEqual(eyebrow.ToUpperInvariant(), eyebrow,
+                    "a `.lbl` string is not uppercase in its constant, and USS cannot make it so");
+            }
+
+            var view = BoundDeploy(3, 2);
+            Assert.AreEqual(DeployScreen.StandardTag, view.Q<Label>("wave-tag").text);
+            Assert.AreEqual(DeployScreen.FieldHeading, view.Q<Label>("field-heading").text);
+            Assert.AreEqual(DeployScreen.FieldHint, view.Q<Label>("field-hint").text);
+
+            // AND THE HINT IS THE ONE THAT MUST NOT BE. The handoff draws it
+            // lowercase and it is not a `.lbl` - the same distinction
+            // `SpliceScreen.OddsNote` records.
+            Assert.AreNotEqual(DeployScreen.FieldHint.ToUpperInvariant(), DeployScreen.FieldHint);
+        }
+
+        [Test]
+        public void Deploy_ALegalDeploymentDrawsNoRefusalRow_AndStartStillCarriesTheModelsLabel()
+        {
+            // Both halves of Phase 8 Task 10's blocker rule, re-asserted
+            // through the rebuilt screen: the row COLLAPSES rather than
+            // drawing a blank coral strip, and the CTA is the model's
+            // sentence rather than a literal this view holds.
+            var legal = BoundDeploy(3, 2);
+            Assert.AreEqual(string.Empty, legal.Q<Label>("blocker").text);
+            Assert.AreEqual(DisplayStyle.None, legal.Q<Label>("blocker").resolvedStyle.display);
+            Assert.AreEqual(DeployScreen.Cta, legal.Q<Button>("start").text);
+            Assert.IsTrue(legal.Q<Button>("start").enabledSelf);
+
+            var blocked = BoundDeploy(3, 0);
+            Assert.IsNotEmpty(blocked.Q<Label>("blocker").text);
+            Assert.AreEqual(DisplayStyle.Flex, blocked.Q<Label>("blocker").resolvedStyle.display);
+            Assert.IsFalse(blocked.Q<Button>("start").enabledSelf);
+        }
+
+        /// BY CLASS AND NOT BY NAME. `LanePreviewCard` names its picture
+        /// element "lane" and `DeployView` names the card "lane-card", so
+        /// this is unambiguous from either end - and it is the accessor the
+        /// component's own `ComponentTests` case uses one level down.
+        static VisualElement PictureOf(LanePreviewCard card) =>
+            card.Q<VisualElement>(className: "lane-preview-card__lane");
+
+        static string EnergyValueOf(DeployView view) =>
+            view.Q<SectionCard>("energy").Q<Label>(className: "deploy-view__pill-value").text;
+
+        static string IntegrityValueOf(DeployView view) =>
+            view.Q<SectionCard>("integrity").Q<Label>(className: "deploy-view__pill-value").text;
     }
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading.Tasks;
 using Broodline.Api;
+using Broodline.Creatures;
 using Broodline.Game.Shell;
 using Broodline.Model;
 using Broodline.Net;
@@ -160,6 +161,16 @@ namespace Broodline.Game
         /// never shown.
         readonly PortraitStudio _studio;
 
+        /// The lane stage - Phase 9 design §3.8, the second of the two
+        /// off-screen rigs. Optional and nullable for `_studio`'s reasons,
+        /// which apply here unchanged: `BootController` is the only
+        /// production call site and always passes the real one, and
+        /// `FtueDirectorTests` builds a director with no scene to construct a
+        /// camera in. A director without a stage shows the deploy screen with
+        /// the lane card on its own fill, which is what every capture in
+        /// `implementation/results/screens` shows too.
+        readonly LaneStage _stage;
+
         bool _namingOffered;
 
         public FtueDirector(
@@ -170,7 +181,8 @@ namespace Broodline.Game
             Func<PlayerSnapshot> snapshot,
             Func<Task> resync,
             Action<string> notice,
-            PortraitStudio studio = null)
+            PortraitStudio studio = null,
+            LaneStage stage = null)
         {
             _api = api ?? throw new ArgumentNullException(nameof(api));
             _outbox = outbox ?? throw new ArgumentNullException(nameof(outbox));
@@ -180,6 +192,7 @@ namespace Broodline.Game
             _resync = resync ?? throw new ArgumentNullException(nameof(resync));
             _notice = notice ?? throw new ArgumentNullException(nameof(notice));
             _studio = studio;
+            _stage = stage;
         }
 
         // ---------------------------------------------------------------
@@ -294,80 +307,307 @@ namespace Broodline.Game
                 return false;
             }
 
-            var deployView = new DeployView();
-            await _flow.ShowAsync(deployView, resume => deployView.Bind(deployment, onStart: resume));
-
             WaveStartResponse start;
-            try
-            {
-                start = await DeployScreen.StartAsync(_api, deployment);
-            }
-            catch (Exception error)
-            {
-                _notice(ServerError.From(error).PlayerMessage);
-                return false;
-            }
 
-            // GUARDED FOR THE SAME REASON `StartAsync` IS, six lines up, and
-            // it is not hypothetical: `SpecsFor` throws when the bundle names
-            // content this client build has no enum for (see its own comment,
-            // and `SpecsFor_RefusesAThingThisEngineDoesNotCarry`), `SeedOf`
-            // throws on a seed that is not one, and `WaveHost.RunAsync`
-            // throws `InvalidOperationException` when the wave scene or its
-            // runner is missing - and `WaveDef.ForId` throws
-            // `WaveCompositionException` for any id this build does not
-            // author, which Campaign Select can now reach because it renders
-            // whatever `config.waves` sends.
+            // THE `try` SPANS THE WHOLE BEAT AND THE `finally` CLEARS THE
+            // STAGE, WHICH IS `NameFounderAsync`'s SHAPE AND IS THERE FOR ITS
+            // REASONS. Both of them, restated because they pull in opposite
+            // directions and only a `finally` around everything gets both:
             //
-            // Unguarded, all four escape `RunAsync` into `BootController`'s
-            // `Debug.LogError` and leave the player on a Deploy screen whose
-            // Start button no longer resumes anything, with nothing said.
-            // That is the awaited-screen model's own failure class: an
-            // exception between the screen and its continuation strands the
-            // turn. The throw stays - conflating an Aberrant with tier 0 is
-            // the worse answer - this is what makes it audible.
-            WaveReport report;
+            //   - `ScreenFlow.ShowAsync(screen, bind)` passes `after: null`,
+            //     so NOTHING HIDES THE VIEW when the turn resolves - it stays
+            //     presented until the next `ScreenHost.Show`, and the turn's
+            //     continuation runs synchronously inside the `Button.clicked`
+            //     handler. A `Clear` written just after the await would blank
+            //     the lane card while the player is still looking at it,
+            //     through the whole of `StartAsync`'s round trip. That is the
+            //     ring-with-nothing-in-it defect, arrived at from the lane
+            //     side.
+            //   - `Show` leaves a camera enabled and a render texture being
+            //     painted, and three paths below return early, so a `Clear`
+            //     written after them would leave the stage running for the
+            //     rest of the session on the outcomes a player hits most.
+            //
+            // `Show` IS INSIDE THE `try`, not above it, for `NameFounder
+            // Async`'s reason: it builds creatures, reparents them and
+            // enables a camera, and a throw partway through leaves a
+            // half-shown stage that only a `finally` above it can clean up.
             try
             {
-                report = await _play(
-                    start.WaveId, SpecsFor(start.Deployment), SeedOf(start.Seed), inputEnabled: true);
-            }
-            catch (Exception error)
-            {
-                _notice(ServerError.From(error).PlayerMessage);
-                return false;
-            }
+                var deployView = new DeployView();
 
-            var submitted = await _outbox.SubmitWaveAsync(start.IssuanceId, report.ReplayBytes);
-            if (submitted.Outcome != OutboxOutcome.Sent)
-            {
-                // The SERVER's verdict is the only one that counts
-                // (`client_architecture` section 7), and a queued submission
-                // has not produced one. Showing Post-Wave off the local
-                // report would congratulate a player on a wave the server
-                // has not seen, and advancing the walk would derive the next
-                // beat from a snapshot that never moved.
-                _notice(FtueNotice.For(submitted.Outcome, FtueNotice.SubmitWave, submitted.Error));
-                return false;
-            }
+                // THE LOOP IS A LOCAL THAT REWRITES ITSELF, NOT A SECOND
+                // TURN. A tap on a field row changes the SELECTION and must
+                // not resume the walk: `resume` is captured once, handed to
+                // `onStart` on every re-bind, and called by nothing else. The
+                // model is rebuilt from the ids rather than mutated, so
+                // `DeployScreen.Build`'s refusals (a duplicate, a committed
+                // creature, the floor, the cap) are re-applied on every tap
+                // and the screen's blocker stays the model's own sentence.
+                await _flow.ShowAsync(deployView, resume =>
+                {
+                    Action redraw = null;
+                    redraw = () => deployView.Bind(
+                        deployment,
+                        onStart: resume,
+                        lane: ShowLane(waveId, deployment),
+                        roster: _roster.Known,
+                        onToggle: id =>
+                        {
+                            if (!Toggle(selected, id)) return;
+                            deployment = DeployScreen.Build(waveId, _roster, selected);
+                            redraw();
+                        },
+                        facts: FactsFor(waveId));
+                    redraw();
+                });
 
-            var response = submitted.Response;
-            var granted = response.Granted == null
-                ? new List<CreatureDto>()
-                : new List<CreatureDto>(response.Granted);
+                try
+                {
+                    start = await DeployScreen.StartAsync(_api, deployment);
+                }
+                catch (Exception error)
+                {
+                    _notice(ServerError.From(error).PlayerMessage);
+                    return false;
+                }
 
-            if (response.Result == PostWaveScreen.WinResult)
-            {
-                var postWave = new PostWaveView();
-                await _flow.ShowAsync(postWave, resume => postWave.Bind(response, granted, next: resume));
+                // GUARDED FOR THE SAME REASON `StartAsync` IS, six lines up, and
+                // it is not hypothetical: `SpecsFor` throws when the bundle names
+                // content this client build has no enum for (see its own comment,
+                // and `SpecsFor_RefusesAThingThisEngineDoesNotCarry`), `SeedOf`
+                // throws on a seed that is not one, and `WaveHost.RunAsync`
+                // throws `InvalidOperationException` when the wave scene or its
+                // runner is missing - and `WaveDef.ForId` throws
+                // `WaveCompositionException` for any id this build does not
+                // author, which Campaign Select can now reach because it renders
+                // whatever `config.waves` sends.
+                //
+                // Unguarded, all four escape `RunAsync` into `BootController`'s
+                // `Debug.LogError` and leave the player on a Deploy screen whose
+                // Start button no longer resumes anything, with nothing said.
+                // That is the awaited-screen model's own failure class: an
+                // exception between the screen and its continuation strands the
+                // turn. The throw stays - conflating an Aberrant with tier 0 is
+                // the worse answer - this is what makes it audible.
+                WaveReport report;
+                try
+                {
+                    report = await _play(
+                        start.WaveId, SpecsFor(start.Deployment), SeedOf(start.Seed), inputEnabled: true);
+                }
+                catch (Exception error)
+                {
+                    _notice(ServerError.From(error).PlayerMessage);
+                    return false;
+                }
+
+                var submitted = await _outbox.SubmitWaveAsync(start.IssuanceId, report.ReplayBytes);
+                if (submitted.Outcome != OutboxOutcome.Sent)
+                {
+                    // The SERVER's verdict is the only one that counts
+                    // (`client_architecture` section 7), and a queued submission
+                    // has not produced one. Showing Post-Wave off the local
+                    // report would congratulate a player on a wave the server
+                    // has not seen, and advancing the walk would derive the next
+                    // beat from a snapshot that never moved.
+                    _notice(FtueNotice.For(submitted.Outcome, FtueNotice.SubmitWave, submitted.Error));
+                    return false;
+                }
+
+                var response = submitted.Response;
+                var granted = response.Granted == null
+                    ? new List<CreatureDto>()
+                    : new List<CreatureDto>(response.Granted);
+
+                if (response.Result == PostWaveScreen.WinResult)
+                {
+                    var postWave = new PostWaveView();
+                    await _flow.ShowAsync(postWave, resume => postWave.Bind(response, granted, next: resume));
+                    return true;
+                }
+
+                // bible 4.11: "Free retry. No paywall on failure, ever." The
+                // retry resumes the turn and the walk re-derives to this same
+                // beat, because nothing cleared - which is the retry.
+                var defeat = new WaveDefeatView();
+                await _flow.ShowAsync(defeat, resume => defeat.Bind(report, granted, retry: resume));
                 return true;
             }
+            finally
+            {
+                // THE FIRST STATEMENT OF THE `finally`, IN ITS OWN try/catch,
+                // which is `WaveHost.RunAsync`'s shape and `NameFounder
+                // Async`'s: a throw out of the cleanup would REPLACE the
+                // exception on its way out of the try and the original
+                // failure would never be seen. Logged rather than swallowed.
+                //
+                // `!= null` RATHER THAN `?.`, AND THAT IS NOT STYLE.
+                // `LaneStage` is a MonoBehaviour, and `?.` is a reference-null
+                // test the compiler emits directly - it does not run
+                // UnityEngine.Object's overloaded `==`, which is what reports
+                // a DESTROYED object as null. On a stage whose GameObject has
+                // gone (a scene change mid-beat, which this beat performs),
+                // `?.` would call through to a dead native object; `!= null`
+                // does not. `ShowLane` tests `_stage == null` for the same
+                // reason.
+                //
+                // NO `await` HERE. `WaveHost`'s finally awaits its unload;
+                // `Clear` is synchronous, and an await in this finally would
+                // put a resumption point on the exception path of a beat for
+                // no gain.
+                //
+                // THE COST OF SPANNING THE WHOLE BEAT, NAMED: the stage's
+                // camera stays enabled through the hosted wave, painting a
+                // 720x480 target it is not being looked at for. The
+                // alternative - clearing when the turn resolves - blanks the
+                // lane card while the deploy screen is still presented, which
+                // is the defect this shape exists to avoid. Freezing the
+                // camera without clearing the texture would get both and is
+                // not built here: it would be a fourth public member on
+                // `LaneStage` past the three this task's interface names.
+                try
+                {
+                    if (_stage != null) _stage.Clear();
+                }
+                catch (Exception error)
+                {
+                    UnityEngine.Debug.LogError("[FtueDirector] LaneStage.Clear threw: " + error);
+                }
+            }
+        }
 
-            // bible 4.11: "Free retry. No paywall on failure, ever." The
-            // retry resumes the turn and the walk re-derives to this same
-            // beat, because nothing cleared - which is the retry.
-            var defeat = new WaveDefeatView();
-            await _flow.ShowAsync(defeat, resume => defeat.Bind(report, granted, retry: resume));
+        /// The picture behind the deploy screen's lane card: this wave's
+        /// dressing with the chosen creatures standing in their pockets.
+        ///
+        /// NULL IS A REAL ANSWER AND THE SCREEN HANDLES IT, exactly as
+        /// `NameFounderAsync`'s portrait does. `_stage` is an optional
+        /// constructor argument - `BootController` supplies one,
+        /// `FtueDirectorTests` does not, and a batch-mode capture has no
+        /// camera to run one - so `DeployView.Bind`'s `lane` is optional and
+        /// `LanePreviewCard` falls back to its own --green-tint fill. A
+        /// director without a stage shows exactly the screen it showed before.
+        ///
+        /// THE LOOKS ARE `WaveView.Build`'s, not this method's invention: a
+        /// species and its two traits, with no growth, which is what the live
+        /// wave assembles for the same creature. `CreatureLook.Growth01`
+        /// stays at its default for the same reason `WaveView` leaves it
+        /// there - a deployed creature is drawn at its full size in the lane.
+        UnityEngine.Texture ShowLane(int waveId, DeployScreenModel deployment)
+        {
+            if (_stage == null) return null;
+
+            var looks = new List<CreatureLook>(deployment.Slots.Count);
+            var pockets = new List<int>(deployment.Slots.Count);
+            foreach (var slot in deployment.Slots)
+            {
+                var creature = slot.Creature;
+                looks.Add(new CreatureLook
+                {
+                    Species = creature.Species,
+                    Trait1 = creature.Trait1,
+                    Trait2 = creature.Trait2,
+                });
+                pockets.Add(slot.Pocket);
+            }
+            return _stage.Show(waveId, looks, pockets);
+        }
+
+        /// What the deploy screen states about the WAVE rather than about the
+        /// deployment - see `DeployWaveFacts`, and note that every field is
+        /// nullable because a readout that prints 0 for a number it was not
+        /// told is a screen that lies.
+        ///
+        /// THE ENGINE IS READ HERE AND NOT IN THE VIEW. `Broodline.UI`
+        /// references `Broodline.Model`, `Broodline.Net` and `Generated.Api`
+        /// and deliberately not `Broodline.Sim` - `WaveScreensTests`' class
+        /// comment draws the same line and says why ("no view and no view
+        /// test needs an engine to render a defeat"). This director already
+        /// has the engine, so the spawn count crosses the boundary as an int.
+        ///
+        /// `WaveDef.ForId` IS GUARDED BECAUSE IT THROWS BY DESIGN, and
+        /// Campaign Select can reach an id this build does not author - the
+        /// same hazard `_play`'s own try/catch names further up. A stat cell
+        /// must not be the thing that strands the turn, so an unknown wave
+        /// leaves `Foes` unstated and the loud failure keeps its own site.
+        DeployWaveFacts FactsFor(int waveId)
+        {
+            var facts = new DeployWaveFacts();
+
+            try
+            {
+                facts.Foes = WaveDef.ForId(waveId).Spawns.Length;
+            }
+            catch (WaveCompositionException)
+            {
+                // Left null: the cell states nothing rather than zero.
+            }
+
+            var snapshot = _snapshot();
+            if (snapshot == null) return facts;
+
+            if (snapshot.Balances != null && snapshot.Balances.TryGetValue(EnergyCurrency, out var energy))
+            {
+                facts.Energy = energy;
+            }
+
+            if (snapshot.Waves != null)
+            {
+                foreach (var wave in snapshot.Waves)
+                {
+                    if (wave == null || wave.Id != waveId) continue;
+                    facts.RewardCurrency = wave.RewardCurrency;
+                    facts.RewardAmount = wave.RewardAmount;
+                    break;
+                }
+            }
+
+            return facts;
+        }
+
+        /// The balance the handoff calls `GENE ENERGY`.
+        ///
+        /// "shards", WHICH IS THE WIRE'S KEY AND NOT A DISPLAY NOUN.
+        /// `PlayerSnapshot.Balances` is a dictionary keyed by the currency
+        /// ids `/v1/sync` sends, and the same word is what
+        /// `WaveSummary.RewardCurrency` carries for the reward on the screen
+        /// after this one. The handoff's label is editorial ("Gene energy");
+        /// the key is the server's.
+        const string EnergyCurrency = "shards";
+
+        /// Add or remove one creature from the selection, in place. True when
+        /// something changed and the screen needs redrawing.
+        ///
+        /// A REMOVAL IS ALWAYS ALLOWED AND THE MODEL SAYS WHAT IT COSTS.
+        /// Taking the last creature out makes `DeployScreen.Build` answer
+        /// `CanDeploy: false` with "Send at least one creature. A wave fought
+        /// with nothing is not a wave." - which `DeployView` renders in coral
+        /// directly above a greyed Start, and which the player undoes by
+        /// tapping any row. Refusing the tap instead would make the screen
+        /// silent about a rule it is perfectly able to state, and
+        /// `WantedFor`'s own comment already says its number is "A FLOOR, NOT
+        /// A PROMISE: `DeployScreen.Build` still refuses an illegal
+        /// deployment" - it sizes the OPENING selection and nothing else.
+        ///
+        /// AN ADD PAST THE CAP IS REFUSED, WHICH IS THE ASYMMETRY. Over the
+        /// cap the model's sentence is "A deployment is at most 5 creatures.",
+        /// and unlike the floor there is no single tap that undoes it - the
+        /// player would have to work out which of six to remove. `DeployView`
+        /// already draws every undeployed row dimmed and disabled at the cap,
+        /// so this branch is the second half of a rule the screen shows, not
+        /// a silent no-op.
+        ///
+        /// ORDER IS PART OF THE REQUEST, so an add goes on the END: "Index ==
+        /// deployment order", and `deploymentMatches` compares the replay's
+        /// deployment against the stored one in order. Removing the creature
+        /// in pocket 0 renumbers the rest, which is what the lane picture and
+        /// the row badges then redraw - the screen showing the player exactly
+        /// what the request will say.
+        static bool Toggle(List<Guid> selected, Guid id)
+        {
+            if (selected.Remove(id)) return true;
+            if (selected.Count >= DeployScreen.Cap) return false;
+            selected.Add(id);
             return true;
         }
 

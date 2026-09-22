@@ -292,22 +292,74 @@ public static class ScreenFixtures
         return view;
     }
 
+    /// Wave 7, WHICH IS THE HANDOFF'S OWN WAVE, so this capture and
+    /// `specs/Designs/shots/wave-defense.png` can be laid side by side
+    /// without first translating one into the other. Its numbers are the
+    /// handoff's too - 145 energy, five foes, 120 shards - except the two
+    /// this project states differently and says why: `DEPLOYED 3 / 5`
+    /// against the handoff's `2 / 4`, because `DeployScreen.Cap` is the
+    /// server's (services/api/src/wave/issuance.ts) and its 4 is a drawing;
+    /// and `ARK INTEGRITY 100%` against its 82%, because this screen is
+    /// shown BEFORE the wave (`DeployScreen.IntegrityFull`).
+    ///
+    /// FOUR CREATURES FOR TWO POCKETS, so the capture shows BOTH row states -
+    /// two filled rows lettered A and B, and two undeployed ones carrying
+    /// `DeployScreen.EmptyPocketTag`. A fixture that selected every creature
+    /// it owned would render one of the two and leave the other as a code
+    /// path nobody has looked at, which is exactly how Pale's hero disc
+    /// shipped invisible through two components (see `Band()`).
+    ///
+    /// FOUR AND NOT SIX, AND THE FIRST CAPTURE DECIDED IT. Six creatures is
+    /// three pairs, and three pairs ran the content column past the CTA row:
+    /// the last pair was clipped at y=860 in a 932 frame. Nothing is wrong
+    /// with that - the scaffold's content region is a ScrollView and a real
+    /// roster of twenty scrolls - but a corpus image that cannot show its own
+    /// last row cannot be compared against anything. Four is also the
+    /// handoff's own count (`Wave Defense.dc.html:246-260` draws exactly four
+    /// field rows), which is what makes the two pictures comparable at all.
+    ///
+    /// NO LANE TEXTURE, AND THAT IS THE DESIGNED STATE HERE RATHER THAN A
+    /// GAP. `LaneStage` is a camera and a render texture in `Broodline.Game`;
+    /// no fixture in this file drives one, including `FounderNaming()`, which
+    /// shows the portrait studio's fallback for the same reason. What the
+    /// capture therefore checks is the card's own geometry and its pocket
+    /// strip - `.lane-preview-card`'s flat --green-tint fill is described in
+    /// its own sheet as being "for the capture corpus, where no stage runs at
+    /// all". The picture itself is proven by `LaneStagePlayTests` and by a
+    /// human running `Boot.unity`.
     static VisualElement Deploy()
     {
         var roster = new RosterScreen();
         var response = new RosterResponse { Cap = 20 };
+        // BIBLE 1.2's SIX, not the handoff's display names. Its lane says
+        // "Vetch Wall R2" and "Cinderplate R1"; `broodline_data_model.md`
+        // section 2 makes `species` one of six ids, and "Cinderplate" is not
+        // one of them. The note at the head of `Creature()` records what the
+        // wrong strings cost the last time this file carried them.
+        var species = new[] { "Vetch", "Ember", "Loam", "Pale" };
         var selected = new List<Guid>();
-        for (var i = 0; i < 3; i++)
+        for (var i = 0; i < species.Length; i++)
         {
-            var creature = Creature("Vetch", 1, name: null, founder: false);
+            var creature = Creature(species[i], i < 2 ? 2 : 1, name: null, founder: false);
             response.Creatures.Add(creature);
-            selected.Add(creature.CreatureId);
+            if (i < 2) selected.Add(creature.CreatureId);
         }
         roster.ApplyRoster(response);
 
-        var model = DeployScreen.Build(waveId: 6, roster: roster, selected: selected);
+        var model = DeployScreen.Build(waveId: 7, roster: roster, selected: selected);
         var view = new DeployView();
-        view.Bind(model, onStart: () => { });
+        view.Bind(
+            model,
+            onStart: () => { },
+            roster: roster.Known,
+            onToggle: _ => { },
+            facts: new DeployWaveFacts
+            {
+                Energy = 145,
+                Foes = 5,
+                RewardCurrency = "shards",
+                RewardAmount = 120,
+            });
         return view;
     }
 

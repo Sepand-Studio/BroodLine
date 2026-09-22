@@ -8,7 +8,17 @@ namespace Broodline.View
     public static class LaneDressing
     {
         // Mirrors: --paper #f7f4fb, --green-tint #e8f5ec, the handoff's path #e5d9c7, --violet #7a6ac0, --surface #ffffff.
-        static readonly Color Field = Hex("#e8f5ec");
+        //
+        /// PUBLIC, ALONE AMONG THE FIVE, AND FOR ONE READER. `LaneStage`
+        /// (Phase 9 Task 17) clears its camera to this colour so the ground
+        /// past the dressing's finite quads is the same colour as the ground
+        /// inside them - which is the call `WaveSceneBuilder` already made
+        /// for its own camera, in a literal `new Color(0.91f, 0.96f, 0.93f)`
+        /// that this constant is the source of. Exposed rather than copied a
+        /// third time: it is also `--green-tint`, which is
+        /// `.lane-preview-card`'s fill, so three files now depend on the four
+        /// of them being one colour.
+        public static readonly Color Field = Hex("#e8f5ec");
         static readonly Color Path = Hex("#e5d9c7");
         static readonly Color Dash = Hex("#ffffff");
         static readonly Color Tree = Hex("#cfe6d2");

@@ -512,24 +512,29 @@ namespace Broodline.UI.Tests
         /// that agree as multisets and differ in order are different
         /// deployments. Before Phase 8 Task 10 this screen drew a grid of
         /// identical `CreatureCard`s and printed the pocket nowhere at all.
+        ///
+        /// THE ROW IS A `FieldSlotRow` AND THE POCKET IS ITS BADGE, as of
+        /// Phase 9 Task 17 - it used to be an `OptionRow` whose detail line
+        /// read `DeployScreen.PocketLabel(i)`. The FACT asserted is unchanged
+        /// and the alphabet is the only thing that moved.
         [Test]
         public void DeployView_NamesEachSlotsPocketInOrder()
         {
             var v = BindWith(slots: 3);
 
-            var rows = v.Query<OptionRow>().ToList();
+            var rows = v.Query<FieldSlotRow>().ToList();
             Assert.AreEqual(3, rows.Count, "one row per deployed creature");
             for (var i = 0; i < rows.Count; i++)
             {
-                Assert.AreEqual(DeployScreen.PocketLabel(i), rows[i].Q<Label>("detail").text,
-                    "slot " + i + " is not labelled with its own pocket, in order");
+                Assert.AreEqual(DeployScreen.PocketTag(i), rows[i].Q<Label>("letter").text,
+                    "slot " + i + " is not badged with its own pocket, in order");
             }
 
-            // 1-INDEXED FOR THE PLAYER, 0-INDEXED ON THE WIRE. Asserted
-            // explicitly because the two numbering schemes are a real trap:
-            // a test that only compared the view against PocketLabel would
-            // pass if both sides quietly agreed on "Pocket 0".
-            Assert.AreEqual("Pocket 1", rows[0].Q<Label>("detail").text);
+            // A-FIRST FOR THE PLAYER, 0-INDEXED ON THE WIRE. Asserted
+            // explicitly because the two schemes are a real trap: a test that
+            // only compared the view against PocketTag would pass if both
+            // sides quietly agreed that pocket 0 is "B".
+            Assert.AreEqual("A", rows[0].Q<Label>("letter").text);
         }
 
         [Test]
@@ -541,7 +546,7 @@ namespace Broodline.UI.Tests
             var v = BindWith(slots: 3);
 
             var cells = v.Query<StatCell>().ToList();
-            Assert.AreEqual(2, cells.Count, "the stat row states the wave and the count");
+            Assert.AreEqual(3, cells.Count, "the incoming-wave card states the foes, the count and the reward");
             Assert.AreEqual(DeployScreen.DeployedStatValue(3), cells[1].Q<Label>("value").text);
             StringAssert.Contains(
                 DeployScreen.Cap.ToString(CultureInfo.InvariantCulture),
