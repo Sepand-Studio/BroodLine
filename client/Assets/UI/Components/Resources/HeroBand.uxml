@@ -1,0 +1,11 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="HeroBand.uss" />
+    <ui:VisualElement name="surface" class="hero-band__surface">
+        <ui:VisualElement name="halo" class="hero-band__halo" picking-mode="Ignore">
+            <ui:VisualElement name="ring" class="hero-band__ring" picking-mode="Ignore">
+                <ui:VisualElement name="glow" class="hero-band__glow" picking-mode="Ignore" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="subject" class="hero-band__subject" />
+    </ui:VisualElement>
+</ui:UXML>

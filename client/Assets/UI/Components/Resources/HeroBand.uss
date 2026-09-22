@@ -1,0 +1,206 @@
+/* The handoff's hero band: a white-to-lilac gradient panel at radius 26,
+ * with a large dashed ring and a soft violet pool behind whatever the screen
+ * puts in it. Six screens in the bundle draw this surface -
+ * `Onboarding.dc.html:43`, `Gene Ark:47`, `Gene Lab:51`,
+ * `Splice Chamber:101`, `Splice Reveal:43` and `Hybrid Growth:48` - and
+ * three of those six draw the ring inside it.
+ *
+ * THE ROOT IS THE SHADOW WRAPPER, NOT THE BAND, exactly as `SectionCard`'s
+ * is. Theme.uss's header note 2: UI Toolkit clips a background image to the
+ * element's own box, so a nine-sliced drop shadow has to be drawn by
+ * something LARGER than the surface it falls around. `.elev-2` goes on this
+ * element - padding plus the shadow sprite and nothing else - and the band's
+ * own fill lives on `.hero-band__surface` inside it.
+ *
+ * .elev-2 AND NOT .elev-1, WHICH IS THE HANDOFF BEING EXPLICIT. Every one of
+ * the six draws the band at `0 4px 16px rgba(63,58,82,.08)` while the cards
+ * above and below it are `0 2px 8px rgba(63,58,82,.06)` - the 2:1 pair
+ * Tokens.uss's elevation block already maps to the two classes. The band
+ * sits a step above the cards around it and the handoff says so twice, in
+ * the offset and in the blur.
+ *
+ * GROWTH IS `HeroBand.Fill`'s JOB AND IT IS NOT A DECLARATION IN THIS FILE.
+ * That is the whole lesson of Task 14b and it is worth the sentence:
+ * `flex-grow` on an elevation WRAPPER stretches the wrapper while the
+ * surface keeps its own height, so the nine-slice draws its drop around bare
+ * paper - measured at 160px of shadow-on-nothing below the founder screen's
+ * hero, seen by no test and caught only by the capture. The note is at
+ * `SectionCard.uss` beside `.section-card__surface`. Here the two halves
+ * cannot come apart: `Fill` writes `flex-grow` on BOTH elements from one
+ * method, and `AHeroBandThatFillsGrowsItsSurfaceAndNotOnlyItsWrapper` reads
+ * both. A screen never writes either one.
+ */
+.hero-band {
+    flex-direction: column;
+    flex-shrink: 0;
+}
+
+/* THE GRADIENT IS A TEXTURE BECAUSE USS HAS NO `linear-gradient`. Theme.uss's
+ * header item 1; band-ramp.png is white to --violet-tint, stretched, and
+ * generate-textures.py's ramp block has why it is not the hybrid ramp even
+ * though the two are the same handoff declaration.
+ *
+ * THE COLOUR UNDER THE IMAGE IS --violet-tint AND IT IS THE RAMP'S OWN DEEP
+ * END, on `.panel-hybrid`'s precedent: nothing else is under it, so the fill
+ * costs nothing while the texture is present and is what the band degrades
+ * to if the texture ever fails to import. This phase exists partly because a
+ * missing asset rendered as nothing and nobody noticed.
+ *
+ * `overflow: hidden` IS THE HANDOFF'S OWN, on five of the six instances, and
+ * it is load-bearing rather than tidy: the ring is 264px in a band that can
+ * be shorter than that, and a rounded surface does not clip its children to
+ * the radius without it - so without this the ring's dashes would be drawn
+ * outside the band's corners. */
+.hero-band__surface {
+    flex-direction: column;
+    border-radius: var(--radius-band);
+    background-image: url("project:///Assets/UI/Art/band-ramp.png");
+    -unity-background-scale-mode: stretch-to-fill;
+    background-color: var(--violet-tint);
+    overflow: hidden;
+}
+
+/* A full-bleed layer whose only job is to centre the ring, because USS has
+ * no way to say "65% of my parent's width, square". There is no `calc()` and
+ * no `aspect-ratio` on 6000.6.0f1, so a percentage width cannot produce a
+ * matching height and the ring has to be a fixed square - which then needs
+ * something to centre it inside a band of unknown size. This is that
+ * something.
+ *
+ * ABSOLUTE, SO THE SUBJECT'S LAYOUT NEVER SEES IT. The handoff draws the
+ * ring as an `<svg style="position: absolute; inset: 0">` for the same
+ * reason: it is behind the content, not above it in the column. */
+.hero-band__halo {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    align-items: center;
+    justify-content: center;
+}
+
+/* THE RING IS A PICTURE BECAUSE USS HAS NO `border-style`. There is
+ * `border-width` and `border-color` and nothing that takes `dashed`, so the
+ * handoff's `stroke-dasharray: 4 12` has no property to land in. This is the
+ * same answer `HeroSlot.uss` gives at 96px and NOT the same texture: a
+ * stretched ring keeps its dash count and scales its stroke, so hero-ring
+ * .png at 264px would draw 30 dashes in 5.5px of ink against this ring's 52
+ * in 2px. generate-textures.py's ring block has the arithmetic.
+ *
+ * NO BORDER AND NO RADIUS ON THIS ELEMENT, deliberately, and for the reason
+ * HeroSlot.uss states: a solid ring UNDER the dashed one would show through
+ * every gap in the pattern as a continuous line, which is the one thing a
+ * dashed ring must not have.
+ *
+ * TINTED, NOT RECOLOURED. -unity-background-image-tint-color multiplies and
+ * the ring is authored white, so white times a tint IS the tint - icons.uss's
+ * header has the long form.
+ *
+ * --violet-pale IS THE HANDOFF'S RING TO WITHIN 4. `Onboarding.dc.html:45`
+ * strokes #dcd2f3 and `Splice Reveal:45` / `Hybrid Growth:50` both stroke
+ * #d8cdf2; --violet-pale is #d9cdf5, which is 4 from the second and 10 from
+ * the first in summed channel distance - inside the spread of the handoff's
+ * own three. It is also already a ring tint in this project:
+ * `.hero-slot--live .hero-slot__ring` reads it.
+ *
+ * THIS RING DOES NOT TURN AND THE HANDOFF'S DOES. Every instance carries
+ * `class="spin"` - `animation: orbit 20s linear infinite` - and USS on
+ * 6000.6.0f1 has `transition-*`, no `@keyframes` and no `animation`. There is
+ * no property for it to land in. RECORDED RATHER THAN DROPPED, because a
+ * silently vanished declaration is this project's recurring defect
+ * (`align-items: baseline`, `text-transform`, `calc()`), and the difference
+ * between those and this one is that this is a decision. What was declined:
+ * a C# scheduler writing `style.rotate` every frame would produce it, at the
+ * cost of a repaint per frame on decoration and - worse - a capture corpus
+ * that lands on a different frame every run, which is the one piece of
+ * evidence this project has that anything renders at all. HeroSlot made the
+ * same call in Task 13 and its ring reads correctly still. */
+.hero-band__ring {
+    width: var(--band-ring);
+    height: var(--band-ring);
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    background-image: url("project:///Assets/UI/Art/band-ring.png");
+    -unity-background-scale-mode: stretch-to-fill;
+    -unity-background-image-tint-color: var(--violet-pale);
+}
+
+/* THE POOL INSIDE THE RING, AND IT IS 6 FOR 6 WITH IT. Every dashed ring in
+ * the bundle has a filled circle behind the subject and none has one
+ * without - `Onboarding:46` (r 98), `Splice Reveal:46` (r 106),
+ * `Hybrid Growth:51` (r 82), `Splice Chamber:110` (r 46),
+ * `Breeder Profile:33` (r 54) and `Gene Lab Event:34` (r 58). They are one
+ * ornament, which is why this is a CHILD of the ring and disappears with it.
+ *
+ * FOUR OF THE SIX ARE A VIOLET POOL AND TWO ARE A WHITE WASH. The last two
+ * are not this band: they are the `linear-gradient(160deg, ...)` header cards,
+ * whose ring and circle are both `#ffffff` at .8-.85 and .3-.35 opacity
+ * because they are drawn ON a coloured panel rather than on white. That is a
+ * different surface with a different ornament on it, and it is named here so
+ * the count above is not read as six instances of THIS.
+ *
+ * 196 IS 264 AT THE HANDOFF'S OWN PROPORTION. `Onboarding.dc.html:46` draws
+ * it r 98 inside the r 132 ring, and 98 is half of 196 - a square element, so
+ * both axes clamp alike and this is a true circle (Theme.uss header item 4).
+ * The three band-scale instances sit at 0.74, 0.76 and 0.79 of their ring;
+ * this takes the one the band is measured from rather than averaging them.
+ * A LITERAL rather than a token because one file reads it, which is this
+ * project's standing rule for one-off geometry.
+ *
+ * --violet-pressed IS A TOKEN BORROWED FOR ITS VALUE AND THE NAME IS AN
+ * INTERACTION STATE'S. Said out loud because it should be argued with. The
+ * handoff's pool is #e9e0fb; the candidates are --violet-pressed (#e7e0f6, 7
+ * away), --hairline (#ece7f6, 15) and --violet-tint (#f1ecfa, 21). Inventing
+ * an eighth violet 7 units from one already in the file is the drift
+ * verify-uss-tokens.sh exists to stop, so the choice was between the three.
+ * Measured on the two surfaces this is actually composited on - the band's
+ * ramp runs #ffffff to --violet-tint, so the pool has to read at both ends:
+ *   --violet-pressed  64 from the white end, 26 from the deep end
+ *   --hairline        52 from the white end, 14 from the deep end
+ *   --violet-tint     38 from the white end,  0 from the deep end
+ * --violet-tint is invisible in the band's lower half by construction, and
+ * --hairline's 14 is the neighbourhood the Pale hero disc was moved OUT of
+ * for reading as a bare ring on the page it was drawn on (HeroSlot.uss's
+ * note, twice). --violet-pressed is the only one of the three that clears
+ * both ends, and it is the closest to the handoff besides. Precedent for
+ * taking a token whose NAME came from elsewhere when its value is the right
+ * one: --hairline is "unselected option outline" and is Pale's disc fill,
+ * and --amber-text is the MutationBanner sparkle. If the palette owner wants
+ * a named --violet-glow, that is a palette ruling and this is the
+ * measurement it would be made against. */
+.hero-band__glow {
+    width: 196px;
+    height: 196px;
+    border-radius: 98px;
+    background-color: var(--violet-pressed);
+    flex-shrink: 0;
+}
+
+/* WHAT THE SCREEN PUTS IN THE BAND, above the ring and in normal flow.
+ *
+ * CENTRED, BECAUSE THAT IS WHAT A BAND IS FOR. Four of the six instances put
+ * one subject in the middle of it; the two that stack a padded column
+ * (`Splice Chamber:101`, `Hybrid Growth:48`) override `align-items` and
+ * `justify-content` from their own sheet, which is the direction a screen's
+ * sheet is allowed to reach - downward into its descendants, never upward
+ * (StatCell.uss's closing note). Defaulting the other way would leave the
+ * centring to be re-derived on every screen that wants the plain form, which
+ * is the trade Task 13 spent its brief declining.
+ *
+ * `flex-grow` SO IT FILLS THE BAND. Without it a centred subject would be
+ * centred in its own height rather than in the band's, which is the same
+ * nothing this rule looks like it is restating and is not.
+ *
+ * NOT NAMED `body`. `SectionCard` owns an element named `body` and so does
+ * `HeroSlot`, and a founder screen holds all three - so a third element
+ * answering that name is a `Q("body")` that means whichever one a future
+ * edit happens to create first. `FounderNamingView`'s own `card-title`
+ * carries the same note for the same reason. */
+.hero-band__subject {
+    flex-grow: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}

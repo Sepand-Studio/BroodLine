@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Regenerates the five UI textures beside this file. Run from the REPO ROOT:
+"""Regenerates the seven UI textures beside this file. Run from the REPO ROOT:
 
     python3 client/Assets/UI/Art/generate-textures.py
 
-None of them is art; all five are arithmetic, which is why the script is
+None of them is art; all seven are arithmetic, which is why the script is
 committed with them rather than the PNGs arriving from nowhere. Needs Pillow.
 
 The nine-slice border on shadow-card.png is NOT recorded here - it is
@@ -11,12 +11,12 @@ re-asserted on every import by client/Assets/Editor/ArtImportSettings.cs,
 because a .meta can be regenerated and a silently-zeroed border turns every
 card shadow into a stretched blur.
 
-THREE OF THE FIVE EXIST BECAUSE USS CANNOT DRAW THEM. Theme.uss's header
+SIX OF THE SEVEN EXIST BECAUSE USS CANNOT DRAW THEM. Theme.uss's header
 lists the four primitives the handoff asks for that USS has no property for;
 these are the answers to three of them:
-  - a gradient          -> a ramp texture, stretched (cta, amber, hybrid)
+  - a gradient          -> a ramp texture, stretched (cta, amber, hybrid, band)
   - a box-shadow        -> a nine-sliced sprite (shadow-card)
-  - a dashed border     -> a ring texture, stretched (hero-ring)
+  - a dashed border     -> a ring texture, stretched (hero-ring, band-ring)
 USS has `border-width` and `border-color` and no `border-style` at all, so a
 dashed or dotted ring is not a border that has been styled - it is a picture.
 """
@@ -112,6 +112,7 @@ shadow.save("client/Assets/UI/Art/shadow-card.png")
 #   cta      linear-gradient(180deg, #8878cf, #6f5fbb)   top -> bottom
 #   amber    linear-gradient(100deg, #fdf0d0, #f9e0a8)   left -> right
 #   hybrid   linear-gradient(170deg, #ffffff, #f4f0fb)   top -> bottom
+#   band     linear-gradient(170deg, #ffffff, #efe9fb)   top -> bottom
 #
 # 100deg is 10 degrees off horizontal and 170deg is 10 off vertical; CSS
 # measures a gradient line clockwise from up, so both are within 10 degrees
@@ -125,6 +126,24 @@ shadow.save("client/Assets/UI/Art/shadow-card.png")
 # the #f7f4fb page the panel sits on there, and is invisible on the white
 # SectionCard this project puts the panel on. The other five endpoints are
 # the handoff's own, to the digit.
+#
+# THE BAND RAMP IS NOT THE HYBRID RAMP, AND THE FIRST THING CHECKED WAS
+# WHETHER IT COULD BE. They are the same handoff declaration - 170deg, white
+# to one step off --paper - but the hybrid ramp was DEEPENED at both ends for
+# a panel drawn on a white SectionCard (#f7f4fb -> #ebe4f7), and the band is
+# drawn on --paper itself. Starting a band at --paper would make its top edge
+# invisible against the page it sits on, which is the same defect
+# --hybrid-tint-deep exists to avoid, mirrored. So the band keeps the
+# handoff's own white start.
+#
+# ITS DEEP END IS --violet-tint (#f1ecfa) AND NOT THE HANDOFF'S #efe9fb,
+# which is 6 away in summed channel distance. The six band instances in the
+# bundle end at #eeeaf8, #efe9fb, #f0edf9, #f2edfb and #f4f0fb - a 16-wide
+# spread that is one colour at this precision - so a seventh near-violet
+# invented to match one of them is the drift verify-uss-tokens.sh exists to
+# stop. Measured on the surfaces that matter: #f1ecfa is 38 from the white
+# the ramp starts at and 15 from the --paper page the band sits on, so the
+# band reads as its own surface at both ends.
 
 
 def ramp(name, start, end, horizontal=False):
@@ -142,6 +161,82 @@ def ramp(name, start, end, horizontal=False):
 ramp("cta-ramp.png", (0x88, 0x78, 0xcf), (0x6f, 0x5f, 0xbb))
 ramp("amber-ramp.png", (0xfd, 0xf0, 0xd0), (0xf9, 0xe0, 0xa8), horizontal=True)
 ramp("hybrid-ramp.png", (0xf7, 0xf4, 0xfb), (0xeb, 0xe4, 0xf7))
+ramp("band-ramp.png", (0xff, 0xff, 0xff), (0xf1, 0xec, 0xfa))
+
+# ----------------------------------------------------------- the two rings
+#
+# ONE FUNCTION, TWO RINGS, AND TASK 14c IS WHY IT IS A FUNCTION. It was
+# hero-ring's inline block until the hero BAND needed a ring of its own and
+# the first question asked was whether hero-ring.png could simply be
+# stretched to it. It cannot, and the arithmetic is worth keeping because it
+# is the general answer for the next ring too: a stretched ring keeps its
+# DASH COUNT and scales its STROKE, and both of those are wrong by a lot at
+# 2.75x.
+#
+#   hero-ring.png stretched from 96px to the band's 264px
+#     stroke   2px  ->  2 * 264/96 = 5.5px   against the handoff's 1.6
+#     dashes   30   ->  30                   against the handoff's ~52
+#
+# So the dashes come out 1.7x too long, the gaps 1.7x too wide and the ink
+# 3.4x too heavy - a different ring, not the same ring bigger. A second
+# texture it is, and the shared code below is what stops the two drifting in
+# how they are DRAWN while differing in what they draw.
+#
+# THE BAND RING IS ONE TEXTURE FOR THREE HANDOFF INSTANCES, and that is a
+# deliberate rounding rather than an oversight. `Onboarding.dc.html:45` is
+# r 132 with `stroke-dasharray: 4 12`, `Splice Reveal.dc.html:45` is r 140
+# with the same, and `Hybrid Growth.dc.html:50` is r 104 with `4 10` - which
+# is 51.8, 55.0 and 46.7 dash periods respectively. 52 sits inside 11% of all
+# three, and because the texture is stretched a screen that wants a different
+# diameter gets the same 52 dashes at a different scale. Three PNGs for a
+# spread that narrow is three files to keep in step for no visible gain.
+#
+# 52, NOT 51.84, FOR THE REASON THE 30 BELOW IS AN INTEGER: a dash pattern
+# laid along a circle has to CLOSE, and an arc length that does not divide
+# the circumference leaves one short dash where the pattern meets its own
+# start. At the drawn size that reads as a nick rather than as a pattern.
+#
+# THE RING DOES NOT ROTATE, AND THE HANDOFF'S DOES. Every instance of it
+# carries `class="spin"`, which is `animation: orbit 20s linear infinite`.
+# USS on 6000.6.0f1 has `transition-*` and no `@keyframes` and no
+# `animation`, so there is no property this can land in - it is the same
+# class of absence as `align-items: baseline`, `text-transform` and `calc()`,
+# and it is recorded here rather than dropped silently. The only mechanism
+# that WOULD produce it is a C# scheduler writing `style.rotate` every frame,
+# which was considered and declined: it would spend a repaint per frame on
+# decoration, and it would make the capture corpus - this project's only
+# evidence that anything renders at all - land on a different frame every
+# run. HeroSlot made the same call in Task 13 ("the rotation is not
+# reproduced here and is not missed on a still surface") and the Vocabulary
+# capture shows a ring that reads correctly without it.
+
+
+def dotted_ring(name, size, stroke, dashes, duty, ss=4):
+    """A closed dotted circle, authored white, supersampled then downsampled.
+
+    `size` is the texture's own edge in px, `stroke` its ink width in the SAME
+    texture px, `dashes` the integer number of periods around the circle and
+    `duty` the inked fraction of one period.
+    """
+    big = size * ss
+    img = Image.new("RGBA", (big, big), (255, 255, 255, 0))
+    pen = ImageDraw.Draw(img)
+    width = stroke * ss
+    inset = width / 2.0
+    box = (inset, inset, big - inset - 1, big - inset - 1)
+    period = 360.0 / dashes
+    for k in range(dashes):
+        start = k * period
+        pen.arc(box, start, start + period * duty, fill=(255, 255, 255, 255), width=int(width))
+
+    # RGB IS WHITE EVERYWHERE, INCLUDING WHERE ALPHA IS ZERO, which is what
+    # keeps the downsample clean: Pillow resamples the channels independently
+    # and does not premultiply, so a transparent pixel carrying black RGB
+    # would bleed grey into every antialiased edge. The fill above is
+    # white-with-zero-alpha for exactly that reason, so the colour channel is
+    # constant and only alpha is actually resampled.
+    img.resize((size, size), Image.LANCZOS).save("client/Assets/UI/Art/" + name)
+
 
 # ------------------------------------------------------------------ hero-ring
 #
@@ -170,28 +265,35 @@ ramp("hybrid-ramp.png", (0xf7, 0xf4, 0xfb), (0xeb, 0xe4, 0xf7))
 # reads as a nick rather than as a pattern. So the count is the integer and
 # the length falls out of it: 30 periods of 12 degrees, 27.6% of each period
 # inked, which is the handoff's own 3-on-8-off duty cycle at this radius.
-RING = 288                     # 3x of --hero-slot
-RING_SS = 4                    # supersample, then downsample for the edges
-RING_STROKE = 2 * 3            # --hero-ring at 3x
-RING_DASHES = 30
-RING_DUTY = 3.0 / 11.0         # the handoff's `stroke-dasharray: 3 8`
+dotted_ring("hero-ring.png",
+            288,           # 3x of --hero-slot (96px)
+            2 * 3,         # --hero-ring (2px) at 3x
+            30,
+            3.0 / 11.0)    # the handoff's `stroke-dasharray: 3 8`
 
-big = RING * RING_SS
-ring = Image.new("RGBA", (big, big), (255, 255, 255, 0))
-pen = ImageDraw.Draw(ring)
-stroke = RING_STROKE * RING_SS
-inset = stroke / 2.0
-box = (inset, inset, big - inset - 1, big - inset - 1)
-period = 360.0 / RING_DASHES
-for k in range(RING_DASHES):
-    start = k * period
-    pen.arc(box, start, start + period * RING_DUTY, fill=(255, 255, 255, 255), width=int(stroke))
+# ------------------------------------------------------------------ band-ring
+#
+# The dotted ring behind a HeroBand's subject - the handoff's own
+# `<g class="spin" ... stroke-dasharray="4 12"><circle r="132">` on
+# `Onboarding.dc.html:45`, drawn in a 406-wide viewBox. This project's content
+# column IS 406px at the 430 capture frame, so the 264px diameter is taken at
+# face value rather than rescaled; --band-ring in Tokens.uss is that number
+# and this line and HeroBand.uss are the two files that have to agree on it.
+#
+# 3x, LIKE THE GLYPHS AND LIKE hero-ring: 792px authored, 264px drawn. The
+# stroke is the SAME six texture px as hero-ring's, which at 3x is the same
+# 2px of ink - the handoff draws both rings at 1.6-2px and --hero-ring
+# already records that rounding.
+#
+# THE DASH PITCH COMES OUT AT THE HANDOFF'S, CHECKED RATHER THAN ASSUMED. At
+# 264px drawn with a 2px stroke the centreline radius is 131, so the
+# circumference is 823.1px and one of 52 periods is 15.83px: 3.96px of ink and
+# 11.87px of gap, against the handoff's 4 and 12.
+dotted_ring("band-ring.png",
+            792,           # 3x of --band-ring (264px)
+            2 * 3,         # the same 2px of ink as hero-ring, at 3x
+            52,
+            4.0 / 16.0)    # the handoff's `stroke-dasharray: 4 12`
 
-# RGB IS WHITE EVERYWHERE, INCLUDING WHERE ALPHA IS ZERO, which is what keeps
-# the downsample clean: Pillow resamples the channels independently and does
-# not premultiply, so a transparent pixel carrying black RGB would bleed grey
-# into every antialiased edge. Set transparent to white-with-zero-alpha above
-# and the colour channel is constant, so only alpha is actually resampled.
-ring.resize((RING, RING), Image.LANCZOS).save("client/Assets/UI/Art/hero-ring.png")
-
-print("wrote shadow-card, cta-ramp, amber-ramp, hybrid-ramp, hero-ring")
+print("wrote shadow-card, cta-ramp, amber-ramp, hybrid-ramp, band-ramp, "
+      "hero-ring, band-ring")

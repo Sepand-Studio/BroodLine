@@ -261,6 +261,25 @@
     --radius-card: 20px;
     --radius-cta: 15px;
 
+    /* THE HERO BAND'S OWN RADIUS, AND IT IS NOT --radius-card. Measured, at
+     * the line: `Onboarding.dc.html:43` and `Splice Reveal.dc.html:43` both
+     * set the band `border-radius: 26px`, six above the 20px every card in
+     * the bundle carries. That is the handoff saying the band is not a card -
+     * it is the one surface on a step screen that the subject is looked at
+     * inside, and a softer corner is how it says so.
+     *
+     * COUNTED ACROSS THE SIX INSTANCES RATHER THAN TAKEN FROM ONE. The
+     * `linear-gradient(170deg, #ffffff, ...)` band appears at 26px
+     * (`Onboarding:43`, `Splice Reveal:43`), 24px (`Gene Ark:47`,
+     * `Gene Lab:51`, `Hybrid Growth:48`) and 22px (`Splice Chamber:101`).
+     * 26 is taken because the two screens at 26 are the two that draw the
+     * band at FULL height with a subject centred in it, which is what this
+     * component is for; the four at 22-24 wrap a graphic or a padded column
+     * and are a shorter, denser surface. A screen that needs 24 or 22 writes
+     * it beside its own measurement, which is this file's standing rule for
+     * one-off geometry. */
+    --radius-band: 26px;
+
     /* ---- Component geometry ----
      *
      * FOUR SIZES, AND THEY ARE HERE RATHER THAN IN A STYLESHEET BECAUSE TWO
@@ -277,6 +296,29 @@
     --hero-ring: 2px;             /* HeroSlot dotted ring width - the handoff's 1.6-2px ring stroke */
     --lane-card-height: 274px;    /* LanePreviewCard - 4:3 at the 366px content width, the handoff's own 406x300 lane */
     --field-badge: 18px;          /* FieldSlotRow letter badge - the handoff's 18px square */
+
+    /* HeroBand's dashed ring, and a token on the same test as --hero-slot:
+     * two files have to agree on it. `generate-textures.py` DRAWS band-ring
+     * .png at 3x of this number, and `HeroBand.uss` sizes the element it is
+     * stretched into. Move one without the other and the ring's ink stops
+     * being 2px wide, which nothing in USS or the gates can see.
+     *
+     * 264 IS THE HANDOFF'S OWN NUMBER, NOT A RESCALE OF IT.
+     * `Onboarding.dc.html:45` draws `<circle cx="203" cy="168" r="132">` in a
+     * `viewBox="0 0 406 336"` with no `preserveAspectRatio`, so it meets the
+     * band's box and the ring is 264px across a 406px band. This project's
+     * content column IS 406px at the 430 capture frame - the scaffold's
+     * --gutter on each side of 430 - so the proportion carries over at 1:1
+     * and there is nothing to scale. (--hero-slot's 0.86 is a separate and
+     * older decision about the SUBJECT inside the ring, not about the band.)
+     *
+     * THE OTHER TWO BAND RINGS ARE 280 AND 208 and are not this token.
+     * `Splice Reveal.dc.html:45` is r 140 and `Hybrid Growth.dc.html:50` is
+     * r 104; because the texture is stretched, a screen that wants either
+     * writes its own width beside its own measurement and gets the same 52
+     * dashes at a different scale. generate-textures.py's band-ring block has
+     * why one texture serves all three. */
+    --band-ring: 264px;           /* HeroBand dotted ring - Onboarding.dc.html:45, circle r 132 in a 406 viewBox */
 
     /* ---- Elevation. USS has no box-shadow; these tint a nine-slice. ---- */
     --elev-1-tint: rgba(63, 58, 82, 0.06);   /* handoff: 0 2px 8px  */

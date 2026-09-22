@@ -514,6 +514,164 @@ namespace Broodline.UI.Tests
                 "the body sits inside the surface, not beside it in the shadow's padding");
         }
 
+        // ---------------------------------------------------------------
+        // HeroBand - Phase 9 Task 14c. The gradient panel a subject is
+        // looked at inside, on six screens in the handoff bundle.
+        // ---------------------------------------------------------------
+
+        /// THE ORDER IS THE WHOLE PICTURE. The ring is the surface's FIRST
+        /// child and the subject its second, which in UI Toolkit is
+        /// back-to-front painting order - so the ring is behind the animal
+        /// and not over it. Reversed, the band would draw a dashed circle
+        /// across the creature's face and nothing structural would be wrong.
+        ///
+        /// The pool is a CHILD of the ring rather than a sibling, because in
+        /// the handoff the two never appear apart: all six `class="spin"`
+        /// instances in the bundle have a filled circle inside them and none
+        /// has one without. Nesting is what makes `ring: false` take both.
+        [Test]
+        public void AHeroBandDrawsItsRingBehindItsSubject()
+        {
+            var band = new HeroBand();
+
+            var surface = band.Q<VisualElement>("surface");
+            var halo = band.Q<VisualElement>("halo");
+            Assert.IsNotNull(surface, "the band's fill lives on a child of the wrapper, named 'surface'");
+            Assert.IsNotNull(halo, "a band built with a ring has no ring layer");
+
+            Assert.AreEqual(0, surface.IndexOf(halo),
+                "the ring is not the surface's first child, so it paints over the subject rather than behind it");
+            Assert.AreEqual(1, surface.IndexOf(band.Subject),
+                "the subject does not follow the ring layer");
+
+            var ring = band.Q<VisualElement>("ring");
+            Assert.IsTrue(ring.ClassListContains(HeroBand.RingUssClassName),
+                "the ring lost the class that carries band-ring.png and its tint");
+            Assert.AreSame(ring, band.Q<VisualElement>("glow").parent,
+                "the pool is not inside the ring, so `ring: false` would leave it behind");
+        }
+
+        /// REMOVED, NOT HIDDEN - `HeroSlot`'s and `SectionCard`'s rule. Three
+        /// of the six band screens draw no ring at all (`Gene Ark`,
+        /// `Gene Lab`, `Splice Chamber`), so this is a first-class form and
+        /// not a degenerate one. A `display: none` layer would still answer
+        /// `Q("ring")` and no test could tell the two forms apart.
+        [Test]
+        public void AHeroBandWithNoRingRemovesTheLayerRatherThanHidingIt()
+        {
+            var band = new HeroBand(ring: false);
+
+            Assert.IsNull(band.Q<VisualElement>("halo"), "the ringless band kept its ring layer");
+            Assert.IsNull(band.Q<VisualElement>("ring"));
+            Assert.IsNull(band.Q<VisualElement>("glow"), "the pool outlived the ring it belongs to");
+
+            Assert.IsNotNull(band.Subject, "a ringless band lost its content slot as well");
+            Assert.AreEqual(0, band.Q<VisualElement>("surface").IndexOf(band.Subject),
+                "the subject did not move up when the ring layer was removed");
+        }
+
+        /// A band with nothing in it is a real state, not a broken one: the
+        /// handoff's splice chamber opens with neither parent picked, and
+        /// `Gene Ark` draws its band around a scene that has not loaded. The
+        /// growth calls have to survive it too - they write to the surface,
+        /// which exists whether or not anything is in it.
+        [Test]
+        public void AHeroBandWithNoSubjectDoesNotCrash()
+        {
+            var band = new HeroBand();
+            Assert.AreEqual(0, band.Subject.childCount, "an unfilled band invented a child");
+
+            Assert.DoesNotThrow(() => band.Fill(300f));
+            Assert.DoesNotThrow(() => band.Fix(372f));
+            Assert.DoesNotThrow(() => new HeroBand(ring: false).Fill(0f));
+        }
+
+        /// The same arrangement `ASectionCardWearsItsElevationOnTheWrapper
+        /// AndNotOnTheSurface` pins, at the band's own elevation. Theme.uss
+        /// header note 2: UI Toolkit clips a background image to the
+        /// element's own box, so a nine-sliced drop shadow has to be drawn by
+        /// something larger than the surface it falls around.
+        ///
+        /// `.elev-2` RATHER THAN `.elev-1` IS ASSERTED AS A VALUE, not just
+        /// as "some elevation". All six band instances in the bundle are
+        /// `0 4px 16px` where the cards above and below them are `0 2px 8px`,
+        /// which is the 2:1 pair the two classes already map.
+        [Test]
+        public void AHeroBandWearsItsElevationOnTheWrapperAndNotOnTheSurface()
+        {
+            var band = new HeroBand();
+
+            Assert.IsTrue(band.ClassListContains("elev-2"),
+                "the band's root is the elevation wrapper, at the handoff's own 0 4px 16px");
+            Assert.IsFalse(band.ClassListContains("elev-1"),
+                "the band is a step above the cards around it, not level with them");
+
+            var surface = band.Q<VisualElement>("surface");
+            Assert.IsFalse(surface.ClassListContains("elev-2"),
+                "elevation on the surface itself paints a smudge across the band's interior");
+            Assert.IsFalse(surface.ClassListContains("elev-1"));
+        }
+
+        /// THE TASK 14b REGRESSION, PINNED. `flex-grow` on an elevation
+        /// wrapper stretches the wrapper while the surface keeps its own
+        /// height, so the nine-slice draws its drop around bare paper - 160px
+        /// of it on the founder screen, seen by no test and caught only by
+        /// the capture corpus. `SectionCard.uss`'s note beside
+        /// `.section-card__surface` is the record.
+        ///
+        /// THIS IS WHY `Fill` WRITES INLINE STYLE RATHER THAN ADDING A CLASS.
+        /// These trees have no panel, so a `resolvedStyle` read would be
+        /// meaningless and a pair of USS rules would be exactly as silent as
+        /// the pair that came apart. `style.flexGrow.value` is the property
+        /// the method actually writes, so deleting either half reddens here.
+        [Test]
+        public void AHeroBandThatFillsGrowsItsSurfaceAndNotOnlyItsWrapper()
+        {
+            var band = new HeroBand();
+            band.Fill(300f);
+
+            var surface = band.Q<VisualElement>("surface");
+            Assert.AreEqual(1f, band.style.flexGrow.value,
+                "the band does not take the column's slack; the handoff's hero is `flex: 1`");
+            Assert.AreEqual(1f, surface.style.flexGrow.value,
+                "only the elevation wrapper grew - the surface stayed at its floor and the nine-sliced "
+                + "shadow is being drawn around bare paper, which is Task 14b's defect exactly");
+            Assert.AreEqual(300f, surface.style.minHeight.value.value,
+                "the handoff's `min-height: 300px` landed somewhere other than the surface");
+        }
+
+        /// The other growth form - `Splice Reveal.dc.html:43` pins its band
+        /// at 372 rather than growing it. The height goes on the SURFACE for
+        /// the mirror of the reason above: set on the root it would size the
+        /// shadow and leave the fill at whatever its content came to.
+        ///
+        /// THE TWO FORMS UNDO EACH OTHER, which is asserted rather than
+        /// assumed. A band told to fill and then told to fix is a band a
+        /// screen changed its mind about, and leaving `flex-grow` behind
+        /// would make the "fixed" height a floor instead.
+        [Test]
+        public void AHeroBandThatIsFixedSizesItsSurfaceAndClearsTheFill()
+        {
+            var band = new HeroBand();
+            band.Fill(300f);
+            band.Fix(372f);
+
+            var surface = band.Q<VisualElement>("surface");
+            Assert.AreEqual(372f, surface.style.height.value.value,
+                "the fixed height is not on the surface");
+            Assert.AreEqual(StyleKeyword.Null, band.style.flexGrow.keyword,
+                "a fixed band kept the wrapper's flex-grow, so it still stretches past its height");
+            Assert.AreEqual(StyleKeyword.Null, surface.style.flexGrow.keyword,
+                "a fixed band kept the surface's flex-grow");
+            Assert.AreEqual(StyleKeyword.Null, surface.style.minHeight.keyword,
+                "the old floor outlived the Fill that set it");
+
+            // And back the other way, so neither call is the special one.
+            band.Fill(300f);
+            Assert.AreEqual(StyleKeyword.Null, surface.style.height.keyword,
+                "the fixed height outlived the Fill that replaced it, so the band cannot grow past it");
+        }
+
         [Test]
         public void AnEmptyStateSaysSomethingRatherThanRenderingNothing()
         {

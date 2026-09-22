@@ -98,6 +98,7 @@ public static class ScreenFixtures
         "Components",
         "Vocabulary",
         "Lane",
+        "Band",
     };
 
     /// Whether the shell holds this fixture in `#screen-host`, which is the
@@ -115,9 +116,9 @@ public static class ScreenFixtures
     ///                 does not reproduce the overlay layer.
     ///   WaveHudView - never reaches ScreenHost at all. `WaveRunner` adds it
     ///                 straight to the wave scene's own panel root.
-    ///   the six catalogues - Primitives, Icons, Scaffold, Components,
-    ///                 Vocabulary and Lane are not screens and have no place
-    ///                 in the shell.
+    ///   the seven catalogues - Primitives, Icons, Scaffold, Components,
+    ///                 Vocabulary, Lane and Band are not screens and have no
+    ///                 place in the shell.
     public static bool GoesInTheScreenHost(string name)
     {
         switch (name)
@@ -130,6 +131,7 @@ public static class ScreenFixtures
             case "Components":
             case "Vocabulary":
             case "Lane":
+            case "Band":
                 return false;
             default:
                 return true;
@@ -158,6 +160,7 @@ public static class ScreenFixtures
             case "Components": return Components();
             case "Vocabulary": return Vocabulary();
             case "Lane": return Lane();
+            case "Band": return Band();
             default: throw new ArgumentException("ScreenFixtures has no fixture named '" + name + "'", nameof(name));
         }
     }
@@ -1129,6 +1132,80 @@ public static class ScreenFixtures
         field.Body.Add(FieldPair(selected,
             new FieldSlotRow("D", "Cinderplate R1", filled: true, onTap: () => { })));
         Stack(field);
+
+        return root;
+    }
+
+    /// The tenth part of the vocabulary and the only one Task 13 did not
+    /// build - Phase 9 Task 14c's `HeroBand`, in the three forms the
+    /// handoff's six instances come in.
+    ///
+    /// A FIXTURE OF ITS OWN, BECAUSE `Vocabulary` HAS NO ROOM AND THE FRAME
+    /// DOES NOT SAY SO. That fixture's own note records what a flex column
+    /// does with an overflow - it SHRINKS every child that will shrink,
+    /// silently, which once took a 6px ProgressBar track to zero height and
+    /// out of the picture altogether. One band is 300px on its own; three
+    /// would take every pixel `Vocabulary` has and then some.
+    ///
+    /// AND A FIXTURE IS THE POINT RATHER THAN THE PAPERWORK. `FounderNaming
+    /// View` instances exactly ONE of the three forms - filled, with a ring -
+    /// so on that capture alone the ringless band and the fixed band are two
+    /// code paths nobody has looked at. That is precisely how Pale's hero
+    /// disc shipped invisible through two components and two fix rounds: a
+    /// defect this project had already found and already fixed sat unrendered
+    /// in a second place for as long as no fixture instanced it.
+    ///
+    /// THE MIDDLE BAND IS DELIBERATELY EMPTY. `Gene Ark` and `Gene Lab` draw
+    /// the ringless band around a scene, and what this frame is for is
+    /// everything the band owns on its own - the ramp, the radius-26 corner
+    /// and the elevation - with nothing in front of them. An empty band is
+    /// also the state `AHeroBandWithNoSubjectDoesNotCrash` asserts, rendered.
+    static VisualElement Band()
+    {
+        var root = CatalogueRoot();
+
+        void Stack(VisualElement child)
+        {
+            child.style.flexShrink = 0;
+            root.Add(child);
+        }
+
+        var title = new Label("Band");
+        title.AddToClassList("t-screen-title");
+        Stack(title);
+
+        Stack(ComponentCaption("HeroBand  -  fixed, with the ring and a founder in it"));
+
+        // FIXED RATHER THAN FILLED, AT THE HANDOFF'S OWN 300. `Fill` needs a
+        // column with slack to take and this catalogue's root is a plain
+        // stack, so a filled band here would size to its floor and show
+        // nothing a fixed one does not - and the floor is the number worth
+        // looking at. It is also the smallest band that does NOT clip the
+        // 264px ring, which is what makes this the frame where the ring can
+        // be counted; the two below it are deliberately shorter than that.
+        var withRing = new HeroBand();
+        withRing.Fix(300f);
+        var founder = new HeroSlot();
+        founder.Bind(Creature("Vetch", 4, name: "Ash", founder: true,
+            trait1: "Carapace", tier1: 1, trait2: "Taunt", tier2: 1));
+        withRing.Subject.Add(founder);
+        Stack(withRing);
+
+        Stack(ComponentCaption("HeroBand(ring: false)  -  the ramp, the corner and the elevation alone"));
+        var ringless = new HeroBand(ring: false);
+        ringless.Fix(120f);
+        Stack(ringless);
+
+        // THE RING WITH NOTHING INSIDE IT, which is what three of the six
+        // handoff screens would show before their content arrives and is the
+        // only frame in the corpus where the pool's fill can be read against
+        // both ends of the ramp at once - --violet-pressed is 64 from the
+        // white the band starts at and 26 from the --violet-tint it ends on,
+        // and HeroBand.uss's note is the arithmetic this is the picture of.
+        Stack(ComponentCaption("HeroBand  -  the ring and the pool, with no subject"));
+        var empty = new HeroBand();
+        empty.Fix(200f);
+        Stack(empty);
 
         return root;
     }
