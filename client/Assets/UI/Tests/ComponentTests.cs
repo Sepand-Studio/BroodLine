@@ -884,7 +884,17 @@ namespace Broodline.UI.Tests
         /// no string type that could itself contain an unmatched brace, so
         /// this is the whole of what stripping USS needs - unlike the C#
         /// stripper it has no quote states to track.
-        static string StripBlockComments(string src)
+        ///
+        /// `internal` AS OF PHASE 9 TASK 19 FIX ROUND 1, and the alternative
+        /// was shipping a blind spot twice. `FirstHourScreensTests` needs the
+        /// same pass to assert that the codex sheet is anchored to the bottom
+        /// edge and that the lineage highlight's ground is not a species chip
+        /// tint - both stylesheet facts, both previously unpinned, and the
+        /// bottom-anchoring defect existed precisely because nothing asserted
+        /// a position. One shared pure function beats a second copy that can
+        /// drift from this one; it stays here rather than moving to a new
+        /// file because this is where its whole account already is.
+        internal static string StripBlockComments(string src)
         {
             var outp = new StringBuilder(src.Length);
             var inComment = false;

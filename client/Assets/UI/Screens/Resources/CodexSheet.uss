@@ -54,7 +54,13 @@
     left: 0;
     right: 0;
     bottom: 0;
-    flex-direction: column;
+    /* No `flex-direction: column` here or on `#surface`: it is UI Toolkit's
+     * default, `.abandoned-wave-sheet` omits it for that reason, and this
+     * sheet's own standard is "does any declaration restate a component or a
+     * Theme class". `justify-content: flex-end` therefore means the BOTTOM
+     * edge, which is the whole arrangement. (`.codex-sheet__entries` below
+     * still carries one; it predates this task and is left alone rather than
+     * swept in, and it is named in the Task 19 report.) */
     justify-content: flex-end;
 }
 
@@ -63,7 +69,6 @@
  * gutter, and that difference is the sheet convention rather than a drift:
  * both sheets in this app inset their content further than a screen does. */
 .codex-sheet__surface {
-    flex-direction: column;
     background-color: var(--surface);
     border-top-left-radius: var(--radius-card);
     border-top-right-radius: var(--radius-card);
@@ -90,17 +95,56 @@
  * exactly the shape that reaches further than its comment claims. */
 .codex-entry Label { white-space: normal; }
 
-/* THE SPECIMEN ROW - the same two declarations
- * `.splice-chamber-view__parent-traits` and `.node__traits` carry, for the
- * same reason `StatCell.uss`'s closing note gives: a component's stylesheet
- * reaches the component and its descendants and never its parent, so the
- * gap under a chip belongs to whatever holds the chip.
+/* THE ENTRY'S HEADING ROW - the trait's name on the left and the specimen
+ * chip at the right edge, which is `.splice-chamber-view__card-header`'s
+ * shape and the position a `GenChip` occupies on a roster card and a parent
+ * tile. Declarations rather than a component, because a two-sided card
+ * header is a screen's own furniture in this project: `SpliceChamberView`
+ * and `FounderNamingView` each build one, and neither `SectionCard` nor
+ * anything else owns it.
  *
- * ONE CHIP, AND THE RULE IS STILL WRITTEN FOR A STACK. `config.traits` names
- * one trait per entry today; a rule that worked only because the count
- * happened to be one would be a rule nobody could add a second chip under. */
-.codex-entry__traits { margin-top: var(--space-2); }
+ * `align-items: center` RATHER THAN `baseline`, which UI Toolkit does not
+ * have at all - one of the four declarations this project records as
+ * silently dropped. The chamber's own header note carries the same line.
+ *
+ * THE CHIP MOVED HERE IN FIX ROUND 1 AND IT WAS UNDER `found-on` BEFORE. A
+ * chip's payload is its species tint, and `TraitCodexScreen.FoundOn` is
+ * literally "Found on " + species - so stacked directly beneath that
+ * sentence the chip repeated it on BOTH channels at once, in the worst
+ * available position. Beside the heading it reads as a badge on the subject,
+ * which is the swatch a reference table puts next to the term it defines and
+ * the recognition surface bible 10.5 makes this sheet's job. The WORD is
+ * still the heading's word; that is inherent to showing a specimen, and a
+ * chip carrying anything else would not be the thing a player is learning to
+ * recognise.
+ *
+ * THE `margin-bottom` IS `SectionCard`'s OWN, RE-STATED RATHER THAN
+ * OVERRIDDEN. `.section-card__heading` puts --space-2 under a card's heading,
+ * and this entry builds its own Label inside `Body` instead - so that rule
+ * never reaches it and there is nothing here to cancel. Without this the row
+ * sits flush against "Counters ...". Deliberately the same token, so a codex
+ * entry and every other card in the app still break at the same distance
+ * under their heading. */
+.codex-entry__header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-2);
+}
 
-.codex-entry__traits > .trait-chip { margin-bottom: var(--space-1); }
+/* The chip host, so the chip sits at the row's right edge rather than
+ * stretching to the row's height - `.splice-chamber-view__gen`'s rule, for
+ * the reason its own note gives.
+ *
+ * AND THERE IS NO GAP RULE HERE AT ALL, WHICH IS THE POINT OF THE ROW.
+ * `TraitChip` already owns the handoff's `gap: 4px` as 2px of margin on each
+ * of its own sides, so chips laid out horizontally need nothing added -
+ * `.splice-chamber-view__parent-traits`' own note has the six pixels that
+ * restating it cost there. A `margin-bottom` is what a COLUMN of chips
+ * needs; the first draft of this rule carried one into a row, where it does
+ * not space anything and pulls the single chip 2px off the row's centre
+ * line. `.node__traits`' header records what each of the three positions in
+ * the app actually spends. */
+.codex-entry__traits { flex-direction: row; }
 
 .codex-sheet__dismiss { margin-top: var(--space-3); }

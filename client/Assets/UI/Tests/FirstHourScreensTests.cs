@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Broodline.Api;
 using Broodline.Model;
 using Broodline.UI.Components;
+using Broodline.UI.Diagnostics;
 using Broodline.UI.Screens;
 using NUnit.Framework;
 using UnityEngine.UIElements;
@@ -984,6 +987,19 @@ namespace Broodline.UI.Tests
             // stating data_model 2's one forbidden conflation.
             Assert.IsFalse(ashChips[0].ClassListContains(TraitChip.AberrantUssClassName),
                 "a tiered trait is marked Aberrant");
+
+            // AND THE LIVE GUARD THE LINE ABOVE NEEDS, which fix round 1
+            // asked for: `IsFalse(ClassListContains(...))` passes trivially
+            // on a component that stopped setting the class at all, or on a
+            // renamed constant. The marker is demonstrated on a chip built
+            // the same way before its absence is treated as meaningful - the
+            // same guard `CodexSheet_MarksEachTraitWithItsSpeciesTintedChip
+            // _AndClaimsNoAberrant` carries, which this one asserted instead
+            // of building.
+            Assert.IsTrue(new TraitChip("Chill", null, "Vetch")
+                    .ClassListContains(TraitChip.AberrantUssClassName),
+                "a bare null-tier chip no longer marks Aberrant, so the assertion above passes "
+                + "for a reason that has nothing to do with this screen");
         }
 
         // ---------------------------------------------------------------
@@ -1259,6 +1275,165 @@ namespace Broodline.UI.Tests
                 Assert.IsNotNull(surface.Q<VisualElement>(name),
                     "`" + name + "` is not inside the sheet's surface");
             }
+        }
+
+        /// STYLESHEET-LEVEL, AND THAT IS THE WHOLE POINT OF THIS TEST.
+        ///
+        /// The defect Task 19 fixed - a sheet five specs call a BOTTOM sheet
+        /// rendering flush with the TOP of the frame - existed precisely
+        /// because nothing asserted a position. `.sheet-layer` sets no
+        /// `justify-content`, flex defaults to `flex-start`, and no test, no
+        /// gate and no build step had anything to say. The structural test
+        /// above pins the root/surface split and nothing else: with it green,
+        /// deleting `justify-content: flex-end` from `CodexSheet.uss` today
+        /// puts the sheet straight back at the top of the screen.
+        ///
+        /// `resolvedStyle` IS NOT AVAILABLE HERE. This suite builds no panel,
+        /// so a stylesheet rule reaches nothing that can be read back -
+        /// `element.style.X` is the INLINE accessor and these are not inline.
+        /// So the sheet is read as SOURCE TEXT, which is
+        /// `ComponentTests.TheDefaultFormStaysContentSizedInTheStylesheetItself`'s
+        /// pattern and `MainThreadAffinityTests`' before it; that file's
+        /// `StripBlockComments` was made `internal` for this rather than
+        /// copied, so the two passes cannot drift.
+        ///
+        /// COMMENTS ARE STRIPPED FIRST AND THAT IS LOAD-BEARING, not tidiness:
+        /// `CodexSheet.uss`'s header explains this change at length and names
+        /// `justify-content` and `border-radius` in prose. A test that matched
+        /// raw text would pass on a sheet that only DOCUMENTED the rule.
+        [Test]
+        public void CodexSheet_IsAnchoredToTheBottomEdgeInTheStylesheetItself()
+        {
+            var uss = ReadStrippedUss("UI/Screens/Resources/CodexSheet.uss");
+
+            var root = RuleBody(uss, ".codex-sheet");
+            StringAssert.Contains("position: absolute", root,
+                "the sheet no longer positions itself, so `.sheet-layer` lays it out as a plain "
+                + "flex child and it reverts to the top of the frame");
+            StringAssert.Contains("justify-content: flex-end", root,
+                "the sheet is not anchored to the bottom edge. This is the exact defect Task 19 "
+                + "fixed and it shipped because nothing asserted a position: five specs call this "
+                + "a BOTTOM sheet (client_architecture section 9, trait_codex.md:148, "
+                + "build_order.md:55) and it rendered flush with the top.");
+
+            var surface = RuleBody(uss, ".codex-sheet__surface");
+            StringAssert.Contains("border-top-left-radius: var(--radius-card)", surface);
+            StringAssert.Contains("border-top-right-radius: var(--radius-card)", surface);
+
+            // A BARE `border-radius` WOULD ROUND ALL FOUR CORNERS, which on a
+            // sheet flush with the bottom edge draws two corners against an
+            // edge that has none - the shape that made the old top-anchored
+            // sheet read as a card that had slid off the screen. The regex is
+            // anchored so `border-top-left-radius` does not match it.
+            Assert.IsFalse(Regex.IsMatch(surface, @"(^|[{;\s])border-radius\s*:"),
+                "the surface rounds all four corners; a bottom sheet has no bottom corners");
+        }
+
+        /// THE COLLISION A CLASS LIST CANNOT SEE - two USS classes resolving
+        /// to one colour. Phase 9 Task 19 fix round 1.
+        ///
+        /// `.node.highlight` is the ground under the one creature bible 9.2
+        /// says a player carries away, and the chips on that node are tinted
+        /// by its species. Through Phase 8 the ground was --violet-tint,
+        /// which IS Hollow's chip fill (dE76 0.00) and is 1.81 from Pale's
+        /// --hairline - against a `SectionCard` drop shadow measuring 1.73
+        /// against its own surface. Both were invisible on the highlighted
+        /// node and every existing test passed throughout, because a class
+        /// list cannot tell you what two classes resolve to.
+        ///
+        /// THE FLOOR IS 4.0 AND IT IS NOT THE SHIPPED NUMBER. --violet-glow
+        /// clears it at 6.69 (Pale, the worst of the six), so this has
+        /// headroom and does not pin one token - a later repaint may move
+        /// either end as long as the marks stay visible. 4.0 is a little
+        /// over twice the drop-shadow reference, which is the scale this
+        /// project has for "a difference a reader can find".
+        [Test]
+        public void Lineage_HighlightGroundSeparatesFromEverySpeciesChipTint()
+        {
+            var ground = TokenIn(ReadStrippedUss("UI/Screens/Resources/LineageView.uss"),
+                ".node.highlight", "background-color");
+
+            var chipUss = ReadStrippedUss("UI/Components/Resources/TraitChip.uss");
+            var species = new[] { "vetch", "ember", "skitter", "hollow", "loam", "pale" };
+
+            var worst = double.MaxValue;
+            var worstName = string.Empty;
+            foreach (var s in species)
+            {
+                var fill = TokenIn(chipUss,
+                    "." + TraitChip.UssClassName + "." + TraitChip.UssClassName + "--" + s,
+                    "background-color");
+                var d = DeltaE76(Token(ground), Token(fill));
+                if (d >= worst) continue;
+                worst = d;
+                worstName = s + " (" + fill + ")";
+            }
+
+            Assert.That(worst, Is.GreaterThanOrEqualTo(4.0),
+                $"the highlighted node's ground ({ground}) is dE76 {worst:F2} from {worstName}, so "
+                + "that species' trait chips are drawn in the colour behind them on the one node "
+                + "this screen exists to point at. A SectionCard's drop shadow measures 1.73 "
+                + "against its own surface, for scale. Move the ground or the tint - do not add a "
+                + "seventh tint - and re-measure all six.");
+        }
+
+        // ---------------------------------------------------------------
+        // Reading a stylesheet as source
+        // ---------------------------------------------------------------
+
+        static string ReadStrippedUss(string relative)
+        {
+            var path = Path.GetFullPath(Path.Combine(UnityEngine.Application.dataPath, relative));
+            Assert.IsTrue(File.Exists(path), $"no stylesheet at {path}");
+            return ComponentTests.StripBlockComments(File.ReadAllText(path));
+        }
+
+        /// The declarations of one rule, by exact selector. THROWS RATHER
+        /// THAN RETURNING EMPTY when the selector is gone: a helper that
+        /// quietly answered "" would leave every `StringAssert.Contains`
+        /// above failing for the wrong reason and every `IsFalse` passing
+        /// vacuously.
+        static string RuleBody(string strippedUss, string selector)
+        {
+            var m = Regex.Match(strippedUss,
+                @"(?<![\w-])" + Regex.Escape(selector) + @"(?![\w-])\s*\{([^}]*)\}");
+            Assert.IsTrue(m.Success, $"selector `{selector}` is not in the stylesheet at all");
+            return m.Groups[1].Value;
+        }
+
+        /// The `var(--token)` a rule sets for one property.
+        static string TokenIn(string strippedUss, string selector, string property)
+        {
+            var m = Regex.Match(RuleBody(strippedUss, selector),
+                Regex.Escape(property) + @"\s*:\s*var\((--[a-z0-9-]+)\)");
+            Assert.IsTrue(m.Success,
+                $"`{selector}` does not set `{property}` to a var(--token); a raw value here would "
+                + "also be outside the token layer, which verify-uss-tokens.sh check 1 forbids");
+            return m.Groups[1].Value;
+        }
+
+        /// A token's hex, from Tokens.uss - the one file that holds values.
+        static string Token(string name)
+        {
+            var path = Path.GetFullPath(Path.Combine(
+                UnityEngine.Application.dataPath, "UI/Shell/Tokens.uss"));
+            var m = Regex.Match(File.ReadAllText(path),
+                Regex.Escape(name) + @"\s*:\s*(#[0-9a-fA-F]{6})\s*;");
+            Assert.IsTrue(m.Success, $"{name} is not defined in Tokens.uss");
+            return m.Groups[1].Value;
+        }
+
+        /// CIE L*a*b* distance, through the same conversion
+        /// `PaletteContrastTests` measures the species palette with -
+        /// `PaletteContrast.SeenAs(hex, "normal")` is that file's own "no
+        /// deficiency" path, verified there against published values.
+        static double DeltaE76(string a, string b)
+        {
+            var x = PaletteContrast.SeenAs(a, "normal");
+            var y = PaletteContrast.SeenAs(b, "normal");
+            return Math.Sqrt((x[0] - y[0]) * (x[0] - y[0])
+                           + (x[1] - y[1]) * (x[1] - y[1])
+                           + (x[2] - y[2]) * (x[2] - y[2]));
         }
     }
 }

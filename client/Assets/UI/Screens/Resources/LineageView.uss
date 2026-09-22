@@ -113,9 +113,17 @@
  * CHIP'S. `StatCell.uss`'s closing note has the measurement in full: a
  * component's stylesheet reaches the component and its descendants and never
  * its parent, so nothing `TraitChip` carries can space the column holding it.
- * `.splice-chamber-view__parent-traits` owns the identical pair of rules for
- * the identical reason, and this is deliberately the same two values so the
- * two tiles stack their chips the same way.
+ * `.splice-chamber-view__parent-traits` owns the same PAIR of declarations
+ * for that reason. ONE OF THE TWO VALUES MATCHES AND THE OTHER DOES NOT, and
+ * the first version of this comment claimed both did. The `margin-bottom`
+ * between stacked chips is --space-1 in all three places that stack them
+ * (here, the chamber, the codex). The `margin-top` is --space-2 on a CARD -
+ * the chamber's parent tile and a codex entry both being `SectionCard`s with
+ * --space-4 of their own padding - and --space-1 here, because a node is a
+ * 94px tile at --space-2 of padding whose whole internal rhythm is --space-1:
+ * `.node__marks` one rule up carries exactly that. So the three are 8 / 4 / 8
+ * by measurement and not by accident, and a reader comparing them should find
+ * that written down rather than have to diff the files.
  *
  * A COLUMN RATHER THAN THE CHAMBER'S WRAPPING ROW, and the node's width is
  * why. A parent tile is 151px wide and fits two chips side by side; a node
@@ -141,16 +149,53 @@
 /* THE ONE NODE THE SCREEN IS ABOUT - bible 9.2's "a creature they named at
  * the bottom of it".
  *
- * IT USED TO SWALLOW ITS OWN TRAIT MARKS. `.trait-pip`'s fill is
- * --violet-tint (`TraitPip.uss:11`) and so is this rule's, so until Phase 9
- * Task 19 the highlighted node's two pills were drawn in exactly the colour
- * behind them and had no edge of any kind: measured on `LineageView.png`,
- * `Ash (G1)`'s tile reads a flat #f1ecfa from y=207 to y=354 while the same
- * pills on the tile beside it are clearly pills. No test could see it - a
- * class list cannot tell you that two classes resolve to one colour - and the
- * capture is what showed it. The marks are `TraitChip`s now and carry the
- * species tint, so the collision survives for Hollow alone, one species in
- * six rather than six in six. Moving THIS colour instead was not available:
- * nothing in the bundle draws this screen, so a new highlight fill would be
- * a value with no source. */
-.node.highlight { background-color: var(--violet-tint); }
+ * IT USED TO SWALLOW ITS OWN TRAIT MARKS. Through Phase 8 this rule read
+ * --violet-tint, which is also `.trait-pip`'s fill (`TraitPip.uss:11`), so
+ * the highlighted node's two pills were drawn in exactly the colour behind
+ * them and had no edge of any kind: measured on `LineageView.png` before
+ * Phase 9 Task 19, `Ash (G1)`'s tile reads a flat #f1ecfa from y=207 to
+ * y=354 while the same pills on the tile beside it are clearly pills. No
+ * test could see it - a class list cannot tell you that two classes resolve
+ * to one colour - and the capture is what showed it.
+ *
+ * TASK 19 MADE THE MARKS `TraitChip`s, WHICH FIXED FOUR OF THE SIX SPECIES
+ * AND NOT TWO. The first report of that task claimed one - Hollow, at dE76
+ * 0.00 - by measuring EXACT EQUALITY. Fix round 1 measured VISIBILITY, which
+ * is the number that decides anything, and found a second: --hairline, which
+ * is Pale's chip fill, is 1.81 from --violet-tint. For scale in this
+ * project's own terms a `SectionCard`'s drop against its own surface is 1.73,
+ * so a Pale chip on a highlighted Pale founder sat at the drop-shadow level
+ * of difference - and `Pale (G1)` is a node this very fixture reaches. Pale
+ * is also the species this project has already shipped this defect against
+ * twice (the hero disc at 1.02:1 on --paper, `1157ed2`).
+ *
+ * SO THE GROUND MOVED, AND TO A TOKEN RATHER THAN TO A NEW VALUE. The first
+ * report said moving this colour "was not available: nothing in the bundle
+ * draws this screen, so a new highlight fill would be a value with no
+ * source". That is true of a NEW value and it is not true of --violet-glow,
+ * which is #e9e0fb at distance 0 from `Onboarding.dc.html:46` and is the
+ * palette owner's own Task 14c ruling. Its role is already this one:
+ * `HeroBand.uss:203` uses it as the pool a subject creature stands on, and a
+ * highlighted node is the ground under the creature this screen is about.
+ *
+ * MEASURED, AGAINST ALL SIX CHIP FILLS, dE76:
+ *
+ *                      on --violet-tint   on --violet-glow
+ *     Pale    hairline       1.81              6.69
+ *     Hollow  violet-tint    0.00              7.82
+ *     Vetch   teal-tint      7.33             14.05
+ *     Ember   coral-tint     9.73             16.11
+ *     Loam    green-tint    13.57             20.88
+ *     Skitter amber-tint    20.16             27.18
+ *
+ * The worst case goes from 0.00 to 6.69, which is ~3.9x the drop-shadow
+ * reference and just under the Vetch separation the review confirmed "reads
+ * clearly on the capture". It also separates the highlight from an ORDINARY
+ * node better than before - 13.04 from --surface-sunk against 5.26 - so the
+ * mark this rule exists to make is stronger as well as no longer collapsing.
+ *
+ * PINNED BY `Lineage_HighlightGroundSeparatesFromEverySpeciesChipTint`,
+ * which reads this rule and `TraitChip.uss`'s six as text, resolves all
+ * seven through Tokens.uss and asserts a floor. A future repaint of either
+ * end reddens it; nothing before this task could. */
+.node.highlight { background-color: var(--violet-glow); }

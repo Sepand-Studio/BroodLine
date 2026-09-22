@@ -46,10 +46,13 @@ namespace Broodline.UI.Screens
         public const string UssClassName = "codex-sheet";
         public const string EntryUssClassName = "codex-entry";
 
-        /// The row holding an entry's specimen chip. Named here rather than
-        /// typed as a literal in the sheet, so the coupling between the C#
-        /// that builds the row and the USS that spaces it is visible from
-        /// both ends - `SectionCard.ElevationUssClassName`'s convention.
+        /// The two-sided heading row and the chip host at its right edge.
+        /// Named here rather than typed as literals in the sheet, so the
+        /// coupling between the C# that builds the row and the USS that
+        /// lays it out is visible from both ends -
+        /// `SectionCard.ElevationUssClassName`'s convention.
+        public const string EntryHeaderUssClassName = "codex-entry__header";
+        public const string EntryHeadingUssClassName = "codex-entry__heading";
         public const string EntryTraitsUssClassName = "codex-entry__traits";
 
         /// The element the fill, the radius and the padding live on - one
@@ -126,34 +129,54 @@ namespace Broodline.UI.Screens
             // every trait in the codex Aberrant. (The phase 8 plan's step 3
             // for this screen says "TraitPip row unchanged"; there has never
             // been one on this sheet, for that reason.)
-            var entry = new SectionCard(trait.Id) { name = trait.Id };
+            // NO `SectionCard(heading)`, AND `SpliceChamberView` SET THIS
+            // PRECEDENT. That constructor draws one 19px Baloo line and
+            // nothing may sit beside it; the handoff's card header is a
+            // TWO-SIDED ROW, and the chamber's parent tiles and forecast card
+            // are all built with no heading and carry their own. So is this,
+            // for the same reason and in the same shape: the lookup key on
+            // the left, the specimen chip at the right edge - which is where
+            // a roster card and a parent tile both put their `GenChip`.
+            var entry = new SectionCard { name = trait.Id };
             entry.AddToClassList(EntryUssClassName);
+
+            // `.t-section` IS THE SAME 19px BALOO `SectionCard`'s OWN HEADING
+            // WEARS, so moving the line into the row changes the type not at
+            // all - only what is allowed to sit next to it.
+            var heading = new Label(trait.Id) { name = "heading" };
+            heading.AddToClassList(EntryHeadingUssClassName);
+            heading.AddToClassList("t-section");
+
+            // THE SPECIMEN. It is the one thing on this sheet carrying
+            // colour, and the colour is the whole reason it is here: a player
+            // learns "teal means Vetch" on the roster and on the parent
+            // tiles, and the codex is where they come to look a trait up.
+            // bible 10.5 makes recognition this screen's job; the chip is
+            // what the player is recognising.
+            //
+            // BESIDE THE HEADING AS OF FIX ROUND 1, NOT UNDER `found-on`.
+            // `TraitCodexScreen.FoundOn` is literally "Found on " + species,
+            // and a chip's payload IS the species tint - so stacked directly
+            // under that sentence the chip repeated it on both channels at
+            // once. The word still repeats the heading's, which is inherent
+            // to showing a specimen; what is fixed is the tint repeating the
+            // line above it. CodexSheet.uss's `.codex-entry__header` note has
+            // the full account.
+            var traits = new VisualElement { name = "traits" };
+            traits.AddToClassList(EntryTraitsUssClassName);
+            traits.Add(ChipFor(trait));
+
+            var header = new VisualElement { name = "header" };
+            header.AddToClassList(EntryHeaderUssClassName);
+            header.Add(heading);
+            header.Add(traits);
+            entry.Body.Add(header);
 
             entry.Body.Add(new Label { name = "counters", text = TraitCodexScreen.Counters(trait) });
 
             var foundOn = new Label { name = "found-on", text = TraitCodexScreen.FoundOn(trait) };
             foundOn.AddToClassList("t-secondary");
             entry.Body.Add(foundOn);
-
-            // THE SPECIMEN, LAST, WHICH IS THE ROSTER CARD'S OWN ORDER:
-            // subject, then the facts about it, then the trait marks
-            // (`CreatureCard` - name, role line, chips). It is the one thing
-            // on this sheet carrying colour, and the colour is the whole
-            // reason it is here: a player learns "teal means Vetch" on the
-            // roster and on the parent tiles, and the codex is where they
-            // come to look a trait up. bible 10.5 makes recognition this
-            // screen's job; the chip is what the player is recognising.
-            //
-            // IT REPEATS THE HEADING'S WORD AND THAT IS NOT A SLIP. The
-            // heading is the lookup key at 19px, which a reference table
-            // needs and a 10px chip cannot be. The chip is the SHAPE the same
-            // word wears everywhere else in the app. Replacing the heading
-            // with it was the alternative and it puts a 10px subject over
-            // 12px facts, which is upside down.
-            var traits = new VisualElement { name = "traits" };
-            traits.AddToClassList(EntryTraitsUssClassName);
-            traits.Add(ChipFor(trait));
-            entry.Body.Add(traits);
 
             return entry;
         }
