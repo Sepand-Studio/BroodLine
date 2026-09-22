@@ -295,10 +295,58 @@ namespace Broodline.UI.Tests
             Assert.AreEqual(1, body.IndexOf(heading), "the title does not follow the kicker");
             Assert.AreEqual(2, body.IndexOf(view.Q<Label>("prompt")), "the body copy does not follow the title");
 
-            // AND THE HERO IS STILL A CARD OF ITS OWN, above that one. The
+            // AND THE HERO IS STILL A SURFACE OF ITS OWN, above that one. The
             // handoff's hero is a separate surface at `flex: 1`.
             Assert.AreNotSame(body, view.Q<VisualElement>("founder").parent,
                 "the founder was folded into the words card; the handoff draws it in a band of its own");
+        }
+
+        /// PHASE 9 TASK 14c. Through Task 14b the hero was a flat white
+        /// `SectionCard` at --radius-card - correct in composition and wrong
+        /// in fidelity, because the handoff's step hero is a gradient band at
+        /// radius 26 with a dashed ring and a violet pool behind the subject
+        /// (`Onboarding.dc.html:43-47`). Five other screens in the bundle
+        /// draw the same surface, which is why it is a component.
+        ///
+        /// THE BARE-CARD HALF IS ASSERTED, not just the band half. A screen
+        /// that added a `HeroBand` beside the old card would pass every
+        /// positive line here and still draw the defect.
+        [Test]
+        public void FounderNaming_ComposesTheHeroBand_RatherThanAFlatCard()
+        {
+            var view = BoundNaming(Creature("Vetch", founder: true), _ => { }, () => { });
+
+            var founder = view.Q<VisualElement>("founder");
+            var band = view.Q<HeroBand>();
+            Assert.IsNotNull(band, "the founder screen's hero is not a HeroBand");
+            Assert.AreSame(band.Subject, founder.parent,
+                "the founder sits somewhere other than the band's subject slot");
+            Assert.IsNotNull(band.Q<VisualElement>("ring"),
+                "the band drew no ring; Onboarding.dc.html:45 has one and it is the fullest instance");
+
+            // THE HANDOFF'S `flex: 1; min-height: 300px`, BOTH HALVES, ON THE
+            // SURFACE. Task 14b's capture is the reason this is asserted from
+            // the screen and not only from ComponentTests: the screen is what
+            // chooses to call `Fill`, and a screen that forgot would render
+            // a 300px band in a column with 150px of slack under it.
+            var surface = band.Q<VisualElement>("surface");
+            Assert.AreEqual(1f, band.style.flexGrow.value,
+                "the band does not take the column's slack, so the screen ends in bare paper");
+            Assert.AreEqual(1f, surface.style.flexGrow.value,
+                "the wrapper grew and the surface did not - the nine-sliced shadow is around bare paper");
+            Assert.AreEqual(300f, surface.style.minHeight.value.value,
+                "the handoff's 300px floor is not on the band");
+
+            // AND NO SECTION CARD IS LEFT AROUND THE CREATURE. The words card
+            // below is still one, so this walks up from the founder rather
+            // than asking the screen whether it has any SectionCard at all.
+            for (var p = founder.parent; p != null && p != view; p = p.parent)
+            {
+                Assert.IsFalse(p is SectionCard,
+                    "the founder is still inside a SectionCard; the flat white hero was the thing "
+                    + "Task 14c replaced, and a band added beside it is not the same as a band "
+                    + "put in its place");
+            }
         }
 
         [Test]

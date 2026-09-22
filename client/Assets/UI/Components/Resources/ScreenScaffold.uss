@@ -259,8 +259,11 @@
  * TEN SCREENS SEE THIS AND ONLY ONE MOVES. A taller container changes no
  * pixel unless a direct child of `Content` carries `flex-grow`, because the
  * column is `justify-content: flex-start` and this element has no fill of its
- * own. `.founder-naming-view__hero` is the only such child in the project;
- * the corpus was re-captured in full to say so rather than to assume it.
+ * own. The founder screen's hero is the only such child in the project; the
+ * corpus was re-captured in full to say so rather than to assume it. It used
+ * to be a `SectionCard` carrying `.founder-naming-view__hero`; as of Task 14c
+ * it is a `HeroBand` and the `flex-grow` is written by `HeroBand.Fill`, so
+ * the child that grows is now any band a screen calls `Fill` on.
  *
  * NOT `height: 100%`. That would CAP the container at the viewport and clip
  * every screen whose content is taller - the roster, the chamber, the

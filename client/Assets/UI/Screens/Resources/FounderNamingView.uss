@@ -8,19 +8,23 @@
  * The scaffold is constructed with `title: null` and hides its header row;
  * FounderNamingView's class comment has what that costs.
  *
- * THIS FILE GREW IN PHASE 9 TASK 14 AND THAT IS NOT A COMPOSITION FAILURE.
- * The brief expected it to shrink, on the general rule that a screen reaching
- * for the component vocabulary should be deleting what it used to hand-roll.
- * Phase 8 Task 9 had already done that deletion - the four rules it removed
- * are listed below and none came back - so there was nothing of that kind
- * left to take out. What arrived instead is the step frame: five pips, a step
+ * THIS FILE GREW IN PHASE 9 TASK 14 AND SHRANK AGAIN IN TASK 14c. Task 14's
+ * brief expected a shrink, on the general rule that a screen reaching for the
+ * component vocabulary should be deleting what it used to hand-roll. Phase 8
+ * Task 9 had already done that deletion - the four rules it removed are
+ * listed below and none came back - so there was nothing of that kind left to
+ * take out THEN. What arrived instead is the step frame: five pips, a step
  * counter and a tip note, which exist on this screen because the handoff's
  * onboarding has them and on no other screen in the app. A component for a
  * vocabulary of one is the trade Task 13 spent its whole brief declining, and
  * `HeroSlot`, `SectionCard` and `ScreenScaffold` are what this screen DID
  * take instead of deriving: the ring, the disc, the species tint, the card,
- * the elevation wrapper, the header, the CTA row. Those are the deletions;
- * they happened one phase early.
+ * the elevation wrapper, the header, the CTA row.
+ *
+ * TASK 14c THEN TOOK THREE MORE RULES OUT, because the hero region turned out
+ * to be a vocabulary of SIX rather than of one - the handoff draws that band
+ * on six screens, and `HeroBand` is now what this screen composes for it. The
+ * deleted rules are named where they used to be, below.
  *
  * FOUR RULES LEFT THIS FILE IN PHASE 8 TASK 9 AND NONE OF THEM WERE
  * REPLACED BY A COPY HERE, which is the whole test of whether a screen is
@@ -58,16 +62,22 @@
  * `flex-shrink: 0` SO IT KEEPS ITS HEIGHT. This is a child of a column whose
  * other children grow; a 4px row is the first thing a shrink pass would take.
  *
- * --space-2 IS 8px AGAINST THE HANDOFF'S 10px TOP PADDING, and --space-1 is
- * 4 against its 12px below - the hero's elevation wrapper contributes 6px of
- * its own above the card's white edge, so the measured gap is 10. Both on the
- * scale. */
+ * --space-2 IS 8px AGAINST THE HANDOFF'S 10px TOP PADDING. On the scale.
+ *
+ * NO `margin-bottom`, AND IT IS A TASK 14c DELETION RATHER THAN AN OMISSION.
+ * It carried --space-1 (4px) while the hero below was a `.elev-1` SectionCard
+ * whose wrapper contributed 6px of its own above the white edge - 4 + 6 = 10
+ * against the handoff's 12, which is what that note recorded. The hero is a
+ * `HeroBand` now and a band is `.elev-2`, so the wrapper contributes 12: the
+ * old 4 would make the measured gap 16. With this margin gone it is the
+ * handoff's 12 exactly, and the 6-vs-12 is the handoff's own difference
+ * between a card's `0 2px 8px` and the band's `0 4px 16px` rather than
+ * anything this screen chose. */
 .founder-naming-view__progress {
     flex-direction: row;
     align-items: center;
     flex-shrink: 0;
     margin-top: var(--space-2);
-    margin-bottom: var(--space-1);
 }
 
 /* 2px is half of --space-1 (4px), which is this element's own height - the
@@ -131,66 +141,29 @@
 
 /* ----------------------------------------------------------- the screen */
 
-/* THE HERO REGION IS A BAND, NOT A BADGE, AND 300 IS THE HANDOFF'S OWN
- * NUMBER. `Onboarding.dc.html`'s hero is `flex: 1; min-height: 300px` - it
- * takes whatever the column has left and never goes under 300 - and what
- * fills it is a dotted ring, a glowing disc and the animal inside them. That
- * IS a `HeroSlot`, which is why Task 13 built one; the slot is 96px because
- * --hero-slot is a token three files agree on, so the SIZE of the region has
- * to come from the card around it rather than from the component in it.
- * Without this the founder sat in a 130px strip and read as a list thumbnail
- * on a screen whose whole job is to look at one creature.
+/* THE HERO REGION HAS NO RULE IN THIS FILE AS OF TASK 14c, AND THAT IS THE
+ * DELETION THIS SCREEN OWED.
  *
- * `flex-grow` IS THE `flex: 1` HALF AND IT IS LIVE AS OF TASK 14b. It was
- * dead when it was written: the scaffold's content region is a ScrollView,
- * and a ScrollView's content container is sized by its content so that it can
- * exceed the viewport, so a growing child inside it had nothing to grow into
- * and this screen ended in ~180px of bare --paper. That was a scaffold fault
- * and it was fixed in the scaffold - `.screen-scaffold__content
- * .unity-scroll-view__content-container` now carries `min-height: 100%`, and
- * that rule's note has why a minimum rather than a height. This declaration
- * is the handoff's `flex: 1`, not a speculative marker: the hero takes
- * whatever the column has left, and the band closes because the hero grew
- * into it rather than because anything was padded out to hide it.
+ * THREE RULES LEFT HERE AND A COMPONENT TOOK ALL THREE. What used to be
+ * `.founder-naming-view__hero { flex-grow: 1 }`, a matching
+ * `.founder-naming-view__hero .section-card__surface { flex-grow: 1;
+ * min-height: 300px; justify-content: center }` and
+ * `.founder-naming-view__founder { align-items: center }` is now
+ * `new HeroBand()` plus `Fill(300)`:
+ *   - the two `flex-grow` halves are `HeroBand.Fill`, written from one C#
+ *     method so they cannot come apart again. Task 14b's whole cost was that
+ *     they COULD - the wrapper grew, the surface did not, and the nine-slice
+ *     drew its drop around 160px of bare --paper. `SectionCard.uss`'s note
+ *     beside `.section-card__surface` is the record.
+ *   - the `min-height` is `Fill`'s argument, and it is still this screen's
+ *     own number (`FounderNamingView.BandFloor`) because the other band in
+ *     the bundle that pins a size pins 372.
+ *   - the centring is `.hero-band__subject`, which is what a band is for.
  *
- * `justify-content: center` ON THE SURFACE, so the slot sits in the middle
- * of the band rather than at the top of it. This reaches into SectionCard's
- * own element, which is the direction a screen's sheet is allowed to reach -
- * downward into its descendants, never upward (StatCell.uss's closing note).
- */
-.founder-naming-view__hero { flex-grow: 1; }
-
-/* THE SURFACE HAS TO GROW TOO, AND THE FIRST CAPTURE AFTER THE SCAFFOLD FIX
- * IS WHAT SAID SO. `flex-grow` on the rule above is on the component ROOT,
- * which is the `.elev-1` WRAPPER - so the wrapper stretched to ~460px and the
- * white surface stayed at its 300px minimum, leaving the nine-sliced shadow
- * drawn around 160px of bare --paper. Measured in that capture: x=10 held the
- * falloff's 245,242,249 all the way to y=505 while x=215 was 247,244,251
- * - paper - from y=352 down.
- *
- * `.section-card` IS A COLUMN, so a growing child fills it. This reaches into
- * SectionCard's own element, which is the direction a screen's sheet is
- * allowed to reach - downward into its descendants, never upward (StatCell
- * .uss's closing note).
- *
- * THE `min-height` STAYS AND IS NOT NOW REDUNDANT. It is the handoff's floor
- * (Onboarding.dc.html:43, `flex: 1; min-height: 300px`) and it is what this
- * band measures on any frame short enough that there is no slack to grow
- * into - a smaller phone, or this screen with the checklist and reward cards
- * the handoff draws under its own step card. */
-.founder-naming-view__hero .section-card__surface {
-    flex-grow: 1;
-    min-height: 300px;
-    justify-content: center;
-}
-
-/* The hero card holds one HeroSlot, which is a fixed 96px square - so the
- * centring is the container's job and cannot come from the slot. A
- * SectionCard body is a column at the default `align-items: stretch`, and a
- * fixed-width child in a stretch column is left-aligned rather than
- * stretched, which is why this rule is still needed after the CreatureCard
- * it used to centre became a HeroSlot. */
-.founder-naming-view__founder { align-items: center; }
+ * AND THE SURFACE ITSELF IS NOW THE HANDOFF'S RATHER THAN A WHITE CARD. The
+ * gradient, the radius-26 corner, the dashed ring and the violet pool are
+ * `HeroBand`'s; this screen asked for none of them and gets all four.
+ * Onboarding.dc.html:43-47 is the instance they are measured from. */
 
 /* ------------------------------------------ the card's own type ladder */
 

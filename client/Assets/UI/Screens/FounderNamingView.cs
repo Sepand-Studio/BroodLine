@@ -44,11 +44,13 @@ namespace Broodline.UI.Screens
     {
         public const string UssClassName = "founder-naming-view";
 
-        /// The card the founder is looked at in, as opposed to the one the
-        /// name is typed into. Named here rather than typed as a literal at
-        /// the call site so the coupling to the stylesheet is visible from
-        /// both ends, on `SectionCard.ElevationUssClassName`'s convention.
-        public const string HeroCardUssClassName = "founder-naming-view__hero";
+        /// The handoff's floor for the hero band, `Onboarding.dc.html:43`'s
+        /// `min-height: 300px`. It is this screen's number rather than
+        /// `HeroBand`'s, because the other band in the bundle that pins a
+        /// size pins a different one - `Splice Reveal.dc.html:43` is 372 -
+        /// and a component that guessed between them would be wrong on one
+        /// screen in two.
+        const float BandFloor = 300f;
 
         readonly Label _prompt;
         readonly VisualElement _founder;
@@ -135,14 +137,29 @@ namespace Broodline.UI.Screens
             // 12px against the handoff's 16px side padding, on the scale.
             scaffold.Content.Add(progress);
 
-            // TWO CARDS, NOT ONE, AND THE SPLIT IS THE HANDOFF'S. Step 1
+            // TWO SURFACES, NOT ONE, AND THE SPLIT IS THE HANDOFF'S. Step 1
             // draws the creature in a tall panel of its own and the words in
-            // a card beneath it. The hero now GROWS into whatever the column
-            // has left, which is the handoff's `flex: 1; min-height: 300px`
-            // both halves working - see FounderNamingView.uss's `__hero`.
-            var hero = new SectionCard();
-            hero.AddToClassList(HeroCardUssClassName);
-            hero.Body.Add(_founder);
+            // a card beneath it.
+            //
+            // THE HERO IS A `HeroBand` AND NOT A `SectionCard`, WHICH IS
+            // PHASE 9 TASK 14c. Through Task 14b it was a flat white card at
+            // --radius-card, which is ~448px of near-white around a 96px
+            // creature - correct in composition and wrong in fidelity. The
+            // handoff's step hero is a gradient band at radius 26 with a
+            // dashed ring and a violet pool behind the subject
+            // (Onboarding.dc.html:43-47), and five other screens in the
+            // bundle draw the same surface, which is why it is a component
+            // rather than a rule in this screen's sheet.
+            //
+            // `Fill` RATHER THAN A `flex-grow` HERE. The handoff's band is
+            // `flex: 1; min-height: 300px` and BOTH halves have to land on
+            // the band's surface rather than on its elevation wrapper -
+            // getting that wrong is what cost Task 14b a capture, and
+            // `HeroBand.Fill` is where that knowledge now lives so that no
+            // screen has to carry it again.
+            var hero = new HeroBand();
+            hero.Fill(BandFloor);
+            hero.Subject.Add(_founder);
 
             // ONE WHITE CARD CARRIES EVERYTHING ELSE, IN THE HANDOFF'S OWN
             // ORDER: kicker, title, body, field, note. `Onboarding.dc.html`
