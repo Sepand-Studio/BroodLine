@@ -109,8 +109,48 @@
     margin-right: var(--space-2);
 }
 
+/* THE TRAIT STACK, AND THE RULE IS THE CONTAINER'S BECAUSE IT CANNOT BE THE
+ * CHIP'S. `StatCell.uss`'s closing note has the measurement in full: a
+ * component's stylesheet reaches the component and its descendants and never
+ * its parent, so nothing `TraitChip` carries can space the column holding it.
+ * `.splice-chamber-view__parent-traits` owns the identical pair of rules for
+ * the identical reason, and this is deliberately the same two values so the
+ * two tiles stack their chips the same way.
+ *
+ * A COLUMN RATHER THAN THE CHAMBER'S WRAPPING ROW, and the node's width is
+ * why. A parent tile is 151px wide and fits two chips side by side; a node
+ * sizes itself to its own content inside a wrapping row of siblings, and
+ * measured on `LineageView.png` before this change it is 93-94px - narrower
+ * than a single `Carapace III` chip (82px on `RosterView.png`, x=28..109).
+ * A row here would wrap every node to two lines and widen the tile to no
+ * purpose. Default `flex-direction` is already column, so this rule sets the
+ * gap and nothing else.
+ *
+ * VERTICAL ONLY, AND THE HORIZONTAL GAP IS DELIBERATELY NOT RESTATED - the
+ * chamber's note beside its own copy of this rule has the six pixels it cost
+ * there. `TraitChip` already owns the handoff's `gap: 4px` as 2px of margin
+ * on each of its own sides. */
+.node__traits { margin-top: var(--space-1); }
+
+.node__traits > .trait-chip { margin-bottom: var(--space-1); }
+
 /* Dimmed, never removed: a consumed parent still being in the record is the
  * thing this screen exists to show. */
 .node.consumed { opacity: 0.55; }
 
+/* THE ONE NODE THE SCREEN IS ABOUT - bible 9.2's "a creature they named at
+ * the bottom of it".
+ *
+ * IT USED TO SWALLOW ITS OWN TRAIT MARKS. `.trait-pip`'s fill is
+ * --violet-tint (`TraitPip.uss:11`) and so is this rule's, so until Phase 9
+ * Task 19 the highlighted node's two pills were drawn in exactly the colour
+ * behind them and had no edge of any kind: measured on `LineageView.png`,
+ * `Ash (G1)`'s tile reads a flat #f1ecfa from y=207 to y=354 while the same
+ * pills on the tile beside it are clearly pills. No test could see it - a
+ * class list cannot tell you that two classes resolve to one colour - and the
+ * capture is what showed it. The marks are `TraitChip`s now and carry the
+ * species tint, so the collision survives for Hollow alone, one species in
+ * six rather than six in six. Moving THIS colour instead was not available:
+ * nothing in the bundle draws this screen, so a new highlight fill would be
+ * a value with no source. */
 .node.highlight { background-color: var(--violet-tint); }

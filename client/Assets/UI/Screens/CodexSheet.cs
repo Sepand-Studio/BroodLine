@@ -31,11 +31,33 @@ namespace Broodline.UI.Screens
     /// It renders the BUNDLE's `config.traits`, verbatim. `Broodline.UI`
     /// references no engine assembly, so what a trait counters here is what
     /// the content bundle authored, not what `Stats.CounterFor` derived.
+    ///
+    /// AND AS OF PHASE 9 TASK 19 IT IS ACTUALLY A BOTTOM SHEET. The sentence
+    /// above quoted `client_architecture` section 9 from the day this file
+    /// was written; what shipped was a column flush with the TOP of the frame,
+    /// because `.sheet-layer` sets no `justify-content` and flex defaults to
+    /// `flex-start`. The root positions now and `#surface` carries the fill,
+    /// the top-only radius and the padding - `AbandonedWaveSheet`'s split,
+    /// element for element. CodexSheet.uss's header has the five specs and
+    /// the measurement.
     [UxmlElement]
     public partial class CodexSheet : VisualElement
     {
         public const string UssClassName = "codex-sheet";
         public const string EntryUssClassName = "codex-entry";
+
+        /// The row holding an entry's specimen chip. Named here rather than
+        /// typed as a literal in the sheet, so the coupling between the C#
+        /// that builds the row and the USS that spaces it is visible from
+        /// both ends - `SectionCard.ElevationUssClassName`'s convention.
+        public const string EntryTraitsUssClassName = "codex-entry__traits";
+
+        /// The element the fill, the radius and the padding live on - one
+        /// level in from the root, which positions and does nothing else.
+        /// `AbandonedWaveSheet`'s split, element for element; CodexSheet.uss's
+        /// header has the whole account and the five specs that call this a
+        /// bottom sheet.
+        public const string SurfaceUssClassName = "codex-sheet__surface";
 
         readonly Label _title;
         readonly VisualElement _entries;
@@ -113,7 +135,65 @@ namespace Broodline.UI.Screens
             foundOn.AddToClassList("t-secondary");
             entry.Body.Add(foundOn);
 
+            // THE SPECIMEN, LAST, WHICH IS THE ROSTER CARD'S OWN ORDER:
+            // subject, then the facts about it, then the trait marks
+            // (`CreatureCard` - name, role line, chips). It is the one thing
+            // on this sheet carrying colour, and the colour is the whole
+            // reason it is here: a player learns "teal means Vetch" on the
+            // roster and on the parent tiles, and the codex is where they
+            // come to look a trait up. bible 10.5 makes recognition this
+            // screen's job; the chip is what the player is recognising.
+            //
+            // IT REPEATS THE HEADING'S WORD AND THAT IS NOT A SLIP. The
+            // heading is the lookup key at 19px, which a reference table
+            // needs and a 10px chip cannot be. The chip is the SHAPE the same
+            // word wears everywhere else in the app. Replacing the heading
+            // with it was the alternative and it puts a 10px subject over
+            // 12px facts, which is upside down.
+            var traits = new VisualElement { name = "traits" };
+            traits.AddToClassList(EntryTraitsUssClassName);
+            traits.Add(ChipFor(trait));
+            entry.Body.Add(traits);
+
             return entry;
+        }
+
+        /// The trait as it is drawn on a creature - `TraitChip`, tinted by
+        /// the species the bundle names.
+        ///
+        /// IT CARRIES NO TIER, AND IT MUST NOT CLAIM THE ONE THING A NULL
+        /// TIER MEANS. `TraitChip.cs` keeps data_model 2's contract - "a null
+        /// tier renders as the bare trait name plus the `aberrant` marker" -
+        /// and `EnableInClassList(AberrantUssClassName, tier == null)` is
+        /// where it sets it. That contract is about a CREATURE's coverage of
+        /// a trait. `config.traits` has no tier column at all: this table is
+        /// about what a trait IS, so there is no coverage here to be absent.
+        /// Left alone, every chip on this sheet would wear the Aberrant
+        /// outline, which is exactly the defect `EntryFor`'s own comment
+        /// refuses `TraitPip` for, one component over and for the identical
+        /// reason.
+        ///
+        /// SO THE MARKER IS REMOVED AT THE ONE CALL SITE THAT HAS NO
+        /// CREATURE, rather than by giving the component a third parameter -
+        /// no component's public shape moves this task, and a chip that could
+        /// be told to lie about its tier would be a worse component than one
+        /// that cannot. `AberrantUssClassName` is public precisely so a call
+        /// site can name it; this is greppable from both ends, and the test
+        /// `CodexSheet_MarksEachTraitWithItsSpeciesTintedChip_AndClaimsNoAberrant`
+        /// fails if either half is dropped.
+        ///
+        /// (This is the one place the task brief and the code disagreed. The
+        /// brief says entries gain "a TraitChip"; the code says that chip
+        /// would mark every trait in the codex Aberrant. Both are honoured:
+        /// the chip, minus the claim.)
+        static TraitChip ChipFor(TraitSummary trait)
+        {
+            var chip = new TraitChip(trait.Id, tier: null, species: trait.Species)
+            {
+                name = "chip",
+            };
+            chip.RemoveFromClassList(TraitChip.AberrantUssClassName);
+            return chip;
         }
     }
 }

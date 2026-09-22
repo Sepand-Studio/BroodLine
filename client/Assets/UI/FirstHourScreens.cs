@@ -363,6 +363,25 @@ namespace Broodline.UI
         /// the bottom of it."
         public const string Title = "Lineage";
 
+        /// The handoff's kicker, over the title - where in the app the player
+        /// is standing, which is what every other screen's eyebrow says
+        /// ("GENE LAB" over Splicing Chamber, "HOLLOW REACH · DEFENSE" over a
+        /// wave). The bundle draws no Lineage screen at all, so the word is
+        /// taken from what the rest of the client already calls this record:
+        /// `SpliceScreen.LineageHeading` heads the chamber's own strip and
+        /// `SpliceChamberView`'s content-order note names that card "the
+        /// pedigree". The title says WHAT this screen is; the eyebrow says
+        /// what kind of thing a lineage is, which is the one fact a player
+        /// arriving from a splice has not been told.
+        ///
+        /// UPPERCASE IN THE CONSTANT, for the reason `FounderNamingScreen
+        /// .Eyebrow` states in full: the handoff renders every eyebrow
+        /// through `.lbl { text-transform: uppercase }` and UI Toolkit has no
+        /// `text-transform` at all. So the casing is baked here, in ONE
+        /// place, and everything that renders or asserts it reads this rather
+        /// than writing the cased form as a literal in markup or in a test.
+        public const string Eyebrow = "PEDIGREE";
+
         /// Shown when the server returned a tree with nothing in it. Not a
         /// blank screen: an empty tree after a splice would be the one
         /// failure this screen exists to make impossible to miss.

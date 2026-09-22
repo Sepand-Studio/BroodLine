@@ -120,9 +120,14 @@ public static class ScreenFixtures
     /// false:
     ///   CodexSheet  - ScreenHost.ShowSheet puts it in `#sheet-layer`, which
     ///                 is `position: absolute` and `display: none` until that
-    ///                 method sets it Flex inline. It carries no padding, so
-    ///                 the sheet renders the same either way and this harness
-    ///                 does not reproduce the overlay layer.
+    ///                 method sets it Flex inline. This harness does not
+    ///                 reproduce the overlay layer; the sheet POSITIONS
+    ///                 ITSELF absolutely against whatever holds it (Phase 9
+    ///                 Task 19 made it the bottom sheet five specs call it),
+    ///                 so it fills this frame the way it fills that layer.
+    ///                 The old reason given here - "it carries no padding" -
+    ///                 stopped being true in that task: the padding moved one
+    ///                 level in, to `#surface`, and the root positions.
     ///   WaveHudView - never reaches ScreenHost at all. `WaveRunner` adds it
     ///                 straight to the wave scene's own panel root.
     ///   the seven catalogues - Primitives, Icons, Scaffold, Components,

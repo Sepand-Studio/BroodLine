@@ -12,12 +12,65 @@
  * padding, margin and type were all a re-derivation of what that component
  * already draws, and the elevation the card brings with it is what separates
  * a white card from this white sheet.
- */
+ *
+ * ======================================================================
+ * IT IS A BOTTOM SHEET AS OF PHASE 9 TASK 19, AND IT WAS DRAWN AT THE TOP
+ * OF THE FRAME UNTIL THEN.
+ *
+ * Five specs call this one thing and they all call it the same thing:
+ * `broodline_build_order.md:55` ("Build the Codex bottom sheet"),
+ * `broodline_trait_codex.md:148` ("Tapping opens the entry as a bottom
+ * sheet over whatever the player was doing"), `broodline_spec_reconciliation
+ * .md:149`, `broodline_phase3_unity_client.md:25` and `client_architecture`
+ * section 9, which `CodexSheet.cs` already quotes: "bottom sheets are an
+ * overlay layer, not screens ... it overlays, it dismisses, it does not
+ * push."
+ *
+ * What shipped was none of that. `.sheet-layer` is `position: absolute` with
+ * no `justify-content`, so a child of it defaults to `flex-start` and this
+ * sheet rendered flush with the TOP of the frame with paper below it -
+ * visible in every capture of `CodexSheet.png` before this task, where the
+ * sheet's white ends at y=640 of 932. Nothing asserted a position, so
+ * nothing failed.
+ *
+ * THE SPLIT IS `AbandonedWaveSheet`'s, ELEMENT FOR ELEMENT, because that is
+ * this sheet's sibling and the only other bottom sheet in the app: the ROOT
+ * positions and nothing else, and `#surface` one level in carries the fill,
+ * the radius and the padding. The radius is then TOP-ONLY, which is the
+ * whole point of the arrangement - a sheet flush with the bottom edge has no
+ * bottom corners to round, and rounding them anyway is what made the old
+ * top-anchored sheet read as a floating card that had slid off the top.
+ *
+ * WHAT IS NOT COPIED FROM THE SIBLING, AND ON PURPOSE. `AbandonedWaveSheet`
+ * draws a `--hud-scrim` and wraps its surface in `.elev-2`; this draws
+ * neither. Both are composition this task was not asked for, and the
+ * elevation one is the arrangement Theme.uss's header note 2 says is easy to
+ * get wrong - `SectionCard.cs` records it shipping once already this phase.
+ * Recorded as a residual rather than added quietly.
+ * ====================================================================== */
 .codex-sheet {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     flex-direction: column;
-    padding: var(--space-4);
+    justify-content: flex-end;
+}
+
+/* The paddings are the sibling's - 24 top and bottom, 16 each side
+ * (`AbandonedWaveSheet.uss`). They are NOT the scaffold's 12px screen
+ * gutter, and that difference is the sheet convention rather than a drift:
+ * both sheets in this app inset their content further than a screen does. */
+.codex-sheet__surface {
+    flex-direction: column;
     background-color: var(--surface);
-    border-radius: var(--radius-card);
+    border-top-left-radius: var(--radius-card);
+    border-top-right-radius: var(--radius-card);
+    padding-top: var(--space-6);
+    padding-bottom: var(--space-6);
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
 }
 
 .codex-sheet__title { margin-bottom: var(--space-3); }
@@ -26,7 +79,28 @@
 
 /* A sentence, not a label. Both lines of an entry's body wrap rather than
  * running off the sheet's right edge, which is what the old one-line row
- * did with "Found on Vetch Crawler." at 430px. */
+ * did with "Found on Vetch Crawler." at 430px.
+ *
+ * `.codex-entry Label` REACHES THE CHIP'S LABEL TOO, and `white-space:
+ * normal` is what a chip's label already has - Theme.uss sets no
+ * `white-space` on `.chip` and UI Toolkit's default IS normal. So this
+ * changes nothing about the chip; the chip does not wrap because it is
+ * `flex-shrink: 0` and `align-self: flex-start`, which sizes it to its own
+ * text. Checked rather than assumed, because a selector this broad is
+ * exactly the shape that reaches further than its comment claims. */
 .codex-entry Label { white-space: normal; }
+
+/* THE SPECIMEN ROW - the same two declarations
+ * `.splice-chamber-view__parent-traits` and `.node__traits` carry, for the
+ * same reason `StatCell.uss`'s closing note gives: a component's stylesheet
+ * reaches the component and its descendants and never its parent, so the
+ * gap under a chip belongs to whatever holds the chip.
+ *
+ * ONE CHIP, AND THE RULE IS STILL WRITTEN FOR A STACK. `config.traits` names
+ * one trait per entry today; a rule that worked only because the count
+ * happened to be one would be a rule nobody could add a second chip under. */
+.codex-entry__traits { margin-top: var(--space-2); }
+
+.codex-entry__traits > .trait-chip { margin-bottom: var(--space-1); }
 
 .codex-sheet__dismiss { margin-top: var(--space-3); }

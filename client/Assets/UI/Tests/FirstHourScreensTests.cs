@@ -911,6 +911,81 @@ namespace Broodline.UI.Tests
             StringAssert.Contains("G2", view.Q(A.ToString()).Q<Label>("label").text);
         }
 
+        /// THE KICKER EVERY OTHER SCREEN HAS AND THIS ONE DID NOT. Phase 9
+        /// Task 19. `ScreenScaffold.Eyebrow` hides its row when empty, which
+        /// is what a screen passing nothing gets - so the omission was
+        /// invisible except as 29px of missing header, measured off
+        /// `LineageView.png` against `RosterView.png` (title glyphs at y=24
+        /// here, y=53 there).
+        ///
+        /// THE CASING IS ASSERTED, NOT SPELLED. USS has no `text-transform`,
+        /// so the handoff's uppercase eyebrows are baked into the named
+        /// constants and nowhere else - never as a literal in markup or in a
+        /// test. The second assertion is what stops the constant being
+        /// quietly lowercased into something that no longer matches the four
+        /// eyebrows beside it.
+        [Test]
+        public void Lineage_WearsThePedigreeKicker_AndTakesItFromTheModel()
+        {
+            var view = BoundLineage(F, Node("Hollow", F, founder: true, name: "Ash"));
+
+            var eyebrow = view.Q<Label>("eyebrow");
+            Assert.IsNotNull(eyebrow, "the scaffold has no eyebrow row at all");
+            Assert.AreEqual(LineageScreen.Eyebrow, eyebrow.text,
+                "the tree draws no kicker, so its title sits where every other screen's eyebrow does");
+            Assert.AreEqual(DisplayStyle.Flex, eyebrow.style.display.value,
+                "the eyebrow row is collapsed, which is what an unset eyebrow looks like");
+
+            Assert.AreEqual(LineageScreen.Eyebrow.ToUpperInvariant(), LineageScreen.Eyebrow,
+                "the handoff's eyebrows are uppercase and USS has no text-transform to make them so, "
+                + "so the casing lives in this constant or nowhere");
+            Assert.IsNotEmpty(LineageScreen.Eyebrow);
+        }
+
+        /// THE TREE WAS THE LAST SCREEN IN THE APP DRAWING A `TraitPip`.
+        /// Phase 9 Task 19. Task 16 moved `CreatureCard` - and with it the
+        /// roster, the chamber, the reveal, post-wave and wave-defeat - onto
+        /// species-tinted `TraitChip`s, and exempted this screen on the
+        /// grounds that a counter is known here. It is not: `LineageView
+        /// .AddTrait` passed `counters: null` and its comment said it always
+        /// would.
+        ///
+        /// THE CONTRAST IS THE POINT OF THE SECOND HALF. A view that stamped
+        /// one tint on every chip in the tree passes the first assertions;
+        /// two species in one tree is what a family tree actually is, and a
+        /// pip - which is violet whatever the creature - passes nothing here.
+        [Test]
+        public void Lineage_DrawsItsTraitsAsSpeciesTintedChips_NotAsCounterPips()
+        {
+            var view = BoundLineage(Guid.Empty,
+                Node("Vetch", F, founder: true, name: "Ash"),
+                Node("Ember", A, generation: 2));
+
+            var ash = view.Q(F.ToString());
+            var ashChips = ash.Query<TraitChip>().ToList();
+            Assert.AreEqual(2, ashChips.Count,
+                "a node draws one mark per trait on the wire, and `LineageNode` carries two");
+            Assert.IsEmpty(ash.Query<TraitPip>().ToList(),
+                "the tree still draws a pip, so the same creature's traits change shape between "
+                + "the roster and the tree");
+
+            Assert.IsTrue(ashChips[0].ClassListContains(TraitChip.UssClassName + "--vetch"),
+                "the chip carries no species modifier, so it renders in `.chip`'s default violet "
+                + "and says nothing about whose trait it is");
+
+            var ember = view.Q(A.ToString()).Query<TraitChip>().ToList()[0];
+            Assert.IsTrue(ember.ClassListContains(TraitChip.UssClassName + "--ember"));
+            Assert.IsFalse(ember.ClassListContains(TraitChip.UssClassName + "--vetch"),
+                "every node in the tree is tinted the same, so the tint is not the node's species");
+
+            // THE TIER IS REAL ON THIS WIRE TYPE, unlike on the Codex sheet:
+            // `LineageNode` carries `tier1`/`tier2`, the fixture sets them,
+            // and a chip that claimed Aberrant for a tier-I trait would be
+            // stating data_model 2's one forbidden conflation.
+            Assert.IsFalse(ashChips[0].ClassListContains(TraitChip.AberrantUssClassName),
+                "a tiered trait is marked Aberrant");
+        }
+
         // ---------------------------------------------------------------
         // Campaign Select - design 5.2
         // ---------------------------------------------------------------
@@ -1098,6 +1173,92 @@ namespace Broodline.UI.Tests
 
             Assert.AreEqual(TraitCodexScreen.DismissLabel, view.Q<Button>("dismiss").text);
             Assert.IsNotEmpty(TraitCodexScreen.DismissLabel);
+        }
+
+        /// THE ONE THING ON THIS SHEET THAT CARRIES COLOUR. Phase 9 Task 19.
+        /// A player learns "teal means Vetch" on the roster and on the parent
+        /// tiles; bible 10.5 makes recognition the codex's whole job, and
+        /// before this the codex was the one screen in the app where a trait
+        /// appeared with no tint at all.
+        ///
+        /// AND IT MUST NOT CLAIM ABERRANT. `TraitChip` keeps data_model 2's
+        /// contract - a null tier IS an Aberrant - and `config.traits` has no
+        /// tier column at all, so left alone every chip on this sheet would
+        /// wear the marker. That is the exact defect `CodexSheet.EntryFor`'s
+        /// own comment refuses `TraitPip` for. The marker is removed at the
+        /// call site; both halves are asserted here.
+        ///
+        /// THE LAST ASSERTION IS THE ONE THAT KEEPS THE TWO ABOVE IT HONEST.
+        /// `Assert.IsFalse(ClassListContains(...))` passes trivially on a
+        /// component that stopped setting the class at all, or on a renamed
+        /// constant - so the marker is demonstrated live, on a chip built the
+        /// same way, before its absence is treated as meaningful.
+        [Test]
+        public void CodexSheet_MarksEachTraitWithItsSpeciesTintedChip_AndClaimsNoAberrant()
+        {
+            var view = new CodexSheet();
+            view.Bind(new[] { Trait("Chill", "Pale", "Courser"), Trait("Taunt", "Vetch", "Lash") });
+
+            var chill = view.Q("Chill").Q<TraitChip>();
+            Assert.IsNotNull(chill, "the entry carries no trait chip, so nothing on this sheet is tinted");
+            Assert.IsTrue(chill.ClassListContains(TraitChip.UssClassName + "--pale"));
+
+            var taunt = view.Q("Taunt").Q<TraitChip>();
+            Assert.IsTrue(taunt.ClassListContains(TraitChip.UssClassName + "--vetch"));
+            Assert.IsFalse(taunt.ClassListContains(TraitChip.UssClassName + "--pale"),
+                "every entry is tinted the same, so the tint is not the trait's own species");
+
+            Assert.IsFalse(chill.ClassListContains(TraitChip.AberrantUssClassName),
+                "the codex marks a trait Aberrant because the bundle's trait table carries no tier - "
+                + "a table about what a trait IS has no creature's coverage to be absent");
+            Assert.IsFalse(taunt.ClassListContains(TraitChip.AberrantUssClassName));
+
+            Assert.IsTrue(new TraitChip("Cinder", null, "Ember")
+                    .ClassListContains(TraitChip.AberrantUssClassName),
+                "a bare null-tier chip no longer marks Aberrant, so the two assertions above pass "
+                + "for a reason that has nothing to do with this sheet");
+        }
+
+        /// THE SHEET'S FILL IS ONE LEVEL IN FROM THE ELEMENT THAT POSITIONS
+        /// IT - `AbandonedWaveSheet`'s split, adopted in Phase 9 Task 19 when
+        /// this became the bottom sheet five specs already called it.
+        ///
+        /// WHAT THIS PINS AND WHAT IT DOES NOT. It pins the STRUCTURE: a
+        /// `#surface` child holding the whole sheet, and a root that is not
+        /// itself the surface. It does NOT pin the top-only `--radius-card`
+        /// or the `justify-content: flex-end` that make it a bottom sheet -
+        /// those are stylesheet rules, and this suite builds no panel to
+        /// resolve a cascade against (`ComponentTests
+        /// .TheDefaultFormStaysContentSizedInTheStylesheetItself` is the
+        /// pattern for reaching those, and it reads the file as text). The
+        /// geometry is verified by `CodexSheet.png` and stated as such.
+        ///
+        /// The structure is worth its own test anyway: flattening the two
+        /// levels back into one is what puts a fill on the element the
+        /// positioning lives on, which is the arrangement Theme.uss's header
+        /// note 2 exists for and which `SectionCard.cs` records shipping once
+        /// already this phase.
+        [Test]
+        public void CodexSheet_PutsItsFillOnASurfaceInsideTheElementThatPositionsIt()
+        {
+            var view = new CodexSheet();
+            view.Bind(new[] { Trait("Chill", "Pale", "Courser") });
+
+            var surface = view.Q<VisualElement>("surface");
+            Assert.IsNotNull(surface, "the sheet has no surface layer, so its fill is on its own root");
+            Assert.IsTrue(surface.ClassListContains(CodexSheet.SurfaceUssClassName));
+            Assert.IsFalse(view.ClassListContains(CodexSheet.SurfaceUssClassName),
+                "the root IS the surface, so the fill and the radius sit on the element that "
+                + "positions the sheet against the whole frame");
+
+            // Everything the sheet draws is inside it - a title left behind
+            // on the root would render above the sheet, at the top of the
+            // screen, which is where this whole sheet used to be.
+            foreach (var name in new[] { "title", "entries", "dismiss" })
+            {
+                Assert.IsNotNull(surface.Q<VisualElement>(name),
+                    "`" + name + "` is not inside the sheet's surface");
+            }
         }
     }
 }

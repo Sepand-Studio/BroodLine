@@ -35,9 +35,18 @@ namespace Broodline.UI.Components
     /// six species tints are gained.
     ///
     /// `TraitPip` SURVIVES AND IS STILL THE RIGHT ANSWER WHERE A COUNTER IS
-    /// ACTUALLY KNOWN - `LineageView` builds one per trait and that is
-    /// untouched. Both components still exist; what changed is which one
-    /// this card composes.
+    /// ACTUALLY KNOWN. Both components still exist; what changed is which
+    /// one this card composes.
+    ///
+    /// THIS PARAGRAPH NAMED `LineageView` AS THE SURVIVING CONSUMER AND THAT
+    /// WAS WRONG WHEN IT WAS WRITTEN - Phase 9 Task 19 found it. The tree's
+    /// `AddTrait` passed `counters: null` too, and its own comment said it
+    /// always would ("the lineage response carries no trait table, and
+    /// `Broodline.UI` cannot derive one"), so the measurement above applied
+    /// there unchanged. It draws `TraitChip`s now and no screen in the app
+    /// builds a pip. The component and its tests stay: the pip is the right
+    /// answer the day a screen holds a real counter map, and the tree was
+    /// never that screen.
     ///
     /// THE `counters` PARAMETER IS KEPT ON `Bind`, unused by the marks. It
     /// is a public shape five screens call, bible 10.5 still makes the

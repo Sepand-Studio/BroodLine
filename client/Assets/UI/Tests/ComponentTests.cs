@@ -141,8 +141,20 @@ namespace Broodline.UI.Tests
         /// :66-69` draws species-tinted chips with no counter mark, and every
         /// one of the six live `Bind` call sites in the app passes
         /// `counters: null`, so the pip's dot has never gone green in a
-        /// shipped screen. `TraitPip` itself is untouched and still has a
-        /// consumer in `LineageView`; its own tests below are unchanged.
+        /// shipped screen. `TraitPip` itself is untouched and its own tests
+        /// below are unchanged.
+        ///
+        /// IT HAS NO SCREEN CONSUMER LEFT AS OF PHASE 9 TASK 19, and this
+        /// comment claimed one until that task. `LineageView` was the last,
+        /// and it was exempted from the Task 16 swap on the grounds that the
+        /// tree is "where a counter IS actually known" - which `LineageView
+        /// .AddTrait`'s own comment had always denied ("the lineage response
+        /// carries no trait table, and `Broodline.UI` cannot derive one").
+        /// It passes a `TraitChip` now, for the reason this very swap gives.
+        /// The component and these tests stay: the pip is still the right
+        /// answer the day a screen holds a real counter map, and retiring a
+        /// tested component to record that nothing calls it today would be
+        /// the more expensive mistake.
         [Test]
         public void CreatureCard_ShowsTwoTraitChipsWithCoverageAndTheFounderName()
         {
