@@ -92,6 +92,7 @@ namespace Broodline.UI.Screens
         public const string FlareHiddenUssClassName = "reveal-flare--hidden";
 
         readonly ScreenScaffold _scaffold;
+        readonly Label _kicker;
         readonly Label _headline;
         readonly HeroBand _child;
         readonly VisualElement _childSlot;
@@ -113,6 +114,7 @@ namespace Broodline.UI.Screens
             var tree = Resources.Load<VisualTreeAsset>("SpliceRevealView");
             tree.CloneTree(this);
 
+            _kicker = this.Q<Label>("kicker");
             _headline = this.Q<Label>("headline");
             _parents = this.Q<VisualElement>("parents");
             _consumption = this.Q<Label>("consumption");
@@ -122,28 +124,46 @@ namespace Broodline.UI.Screens
             // comment has the reason, and ScaffoldTests' sweep is what
             // depends on it.
             //
-            // pushed: true - the handoff's push table reaches Splice Reveal
-            // from the Splice Chamber, "(after splice)". The CHEVRON follows
-            // `Bind`'s `onBack`; see below.
+            // NO PAGE HEADER, WHICH IS THE HANDOFF AND IS A DELIBERATE
+            // DECISION RATHER THAN AN OMISSION - Phase 9 Task 16b.
+            // `Splice Reveal.dc.html:38-41` is a centred kicker over a 26px
+            // headline with NOTHING above it, exactly `Onboarding.dc.html`'s
+            // shape, which is the one other screen in the bundle built that
+            // way and is why `ScreenScaffold` has a headerless mode at all.
+            // Ours drew a 21px left-aligned "Splice Reveal" over a centred
+            // 28px headline: the same two-container type ladder Task 14b
+            // spent a round undoing on the founder screen.
             //
-            // THE HEADER AND THE HEADLINE ARE TWO DIFFERENT SENTENCES, and
-            // SpliceRevealScreen.Title says why: "Splice Reveal" names the
-            // screen and never changes, "A mutation fired." is one of two
-            // things that just happened. The EYEBROW above the title is the
-            // handoff's kicker - `Splice Reveal.dc.html:123`'s revealed arm -
-            // which states the cost in the past tense.
+            // AND IT IS FOUR CHANGES, NOT THE ONE TASK 16's REPORT PRICED.
+            // `#header` also holds the EYEBROW (ScreenScaffold.cs's own note
+            // on the headerless branch lists all four things inside that
+            // row), so `title: null` on its own would have silently deleted
+            // `SPLICE COMPLETE · CHARGE SPENT` - the one thing `:39` DOES
+            // draw up there. The kicker is therefore RELOCATED into the
+            // content column as a centred label above the headline, which is
+            // exactly where the handoff draws it; `SpliceRevealView` joins
+            // `ScaffoldTests`' `headerless` list on purpose; and that
+            // sweep's count moves 9 -> 8. `SpliceRevealScreen.Title` stays as
+            // the screen's NAME in the vocabulary and is now rendered by
+            // nothing; its own note there says so, and says not to pass it
+            // back into the scaffold.
             //
-            // THE HANDOFF DRAWS NO PAGE HEADER ON THIS SCREEN AT ALL and
-            // that gap is left open on purpose. `:38-41` is a centred kicker
-            // over a 26px headline with nothing above it, exactly
-            // `Onboarding.dc.html`'s shape - so closing it would mean moving
-            // this screen into `ScaffoldTests`' `headerless` list, which that
-            // test asks to be a deliberate decision rather than a widening.
-            // Task 16's controller addendum states all three of this task's
-            // screens are titled; the residual is named in the report for
-            // whoever rules on it rather than taken here.
-            _scaffold = new ScreenScaffold(
-                SpliceRevealScreen.Title, pushed: true, eyebrow: SpliceRevealScreen.Eyebrow);
+            // `pushed: true` IS KEPT AND IS NOW INERT, SAID PLAINLY. The
+            // chevron lives in the row this hides, so nothing can draw it;
+            // the push relationship is still real (the handoff's push table
+            // reaches this screen from the chamber) and `Bind` still sets
+            // `OnBack`. No caller passes one - `FtueDirector` reaches this
+            // screen through `ScreenFlow.ShowAsync` and going back would
+            // mean a chamber whose two parents no longer exist - so nothing
+            // visible is lost. A back affordance here would have to go in
+            // `Content`, the way the kicker just did.
+            _scaffold = new ScreenScaffold(title: null, pushed: true);
+
+            // THE KICKER AND THE HEADLINE ARE TWO DIFFERENT SENTENCES, which
+            // is why the kicker survives the header rather than being folded
+            // into the headline: `:39` states the cost in the past tense and
+            // never changes, `:40` says which of two things just happened.
+            _kicker.text = SpliceRevealScreen.Eyebrow;
 
             _child = new HeroBand { name = "child" };
             _child.AddToClassList(ChildUssClassName);
@@ -206,6 +226,7 @@ namespace Broodline.UI.Screens
             // amber/violet switch that says whether a mutation happened.
             card.Body.Add(_consumption);
 
+            _scaffold.Content.Add(_kicker);
             _scaffold.Content.Add(_headline);
             _scaffold.Content.Add(_child);
             _scaffold.Content.Add(card);

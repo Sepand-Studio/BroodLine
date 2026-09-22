@@ -43,6 +43,26 @@
  * it outranks `.t-hero`'s --ink. */
 .splice-reveal-view.mutated .splice-reveal-view__headline { color: var(--violet-text); }
 
+/* `:39` - THE KICKER, AND IT IS IN THE CONTENT COLUMN BECAUSE THE HANDOFF
+ * DRAWS NO PAGE HEADER HERE. Phase 9 Task 16b. It was the scaffold's eyebrow
+ * until the header went; `SpliceRevealView`'s constructor has the four
+ * changes that move cost. `.t-micro` is the same type the scaffold's own
+ * eyebrow wears (10px, --mute, `.1em` tracking), so the line renders as it
+ * did - what changed is where it sits and that it centres.
+ *
+ * 10px IS `:38`'s `padding: 10px 24px 0` ON THE BLOCK, written as the
+ * kicker's own top margin because the block is the content column now and
+ * the column's padding is the scaffold's gutter. 2px is `:40`'s
+ * `margin-top: 2px` on the headline, read from this side so that a kicker
+ * which ever collapses takes its gap with it. Both are one-off geometry
+ * beside their measurement, which is this project's rule for a number one
+ * file reads (Tokens.uss's Component geometry block). */
+.splice-reveal-view__kicker {
+    -unity-text-align: middle-center;
+    margin-top: 10px;
+    margin-bottom: 2px;
+}
+
 /* `:40` - `text-align: center; padding: 10px 24px 0` over a 26px Baloo
  * headline. Ours is `.t-hero`'s 28px, two over, which is the nearest thing
  * on the scale; --text-card-hero (26) is exact but is Task 14b's founder
@@ -125,8 +145,16 @@
  * --radius-row and is not it - a row radius that moved would take this pill
  * with it for no reason the two share.
  *
- * `.panel-amber` BRINGS THE FILL AND THE PADDING; this overrides the radius
- * and the horizontal padding and adds the ramp and the ring. THE RAMP AND
+ * `.panel-amber` BRINGS ONE DECLARATION AND IT IS THE FILL UNDER THE RAMP -
+ * corrected in Task 16b, because the sentence here used to credit it with
+ * "the fill and the padding" and this rule overrides the radius AND ALL
+ * FOUR paddings below, so the padding was never the panel's. What the class
+ * still does is real rather than vestigial: --amber-tint sits beneath
+ * amber-ramp.png and is what the pill degrades to if that texture ever
+ * fails to import, which is the same deliberate call `.panel-hybrid`'s note
+ * in Theme.uss makes and the opposite of `.btn-primary`'s. A flat tint
+ * under a ramp of the same family is invisible while the ramp is there and
+ * is the difference between a pill and a hole if it is not. THE RAMP AND
  * THE RING LOOK LIKE `MutationBanner`'s AND ARE NOT A RESTATEMENT OF IT:
  * that component is a full-width strip with a 24px white disc in it, its
  * rules are all scoped to `.mutation-banner`, and it cannot be a centred

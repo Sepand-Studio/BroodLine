@@ -121,6 +121,21 @@ namespace Broodline.UI
         /// just happened. One string doing both jobs would either put "A
         /// mutation fired." in a header that outlives the moment or flatten
         /// the payoff into a label.
+        ///
+        /// NOTHING RENDERS IT AS OF PHASE 9 TASK 16b, AND THAT IS THE POINT
+        /// RATHER THAN A LEAK. `Splice Reveal.dc.html:38-41` draws no page
+        /// header at all, so `SpliceRevealView` builds its scaffold with
+        /// `title: null` and the handoff's kicker moved into the content
+        /// column. The constant is kept because it is still the screen's
+        /// NAME - README section 7 and the handoff's own push table both
+        /// call it that, and `FounderNamingScreen.Title` is kept on the
+        /// other headerless screen for the same reason (that one has a card
+        /// heading to spend it on; this one does not).
+        ///
+        /// DO NOT PASS IT BACK INTO `ScreenScaffold`. That restores a page
+        /// header the handoff does not draw, and it would do it silently -
+        /// `ScaffoldTests.EveryTitledScreenStillDrawsItsPageHeader` reads
+        /// the `headerless` list, not this string.
         public const string Title = "Splice Reveal";
 
         /// What the parents row says when it was handed neither parent.
@@ -138,6 +153,28 @@ namespace Broodline.UI
         /// outcome - the worst result is rolling traits the player already
         /// had." So the non-mutated arm states what happened and does not
         /// apologise for it.
+        ///
+        /// ===================================================================
+        /// A RECORDED DIVERGENCE FROM THE HANDOFF, FOR TASK 22's ERRATA.
+        ///
+        ///   handoff:  `Splice Reveal.dc.html:147` - "A new line begins",
+        ///             one fixed string for both arms of its own toggle.
+        ///   ours:     "A mutation fired." / "The splice took."
+        ///   ruling:   THE TWO-ARM COPY STAYS (controller, Task 16 review).
+        ///
+        /// The reveal exists to celebrate an OUTCOME, and copy that varies
+        /// with that outcome does more work than a fixed string the static
+        /// mockup had no way to vary - the mockup's `renderVals` switches
+        /// its kicker, its traits label and its three tones on the same
+        /// `open` flag and leaves the headline alone, which is a limit of
+        /// the prototype rather than a decision about the words.
+        ///
+        /// WHAT WAS WRONG WAS THAT IT DIVERGED SILENTLY. Task 16's report
+        /// listed this headline's SIZE residual (28px against the handoff's
+        /// 26) and never its TEXT. A divergence this deliberate belongs
+        /// beside the string, not only in a report, which is what this block
+        /// is for.
+        /// ===================================================================
         public static string Headline(bool mutated)
         {
             return mutated ? "A mutation fired." : "The splice took.";
@@ -195,6 +232,13 @@ namespace Broodline.UI
         /// revealed arm, verbatim. It states the cost in the past tense,
         /// which is splice_confirm_spec 5's whole point: the reveal
         /// CONFIRMS what the chamber already said rather than disclosing it.
+        ///
+        /// IT IS THE CONTENT COLUMN'S NOW, NOT THE SCAFFOLD EYEBROW'S -
+        /// Phase 9 Task 16b. `:39` draws it centred over the headline with
+        /// no header above either, so it moved with the header's removal
+        /// rather than being deleted by it. Named `Eyebrow` still, because
+        /// it is the same string in the same role and renaming a constant
+        /// four tests read buys nothing.
         public const string Eyebrow = "SPLICE COMPLETE · CHARGE SPENT";
 
         /// The traits card's eyebrow and its right-hand note -

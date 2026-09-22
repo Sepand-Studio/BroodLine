@@ -1,5 +1,6 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
     <ui:Style src="SpliceRevealView.uss" />
+    <ui:Label name="kicker" class="splice-reveal-view__kicker t-micro" />
     <ui:Label name="headline" class="splice-reveal-view__headline t-hero" />
     <ui:VisualElement name="parents" class="splice-reveal-view__parents" />
     <ui:Label name="consumption" class="splice-reveal-view__consumption t-secondary" />

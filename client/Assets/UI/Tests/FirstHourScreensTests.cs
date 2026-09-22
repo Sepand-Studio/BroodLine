@@ -671,17 +671,39 @@ namespace Broodline.UI.Tests
         /// way `FounderNaming_AndCampaign_CarryTheHandoffsKicker` asserts its
         /// two: by `ToUpperInvariant` round trip rather than by repeating the
         /// literal a second time in a test.
+        ///
+        /// AND IT IS IN THE CONTENT COLUMN NOW, NOT IN THE HEADER - Phase 9
+        /// Task 16b, which took this screen's page header off because
+        /// `Splice Reveal.dc.html:38-41` draws none. THE TWO HALVES BELOW
+        /// ARE ONE TEST ON PURPOSE: the header going away is exactly what
+        /// would have deleted the kicker (`#header` holds the eyebrow), so
+        /// the screen that has no header has to be the same screen that
+        /// still says SPLICE COMPLETE, asserted in one place.
+        ///
+        /// `Q<Label>("kicker")` AND NOT `"eyebrow"`. The scaffold's own
+        /// eyebrow Label still exists inside the hidden header, and a
+        /// name-based query would answer with whichever the tree reaches
+        /// first - so the relocated line carries the handoff's own word for
+        /// it instead.
         [Test]
-        public void SpliceReveal_CarriesTheHandoffsKickerInTheHeader()
+        public void SpliceReveal_CarriesTheHandoffsKickerAndDrawsNoPageHeader()
         {
             var view = BoundReveal(mutated: true, Creature("Vetch", id: A), Creature("Ember", id: B));
 
-            var eyebrow = view.Q<Label>("eyebrow");
-            Assert.AreEqual(SpliceRevealScreen.Eyebrow, eyebrow.text);
-            Assert.AreEqual(DisplayStyle.Flex, eyebrow.style.display.value,
-                "the eyebrow row is hidden, so the screen renders with no kicker at all");
+            var kicker = view.Q<Label>("kicker");
+            Assert.IsNotNull(kicker, "the handoff's kicker is not on the screen at all");
+            Assert.AreEqual(SpliceRevealScreen.Eyebrow, kicker.text);
             Assert.AreEqual(SpliceRevealScreen.Eyebrow.ToUpperInvariant(), SpliceRevealScreen.Eyebrow,
-                "the eyebrow must ship uppercase; USS cannot transform it");
+                "the kicker must ship uppercase; USS cannot transform it");
+
+            var header = view.Q<VisualElement>("header");
+            Assert.AreEqual(DisplayStyle.None, header.style.display.value,
+                "the handoff draws no page header on this screen; ScaffoldTests' headerless " +
+                "list says the same thing from the other side");
+
+            Assert.IsFalse(header.Contains(kicker),
+                "the kicker is inside the row the headerless branch hides, so it renders " +
+                "nowhere at all");
         }
 
         // ---------------------------------------------------------------

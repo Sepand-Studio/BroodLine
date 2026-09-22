@@ -199,19 +199,21 @@ namespace Broodline.UI.Tests
                 "clearing the eyebrow left its row behind");
         }
 
-        /// A SCREEN WITH NO TITLE HAS NO PAGE HEADER, which is one handoff
-        /// screen and one only.
+        /// A SCREEN WITH NO TITLE HAS NO PAGE HEADER, which is two handoff
+        /// screens and two only.
         ///
         /// `Onboarding.dc.html` starts its column with the progress row (line
         /// 33) and puts its 26px Baloo heading inside the white card (line
-        /// 161). Every other screen in the bundle has a header and titles it
-        /// at 20-21px - `Creature Roster.dc.html:31` is 21 - which is what
-        /// `--text-screen-title` already is. So this is about the presence of
-        /// a header, never about the size of a title.
+        /// 161). `Splice Reveal.dc.html:38-41` is the same shape and joined
+        /// it in Phase 9 Task 16b - a centred kicker over a 26px headline
+        /// with nothing above it. Every other screen in the bundle has a
+        /// header and titles it at 20-21px - `Creature Roster.dc.html:31` is
+        /// 21 - which is what `--text-screen-title` already is. So this is
+        /// about the presence of a header, never about the size of a title.
         ///
-        /// THE SECOND HALF IS WHAT KEEPS IT FREE FOR THE OTHER NINE SCREENS.
-        /// All nine pass a non-empty literal, so none can reach the hidden
-        /// branch; asserted rather than reasoned about.
+        /// THE SECOND HALF IS WHAT KEEPS IT FREE FOR THE OTHER EIGHT
+        /// SCREENS. All eight pass a non-empty literal, so none can reach
+        /// the hidden branch; asserted rather than reasoned about.
         ///
         /// `style.display.value` RATHER THAN `resolvedStyle`: no panel here,
         /// and `Flex` is also the default computed value, so a resolvedStyle
@@ -315,17 +317,30 @@ namespace Broodline.UI.Tests
             // `Onboarding.dc.html` has no page header and draws its progress
             // row straight into the content column.
             //
-            // EXACTLY ONE SCREEN WANTS THAT. The other nine pass a non-empty
-            // `const string Title` and must still get a header - and with it
-            // the back chevron, the eyebrow and the resource pill, all of
-            // which live inside the row the headerless branch hides.
+            // EXACTLY TWO SCREENS WANT THAT, AND THE SECOND ARRIVED IN PHASE
+            // 9 TASK 16b. `Splice Reveal.dc.html:38-41` is the same shape as
+            // `Onboarding.dc.html`'s - a centred kicker over a big headline
+            // with nothing above it - so `SpliceRevealView` passes
+            // `title: null` too, and its kicker moved into the content
+            // column because `#header` is also where the eyebrow lives.
+            // THE OTHER EIGHT pass a non-empty `const string Title` and must
+            // still get a header - and with it the back chevron, the eyebrow
+            // and the resource pill, all of which live inside the row the
+            // headerless branch hides.
             //
             // Until this test, that rested on a report claim and a capture
             // corpus that is gitignored. A screen that lost its header would
             // look exactly like a screen that never had one, and the loss
             // would be one empty string away.
+            //
+            // THE TWO LISTS STAY SEPARATE AND A SCREEN IS PLACED IN ONE ON
+            // PURPOSE. `noScaffold` means "composes no ScreenScaffold at
+            // all"; `headerless` means "composes one and asks it for no page
+            // header". They are not interchangeable and appending a name to
+            // whichever is nearest would lose the distinction that makes
+            // this sweep worth running.
             var noScaffold = new[] { "CodexSheet", "WaveHudView" };
-            var headerless = new[] { "FounderNamingView" };
+            var headerless = new[] { "FounderNamingView", "SpliceRevealView" };
 
             var titled = typeof(Broodline.UI.Screens.RosterView).Assembly
                 .GetTypes()
@@ -337,8 +352,8 @@ namespace Broodline.UI.Tests
                             && !headerless.Contains(t.Name))
                 .ToList();
 
-            Assert.That(titled.Count, Is.EqualTo(9),
-                "nine screens pass a non-empty title; if this moved, decide which list the " +
+            Assert.That(titled.Count, Is.EqualTo(8),
+                "eight screens pass a non-empty title; if this moved, decide which list the " +
                 "new screen belongs in rather than widening one silently");
 
             var lost = titled

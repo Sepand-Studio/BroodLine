@@ -15,9 +15,10 @@ namespace Broodline.UI.Components
     /// bar (client_architecture section 9); this renders a chevron when told
     /// to and calls back.
     ///
-    /// A NULL OR EMPTY `title` MEANS "NO PAGE HEADER", which one handoff
-    /// screen genuinely is (`Onboarding.dc.html`) and nine are not. The
-    /// constructor has the full note, including what it costs the nine.
+    /// A NULL OR EMPTY `title` MEANS "NO PAGE HEADER", which two handoff
+    /// screens genuinely are (`Onboarding.dc.html` and, as of Phase 9 Task
+    /// 16b, `Splice Reveal.dc.html`) and eight are not. The constructor has
+    /// the full note, including what it costs the eight.
     ///
     /// COMPOSED, NOT INHERITED, and the sweep in ScaffoldTests is why. UQuery
     /// searches an element's descendants and not the element itself, so
@@ -137,8 +138,15 @@ namespace Broodline.UI.Components
             // the scaffold's own title size is right and is not what this
             // change is about.
             //
-            // WHAT IT COSTS THE OTHER NINE SCREENS: nothing, and that is
-            // checkable rather than asserted. All nine pass a non-empty
+            // TWO SCREENS WANT IT AS OF PHASE 9 TASK 16b, and the second is
+            // `SpliceRevealView` - `Splice Reveal.dc.html:38-41` is the same
+            // shape as Onboarding's, a centred kicker over a big headline
+            // with nothing above it. That screen moved its kicker into
+            // `Content` in the same change, for the reason four paragraphs
+            // down: the eyebrow is inside the row this hides.
+            //
+            // WHAT IT COSTS THE OTHER EIGHT SCREENS: nothing, and that is
+            // checkable rather than asserted. All eight pass a non-empty
             // string literal as `title`, so none can reach this branch by
             // accident; `ScaffoldTests` constructs the scaffold eight times
             // and every one of those passes a title too.
@@ -163,8 +171,11 @@ namespace Broodline.UI.Components
             // `Eyebrow` and `SetResourcePill` are documented as re-settable
             // at bind time, which means a caller can set one long after the
             // constructor decided it would never be seen. No screen does
-            // either today. `ScaffoldTests` pins the nine titled screens
-            // against acquiring the habit by accident.
+            // either today, and the one screen that WANTED the eyebrow
+            // while losing the header - the reveal - moved it into `Content`
+            // rather than setting it into a hidden row. `ScaffoldTests` pins
+            // the eight titled screens against acquiring the habit by
+            // accident.
             _header.style.display = string.IsNullOrEmpty(title)
                 ? DisplayStyle.None : DisplayStyle.Flex;
 
