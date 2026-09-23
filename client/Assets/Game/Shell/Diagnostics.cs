@@ -29,16 +29,29 @@ namespace Broodline.Game.Shell
     /// Development Console painting a red stack trace over the recovery screen.
     /// Fix round 2 reverted that, on two measurements:
     ///
-    ///   1. **The console cannot exist on the shipping platform.** A release
-    ///      DEVICE framework and a release SIMULATOR framework - both
-    ///      `BuildOptions.None`, both `UNITY_DEVELOPER_BUILD 0`, both with no
-    ///      `player-connection` line, differing only in SDK - contain the string
-    ///      `Development Console` **once** and **zero** times respectively. The
-    ///      console's own `Clear` and `Close` chrome is in the simulator
-    ///      framework too. The scripting API survives on device
-    ///      (`developerConsoleEnabled` appears four times against the
-    ///      simulator's six) while the UI implementation does not. A binary
-    ///      cannot draw a window whose title it does not contain.
+    ///   1. **The console cannot exist on the shipping platform.** Two release
+    ///      frameworks were built and compared - both `BuildOptions.None`, both
+    ///      `UNITY_DEVELOPER_BUILD 0`, both with no `player-connection` line,
+    ///      differing only in SDK. `Development Console` is the title string that
+    ///      was painted across the screen, and it appears:
+    ///
+    ///          in the SIMULATOR framework:  1
+    ///          in the DEVICE framework:     0
+    ///
+    ///      **NAMED PER SIDE RATHER THAN "RESPECTIVELY", AND THAT IS NOT STYLE.**
+    ///      This sentence shipped once with the two platforms transposed, so a
+    ///      reader who stopped at it took away the exact opposite of the finding:
+    ///      that the shipping platform is the one WITH the console. One word was
+    ///      carrying the whole direction of the most consequential measurement in
+    ///      the phase, and it carried it backwards.
+    ///
+    ///      Everything else agrees with the table. The console's own `Clear` and
+    ///      `Close` chrome - the exact buttons in the screenshots - is in the
+    ///      SIMULATOR framework and not the device one, and the device
+    ///      `UnityFramework` is about 10 MB the smaller of the two. The scripting
+    ///      API survives on device, where `developerConsoleEnabled` appears 4
+    ///      times against the simulator's 6, while the UI implementation does
+    ///      not. A binary cannot draw a window whose title it does not contain.
     ///   2. **It was not buying anything on the simulator either.** The walk
     ///      that followed fix round 1 found the console still painting, with
     ///      `[defect]` - logged at WARNING severity by that very change - as the
@@ -49,8 +62,8 @@ namespace Broodline.Game.Shell
     /// THE HONEST LIMIT ON (1), because it is evidence and not proof: it is an
     /// absence found with `strings` over a controlled pair of binaries, and no
     /// release build has been run on real hardware. What makes it strong is that
-    /// the contrast is 1 against 0 on the exact string that was observed painted
-    /// across the screen.
+    /// the contrast is 1 in the simulator against 0 on the device, on the exact
+    /// string that was observed painted across the screen.
     ///
     /// SO A DEFECT IS AN ERROR, WHICH IS WHAT THE ONE AUDIENCE THAT MATTERS
     /// NEEDS. A TestFlight log is where a shipped defect has to be findable, and
