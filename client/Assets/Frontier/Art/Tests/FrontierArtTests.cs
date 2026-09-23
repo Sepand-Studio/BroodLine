@@ -89,7 +89,13 @@ namespace Broodline.Frontier.Art.Tests
             {
                 try
                 {
-                    foreach (string species in new[] { "vetch", "ember", "pale", "courser", "lash", "skirmisher" })
+                    // EVERY DEFINED BODY, not a hard-coded six - Phase 10 Batch 2.
+                    // The five new companions were outside this loop for a
+                    // commit; a species the registry knows is a species this
+                    // budget and binding check runs on.
+                    foreach (var definition in FrontierVisuals.All)
+                    {
+                        string species = definition.Id;
                     {
                         var creature = art.Creature(root.transform, species, "cinder", "carapace");
                         var renderer = creature.GetComponentInChildren<SkinnedMeshRenderer>();
@@ -106,10 +112,13 @@ namespace Broodline.Frontier.Art.Tests
                         }
                         Assert.That(triangleCount, Is.LessThanOrEqualTo(10000), species);
                         Assert.That(renderer.sharedMesh.bindposes.Length, Is.EqualTo(creature.Bones.Length));
+                        // Weights sum to one and every index is a bone; a membrane
+                        // blends shoulder and tip, so `weight0 == 1` is no longer the rule.
                         foreach (var weight in renderer.sharedMesh.boneWeights)
                         {
                             Assert.That(weight.boneIndex0, Is.InRange(0, creature.Bones.Length - 1));
-                            Assert.That(weight.weight0, Is.EqualTo(1));
+                            Assert.That(weight.boneIndex1, Is.InRange(0, creature.Bones.Length - 1));
+                            Assert.That(weight.weight0 + weight.weight1 + weight.weight2 + weight.weight3, Is.EqualTo(1f).Within(.001f), species);
                         }
                         var vertices = renderer.sharedMesh.vertices;
                         var weights = renderer.sharedMesh.boneWeights;
@@ -117,10 +126,16 @@ namespace Broodline.Frontier.Art.Tests
                         for (int i = 0; i < vertices.Length; i++)
                         {
                             Assert.That(portrait.Contains(vertices[i]), Is.True, "portrait clips body");
-                            int bone = weights[i].boneIndex0;
-                            var bindVertex = renderer.transform.worldToLocalMatrix * creature.Bones[bone].localToWorldMatrix * binds[bone];
-                            Assert.That(Vector3.Distance(bindVertex.MultiplyPoint3x4(vertices[i]), vertices[i]), Is.LessThan(.0001f), "rest pose changed a vertex");
+                            var skinned = Vector3.zero;
+                            foreach (var (bone, w) in new[] { (weights[i].boneIndex0, weights[i].weight0), (weights[i].boneIndex1, weights[i].weight1) })
+                            {
+                                if (w <= 0) continue;
+                                var bindVertex = renderer.transform.worldToLocalMatrix * creature.Bones[bone].localToWorldMatrix * binds[bone];
+                                skinned += bindVertex.MultiplyPoint3x4(vertices[i]) * w;
+                            }
+                            Assert.That(Vector3.Distance(skinned, vertices[i]), Is.LessThan(.0001f), "rest pose changed a vertex");
                         }
+                    }
                     }
                 }
                 finally { Object.DestroyImmediate(root); }
@@ -216,7 +231,7 @@ namespace Broodline.Frontier.Art.Tests
             {
                 try
                 {
-                    foreach (string species in new[] { "vetch", "ember", "pale" })
+                    foreach (string species in FrontierRigDefinition.Companions)
                     {
                         var actor = art.Creature(root.transform, species);
                         actor.ReducedMotion = true;

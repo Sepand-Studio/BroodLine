@@ -28,7 +28,7 @@ def method(source, name):
         end += 1
     return source[start:end]
 
-old = subprocess.check_output(['git', 'show', args.baseline + ':client/Assets/Frontier/FrontierArt.cs'], cwd=root, text=True)
+old = subprocess.check_output(['git', 'show', args.baseline + ':client/Assets/Frontier/Art/FrontierArt.cs'], cwd=root, text=True)
 source = '''using UnityEngine;
 namespace Broodline.Frontier { public static class PreviousVetch {
 static Color Hex(string v) { ColorUtility.TryParseHtmlString(v,out var c);return c; }
@@ -49,7 +49,7 @@ with tempfile.TemporaryDirectory(prefix='frontier-geometry-') as temp:
                     *map(str, [root / ('client/Assets/Frontier/' + name + '.cs') for name in ['FrontierRigDefinition','FrontierFace','FrontierEmber','FrontierPale','FrontierSkitter','FrontierHollow','FrontierLoam']]),
                     str(root / 'client/Assets/Frontier/FrontierMesh.cs'),
                     str(root / 'client/Assets/Frontier/FrontierParts.cs'),
-                    str(root / 'client/Assets/Frontier/FrontierVetch.cs')], check=True)
+                    str(root / 'client/Assets/Frontier/Art/FrontierVetch.cs')], check=True)
     geometry = temp / 'geometry.json'
     subprocess.run([args.mono, str(executable), str(geometry)], check=True)
     template = (root / 'implementation/tools/frontier-geometry-preview.html').read_text()

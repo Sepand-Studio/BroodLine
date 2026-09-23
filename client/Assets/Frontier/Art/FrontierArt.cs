@@ -32,15 +32,10 @@ namespace Broodline.Frontier
             string key = "body-" + id;
             if (!_meshes.TryGetValue(key, out var mesh))
             {
+                // The builder comes from the visual definition - Phase 10 Task
+                // 2.1 - so a species is one entry there, not a branch here.
                 var author = new FrontierMesh();
-                if (id == "vetch") FrontierVetch.Build(author);
-                else if (id == "pale") FrontierPale.Build(author);
-                else if (id == "ember") FrontierEmber.Build(author);
-                else if (id == "skitter") FrontierSkitter.Build(author);
-                else if (id == "hollow") FrontierHollow.Build(author);
-                else if (id == "loam") FrontierLoam.Build(author);
-                else if (id == "courser" || id == "skirmisher" || id == "lash") Raider(author, id);
-                else throw new ArgumentException("No proof body for " + id);
+                FrontierVisuals.For(id).Build(author);
                 mesh = author.FinishRig(key, rig); _meshes.Add(key, mesh);
             }
             var go = new GameObject(id); go.transform.SetParent(parent, false);
@@ -89,7 +84,7 @@ namespace Broodline.Frontier
             part.transform.localScale = Vector3.one;
         }
 
-        static void Raider(FrontierMesh b,string id)
+        internal static void BuildRaider(FrontierMesh b,string id)
         {
             var body=Hex("#414556");
             b.Sphere(new Vector3(0,.45f,0),new Vector3(.54f,.25f,.3f),body,10,6);

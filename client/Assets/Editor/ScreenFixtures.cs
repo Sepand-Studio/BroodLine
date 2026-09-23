@@ -125,6 +125,10 @@ public static class ScreenFixtures
         "Vocabulary",
         "Lane",
         "Band",
+        // PHASE 10 BATCH 2: the six companions rendered by Unity itself, at
+        // rest and walking with two parts, so the redesign is judged on the
+        // real shader rather than the browser page's approximation.
+        "Companions",
     };
 
     /// Whether the shell holds this fixture in `#screen-host`, which is the
@@ -199,6 +203,7 @@ public static class ScreenFixtures
             case "Vocabulary": return Vocabulary();
             case "Lane": return Lane();
             case "Band": return Band();
+            case "Companions": return CompanionSheet.Build();
             default: throw new ArgumentException("ScreenFixtures has no fixture named '" + name + "'", nameof(name));
         }
     }

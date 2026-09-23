@@ -81,3 +81,6 @@ Task plans and their outputs. Design and architecture live in `specs/`.
   pass: the assembly split that lets production build creatures from the
   Frontier art core, then tokens, chrome, the tab router, the Ark home base,
   and every screen restyled. Ends at the user's eyes-on review.
+- `2026-09-23-phase10-batch2-companions.md` — Phase 10 Batch 2: the five
+  companions to the Vetch standard in review pairs, starting with Ember and
+  Pale; the visual definition registry; the Unity companion sheet fixture.

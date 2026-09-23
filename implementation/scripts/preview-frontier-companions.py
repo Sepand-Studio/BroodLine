@@ -43,7 +43,7 @@ with tempfile.TemporaryDirectory(prefix='frontier-companions-') as temp:
     subprocess.run([args.mono, args.csc, '-nologo', '-langversion:preview', '-r:System.Numerics.dll', '-r:System.Web.Extensions.dll',
                     '-out:' + str(executable), str(temp / 'Baseline.cs'), str(temp / 'BaselineVetch.cs'),
                     str(root / 'implementation/tools/FrontierUnityMath.cs'), str(root / 'implementation/tools/FrontierCompanionExport.cs'),
-                    *[str(root / ('client/Assets/Frontier/' + n + '.cs')) for n in names]], check=True)
+                    *[str(root / ('client/Assets/Frontier/Art/' + n + '.cs')) for n in names]], check=True)
     geometry = temp / 'cast.json'
     subprocess.run([args.mono, str(executable), str(geometry)], check=True)
     cast = json.loads(geometry.read_text())
