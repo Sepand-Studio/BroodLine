@@ -1,0 +1,115 @@
+.frontier-proof {
+    --frontier-paper: #f5ebd9;
+    --frontier-surface: #fff8eb;
+    --frontier-ink: #302d40;
+    --frontier-muted: #686177;
+    --frontier-violet: #6b4ec2;
+    flex-grow: 1;
+    background-color: #263345;
+    color: var(--frontier-ink);
+    -unity-font-definition: url("project:///Assets/UI/Fonts/Nunito-Bold%20SDF.asset");
+    font-size: 16px;
+}
+.frontier-proof .proof-screen { flex-grow: 1; background-color: var(--frontier-paper); }
+.frontier-proof .header { padding: 14px 20px 0; align-items: center; }
+.frontier-proof .wordmark { flex-direction: row; align-items: center; }
+.frontier-proof .brand {
+    -unity-font-definition: url("project:///Assets/UI/Fonts/Baloo2-Bold%20SDF.asset");
+    font-size: 24px; letter-spacing: 2px;
+}
+.frontier-proof .eyebrow { font-size: 12px; letter-spacing: 1.5px; color: var(--frontier-muted); white-space: normal; }
+.frontier-proof .page-title {
+    -unity-font-definition: url("project:///Assets/UI/Fonts/Baloo2-Bold%20SDF.asset");
+    font-size: 30px; -unity-text-align: middle-center; margin: 2px 16px 8px;
+}
+.frontier-proof .stage { flex-grow: 1; flex-shrink: 1; min-height: 160px; overflow: hidden; background-color: #6b9361; }
+.frontier-proof .stage-image, .frontier-proof .stage-overlays { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
+.frontier-proof .stage-badge {
+    align-self: center; margin-top: 12px; padding: 7px 13px;
+    border-radius: 16px; background-color: #263345; color: #fff8eb;
+    font-size: 12px; letter-spacing: 1px;
+}
+.frontier-proof .card-scroll { flex-grow: 0; flex-shrink: 1; max-height: 47%; min-height: 150px; }
+.frontier-proof .paper-card { background-color: var(--frontier-surface); padding: 18px 22px 12px; border-top-width: 3px; border-top-color: #e9b44c; }
+.frontier-proof .card-title {
+    -unity-font-definition: url("project:///Assets/UI/Fonts/Baloo2-Bold%20SDF.asset");
+    font-size: 24px; white-space: normal; margin-top: 3px; margin-bottom: 6px;
+}
+.frontier-proof .body-copy { font-size: 16px; white-space: normal; margin-bottom: 10px; }
+.frontier-proof .caption { font-size: 12px; white-space: normal; color: var(--frontier-muted); margin: 5px 0; }
+.frontier-proof .name-field { margin: 5px 0 12px; flex-direction: column; }
+.frontier-proof .name-field > .unity-base-field__label { margin-bottom: 5px; font-size: 14px; }
+.frontier-proof .name-field > .unity-base-field__input {
+    min-height: 46px; border-width: 2px; border-color: #d9cbae; border-radius: 10px;
+    padding: 8px 12px; background-color: #f5ebd9; color: var(--frontier-ink); font-size: 18px;
+}
+.frontier-proof Button {
+    min-height: 46px; margin: 4px 0; padding: 10px 12px; border-radius: 12px;
+    border-width: 1px; border-color: #dbceb8; white-space: normal; -unity-text-align: middle-center;
+    color: var(--frontier-ink); font-size: 16px;
+}
+.frontier-proof .primary-button {
+    background-color: var(--frontier-violet); color: #fff8eb; border-color: #49348d;
+    border-bottom-width: 4px; font-size: 17px;
+}
+.frontier-proof .secondary-button { background-color: #f5ebd9; }
+.frontier-proof Button:hover { border-color: #6b4ec2; background-color: #e9dfcd; }
+.frontier-proof .primary-button:hover { background-color: #7c5cce; }
+.frontier-proof Button:active { background-color: #d9cbae; }
+.frontier-proof .primary-button:active { background-color: #49348d; }
+.frontier-proof Button:focus, .frontier-proof .unity-text-field__input:focus { border-color: #b78b3e; border-width: 2px; }
+.frontier-proof Button:disabled { opacity: 0.5; }
+.frontier-proof .button-row { flex-direction: row; align-items: stretch; }
+.frontier-proof .button-row > Button { flex-grow: 1; flex-basis: 0; margin-left: 3px; margin-right: 3px; font-size: 14px; }
+.frontier-proof .roster { flex-direction: row; }
+.frontier-proof .roster-card { flex-basis: 0; flex-grow: 1; margin: 4px 3px; padding: 7px 3px; font-size: 12px; align-items: center; }
+.frontier-proof .selected { border-color: #6b4ec2; border-width: 2px; background-color: #ece3f5; }
+.frontier-proof .text-button { min-height: 44px; padding: 6px; background-color: rgba(0,0,0,0); border-width: 0; font-size: 14px; color: var(--frontier-violet); }
+.frontier-proof .frontier-icon { width: 24px; height: 24px; margin-right: 6px; flex-shrink: 0; }
+.frontier-proof .trait-chip { flex-direction: row; align-items: center; padding: 4px 12px; margin: 0 6px 6px 0; border-radius: 20px; background-color: #f5ebd9; }
+.frontier-proof Slider { margin: 7px 0; min-height: 34px; }
+.frontier-proof Slider > .unity-base-field__label { min-width: 130px; font-size: 14px; }
+.frontier-proof .world-label {
+    position: absolute; width: 50px; height: 21px; border-radius: 9px;
+    background-color: #286846; color: #fff8eb; font-size: 12px; -unity-text-align: middle-center;
+}
+.frontier-proof .world-label.fallen { background-color: #b53e3e; }
+.frontier-proof .footer { flex-direction: row; justify-content: space-between; align-items: center; padding: 4px 16px; }
+.frontier-proof .footer Toggle { min-height: 44px; font-size: 12px; }
+.frontier-proof .proof-note { font-size: 10px; letter-spacing: 1px; color: var(--frontier-muted); }
+.frontier-proof .stage-notice {
+    position: absolute; left: 10px; right: 10px; bottom: 8px;
+    padding: 6px 10px; border-radius: 12px; background-color: rgba(38,51,69,0.88);
+    color: #fff8eb; font-size: 12px; white-space: normal; -unity-text-align: middle-center;
+}
+.frontier-proof .health-badge {
+    position: absolute; width: 56px; padding: 2px 4px 4px;
+    background-color: #263345; border-width: 1px; border-color: #fff8eb; border-radius: 6px;
+    color: #fff8eb; font-size: 10px; -unity-text-align: middle-center;
+}
+.frontier-proof .health-track { height: 4px; background-color: #686177; border-radius: 2px; overflow: hidden; }
+.frontier-proof .health-fill { height: 4px; background-color: #8fc77a; }
+.frontier-proof .enemy-health .health-fill { background-color: #e5867a; }
+.frontier-proof .chilled .health-fill { background-color: #9cd9ed; }
+.frontier-proof .fallen { opacity: 0.65; }
+.frontier-proof .rallied { background-color: #6b4ec2; }
+.frontier-proof .selected-companion { border-color: #e9b44c; border-width: 2px; }
+.frontier-proof .pocket-button {
+    position: absolute; width: 44px; height: 44px; min-height: 44px; padding: 0;
+    border-radius: 22px; border-width: 2px; border-color: #fff8eb;
+    background-color: #286846; color: #fff8eb; font-size: 16px;
+}
+.frontier-proof .pocket-button.occupied { background-color: #686177; }
+.frontier-proof .pocket-button.selected { background-color: #6b4ec2; border-color: #e9b44c; }
+.frontier-proof .ark-label {
+    position: absolute; width: 44px; border-radius: 8px; padding: 3px;
+    background-color: #e9b44c; color: #302d40; font-size: 10px; -unity-text-align: middle-center;
+}
+.frontier-proof .floating-cue {
+    position: absolute; width: 76px; padding: 2px 4px; border-radius: 7px;
+    background-color: #fff8eb; color: #286846; -unity-text-align: middle-center; font-size: 14px;
+}
+.frontier-proof .floating-cue.danger { color: #b53e3e; }
+.frontier-proof .victory { background-color: #286846; }
+.frontier-proof Foldout { margin: 6px 0; }
+.frontier-proof Foldout > Toggle { min-height: 44px; }
