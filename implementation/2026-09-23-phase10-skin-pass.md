@@ -126,7 +126,7 @@ markers → Map list with Holdfast marked → Splice roster with a chevron →
 Store from the "+" → Lab from a base marker, "Upgrade (preview)" toasting
 and counting down 01:59 → the Codex from a trait chip.
 
-**Found on the walk, fixed in source, awaiting the gate run:**
+**Found on the walk, fixed in source; gates green (546/545/1) and a second simulator build confirmed the Store chevron and the two-column roster live:**
 
 1. **The first pass through the first hour never reached the hub.** The
    reveal path (`CommitAndRevealAsync` → lineage) called `CampaignAsync`
