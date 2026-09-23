@@ -1,3 +1,4 @@
+using System;
 using Broodline.Creatures;
 using Broodline.Frontier;
 using Broodline.View;
@@ -73,7 +74,13 @@ namespace Broodline.Game.Shell
             _clearPending = false;
             Clear();
             if (_art == null) _art = new FrontierArt(RuntimeShaders.Require(RuntimeShaders.Frontier));
-            var creature = _art.Creature(transform, species, trait1, trait2);
+            FrontierCreature creature;
+            try { creature = _art.Creature(transform, species, trait1, trait2); }
+            catch (ArgumentException error)
+            {
+                Debug.LogWarning("[portrait-studio] unsupported companion appearance: " + error.Message);
+                return null;
+            }
             creature.Growth = Mathf.Clamp01(growth01);
             creature.Pose(0f, true);
             _creature = creature.gameObject;

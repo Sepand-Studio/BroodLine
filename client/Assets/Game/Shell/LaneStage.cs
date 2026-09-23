@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Broodline.Creatures;
 using Broodline.Frontier;
@@ -249,7 +250,13 @@ namespace Broodline.Game.Shell
                 }
 
                 if (_art == null) _art = new FrontierArt(RuntimeShaders.Require(RuntimeShaders.Frontier));
-                var creature = _art.Creature(_creatures.transform, look.Species, look.Trait1, look.Trait2);
+                FrontierCreature creature;
+                try { creature = _art.Creature(_creatures.transform, look.Species, look.Trait1, look.Trait2); }
+                catch (ArgumentException error)
+                {
+                    Debug.LogWarning("[lane-stage] unsupported companion appearance: " + error.Message);
+                    continue;
+                }
                 creature.Growth = Mathf.Clamp01(look.Growth01);
                 creature.Pose(0f, true);
                 creature.Paused = true; // this stage is a still picture, even while a wave is running

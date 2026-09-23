@@ -6,6 +6,9 @@ namespace Broodline.Frontier
     /// Shared trait geometry, independent of creature construction and mesh caching.
     public static class FrontierParts
     {
+        public static bool Has(string trait) => trait == "cinder" || trait == "carapace" ||
+            trait == "chill" || trait == "taunt" || trait == "splash";
+
         static Color Hex(string value) { ColorUtility.TryParseHtmlString(value, out var c); return c; }
         static readonly Color Cream = Hex("#f4dfb9"), Frost = Hex("#c6cede"), Gold = Hex("#c99a49"), Coral = Hex("#e5867a");
         public static void Build(FrontierMesh b, string trait)

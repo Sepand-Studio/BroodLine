@@ -73,9 +73,9 @@ namespace Broodline.Frontier
         }
 
         public static FrontierVisualDefinition For(string id)
-            => id != null && ById.TryGetValue(id, out var v) ? v : throw new ArgumentException("No Frontier visual definition for " + id);
+            => id != null && ById.TryGetValue(id.Trim().ToLowerInvariant(), out var v) ? v : throw new ArgumentException("No Frontier visual definition for " + id);
 
-        public static bool Has(string id) => id != null && ById.ContainsKey(id);
+        public static bool Has(string id) => id != null && ById.ContainsKey(id.Trim().ToLowerInvariant());
 
         public static IEnumerable<FrontierVisualDefinition> All => ById.Values;
     }

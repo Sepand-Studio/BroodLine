@@ -28,6 +28,11 @@ namespace Broodline.Frontier
 
         public FrontierCreature Creature(Transform parent, string id, string first = null, string second = null, float phase = 0)
         {
+            // Snapshot species/trait ids are presentation input. Keep the
+            // case-insensitive contract the previous CreatureAssembler had.
+            id = id?.Trim().ToLowerInvariant();
+            first = first?.Trim().ToLowerInvariant();
+            second = second?.Trim().ToLowerInvariant();
             var rig = FrontierRigDefinition.For(id);
             string key = "body-" + id;
             if (!_meshes.TryGetValue(key, out var mesh))
@@ -73,6 +78,11 @@ namespace Broodline.Frontier
         void Mount(Transform socket, string trait)
         {
             if (string.IsNullOrEmpty(trait)) return;
+            if (!FrontierParts.Has(trait))
+            {
+                Debug.LogWarning("[frontier-art] no visual part for trait '" + trait + "'; body remains visible");
+                return;
+            }
             string key = "part-" + trait;
             if (!_meshes.TryGetValue(key, out var mesh))
             {

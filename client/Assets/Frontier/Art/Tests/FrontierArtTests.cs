@@ -13,6 +13,23 @@ namespace Broodline.Frontier.Art.Tests
     public sealed class FrontierArtTests
     {
         [Test]
+        public void ProductionSnapshotIdsRemainCaseInsensitive()
+        {
+            var root = new GameObject("snapshot-id-regression");
+            try
+            {
+                using (var art = new FrontierArt(Shader.Find("Broodline/FrontierSurface")))
+                {
+                    var creature = art.Creature(root.transform, " Ember ", " Cinder ", " CARAPACE ");
+                    Assert.AreEqual("ember", creature.SpeciesId);
+                    Assert.IsNotNull(creature.Dorsal.Find("cinder"));
+                    Assert.IsNotNull(creature.Flank.Find("carapace"));
+                }
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
+
+        [Test]
         public void NewlyCreatedActiveAndInactiveCreaturesApplyTheirFirstPoseWithoutErrors()
         {
             foreach (bool active in new[] { true, false })
