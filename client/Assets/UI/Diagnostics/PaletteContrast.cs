@@ -88,23 +88,33 @@ namespace Broodline.UI.Diagnostics
             ("Hollow", "#7a6ac0"), ("Loam",  "#7cc492"), ("Pale",    "#c6cede"),
         };
 
-        /// Four species share a hex with the token that names them, which is
-        /// intended. TWO share a hex with a token that names a UI ROLE, which
-        /// is not, and no amount of CVD simulation will find it: it is not a
-        /// confusion between two species, it is one species being the same
-        /// colour as a piece of interface chrome. dE is 0.0 at normal vision,
-        /// which is the strongest collision there is.
-        ///
-        /// Pinned by PaletteContrastTests against Tokens.uss so that a future
-        /// edit cannot silently create a third or erase one of these two.
+        /// Each species has ONE token that carries its identity colour, and
+        /// PaletteContrastTests pins Tokens.uss to this table so the two
+        /// cannot drift apart. Phase 10 Task 1.1 moved the pins from the old
+        /// role-named tokens (--teal, --coral, ...) to --species-*, because
+        /// the role tokens are now free to be roles: see ResolvedCollisions.
         public static readonly (string Species, string Token, string Role)[] TokenIdentities =
         {
-            ("Ember",   "--coral",  "Ember, danger"),
-            ("Hollow",  "--violet", "primary brand, CTAs"),      // COLLISION
-            ("Loam",    "--green",  "Loam, success"),
-            ("Pale",    "--slate",  "Pale, neutral"),
-            ("Skitter", "--amber",  "Apex / gold, warnings"),    // COLLISION
-            ("Vetch",   "--teal",   "Vetch, info"),
+            ("Ember",   "--species-ember",   "Ember"),
+            ("Hollow",  "--species-hollow",  "Hollow"),
+            ("Loam",    "--species-loam",    "Loam"),
+            ("Pale",    "--species-pale",    "Pale"),
+            ("Skitter", "--species-skitter", "Skitter"),
+            ("Vetch",   "--species-vetch",   "Vetch"),
+        };
+
+        /// TWO SPECIES USED TO BE INTERFACE CHROME, at dE 0.0, which no CVD
+        /// simulation can find: Hollow was --violet (every CTA) and Skitter
+        /// was --amber (Apex, warnings, the Founder border). palette-decision.md
+        /// "The collision no simulation can see" recorded them; Phase 10's
+        /// palette resolved them by moving the action violet to #6b4ec2 and
+        /// giving rewards their own gold, --reward. Pinned in the OTHER
+        /// direction now: the test fails if either role token ever equals
+        /// its species again.
+        public static readonly (string Species, string Token, string Role)[] ResolvedCollisions =
+        {
+            ("Hollow",  "--action", "primary brand, CTAs"),
+            ("Skitter", "--reward", "rewards and milestones"),
         };
 
         static readonly Dictionary<string, double[][]> Cvd = new Dictionary<string, double[][]>

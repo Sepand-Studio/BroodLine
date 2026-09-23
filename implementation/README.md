@@ -77,3 +77,7 @@ Task plans and their outputs. Design and architecture live in `specs/`.
 
   Findings are still promoted into the plan document itself; these files are
   the provenance behind them, not a substitute for reading them.
+- `2026-09-23-phase10-skin-pass.md` — Phase 10 Batch 1, the whole-app skin
+  pass: the assembly split that lets production build creatures from the
+  Frontier art core, then tokens, chrome, the tab router, the Ark home base,
+  and every screen restyled. Ends at the user's eyes-on review.

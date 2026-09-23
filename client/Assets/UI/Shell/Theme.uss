@@ -181,6 +181,8 @@ Label {
 
 .card {
     background-color: var(--surface);
+    border-width: 1px;
+    border-color: var(--hairline);
     border-radius: var(--radius-card);
     padding: var(--space-4);
     margin-bottom: var(--space-3);
@@ -380,11 +382,59 @@ Button:disabled {
  * this file's header. `background-color` goes transparent because a colour
  * under a `background-image` is what the image is composited over, and
  * leaving `--violet` there tints the ramp. */
+/* THE PRIMARY CTA IS A NINE-SLICE, NOT A RAMP, as of Phase 10 Task 1.1.
+ * ns-btn-primary.png carries the lit crown, the face and the 3px foot in one
+ * picture (generate-textures.py has the geometry), so the Button rule's own
+ * bottom border is switched OFF here in both states - otherwise the foot
+ * would be drawn twice. The press keeps bible 10.6's motion: the sprite
+ * swaps to the pressed one (a 1px foot, darker face) as the element drops
+ * 2px, which is the same silhouette change the border used to make.
+ * Slice scale 0.5 because the sprite is authored at 2x; the 40px border is
+ * the one ArtImportSettings.cs re-asserts. */
 .btn-primary {
-    background-image: url("project:///Assets/UI/Art/cta-ramp.png");
-    -unity-background-scale-mode: stretch-to-fill;
+    background-image: url("project:///Assets/UI/Art/ns-btn-primary.png");
+    -unity-slice-left: 40; -unity-slice-right: 40;
+    -unity-slice-top: 40; -unity-slice-bottom: 40;
+    -unity-slice-scale: 0.5px;
     background-color: rgba(0, 0, 0, 0);
+    border-bottom-width: 0;
 }
+.btn-primary:active {
+    background-image: url("project:///Assets/UI/Art/ns-btn-primary-pressed.png");
+    background-color: rgba(0, 0, 0, 0);
+    border-bottom-width: 0;
+}
+
+/* The reward button - claim a gift, collect a milestone. Gold is reserved
+ * for rewards (bible 10.1 as amended), so this is the ONLY gold button. */
+.btn-reward {
+    background-image: url("project:///Assets/UI/Art/ns-btn-reward.png");
+    -unity-slice-left: 40; -unity-slice-right: 40;
+    -unity-slice-top: 40; -unity-slice-bottom: 40;
+    -unity-slice-scale: 0.5px;
+    background-color: rgba(0, 0, 0, 0);
+    border-bottom-width: 0;
+    color: var(--reward-text);
+}
+.btn-reward:active {
+    background-image: url("project:///Assets/UI/Art/ns-btn-reward-pressed.png");
+    background-color: rgba(0, 0, 0, 0);
+    border-bottom-width: 0;
+}
+
+/* THE DARK FRAME. Battle readouts, the HUD, a portrait stage's surround:
+ * slate with a brass edge, as a nine-slice because USS cannot draw two
+ * borders. Labels inside it read in --paper, set by the rule below rather
+ * than per screen. */
+.panel-deep {
+    background-image: url("project:///Assets/UI/Art/ns-panel-deep.png");
+    -unity-slice-left: 48; -unity-slice-right: 48;
+    -unity-slice-top: 48; -unity-slice-bottom: 48;
+    -unity-slice-scale: 0.5px;
+    border-radius: var(--radius-card);
+    padding: var(--space-4);
+}
+.panel-deep Label { color: var(--paper); }
 
 /* Secondary: violet on tint, per the handoff's secondary button. */
 .btn-secondary {

@@ -1,29 +1,32 @@
-/* The design tokens from specs/Designs/design_handoff_broodline/README.md.
+/* The design tokens. Phase 10 (2026-09-23) made THIS FILE the authority -
+ * bible 10.6, as amended - seeded from the Living Frontier palette in
+ * specs/plans/broodline_visual_upgrade_plan.md and bible 10.1. Before that
+ * it was a faithful copy of specs/Designs/design_handoff_broodline/README.md,
+ * and most of the notes below still cite that handoff by line: they are kept
+ * because the REASONING (which token a surface reads and why, which values
+ * are measured rather than picked) still holds even where the hex moved.
  *
- * AUTHORITATIVE, NOT INVENTED. bible 10.6: "the design tokens in the handoff
- * bundle are authoritative: colour, spacing, radius, elevation, the physical
- * button-press state on primary CTAs, and the named animation set. They are
- * complete and should be implemented as specified rather than reinterpreted."
- * Every hex below is copied from that README's table, EXCEPT the five marked
- * "not in the handoff" - added by Phase 8 Task 2, when verify-uss-tokens.sh
- * found colours living raw in screen stylesheets that no token covered. Each
- * one states what it is for and why the nearest existing token would not do.
- * If a README hex looks wrong, the README is the thing to argue with, not
- * this file.
+ * WHAT MOVED IN PHASE 10 TASK 1.1, AND HOW. The old token NAMES are all
+ * still here with new VALUES - --paper is now warm parchment, --violet is
+ * the deeper action violet, --ink is the slate ink - so that every one of
+ * the ~36 stylesheets restyled in one edit. Semantic names (--action,
+ * --reward, --ink-secondary, --species-*) sit at the bottom of the file and
+ * the screen sheets migrate to them in Task 1.6, after which the old names
+ * are deleted; verify-uss-tokens.sh check 3 is what makes that deletion
+ * safe. Do not rely on var() inside a custom-property value here - it is
+ * unverified on 6000.6.0f1, which is why several values are written twice.
  *
- * NOT specs/Designs/_ds/modernist-<variant>/styles.css. That is a generic design
- * system that happens to sit in the same folder - red accent, Archivo, zero
- * radius. It is not Broodline's and matches neither the bible nor the
- * handoff. Do not merge the two.
+ * SPECIES AND ROLES ARE NOW SEPARATE TOKENS. --violet used to equal Hollow
+ * and --amber used to equal Skitter, at dE 0.0 - the two collisions
+ * palette-decision.md recorded and PaletteContrastTests pinned. The action
+ * violet moved (#6B4EC2) and the reward gold is its own token (#E9B44C), so
+ * neither species is interface chrome any more; the species tokens carry
+ * the six measured identity colours, unchanged.
  *
- * NOT specs/broodline_art_direction.md either, whatever its filename
- * suggests. That file is `status: superseded` (Era-2) and describes the
- * ABANDONED direction: charcoal, steel and amber, a clinical laboratory.
- * bible 10.1 records the decision explicitly - "It is a good idea and it is
- * not what got built." What got built is warm, rounded, paper-white with
- * violet. Two functional requirements survive from the old brief and only
- * two; they are in bible 10.6 and they are tabular figures and the 11px
- * numeral floor.
+ * NOT specs/Designs/_ds/modernist-<variant>/styles.css and NOT
+ * specs/broodline_art_direction.md (status: superseded, the abandoned
+ * charcoal-and-steel laboratory). Two functional requirements survive from
+ * that brief, in bible 10.6: tabular figures and the 11px numeral floor.
  *
  * WHY :root. Shell.uxml applies this stylesheet at the panel root, so every
  * custom property below cascades to every screen the ScreenHost adds
@@ -32,21 +35,21 @@
  */
 :root {
     /* ---- Surfaces and ink ---- */
-    --ink: #3f3a52;               /* primary text */
-    --ink-deep: #2e2a3d;          /* deck / dark surfaces */
-    --paper: #f7f4fb;             /* screen background */
-    --surface: #ffffff;           /* cards */
-    --surface-sunk: #f8f6fc;      /* inset rows, unselected options */
-    --surface-raised: #fdfcff;    /* CreatureCard's selected fill, above --surface */
+    --ink: #302d40;               /* primary text */
+    --ink-deep: #263345;          /* deck / dark surfaces */
+    --paper: #f5ebd9;             /* screen background */
+    --surface: #fff8eb;           /* cards */
+    --surface-sunk: #f3e7d2;      /* inset rows, unselected options */
+    --surface-raised: #fffcf4;    /* CreatureCard's selected fill, above --surface */
 
     /* ---- Brand ---- */
-    --violet: #7a6ac0;            /* primary brand, CTAs */
-    --violet-deep: #6f5fbb;       /* CTA gradient end -> solid CTA fill here */
-    --violet-shadow: #5b4d9e;     /* CTA drop edge */
-    --violet-tint: #f1ecfa;       /* secondary button, violet panels */
-    --violet-text: #6b5fa8;       /* violet-on-light text */
-    --violet-light: #8878cf;      /* CTA gradient start, selection ring */
-    --violet-pressed: #e7e0f6;    /* secondary button :active, under --violet-tint */
+    --violet: #6b4ec2;            /* primary brand, CTAs */
+    --violet-deep: #5f43b5;       /* CTA gradient end -> solid CTA fill here */
+    --violet-shadow: #49348d;     /* CTA drop edge */
+    --violet-tint: #eee7f9;       /* secondary button, violet panels */
+    --violet-text: #5b45ae;       /* violet-on-light text */
+    --violet-light: #8a6fd6;      /* CTA gradient start, selection ring */
+    --violet-pressed: #e4dbf5;    /* secondary button :active, under --violet-tint */
 
     /* IN the handoff, at distance 0: `Onboarding.dc.html:46`'s pool circle is
      * `fill="#e9e0fb"`. Added in Phase 9 Task 14c fix round 2 - the palette
@@ -69,7 +72,7 @@
      * edge into the fill. Task 2 was told to collapse it as drift; it is
      * not drift, and the arithmetic is recorded here so the call can be
      * argued with. */
-    --violet-edge: #ddd3f0;       /* not in the handoff - secondary drop edge */
+    --violet-edge: #d9cdef;       /* not in the handoff - secondary drop edge */
 
     /* Not in the handoff. The icon inside an aberrant trait pip. Nothing in
      * the table is near it - --hairline, the closest, is 46 away and far
@@ -88,7 +91,7 @@
      * one step BELOW --violet-tint (#f1ecfa, 17 away in summed channel
      * distance) rather than above it, so the ramp's far end still reads as
      * the same violet family as the panels beside it and not as a new hue. */
-    --hybrid-tint-deep: #ebe4f7;  /* not in the handoff - predicted-hybrid ramp end */
+    --hybrid-tint-deep: #efe6f3;  /* not in the handoff - predicted-hybrid ramp end */
 
     /* ---- Species / semantic ---- */
     --teal: #6ba7c0;              /* Vetch, info */
@@ -239,14 +242,14 @@
      * written as a raw rgba() in WaveHudView.uss, in the one file
      * verify-uss-tokens.sh's own header names as the reason that gate
      * exists. rgba() is not hex, so check 1 never saw it. */
-    --hud-scrim: rgba(46, 42, 61, 0.55);
+    --hud-scrim: rgba(38, 51, 69, 0.72);
 
     /* ---- Secondary ink ---- */
-    --mute: #a29bb5;              /* secondary text, inactive nav */
-    --mute-soft: #b3adc2;         /* tertiary text, placeholders */
-    --divider: #f4f1fa;           /* hairline dividers */
-    --hairline: #ece7f6;          /* unselected option outline */
-    --ring: #8878cf;              /* selected option 2px ring */
+    --mute: #686177;              /* secondary text, inactive nav */
+    --mute-soft: #8e8799;         /* tertiary text, placeholders */
+    --divider: #ebdfc9;           /* hairline dividers */
+    --hairline: #e6d9c1;          /* unselected option outline */
+    --ring: #6b4ec2;              /* selected option 2px ring */
 
     /* ---- Spacing. Screen gutter is 12. ---- */
     --gutter: 12px;
@@ -348,7 +351,7 @@
      * m_PointSize 90 - so the handoff's own 3px padding on our 13.6px line
      * box is 19.6. Theme.uss's `.chip` note has what it replaced and why the
      * height has to be on the chip rather than on the label inside it. */
-    --chip-height: 20px;          /* Theme.uss `.chip` - Splice Chamber.dc.html:67's 3px padding on our 13.6px line box */
+    --chip-height: 22px;          /* Theme.uss `.chip` - Splice Chamber.dc.html:67's 3px padding on our 15px line box (11px micro type, Phase 10) */
 
     /* HeroBand's dashed ring, and a token on the same test as --hero-slot:
      * two files have to agree on it. `generate-textures.py` DRAWS band-ring
@@ -374,8 +377,8 @@
     --band-ring: 264px;           /* HeroBand dotted ring - Onboarding.dc.html:45, circle r 132 in a 406 viewBox */
 
     /* ---- Elevation. USS has no box-shadow; these tint a nine-slice. ---- */
-    --elev-1-tint: rgba(63, 58, 82, 0.06);   /* handoff: 0 2px 8px  */
-    --elev-2-tint: rgba(63, 58, 82, 0.09);   /* handoff: 0 4px 16px */
+    --elev-1-tint: rgba(48, 45, 64, 0.08);   /* handoff: 0 2px 8px  */
+    --elev-2-tint: rgba(48, 45, 64, 0.12);   /* handoff: 0 4px 16px */
     --elev-1-spread: 6px;
     --elev-2-spread: 12px;
 
@@ -429,15 +432,51 @@
      * `Creature Roster.dc.html:31` is 21px, and `Gene Ark`, `Splice Chamber`
      * and `Wave Defense` agree - which is exactly --text-screen-title. Four
      * of this project's screens already match it. */
-    --text-screen-title: 21px;
-    --text-hero: 28px;
+    --text-screen-title: 24px;
+    --text-hero: 30px;
     --text-card-hero: 26px;
-    --text-section: 19px;
-    --text-card-title: 13px;
-    --text-body: 12px;
-    --text-secondary: 11px;
-    --text-micro: 10px;
+    --text-section: 18px;
+    --text-card-title: 16px;
+    --text-body: 14px;
+    --text-secondary: 12px;
+    --text-micro: 11px;
     --text-cta: 17px;
-    --text-tab: 11.5px;
-    --text-nav: 10px;
+    --text-tab: 12px;
+
+    /* ---- Phase 10 semantic tokens ----
+     *
+     * THE NAMES THE SCREENS MIGRATE TO. Each is written out as a literal
+     * rather than as var() of the legacy token above it, because var()
+     * inside a custom-property value is unverified on this Editor and a
+     * token that silently resolves to nothing renders untinted with no
+     * warning. Until Task 1.6 finishes the migration the same hex appears
+     * twice; PaletteContrastTests pins the species six, and the rest are
+     * caught by the eye on the capture corpus. */
+    --surface-paper: #f5ebd9;     /* = --paper: the screen background */
+    --surface-deep: #263345;      /* = --ink-deep: portrait stages, HUD frames, backdrops */
+    --ink-primary: #302d40;       /* = --ink */
+    --ink-secondary: #686177;     /* = --mute: supporting labels, 5.3:1 on --surface */
+    --action: #6b4ec2;            /* = --violet: primary CTA, selection, genetic energy */
+    --action-shadow: #49348d;     /* = --violet-shadow: CTA depth and pressed state */
+    --action-text: #ffffff;       /* ink on --action, 6.0:1 */
+    --selection: #6b4ec2;         /* = --ring */
+    --reward: #e9b44c;            /* rewards and earned milestones ONLY - not Skitter, not a warning */
+    --reward-text: #5a4308;       /* ink on --reward, 7.4:1 */
+    --reward-tint: #fbf0d2;       /* reward row fill */
+    --success: #286846;           /* success text and state, 6.9:1 on --surface */
+    --danger: #b53e3e;            /* errors, irreversible-action emphasis, 5.3:1 on --surface */
+    --brass: #b98b45;             /* trim: HUD frame edge, tab bar edge, reward chip stroke */
+    --brass-light: #e2c07a;       /* trim highlight */
+    --hud-frame: #263345;         /* = --surface-deep: the dark frame behind battle readouts */
+    --hud-frame-edge: #3b4c63;    /* the frame's inset edge */
+
+    /* Species identity, one token each, the same six measured values as
+     * --teal/--coral/--amber/--violet-as-was/--green/--slate. These are the
+     * tokens PaletteContrast.TokenIdentities now pins. */
+    --species-vetch: #6ba7c0;
+    --species-ember: #e5867a;
+    --species-skitter: #e8b34a;
+    --species-hollow: #7a6ac0;
+    --species-loam: #7cc492;
+    --species-pale: #c6cede;
 }

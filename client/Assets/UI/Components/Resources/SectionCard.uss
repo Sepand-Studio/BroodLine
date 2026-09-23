@@ -50,6 +50,8 @@
 .section-card__surface {
     flex-direction: column;
     background-color: var(--surface);
+    border-width: 1px;
+    border-color: var(--hairline);
     border-radius: var(--radius-card);
     padding: var(--space-4);
 }

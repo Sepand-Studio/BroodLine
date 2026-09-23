@@ -1,0 +1,86 @@
+/* The top bar's resource pills - Phase 10 Task 1.2. Same anatomy as the
+ * scaffold's single resource pill (ScreenScaffold.uss `.resource-pill`), one
+ * per balance, so the top bar and a screen's header pill read as one family.
+ * Pill radius is half its measured 34px height, per Tokens.uss's radius note. */
+.resource-bar {
+    flex-direction: row;
+    align-items: center;
+    flex-grow: 1;
+}
+
+.resource-bar__pills {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.resource-bar__pill {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    background-color: var(--surface);
+    border-width: 1px;
+    border-color: var(--hairline);
+    border-radius: 17px;
+    height: 34px;
+    padding-left: 5px;
+    padding-right: var(--space-2);
+    margin-right: var(--space-2);
+    margin-bottom: var(--space-1);
+}
+
+.resource-bar__disc {
+    width: 22px;
+    height: 22px;
+    border-radius: 11px;
+    background-color: var(--violet-tint);
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-right: 6px;
+}
+.resource-bar__disc--charge { background-color: var(--teal-tint); }
+.resource-bar__disc--shard  { background-color: var(--violet-tint); }
+.resource-bar__disc--tier   { background-color: var(--reward-tint); }
+.resource-bar__disc--mark   { background-color: var(--green-tint); }
+
+.resource-bar__pill .resource-bar__glyph {
+    width: 12px;
+    height: 12px;
+    -unity-background-image-tint-color: var(--violet-text);
+}
+.resource-bar__disc--charge .resource-bar__glyph { -unity-background-image-tint-color: var(--teal-text); }
+.resource-bar__disc--tier   .resource-bar__glyph { -unity-background-image-tint-color: var(--reward-text); }
+.resource-bar__disc--mark   .resource-bar__glyph { -unity-background-image-tint-color: var(--green-text); }
+
+.resource-bar__pill .resource-bar__value {
+    font-size: 15px;
+    color: var(--ink);
+}
+
+.resource-bar__pill .resource-bar__timer {
+    margin-left: var(--space-1);
+}
+
+/* The "+": a 22px action disc, half-height radius, no foot - it is a glyph
+ * button, not a CTA, so the Button rule's press geometry is switched off. */
+.resource-bar__pill .resource-bar__buy {
+    width: 22px;
+    height: 22px;
+    border-radius: 11px;
+    margin-left: 6px;
+    margin-top: 0;
+    margin-bottom: 0;
+    margin-right: 0;
+    padding: 0;
+    font-size: var(--text-card-title);
+    -unity-text-align: middle-center;
+    border-bottom-width: 0;
+    background-color: var(--action);
+    color: var(--action-text);
+}
+.resource-bar__pill .resource-bar__buy:active {
+    translate: 0 0;
+    border-bottom-width: 0;
+    background-color: var(--action-shadow);
+}

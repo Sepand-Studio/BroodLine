@@ -1,0 +1,11 @@
+{
+  "name": "Broodline.Frontier.Art.Tests",
+  "rootNamespace": "Broodline.Frontier.Art.Tests",
+  "references": ["Broodline.Frontier.Art", "UnityEngine.TestRunner", "UnityEditor.TestRunner"],
+  "includePlatforms": ["Editor"],
+  "overrideReferences": true,
+  "precompiledReferences": ["nunit.framework.dll"],
+  "autoReferenced": false,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+  "noEngineReferences": false
+}

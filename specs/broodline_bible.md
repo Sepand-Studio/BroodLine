@@ -997,6 +997,8 @@ An earlier direction proposed the opposite — a sterile clinical laboratory in 
 
 Two requirements from the abandoned direction carry over, both functional rather than aesthetic. They are in §10.6.
 
+**Amended 2026-09-23 (Phase 10, "The Living Frontier").** The register is now warm ivory and parchment surfaces (`#F5EBD9`, `#FFF8EB`) over a deep slate backdrop (`#263345`), violet (`#6B4EC2`) as brand and action, gold (`#E9B44C`) reserved for rewards and milestones, the six species colours unchanged. Creatures **have faces**: readable eyes, gaze, eyelids and small facial movement, with species-specific posture. This supersedes Phase 9's "personality lives in posture, gait and the trait parts, not in a face" ruling; silhouette and the two trait parts still carry combat identity, the face carries attachment. The world is a lush, unfamiliar frontier and the Ark a crafted travelling sanctuary — enamel, warm wood, brushed brass, glass, restrained violet energy. The reference is `specs/Designs/visual-upgrade-mockups-v1/` and the plan is `specs/plans/broodline_visual_upgrade_plan.md`; what is *not* adopted from the Kingshot reference — medieval humans, castles, rarity ladders — is recorded there.
+
 ## 10.2 Three shape rules
 
 Hand these to the illustrator verbatim. No exceptions.
@@ -1099,7 +1101,7 @@ Each of the eight must be recognisable at a glance, because recognition is the c
 
 **Minimum 11pt for any number a decision depends on.**
 
-Beyond that, the design tokens in the handoff bundle are authoritative: colour, spacing, radius, elevation, the physical button-press state on primary CTAs, and the named animation set. They are complete and should be implemented as specified rather than reinterpreted.
+Beyond that, the design tokens are authoritative: colour, spacing, radius, elevation, the physical button-press state on primary CTAs, and the named animation set. **Amended 2026-09-23:** the token authority is `client/Assets/UI/Shell/Tokens.uss`, seeded from the Phase 10 palette in §10.1 rather than the 2026-09 handoff README; `implementation/scripts/verify-uss-tokens.sh` is what makes that authority real. Spacing, radius, elevation and the press state carry over from the handoff unchanged.
 
 ## 10.7 What not to draw
 

@@ -50,6 +50,7 @@
 .icon--lock    { background-image: url("project:///Assets/UI/Art/icons/lock.png"); }
 .icon--check   { background-image: url("project:///Assets/UI/Art/icons/check.png"); }
 .icon--warning { background-image: url("project:///Assets/UI/Art/icons/warning.png"); }
+.icon--mark    { background-image: url("project:///Assets/UI/Art/icons/mark.png"); }
 
 /* Three more, and all three are BESPOKE rather than fetched - so all three
  * keep their .svg beside the raster, on the rule the thirteen established
@@ -109,6 +110,6 @@
     position: absolute;
     top: var(--space-2);
     align-self: center;
-    -unity-background-image-tint-color: var(--mute-soft);
+    -unity-background-image-tint-color: var(--hairline);
 }
-.tab-bar__tab--active .icon    { -unity-background-image-tint-color: var(--violet-text); }
+.tab-bar__tab--active .icon    { -unity-background-image-tint-color: var(--brass-light); }

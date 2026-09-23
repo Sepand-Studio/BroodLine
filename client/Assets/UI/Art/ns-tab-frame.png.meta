@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 3d18061072ddb4c49b3386fdb6679b96
+guid: 55913dbabb17042ba8bb24391cbdc46d
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -6576261736326637827
-    second: cta-ramp_0
+      213: -1483932527956604674
+    second: ns-tab-frame_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -52,7 +52,7 @@ TextureImporter:
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
   spritePixelsToUnits: 100
-  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteBorder: {x: 8, y: 8, z: 8, w: 8}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
   alphaIsTransparency: 1
@@ -128,13 +128,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: cta-ramp_0
+      name: ns-tab-frame_0
       rect:
         serializedVersion: 2
         x: 0
         y: 0
-        width: 2
-        height: 64
+        width: 32
+        height: 32
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -143,8 +143,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: df6d1481bcc6cb4a0800000000000000
-      internalID: -6576261736326637827
+      spriteID: ef8cf706a33086be0800000000000000
+      internalID: -1483932527956604674
       vertices: []
       indices: 
       edges: []

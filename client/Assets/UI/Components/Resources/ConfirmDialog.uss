@@ -20,7 +20,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(46, 42, 61, 0.45);
+    background-color: rgba(38, 51, 69, 0.55);
 }
 
 .confirm-dialog__content {
@@ -71,7 +71,7 @@
  * the one that consumes two creatures, and it should not look like the
  * cheerful violet CTA that appears everywhere else. */
 .confirm-dialog__button.primary {
-    background-color: var(--coral);
+    background-color: var(--danger);
     border-bottom-color: var(--coral-deep);
     color: var(--surface);
 }

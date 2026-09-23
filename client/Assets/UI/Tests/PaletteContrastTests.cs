@@ -134,6 +134,16 @@ namespace Broodline.UI.Tests
                     "deliberate, palette-decision.md records why these six were identical and " +
                     "needs updating in the same commit.");
             }
+
+            // And the two collisions Phase 10 resolved stay resolved.
+            foreach (var (name, token, role) in PaletteContrast.ResolvedCollisions)
+            {
+                var m = Regex.Match(uss, Regex.Escape(token) + @"\s*:\s*(#[0-9a-fA-F]{6})\s*;");
+                Assert.IsTrue(m.Success, $"{token} is gone from Tokens.uss - palette-decision.md names it");
+                Assert.AreNotEqual(species[name], m.Groups[1].Value.ToLowerInvariant(),
+                    $"{token} ({role}) is {name}'s species colour again, at dE 0.0 - the collision " +
+                    "palette-decision.md recorded and Phase 10 resolved. A species must not be chrome.");
+            }
         }
     }
 }

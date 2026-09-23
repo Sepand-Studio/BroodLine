@@ -1,4 +1,0 @@
-<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <ui:Style src="CurrencyHeader.uss" />
-    <ui:VisualElement name="items" class="currency-header__items" />
-</ui:UXML>

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regenerates the eight UI textures beside this file. Run from the REPO ROOT:
+"""Regenerates the UI textures beside this file. Run from the REPO ROOT:
 
     python3 client/Assets/UI/Art/generate-textures.py
 
@@ -23,8 +23,43 @@ dashed or dotted ring is not a border that has been styled - it is a picture.
 """
 
 import math
+import re
 
 from PIL import Image, ImageDraw
+
+# ------------------------------------------------------------------- tokens
+#
+# EVERY COLOUR BELOW COMES FROM Tokens.uss, READ AT RUN TIME. Phase 10 Task
+# 1.1. verify-uss-tokens.sh check 1 cannot see inside a PNG - `url(...)` is
+# excluded from the raw-hex grep on purpose - so a sprite is the one place a
+# colour could drift from the token layer with no gate to catch it. Making
+# this script the ONLY source of sprite colour, and making it read the token
+# file rather than carry its own hex, is what stands in for that check:
+# regenerate on every token change and the sprites cannot disagree with the
+# stylesheets. The few endpoints that are NOT tokens (the handoff's own ramp
+# stops that no rule reads) stay literals here, beside the sentence that
+# says so.
+TOKENS_PATH = "client/Assets/UI/Shell/Tokens.uss"
+
+
+def load_tokens(path=TOKENS_PATH):
+    out = {}
+    for m in re.finditer(r"^\s*(--[a-z0-9-]+):\s*(#[0-9a-fA-F]{6})\s*;", open(path).read(), re.M):
+        out[m.group(1)] = m.group(2).lower()
+    return out
+
+
+TOKENS = load_tokens()
+
+
+def tok(name):
+    """A token's colour as an (r, g, b) tuple. A missing name is a hard error:
+    a sprite drawn in a colour no stylesheet can reference is exactly the
+    drift this file exists to stop."""
+    if name not in TOKENS:
+        raise KeyError("%s is not a hex token in %s" % (name, TOKENS_PATH))
+    h = TOKENS[name].lstrip("#")
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
 
 # ---------------------------------------------------------------- shadow-card
 #
@@ -64,7 +99,7 @@ SIGMA = 5.0         # blur, texture px
 DY = 10.0 / 3.0     # downward offset, texture px -> 2px at 0.6, 4px at 1.2
 SIZE = 64
 BORDER = 20         # the slice border ArtImportSettings re-asserts
-INK = (63, 58, 82)  # the handoff's shadow ink; USS tints it to .06 / .09
+INK = tok("--ink")  # the shadow ink is the ink token; USS tints it via --elev-N-tint
 
 
 def phi(z):
@@ -160,10 +195,19 @@ def ramp(name, start, end, horizontal=False):
     img.save("client/Assets/UI/Art/" + name)
 
 
-ramp("cta-ramp.png", (0x88, 0x78, 0xcf), (0x6f, 0x5f, 0xbb))
-ramp("amber-ramp.png", (0xfd, 0xf0, 0xd0), (0xf9, 0xe0, 0xa8), horizontal=True)
-ramp("hybrid-ramp.png", (0xf7, 0xf4, 0xfb), (0xeb, 0xe4, 0xf7))
-ramp("band-ramp.png", (0xff, 0xff, 0xff), (0xf1, 0xec, 0xfa))
+# cta-ramp.png IS GONE. Phase 10 Task 1.1 moved the primary CTA onto the
+# nine-sliced ns-btn-primary.png below, which carries the bevel and the
+# drop edge as well as the fill, so a ramp that only did the fill had no
+# reader left.
+#
+# THE AMBER RAMP'S DEEP END IS A LITERAL, and it is the one endpoint in this
+# block that is: the handoff's #f9e0a8 is a gradient stop no rule reads, so
+# there is no token for it and no reason to invent one.
+ramp("amber-ramp.png", tok("--amber-tint"), (0xf9, 0xe0, 0xa8), horizontal=True)
+ramp("hybrid-ramp.png", tok("--surface"), tok("--hybrid-tint-deep"))
+# The band starts one step ABOVE the surface it sits on rather than at pure
+# white: on Phase 10's parchment page a white start read as a cold patch.
+ramp("band-ramp.png", tok("--surface-raised"), tok("--violet-tint"))
 
 # A SECOND BAND RAMP, BECAUSE A TINT IS A RAMP AND NOT A COLOUR. Phase 9
 # Task 18. `Wave Defeat.dc.html:31` is the band in coral -
@@ -193,7 +237,7 @@ ramp("band-ramp.png", (0xff, 0xff, 0xff), (0xf1, 0xec, 0xfa))
 # So each tint is its own two-stop ramp at the handoff's own endpoints, which
 # is what every other ramp in this file already is. The fifth and sixth cost
 # one line here, one token pair and one rule in HeroBand.uss.
-ramp("band-ramp-coral.png", (0xfb, 0xee, 0xe9), (0xf6, 0xe2, 0xe4))
+ramp("band-ramp-coral.png", tok("--coral-tint"), tok("--coral-tint-deep"))
 
 # ----------------------------------------------------------- the two rings
 #
@@ -327,5 +371,98 @@ dotted_ring("band-ring.png",
             52,
             4.0 / 16.0)    # the handoff's `stroke-dasharray: 4 12`
 
-print("wrote shadow-card, cta-ramp, amber-ramp, hybrid-ramp, band-ramp, "
-      "band-ramp-coral, hero-ring, band-ring")
+
+# ------------------------------------------------------- nine-slice chrome
+#
+# THE CHUNKY BUTTON, THE DARK HUD FRAME AND THE TAB BAR, AS PICTURES. Phase
+# 10 Task 1.1. USS has border-width/-color/-radius and nothing else: no
+# inset highlight, no gradient, no second border. The Kingshot reference's
+# buttons read as OBJECTS - a lit top edge, a face, a darker foot - and a
+# frame that is not the same flat fill as the card it borders. That is three
+# colours per edge, which is a sprite.
+#
+# AUTHORED AT 2x AND SLICED AT 0.5px, like shadow-card at its own scale. A
+# corner radius baked into a nine-slice has to equal the element's own
+# border-radius (USS clips background-image to the radius), so each sprite's
+# radius below is 2x the token it pairs with: --radius-cta (15) for the
+# buttons, --radius-card (20) for the frame. The slice border is the radius
+# plus the foot, rounded up, and ArtImportSettings.cs re-asserts it on every
+# import by file name - the `ns-` prefix is that hook's cue.
+#
+# THE FOOT IS THE PRESS. bible 10.6 keeps the physical press on primary
+# CTAs: `box-shadow: 0 3px 0` collapsing to `0 1px 0` while the button drops
+# 2px. Theme.uss used to draw the foot as a 3px bottom border; here it is
+# baked as a 6-texture-px band (3 screen px) under the face, and the PRESSED
+# sprite carries a 2px band (1 screen px) with a darker face, so the swap
+# plus `translate: 0 2px` is the same motion under a thumb as before.
+#
+# TRANSPARENT PIXELS CARRY THE FILL'S RGB, not black, for the same reason
+# the rings are white-with-zero-alpha: Pillow resamples channels
+# independently, and a black RGB under a zero alpha would bleed grey into
+# every antialiased corner on the downsample.
+
+
+def rounded(pen, box, radius, fill):
+    pen.rounded_rectangle(box, radius=radius, fill=fill)
+
+
+def nine_slice(name, size, radius, face, foot=None, foot_h=0, crown=None,
+               crown_h=0, edge=None, edge_w=0, inner=None, inner_w=0, ss=4):
+    """A rounded square with an optional foot band (below the face), crown
+    band (a lighter strip along the top, inside), outer edge ring and inner
+    edge ring. All sizes in the texture's own px; drawn at `ss` and
+    downsampled."""
+    big = size * ss
+    img = Image.new("RGBA", (big, big), face + (0,))
+    pen = ImageDraw.Draw(img)
+    r = radius * ss
+    if foot is not None:
+        rounded(pen, (0, 0, big - 1, big - 1), r, foot + (255,))
+        rounded(pen, (0, 0, big - 1, big - 1 - foot_h * ss), r, face + (255,))
+    else:
+        rounded(pen, (0, 0, big - 1, big - 1), r, face + (255,))
+    face_bottom = big - 1 - (foot_h * ss if foot is not None else 0)
+    if edge is not None:
+        pen.rounded_rectangle((0, 0, big - 1, face_bottom), radius=r,
+                              outline=edge + (255,), width=edge_w * ss)
+    if inner is not None:
+        o = edge_w * ss
+        pen.rounded_rectangle((o, o, big - 1 - o, face_bottom - o), radius=max(r - o, 0),
+                              outline=inner + (255,), width=inner_w * ss)
+    if crown is not None:
+        # A strip along the top, clipped to the face's rounded silhouette by
+        # drawing it, then re-cutting the outside with the transparent fill.
+        strip = Image.new("RGBA", (big, big), face + (0,))
+        sp = ImageDraw.Draw(strip)
+        o = edge_w * ss
+        rounded(sp, (o, o, big - 1 - o, face_bottom - o), max(r - o, 0), crown + (255,))
+        mask = Image.new("L", (big, big), 0)
+        ImageDraw.Draw(mask).rectangle((0, o, big, o + crown_h * ss), fill=255)
+        img.paste(strip, (0, 0), mask)
+    img.resize((size, size), Image.LANCZOS).save("client/Assets/UI/Art/" + name)
+
+
+# --radius-cta is 15: 30 texture px. Border 40 = 30 + a 6px foot + headroom.
+nine_slice("ns-btn-primary.png", 96, 30, tok("--action"),
+           foot=tok("--action-shadow"), foot_h=6,
+           crown=tok("--violet-light"), crown_h=5)
+nine_slice("ns-btn-primary-pressed.png", 96, 30, tok("--violet-deep"),
+           foot=tok("--action-shadow"), foot_h=2)
+nine_slice("ns-btn-reward.png", 96, 30, tok("--reward"),
+           foot=tok("--brass"), foot_h=6,
+           crown=tok("--brass-light"), crown_h=5)
+nine_slice("ns-btn-reward-pressed.png", 96, 30, tok("--brass"),
+           foot=tok("--brass"), foot_h=2)
+# --radius-card is 20: 40 texture px. Border 48. A brass outer edge and a
+# slate inner edge is what makes the frame read as a frame and not as a
+# dark card.
+nine_slice("ns-panel-deep.png", 112, 40, tok("--hud-frame"),
+           edge=tok("--brass"), edge_w=3, inner=tok("--hud-frame-edge"), inner_w=2)
+# The tab bar: square, slate, a brass line along its top. Border 8.
+tab = Image.new("RGBA", (32, 32), tok("--hud-frame") + (255,))
+ImageDraw.Draw(tab).rectangle((0, 0, 31, 2), fill=tok("--brass") + (255,))
+tab.save("client/Assets/UI/Art/ns-tab-frame.png")
+
+print("wrote shadow-card, amber-ramp, hybrid-ramp, band-ramp, band-ramp-coral, "
+      "hero-ring, band-ring, ns-btn-primary(+pressed), ns-btn-reward(+pressed), "
+      "ns-panel-deep, ns-tab-frame")

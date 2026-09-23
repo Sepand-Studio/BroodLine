@@ -52,9 +52,15 @@ namespace Broodline.View
         /// wanted a second shader.
         public const string Unlit = "Universal Render Pipeline/Unlit";
 
+        /// The Living Frontier creature and scenery surface. `FrontierArt`
+        /// builds its one shared material from this in code, so as with Unlit
+        /// no material ASSET references it; registered here in Phase 10 Task
+        /// 1.0, the moment the art core became a production dependency.
+        public const string Frontier = "Broodline/FrontierSurface";
+
         /// Every name above. Iterated by the registrar and by the gate; a name
         /// that is not in here is a name nothing protects.
-        public static readonly string[] All = { Lit, Unlit };
+        public static readonly string[] All = { Lit, Unlit, Frontier };
 
         /// `Shader.Find`, except that a null answer is a sentence naming the
         /// shader instead of an `ArgumentNullException` raised two frames later

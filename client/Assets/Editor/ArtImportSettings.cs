@@ -32,6 +32,17 @@ public class ArtImportSettings : AssetPostprocessor
         if (assetPath.EndsWith("shadow-card.png"))
             t.spriteBorder = new Vector4(20, 20, 20, 20);   // L, B, R, T
 
+        // THE PHASE 10 CHROME, BY NAME. generate-textures.py authors each
+        // `ns-` sprite at 2x with a baked corner radius; the border below is
+        // that radius plus the foot band, and it has to match what the
+        // script drew or the corner tile stretches. Same reasoning as the
+        // shadow above: a regenerated .meta with a zeroed border stretches a
+        // button's corners across its whole face, silently.
+        var file = System.IO.Path.GetFileName(assetPath);
+        if (file.StartsWith("ns-btn-"))         t.spriteBorder = new Vector4(40, 40, 40, 40);
+        else if (file == "ns-panel-deep.png")   t.spriteBorder = new Vector4(48, 48, 48, 48);
+        else if (file == "ns-tab-frame.png")    t.spriteBorder = new Vector4(8, 8, 8, 8);
+
         // The baked creature sprites are READ BACK, not just drawn.
         // SilhouetteTests blits each body into a 40x40 RenderTexture and
         // thresholds its alpha to assert bible 10.2 rule 1 - and a crunched

@@ -1,0 +1,11 @@
+{
+  "name": "Broodline.Frontier.Art",
+  "rootNamespace": "Broodline.Frontier",
+  "references": [],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "autoReferenced": true,
+  "noEngineReferences": false
+}

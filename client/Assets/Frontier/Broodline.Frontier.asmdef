@@ -1,7 +1,12 @@
 {
   "name": "Broodline.Frontier",
   "rootNamespace": "Broodline.Frontier",
-  "references": ["Broodline.Sim", "Broodline.View", "Broodline.Game"],
+  "references": [
+    "Broodline.Frontier.Art",
+    "Broodline.Sim",
+    "Broodline.View",
+    "Broodline.Game"
+  ],
   "autoReferenced": true,
   "noEngineReferences": false
 }

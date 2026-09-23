@@ -982,9 +982,9 @@ public static class ScreenFixtures
     /// row is what that looks like when it is working.
     static void FillScaffold(ScreenScaffold scaffold)
     {
-        var currency = new CurrencyHeader();
-        currency.Bind(new Dictionary<string, int> { { "shards", 1240 } });
-        scaffold.HeaderSlot.Add(currency);
+        var resources = new ResourceBar();
+        resources.Bind(new Dictionary<string, int> { { "shards", 1240 } });
+        scaffold.HeaderSlot.Add(resources);
 
         // A WRAPPING ROW, NOT A COLUMN, and the first capture of this fixture
         // is what caught it: `.creature-card` is a fixed `width: 160px` tile

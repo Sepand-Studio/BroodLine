@@ -439,30 +439,60 @@ namespace Broodline.UI.Tests
         }
 
         // ---------------------------------------------------------------
-        // CurrencyHeader
+        // ResourceBar (replaced CurrencyHeader in Phase 10 Task 1.2)
         // ---------------------------------------------------------------
 
         [Test]
-        public void CurrencyHeader_RendersOneLabelPerBalance()
+        public void ResourceBar_RendersOnePillPerBalance_ValueNamedByKey()
         {
-            var header = new CurrencyHeader();
-            header.Bind(new Dictionary<string, int> { { "charges", 3 }, { "shards", 120 } });
+            var bar = new ResourceBar();
+            bar.Bind(new Dictionary<string, int> { { "charges", 3 }, { "shards", 120 } });
 
-            StringAssert.Contains("3", header.Q<Label>("charges").text);
-            StringAssert.Contains("120", header.Q<Label>("shards").text);
-            Assert.AreEqual(2, header.Query<Label>().ToList().Count);
+            Assert.AreEqual("3", bar.Q<Label>("charges").text);
+            Assert.AreEqual("120", bar.Q<Label>("shards").text);
+            Assert.AreEqual(2, bar.Query(className: ResourceBar.PillUssClassName).ToList().Count);
         }
 
         [Test]
-        public void CurrencyHeader_Rebind_ReplacesRatherThanAccumulates()
+        public void ResourceBar_Rebind_ReplacesRatherThanAccumulates()
         {
-            var header = new CurrencyHeader();
-            header.Bind(new Dictionary<string, int> { { "charges", 3 }, { "shards", 120 }, { "tier", 4 } });
-            Assert.AreEqual(3, header.Query<Label>().ToList().Count);
+            var bar = new ResourceBar();
+            bar.Bind(new Dictionary<string, int> { { "charges", 3 }, { "shards", 120 }, { "tier", 4 } });
+            Assert.AreEqual(3, bar.Query(className: ResourceBar.PillUssClassName).ToList().Count);
 
-            header.Bind(new Dictionary<string, int> { { "charges", 5 } });
-            Assert.AreEqual(1, header.Query<Label>().ToList().Count);
-            StringAssert.Contains("5", header.Q<Label>("charges").text);
+            bar.Bind(new Dictionary<string, int> { { "charges", 5 } });
+            Assert.AreEqual(1, bar.Query(className: ResourceBar.PillUssClassName).ToList().Count);
+            Assert.AreEqual("5", bar.Q<Label>("charges").text);
+        }
+
+        [Test]
+        public void ResourceBar_OnlyShardsOfferAPurchase_AndMarksNever()
+        {
+            // STRUCTURE ONLY, like every other click in this file: without an
+            // attached Panel a Button's click cannot be dispatched from this
+            // assembly (class comment, point 3), so the "+" is pinned by
+            // where it exists and where it does not, and its closure is
+            // trusted the way TabBar's are.
+            var bar = new ResourceBar();
+            bar.Bind(new Dictionary<string, int> { { "shards", 120 }, { "marks", 2 }, { "splice_charges", 4 } });
+
+            var buys = bar.Query<Button>(className: ResourceBar.BuyUssClassName).ToList();
+            Assert.AreEqual(1, buys.Count, "exactly one balance is purchasable");
+            Assert.IsNotNull(bar.Q("pill-shards").Q<Button>("buy"));
+            Assert.IsNull(bar.Q("pill-marks").Q<Button>("buy"), "Marks are never purchasable (bible 8.2)");
+            Assert.IsNull(bar.Q("pill-splice_charges").Q<Button>("buy"), "charges regenerate; they are not bought here");
+        }
+
+        [Test]
+        public void ResourceBar_ShowsTheNextChargeTimerInsideTheChargesPill()
+        {
+            var bar = new ResourceBar();
+            bar.Bind(new Dictionary<string, int> { { "splice_charges", 4 }, { "shards", 1 } },
+                     TimeSpan.FromMinutes(12) + TimeSpan.FromSeconds(7));
+            var timer = bar.Q("pill-splice_charges").Q<TimerChip>("next-charge");
+            Assert.IsNotNull(timer);
+            Assert.AreEqual("12:07", timer.Q<Label>("time").text);
+            Assert.IsNull(bar.Q("pill-shards").Q<TimerChip>("next-charge"));
         }
 
         // ---------------------------------------------------------------
@@ -1402,7 +1432,12 @@ namespace Broodline.UI.Tests
             var h = Regex.Match(StripBlockComments(File.ReadAllText(tokens)),
                 @"--chip-height\s*:\s*(\d+)px\s*;");
             Assert.IsTrue(h.Success, "--chip-height is gone from Tokens.uss");
-            Assert.That(int.Parse(h.Groups[1].Value), Is.InRange(15, 20),
+            // 22, NOT 20, SINCE PHASE 10 TASK 1.1: --text-micro moved from 10px
+            // to 11px (the type scale's floor for a label), and Nunito-Bold's
+            // 1.36em line box on 11px is 15, so the handoff's own 3px padding
+            // gives 21 -> 22. The ceiling below is that arithmetic, not a
+            // preference; Tokens.uss's --chip-height note carries it.
+            Assert.That(int.Parse(h.Groups[1].Value), Is.InRange(15, 22),
                 "the handoff's chips measure 15px (Creature Roster) to 19px (Splice Chamber); "
                 + "20 is the 19 carried onto our 10px micro type and is the ceiling");
         }

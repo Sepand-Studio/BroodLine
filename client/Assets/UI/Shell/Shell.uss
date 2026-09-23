@@ -175,44 +175,27 @@
  * record: the absence is the decision. */
 
 .tab-bar {
-    background-color: var(--surface);
-    border-top-width: 1px;
-    border-top-color: var(--divider);
+    background-image: url("project:///Assets/UI/Art/ns-tab-frame.png");
+    -unity-slice-left: 8; -unity-slice-right: 8;
+    -unity-slice-top: 8; -unity-slice-bottom: 8;
+    background-color: var(--hud-frame);
     padding-top: var(--space-2);
     padding-bottom: var(--space-2);
     padding-left: var(--space-2);
     padding-right: var(--space-2);
 }
 
-/* A tab is a Button, so it inherits the primary-CTA fill from Theme.uss.
- * All of that is undone here: a nav item is not a call to action, and the
- * drop edge in particular would read as five buttons stacked on a shelf. */
+/* THE TAB BAR IS THE DARK FRAME NOW - Phase 10 Task 1.1 - so its ink is the
+ * page colour and its active state is a lifted slate pill with brass text,
+ * not a violet tint. --text-nav (10px) retired here for --text-tab (12px),
+ * the type scale's floor for a label a thumb has to find. */
 .tab-bar__tab {
     background-color: rgba(0, 0, 0, 0);
-    color: var(--mute);
-    font-size: var(--text-nav);
+    color: var(--hairline);
+    font-size: var(--text-tab);
     border-bottom-width: 0;
-    /* Half of a MEASURED 39px, rounded down. Was var(--radius-pill), which
-     * drew each 83x39 tab as an ellipse 41px wide and 19px tall - a lens
-     * where the handoff wants a pill, on the one piece of chrome that is on
-     * screen at all times. Theme.uss header item 4 has the measurement. */
     border-radius: 19px;
 
-    /* THE GLYPH'S BAND, AND THE ONLY REASON THIS IS NOT var(--space-2).
-     * A Button is a TextElement: it draws `text` ITSELF, centred in its own
-     * content box, and a child element is not a flex sibling of that text -
-     * so the icon Phase 8 Task 4 inserts lands ON TOP of the first letters
-     * of the word unless something moves the text out from under it. The
-     * text centres in the content box, which is what is left after this
-     * padding, so reserving the top 31px pushes the label below the band and
-     * `icons.uss` pins the mark absolutely into it. 8 + 19 + 4: the
-     * handoff's nav padding, its 19px glyph, its 4px gap.
-     *
-     * NOT SOLVED BY MOVING THE LABEL INTO A CHILD `Label`, which would make
-     * glyph and label real flex siblings and is how the handoff's own HTML
-     * does it - `TabBarTests.Render_DrawsOneButtonPerTabInOrder` asserts on
-     * `((Button)c).text`, and emptying it to satisfy the layout would delete
-     * a gate to make a picture nicer. */
     padding-top: 31px;
     padding-bottom: var(--space-2);
     padding-left: var(--space-4);
@@ -223,14 +206,14 @@
 
 .tab-bar__tab:active {
     translate: 0 0;
-    background-color: var(--surface-sunk);
+    background-color: var(--hud-frame-edge);
 }
 
 .tab-bar__tab--active {
-    background-color: var(--violet-tint);
-    color: var(--violet-text);
+    background-color: var(--hud-frame-edge);
+    color: var(--brass-light);
 }
 
 .tab-bar__tab--active:active {
-    background-color: var(--violet-tint);
+    background-color: var(--hud-frame-edge);
 }

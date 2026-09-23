@@ -1,7 +1,11 @@
 {
   "name": "Broodline.View",
   "rootNamespace": "Broodline.View",
-  "references": ["Broodline.Sim", "Broodline.Creatures"],
+  "references": [
+    "Broodline.Sim",
+    "Broodline.Creatures",
+    "Broodline.Frontier.Art"
+  ],
   "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,

@@ -120,7 +120,7 @@
  * aberrant treatment below, which bible 10.4 keeps white on purpose. */
 .creature-card.founder {
     border-width: 2px;
-    border-color: var(--amber);
+    border-color: var(--reward);
 }
 
 /* bible 10.4: "Aberrant traits take an iridescent white-hot treatment...

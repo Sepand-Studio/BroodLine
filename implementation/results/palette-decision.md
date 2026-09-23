@@ -155,7 +155,19 @@ cheaper.
 
 ---
 
-## The collision no simulation can see — OPEN, decided at Task 13
+## The collision no simulation can see — RESOLVED 2026-09-23 (Phase 10 Task 1.1)
+
+**Resolved by moving the two UI roles, not the two species.** The action violet
+is now `--action` / `--violet` `#6b4ec2` (Hollow stays `#7a6ac0`) and rewards
+have their own gold, `--reward` `#e9b44c` (Skitter stays `#e8b34a`, one step
+off, and `--amber` remains Skitter's). The six identities now live on
+`--species-*` tokens, which `PaletteContrast.TokenIdentities` pins; the two
+former collisions are pinned in the other direction by
+`PaletteContrast.ResolvedCollisions`, so the test fails if either role token
+ever equals its species again. The section below is kept as written, because
+the reasoning is why the roles moved rather than the species.
+
+### As recorded before the resolution
 
 **Not fixed here, and deliberately so.** Two species share their *exact* hex with
 a token that names a UI role:

@@ -1,11 +1,24 @@
 {
   "name": "Broodline.Frontier.Tests",
   "rootNamespace": "Broodline.Frontier.Tests",
-  "references": ["Broodline.Frontier", "Broodline.Sim", "Broodline.View", "UnityEngine.TestRunner", "UnityEditor.TestRunner"],
-  "includePlatforms": ["Editor"],
+  "references": [
+    "Broodline.Frontier",
+    "Broodline.Frontier.Art",
+    "Broodline.Sim",
+    "Broodline.View",
+    "UnityEngine.TestRunner",
+    "UnityEditor.TestRunner"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
   "overrideReferences": true,
-  "precompiledReferences": ["nunit.framework.dll"],
+  "precompiledReferences": [
+    "nunit.framework.dll"
+  ],
   "autoReferenced": false,
-  "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+  "defineConstraints": [
+    "UNITY_INCLUDE_TESTS"
+  ],
   "noEngineReferences": false
 }
