@@ -23,6 +23,7 @@
     font-size: 30px; -unity-text-align: middle-center; margin: 2px 16px 8px;
 }
 .frontier-proof .stage { flex-grow: 1; flex-shrink: 1; min-height: 160px; overflow: hidden; background-color: #6b9361; }
+.frontier-proof .stage:focus { border-width: 2px; border-color: #e9b44c; }
 .frontier-proof .stage-image, .frontier-proof .stage-overlays { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
 .frontier-proof .stage-badge {
     align-self: center; margin-top: 12px; padding: 7px 13px;

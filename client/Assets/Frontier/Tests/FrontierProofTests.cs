@@ -215,5 +215,62 @@ namespace Broodline.Frontier.Tests
                 finally { Object.DestroyImmediate(root); }
             }
         }
+
+        [Test]
+        public void PausePreservesPoseAndResumesAtTheSamePresentationTime()
+        {
+            var root = new GameObject("pause regression");
+            using (var art = new FrontierArt(Shader.Find("Broodline/FrontierSurface")))
+            {
+                try
+                {
+                    var paused = art.Creature(root.transform, "ember");
+                    var control = art.Creature(root.transform, "ember");
+                    foreach (var actor in new[] { paused, control })
+                    { actor.Greet(); actor.Attack(); actor.Hit(); actor.AdvancePresentation(.09f); }
+                    var before = paused.Bones[1].localRotation;
+                    paused.Paused = true; paused.AdvancePresentation(10);
+                    Assert.That(Quaternion.Angle(paused.Bones[1].localRotation, before), Is.LessThan(.001f));
+                    paused.Paused = false;
+                    paused.AdvancePresentation(.04f); control.AdvancePresentation(.04f);
+                    for (int i = 0; i < paused.Bones.Length; i++)
+                    {
+                        Assert.That(Vector3.Distance(paused.Bones[i].localPosition, control.Bones[i].localPosition), Is.LessThan(.0001f));
+                        Assert.That(Quaternion.Angle(paused.Bones[i].localRotation, control.Bones[i].localRotation), Is.LessThan(.001f));
+                        Assert.That(Vector3.Distance(paused.Bones[i].localScale, control.Bones[i].localScale), Is.LessThan(.0001f));
+                    }
+                    var pausedTint = new MaterialPropertyBlock(); var controlTint = new MaterialPropertyBlock();
+                    paused.GetComponentInChildren<SkinnedMeshRenderer>().GetPropertyBlock(pausedTint);
+                    control.GetComponentInChildren<SkinnedMeshRenderer>().GetPropertyBlock(controlTint);
+                    Assert.That(pausedTint.GetColor("_Tint"), Is.EqualTo(controlTint.GetColor("_Tint")));
+                }
+                finally { Object.DestroyImmediate(root); }
+            }
+        }
+
+        [Test]
+        public void ReducedMotionSuppressesGreetingAndCelebrationForEveryHeroSpecies()
+        {
+            var root = new GameObject("reduced personality motion");
+            using (var art = new FrontierArt(Shader.Find("Broodline/FrontierSurface")))
+            {
+                try
+                {
+                    foreach (string species in new[] { "vetch", "ember", "pale" })
+                    {
+                        var actor = art.Creature(root.transform, species);
+                        actor.ReducedMotion = true;
+                        actor.Greet(); actor.Celebrate(); actor.Attack(); actor.Hit(); actor.AdvancePresentation(.22f);
+                        Assert.That(actor.Bones[0].localPosition, Is.EqualTo(Vector3.zero), species);
+                        foreach (var bone in actor.Bones)
+                        {
+                            Assert.That(Quaternion.Angle(bone.localRotation, Quaternion.identity), Is.LessThan(.001f), species);
+                            Assert.That(bone.localScale, Is.EqualTo(Vector3.one), species);
+                        }
+                    }
+                }
+                finally { Object.DestroyImmediate(root); }
+            }
+        }
     }
 }

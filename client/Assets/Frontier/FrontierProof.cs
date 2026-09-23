@@ -41,6 +41,7 @@ namespace Broodline.Frontier
         int _wave = 7, _selected;
         bool _paused, _reducedMotion, _resultShown;
         string _founder = "Pebble";
+        string _heroName;
         static readonly string[] Bodies = { "vetch", "ember", "pale" };
         static readonly string[] First = { "taunt", "splash", "chill" };
         static readonly string[] Second = { "carapace", "carapace", "taunt" };
@@ -95,6 +96,19 @@ namespace Broodline.Frontier
             _notice = Text(_stage, "", "stage-notice"); _notice.pickingMode = PickingMode.Ignore;
             _notice.style.display = DisplayStyle.None;
             _stage.RegisterCallback<GeometryChangedEvent>(_ => ResizeStage());
+            if (page == Page.Founder || page == Page.Reveal)
+            {
+                _stage.focusable = true;
+                _stage.tooltip = "Tap or press Enter to say hello";
+                _stage.RegisterCallback<ClickEvent>(_ => GreetHero());
+                _stage.RegisterCallback<NavigationSubmitEvent>(e => { GreetHero(); e.StopPropagation(); });
+                _stage.RegisterCallback<PointerMoveEvent>(e =>
+                {
+                    if (_hero == null || _stage.contentRect.width <= 0) return;
+                    _hero.LookYaw = Mathf.Clamp((e.localPosition.x / _stage.contentRect.width - .5f) * -28, -14, 14);
+                });
+                _stage.RegisterCallback<PointerLeaveEvent>(_ => { if (_hero != null) _hero.LookYaw = 0; });
+            }
 
             var scroll = new ScrollView(ScrollViewMode.Vertical);
             scroll.AddToClassList("card-scroll"); _screen.Add(scroll);
@@ -116,6 +130,8 @@ namespace Broodline.Frontier
         {
             _art.Environment(_world, 0, Array.Empty<int>(), true);
             _hero = _art.Creature(_world, "vetch");
+            _heroName = _founder;
+            Notice("Tap your companion to say hello");
             Text(_card, "Meet your first founder", "eyebrow");
             Text(_card, "Every lineage starts with a friend.", "card-title");
             Text(_card, "A curious Vetch. Steady feet, a brave heart, and a whole world ahead.", "body-copy");
@@ -124,7 +140,11 @@ namespace Broodline.Frontier
             var turn = new Slider("Look around", -80, 80);
             turn.RegisterValueChangedCallback(e => _hero.transform.localRotation = Quaternion.Euler(0, e.newValue, 0)); _card.Add(turn);
             _primary = Action(_card, "Begin our journey", () => { _founder = name.value.Trim(); Show(Page.Deploy); }, true);
-            name.RegisterValueChangedCallback(e => _primary.SetEnabled(!string.IsNullOrWhiteSpace(e.newValue)));
+            name.RegisterValueChangedCallback(e =>
+            {
+                _primary.SetEnabled(!string.IsNullOrWhiteSpace(e.newValue));
+                _heroName = string.IsNullOrWhiteSpace(e.newValue) ? "Your Vetch" : e.newValue.Trim();
+            });
             _primary.SetEnabled(!string.IsNullOrWhiteSpace(name.value));
         }
 
@@ -239,6 +259,9 @@ namespace Broodline.Frontier
         {
             _art.Environment(_world, 0, Array.Empty<int>(), true);
             _hero = _art.Creature(_world, "vetch", "cinder", "carapace");
+            _heroName = "Cinderplate";
+            _hero.Greet();
+            Notice("A familiar face, a new look · tap to say hello");
             Text(_card, "A NEW BRANCH OF THE FAMILY", "eyebrow");
             Text(_card, "Cinderplate", "card-title");
             Text(_card, "Vetch body  ·  Cinder dorsal  ·  Carapace flank", "body-copy");
@@ -260,10 +283,12 @@ namespace Broodline.Frontier
                     _hero.gameObject.SetActive(false); Destroy(_hero.gameObject);
                     bool hybrid = selected == "Cinderplate";
                     _hero = _art.Creature(_world, hybrid ? "vetch" : selected.ToLowerInvariant(), hybrid ? "cinder" : null, hybrid ? "carapace" : null);
+                    _heroName = selected; _hero.Greet();
                     _hero.Growth = growth.value; _hero.transform.localRotation = Quaternion.Euler(0, turn.value, 0);
                     SetLayer(_hero.transform, 6); ApplyMotion();
                     comparison.text = "Viewing " + selected + (hybrid ? " · combined appearance" : " · base species reference");
                     _status.text = selected.ToUpperInvariant() + "  /  ART PREVIEW";
+                    Notice("Tap " + selected + " to say hello");
                 });
             }
             Text(_card, "An appearance preview. Cinder combat and breeding rewards are not part of this proof.", "caption");
@@ -342,6 +367,9 @@ namespace Broodline.Frontier
                 Notice(_runner.Result == Result.Win ? "THE FRONTIER HOLDS" : "A CHANCE TO REGROUP");
                 _status.EnableInClassList("victory", _runner.Result == Result.Win);
                 ApplyMotion();
+                if (_runner.Result == Result.Win)
+                    for (int i = 0; i < _defenders.Length; i++)
+                        if (snapshot.CreatureHp(i) > 0) _defenders[i].Celebrate();
                 Debug.Log("[Frontier proof] wave=" + _wave + " result=" + _runner.Result + " ticks=" + _runner.Tick + " hash=" + _runner.Outcome.Hash);
             }
         }
@@ -383,7 +411,17 @@ namespace Broodline.Frontier
         {
             if (_world == null) return;
             foreach (var actor in _world.GetComponentsInChildren<FrontierCreature>(true))
-                actor.ReducedMotion = _reducedMotion || _paused || _resultShown;
+            {
+                actor.ReducedMotion = _reducedMotion;
+                actor.Paused = _paused;
+            }
+        }
+
+        void GreetHero()
+        {
+            if (_hero == null) return;
+            _hero.Greet();
+            Notice(_heroName + (_hero.SpeciesId == "ember" ? " gives you a little wave." : _hero.SpeciesId == "pale" ? " dips a wing to greet you." : " tilts their head with curiosity."));
         }
 
         void OnApplicationPause(bool paused)
