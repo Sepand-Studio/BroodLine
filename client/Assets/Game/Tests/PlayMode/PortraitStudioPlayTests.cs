@@ -1,5 +1,6 @@
 using System.Collections;
 using Broodline.Game.Shell;
+using Broodline.Frontier;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -13,6 +14,29 @@ namespace Broodline.Game.PlayTests
     /// instructions defer to the next scheduled eyes-on checkpoint.
     public class PortraitStudioPlayTests
     {
+        [UnityTest]
+        public IEnumerator Show_UsesFrontierArtForEveryCompanion()
+        {
+            var host = new GameObject("studio-host");
+            try
+            {
+                var studio = PortraitStudio.Create(host.transform);
+                foreach (var species in FrontierRigDefinition.Companions)
+                {
+                    studio.Show(species, "cinder", "carapace", 1f);
+                    yield return null;
+                    var creature = studio.GetComponentInChildren<FrontierCreature>();
+                    Assert.IsNotNull(creature, species + " did not use the new companion builder");
+                    Assert.AreEqual(species, creature.SpeciesId);
+                    Assert.IsNotNull(creature.Dorsal.Find("cinder"));
+                    Assert.IsNotNull(creature.Flank.Find("carapace"));
+                    var camera = studio.GetComponentInChildren<Camera>();
+                    Assert.Greater(camera.orthographicSize, .5f);
+                }
+            }
+            finally { Object.Destroy(host); }
+        }
+
         [UnityTest]
         public IEnumerator Show_ProducesANonBlankTexture_WithinAFewFrames()
         {

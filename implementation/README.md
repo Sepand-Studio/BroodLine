@@ -84,3 +84,5 @@ Task plans and their outputs. Design and architecture live in `specs/`.
 - `2026-09-23-phase10-batch2-companions.md` — Phase 10 Batch 2: the five
   companions to the Vetch standard in review pairs, starting with Ember and
   Pale; the visual definition registry; the Unity companion sheet fixture.
+- `2026-09-23-phase10-production-companions.md` — playable portrait and deploy
+  preview adoption, card-bake handoff and Unity capture checks still due.

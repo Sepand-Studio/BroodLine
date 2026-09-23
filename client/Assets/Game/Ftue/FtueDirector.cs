@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading.Tasks;
 using Broodline.Api;
-using Broodline.Creatures;
+using Broodline.Frontier;
 using Broodline.Game.Shell;
 using Broodline.Model;
 using Broodline.Net;
@@ -957,21 +957,18 @@ namespace Broodline.Game
         /// `LanePreviewCard` falls back to its own --green-tint fill. A
         /// director without a stage shows exactly the screen it showed before.
         ///
-        /// THE LOOKS ARE `WaveView.Build`'s, not this method's invention: a
-        /// species and its two traits, with no growth, which is what the live
-        /// wave assembles for the same creature. `CreatureLook.Growth01`
-        /// stays at its default for the same reason `WaveView` leaves it
-        /// there - a deployed creature is drawn at its full size in the lane.
+        /// The preview receives the same species and ordered traits as the
+        /// live wave. It is presentation-only; no simulation value changes.
         UnityEngine.Texture ShowLane(int waveId, DeployScreenModel deployment)
         {
             if (_stage == null) return null;
 
-            var looks = new List<CreatureLook>(deployment.Slots.Count);
+            var looks = new List<FrontierLook>(deployment.Slots.Count);
             var pockets = new List<int>(deployment.Slots.Count);
             foreach (var slot in deployment.Slots)
             {
                 var creature = slot.Creature;
-                looks.Add(new CreatureLook
+                looks.Add(new FrontierLook
                 {
                     Species = creature.Species,
                     Trait1 = creature.Trait1,

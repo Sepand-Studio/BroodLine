@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Broodline.Creatures;
+using Broodline.Frontier;
 using Broodline.Game.Shell;
 using Broodline.Sim.Combat;
 using Broodline.View;
@@ -47,6 +47,30 @@ namespace Broodline.Game.Tests
         /// red test.
         const string Species = "vetch";
 
+        [Test]
+        public void Show_BuildsFrontierCompanionsWithBothCombatSockets()
+        {
+            RequireGraphics();
+            var host = new GameObject("lane-host");
+            try
+            {
+                var stage = LaneStage.Create(host.transform);
+                foreach (var species in FrontierRigDefinition.Companions)
+                {
+                    stage.Show(1, new List<FrontierLook> {
+                        new FrontierLook { Species = species, Trait1 = "cinder", Trait2 = "carapace", Growth01 = 1f }
+                    }, new List<int> { 0 });
+                    var creature = host.GetComponentInChildren<FrontierCreature>();
+                    Assert.IsNotNull(creature, species + " was not built through FrontierArt");
+                    Assert.AreEqual(species, creature.SpeciesId);
+                    Assert.IsNotNull(creature.Dorsal.Find("cinder"), species + " lost its dorsal part");
+                    Assert.IsNotNull(creature.Flank.Find("carapace"), species + " lost its flank part");
+                    Assert.IsNotNull(creature.GetComponentInChildren<SkinnedMeshRenderer>());
+                }
+            }
+            finally { Object.DestroyImmediate(host); }
+        }
+
         static void RequireGraphics()
         {
             if (SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null)
@@ -77,7 +101,7 @@ namespace Broodline.Game.Tests
             {
                 var stage = LaneStage.Create(host.transform);
 
-                var texture = (RenderTexture)stage.Show(1, new List<CreatureLook>(), new List<int>());
+                var texture = (RenderTexture)stage.Show(1, new List<FrontierLook>(), new List<int>());
                 Assert.IsNotNull(texture, "wave 1 is authored; Show returned no texture for it");
                 var empty = ReadPixels(texture);
 
@@ -96,7 +120,7 @@ namespace Broodline.Game.Tests
 
                 var withCreature = (RenderTexture)stage.Show(
                     1,
-                    new List<CreatureLook> { new CreatureLook { Species = Species } },
+                    new List<FrontierLook> { new FrontierLook { Species = Species } },
                     new List<int> { 0 });
                 Assert.AreSame(texture, withCreature,
                     "Show handed out a second texture; the card is holding the first");
@@ -125,7 +149,7 @@ namespace Broodline.Game.Tests
                 var stage = LaneStage.Create(host.transform);
                 var texture = (RenderTexture)stage.Show(
                     1,
-                    new List<CreatureLook> { new CreatureLook { Species = Species } },
+                    new List<FrontierLook> { new FrontierLook { Species = Species } },
                     new List<int> { 0 });
 
                 // OPAQUE COUNT, NOT UNLIKE-THE-FIELD. This assertion used to read
@@ -201,7 +225,7 @@ namespace Broodline.Game.Tests
                 var stage = LaneStage.Create(host.transform);
                 var texture = (RenderTexture)stage.Show(
                     1,
-                    new List<CreatureLook> { new CreatureLook { Species = Species } },
+                    new List<FrontierLook> { new FrontierLook { Species = Species } },
                     new List<int> { 0 });
                 var painted = ReadPixels(texture);
                 Assert.Greater(OpaquePixelCount(painted), 0,
@@ -225,7 +249,7 @@ namespace Broodline.Game.Tests
                 // AND THE NEXT `Show` IS WHAT REPLACES IT, which is the other
                 // half of the contract: leaving the frame alone would be a
                 // leak rather than a fix if a later wave inherited it.
-                var empty = (RenderTexture)stage.Show(1, new List<CreatureLook>(), new List<int>());
+                var empty = (RenderTexture)stage.Show(1, new List<FrontierLook>(), new List<int>());
                 Assert.Greater(DifferingPixels(painted, ReadPixels(empty)), 200,
                     "a Show with no creatures left the previous deployment's picture in place");
             }
@@ -261,7 +285,7 @@ namespace Broodline.Game.Tests
             try
             {
                 var stage = LaneStage.Create(host.transform);
-                Assert.IsNull(stage.Show(999, new List<CreatureLook>(), new List<int>()),
+                Assert.IsNull(stage.Show(999, new List<FrontierLook>(), new List<int>()),
                     "an unauthored wave produced a picture");
             }
             finally

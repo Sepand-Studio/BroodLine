@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using Broodline.Creatures;
+using Broodline.Frontier;
 using Broodline.Game.Shell;
 using Broodline.Sim.Combat;
 using Broodline.UI.Components;
@@ -92,10 +92,10 @@ namespace Broodline.Game.Tests
                 var stage = LaneStage.Create(host.transform);
                 var texture = stage.Show(
                     1,
-                    new List<CreatureLook>
+                    new List<FrontierLook>
                     {
-                        new CreatureLook { Species = Species },
-                        new CreatureLook { Species = Species },
+                        new FrontierLook { Species = Species },
+                        new FrontierLook { Species = Species },
                     },
                     new List<int> { 0, 1 });
                 Assert.IsNotNull(texture, "wave 1 is authored; Show returned no texture for it");
@@ -147,14 +147,14 @@ namespace Broodline.Game.Tests
                 var stage = LaneStage.Create(host.transform);
 
                 var dressingOnly = RenderCard(
-                    stage.Show(1, new List<CreatureLook>(), new List<int>()), out var cardArea);
+                    stage.Show(1, new List<FrontierLook>(), new List<int>()), out var cardArea);
 
                 var lane = WaveDef.ForId(1).Lane;
-                var looks = new List<CreatureLook>();
+                var looks = new List<FrontierLook>();
                 var pockets = new List<int>();
                 for (var p = 0; p < lane.PocketCount; p++)
                 {
-                    looks.Add(new CreatureLook { Species = Species });
+                    looks.Add(new FrontierLook { Species = Species });
                     pockets.Add(p);
                 }
                 var everyPocket = RenderCard(stage.Show(1, looks, pockets), out _);
@@ -217,10 +217,10 @@ namespace Broodline.Game.Tests
                 var stage = LaneStage.Create(host.transform);
                 var texture = stage.Show(
                     1,
-                    new List<CreatureLook>
+                    new List<FrontierLook>
                     {
-                        new CreatureLook { Species = Species },
-                        new CreatureLook { Species = Species },
+                        new FrontierLook { Species = Species },
+                        new FrontierLook { Species = Species },
                     },
                     new List<int> { 0, 1 });
                 Assert.IsNotNull(texture, "wave 1 is authored; Show returned no texture for it");

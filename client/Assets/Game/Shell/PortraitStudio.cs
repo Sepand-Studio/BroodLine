@@ -1,4 +1,6 @@
 using Broodline.Creatures;
+using Broodline.Frontier;
+using Broodline.View;
 using UnityEngine;
 
 namespace Broodline.Game.Shell
@@ -16,6 +18,7 @@ namespace Broodline.Game.Shell
         Camera _camera;
         RenderTexture _texture;
         GameObject _creature;
+        FrontierArt _art;
 
         public static PortraitStudio Create(Transform host)
         {
@@ -69,17 +72,26 @@ namespace Broodline.Game.Shell
         {
             _clearPending = false;
             Clear();
-            _creature = CreatureAssembler.Build(new CreatureLook { Species = species, Trait1 = trait1, Trait2 = trait2, Growth01 = growth01 });
-            _creature.transform.SetParent(transform, false);
-            _creature.transform.localPosition = Vector3.zero;
+            if (_art == null) _art = new FrontierArt(RuntimeShaders.Require(RuntimeShaders.Frontier));
+            var creature = _art.Creature(transform, species, trait1, trait2);
+            creature.Growth = Mathf.Clamp01(growth01);
+            creature.Pose(0f, true);
+            _creature = creature.gameObject;
             CreatureAssembler.SetLayerRecursively(_creature, CreatureAssembler.StudioLayer);
+            FrontierPortraitCamera.Frame(_camera, transform, creature.PortraitBounds,
+                creature.Rig, FrontierVisuals.For(species).Portrait);
             _camera.enabled = true;
             return _texture;
         }
 
         public void Clear()
         {
-            if (_creature != null) Destroy(_creature);
+            if (_creature != null)
+            {
+                _creature.SetActive(false);
+                if (Application.isPlaying) Destroy(_creature);
+                else DestroyImmediate(_creature);
+            }
             _creature = null;
             if (_camera != null) _camera.enabled = false;
 
@@ -109,6 +121,7 @@ namespace Broodline.Game.Shell
         {
             if (_camera != null) _camera.targetTexture = null;
             if (_texture != null) _texture.Release();
+            _art?.Dispose();
         }
     }
 }

@@ -1,6 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
-using Broodline.Creatures;
+using Broodline.Frontier;
 using Broodline.Game.Shell;
 using Broodline.View;
 using NUnit.Framework;
@@ -74,7 +74,7 @@ namespace Broodline.Game.PlayTests
             var stage = LaneStage.Create(host.transform);
 
             // The dressing alone, with nobody standing in it.
-            var texture = (RenderTexture)stage.Show(1, new List<CreatureLook>(), new List<int>());
+            var texture = (RenderTexture)stage.Show(1, new List<FrontierLook>(), new List<int>());
             Assert.IsNotNull(texture, "wave 1 is authored; Show returned no texture for it");
 
             // ONE FRAME, THOUGH `Show` NO LONGER NEEDS IT. The request is
@@ -90,7 +90,7 @@ namespace Broodline.Game.PlayTests
 
             var withCreature = (RenderTexture)stage.Show(
                 1,
-                new List<CreatureLook> { new CreatureLook { Species = Species } },
+                new List<FrontierLook> { new FrontierLook { Species = Species } },
                 new List<int> { 0 });
             yield return null;
 
@@ -124,7 +124,7 @@ namespace Broodline.Game.PlayTests
             var stage = LaneStage.Create(host.transform);
             var texture = (RenderTexture)stage.Show(
                 1,
-                new List<CreatureLook> { new CreatureLook { Species = Species } },
+                new List<FrontierLook> { new FrontierLook { Species = Species } },
                 new List<int> { 0 });
             yield return null;
             var painted = ReadPixels(texture);
@@ -187,11 +187,11 @@ namespace Broodline.Game.PlayTests
             // `redraw` closure re-runs `ShowLane` inside the click handler.
             stage.Show(
                 1,
-                new List<CreatureLook> { new CreatureLook { Species = Species }, new CreatureLook { Species = Species } },
+                new List<FrontierLook> { new FrontierLook { Species = Species }, new FrontierLook { Species = Species } },
                 new List<int> { 0, 2 });
             var reduced = (RenderTexture)stage.Show(
                 1,
-                new List<CreatureLook> { new CreatureLook { Species = Species } },
+                new List<FrontierLook> { new FrontierLook { Species = Species } },
                 new List<int> { 0 });
             var afterToggle = ReadPixels(reduced);
 
@@ -199,7 +199,7 @@ namespace Broodline.Game.PlayTests
             var clean = LaneStage.Create(cleanHost.transform);
             var reference = (RenderTexture)clean.Show(
                 1,
-                new List<CreatureLook> { new CreatureLook { Species = Species } },
+                new List<FrontierLook> { new FrontierLook { Species = Species } },
                 new List<int> { 0 });
             var never = ReadPixels(reference);
 

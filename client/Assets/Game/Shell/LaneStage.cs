@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Broodline.Creatures;
+using Broodline.Frontier;
 using Broodline.Sim.Combat;
 using Broodline.View;
 using UnityEngine;
@@ -118,6 +119,7 @@ namespace Broodline.Game.Shell
         Camera _camera;
         RenderTexture _texture;
         GameObject _creatures;
+        FrontierArt _art;
 
         public static LaneStage Create(Transform host)
         {
@@ -202,7 +204,7 @@ namespace Broodline.Game.Shell
         /// a screen with no live control. So this returns null, the card
         /// falls back to its own fill (`LanePreviewCard.SetTexture`'s
         /// documented null case), and the loud failure keeps its own site.
-        public Texture Show(int waveId, IReadOnlyList<CreatureLook> placed, IReadOnlyList<int> pockets)
+        public Texture Show(int waveId, IReadOnlyList<FrontierLook> placed, IReadOnlyList<int> pockets)
         {
             Clear();
 
@@ -246,8 +248,12 @@ namespace Broodline.Game.Shell
                     continue;
                 }
 
-                var body = CreatureAssembler.Build(look);
-                body.transform.SetParent(_creatures.transform, false);
+                if (_art == null) _art = new FrontierArt(RuntimeShaders.Require(RuntimeShaders.Frontier));
+                var creature = _art.Creature(_creatures.transform, look.Species, look.Trait1, look.Trait2);
+                creature.Growth = Mathf.Clamp01(look.Growth01);
+                creature.Pose(0f, true);
+                creature.Paused = true; // this stage is a still picture, even while a wave is running
+                var body = creature.gameObject;
 
                 // `WaveView.Build`'s three lines, re-read. The rotation
                 // expression is copied verbatim, comment included, because
@@ -468,6 +474,7 @@ namespace Broodline.Game.Shell
         {
             if (_camera != null) _camera.targetTexture = null;
             if (_texture != null) _texture.Release();
+            _art?.Dispose();
         }
     }
 }

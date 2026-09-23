@@ -6,21 +6,15 @@ using UnityEngine;
 
 namespace Broodline.UI.Tests
 {
-    /// bible 10.2 rule 1, asserted against the BAKED bodies from Phase 9's
-    /// pipeline; a collision here is a collision in the recipes:
+    /// bible 10.2 rule 1, asserted against the baked production card bodies;
+    /// a collision here is a collision in the authored Frontier silhouettes:
     ///
     ///   "All six species must be distinguishable as flat black shapes at
     ///    40px; if two are confusable, one is wrong."
     ///
-    /// Through Task 8 this ran against six interim proxy PNGs, drawn from
-    /// bible 1.2's silhouette column so a collision between them would be a
-    /// collision in the DESIGN rather than in the drawing. `CreatureBaker`
-    /// retires that stand-in: the mask now comes from `CreatureAssembler`'s
-    /// actual mesh, rendered by the one fixed bake camera, so a collision
-    /// here is a collision in a RECIPE (`SpeciesRecipes`) rather than in a
-    /// hand-drawn placeholder. rig_proof.md section 6 still routes a finding
-    /// back to the bible when two recipes genuinely read the same at 40px;
-    /// it is the recipes that would need to change to fix it, not this test.
+    /// `FrontierBaker` now renders the same procedural bodies used by the
+    /// live portrait and deploy preview into the card resource paths. A
+    /// collision should lead to an art change, never to a hand-edited mask.
     ///
     /// The threshold is deliberately low. This is a collision detector, not a
     /// quality bar: two shapes differing on fewer than 8% of a 40x40 field are
@@ -33,16 +27,8 @@ namespace Broodline.UI.Tests
     /// six species, fifteen pairs, and the collision detector doing the job
     /// it was written for.
     ///
-    /// THE CLOSEST PAIR IS EMBER/HOLLOW, and it is close for a reason worth
-    /// recording. They are the only two upright bodies in the cast, so their
-    /// masks are both tall, narrow and SPARSE - 236 and 144 of 1600 cells -
-    /// and two sparse masks cannot differ on more of the field than their
-    /// combined fill, however unlike they are. 9.6% against a ceiling of
-    /// 23.8% means they overlap on very little; it is not a near-miss on
-    /// shape. `Broodline.Creatures.Tests.BodyShapeTests` carries the positive
-    /// claims that hold them apart: Ember is 2.06x as tall as it is wide and
-    /// carries a crest, Hollow rides 52% of its height up on stilts behind a
-    /// neck 0.73 long.
+    /// The old Phase 9 closest-pair measurement no longer describes these
+    /// sprites. The test logs the current pairwise distances after each bake.
     public class SilhouetteTests
     {
         const int Size = 40;
@@ -66,7 +52,7 @@ namespace Broodline.UI.Tests
         {
             var path = $"Assets/UI/Resources/Art/creatures/bodies/{species}.png";
             var src = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
-            Assert.IsNotNull(src, $"no baked body at {path} - run generate-creatures.sh with BAKE=1");
+            Assert.IsNotNull(src, $"no baked body at {path} - run implementation/scripts/bake-frontier.sh");
 
             var rt = RenderTexture.GetTemporary(Size, Size, 0, RenderTextureFormat.ARGB32);
             Graphics.Blit(src, rt);
@@ -148,14 +134,8 @@ namespace Broodline.UI.Tests
             // be a second, tighter threshold nobody agreed to, and tightening
             // this detector is how it stops detecting. `verify-uss-tokens.sh`
             // makes the same distinction - measure, print, gate on one line.
-            // Fifteen pairs since Task 15. Closest measured: ember/hollow at
-            // 9.6%. THIS LOG IS THE ONLY PLACE THE SHIPPED NUMBER EXISTS, and
-            // the project's test command does not surface it - which is how
-            // three different values for it (9.3, 9.6, 9.9) ended up quoted in
-            // four different comments. 9.3 was a reading taken BEFORE
-            // `CreatureBaker.RestPose` made the bake reproducible; 9.9 came
-            // from an offline approximation of this downsample. Anything that
-            // quotes the margin should quote what this line prints.
+            // The previous 9.6% Ember/Hollow reading was from Phase 9 art.
+            // This log is the current measurement after a Frontier bake.
             Debug.Log("bible 10.2 rule 1, pairwise at 40px (floor " +
                       $"{MinDifferingFraction:P0}): " + string.Join(", ", measured));
 
