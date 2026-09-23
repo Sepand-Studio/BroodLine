@@ -82,3 +82,15 @@ into the comparison page's JSON at
 `implementation/results/frontier/production-baselines/`, so Skitter, Hollow
 and Loam have a real "before" beside the redesign. Run it in batch mode
 (`-executeMethod ProductionBaselineExport.Export`) and regenerate the page.
+
+## Task 2.4 — Loam (2026-09-23)
+
+**Loam, revision 02.** Four body segments tapering from a broad chest to a
+rounded tail cap, each with a soft raised fold that covers the seam behind
+it, a lighter mossy back with darker spots, a side nub where a leg is not, and
+a warm cream underside band; a broad low head with a wide blunt snout, heavy
+kind brows drooping outward, and big eyes. Both combat sockets ride the
+`middle` Segment bone, so they deform with the undulation `FrontierPose`
+already gives Segment bones. Moss `#7cc492` kept; back `#5f9f75`, shadow
+`#46795d`. First pass came in at 10,324 assembled with two Cinders; sphere
+resolutions trimmed to 7,614 body / 8,598 assembled.

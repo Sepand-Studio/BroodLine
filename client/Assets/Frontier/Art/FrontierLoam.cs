@@ -3,33 +3,64 @@ using static Broodline.Frontier.FrontierFace;
 
 namespace Broodline.Frontier
 {
+    /// LOAM, REVISION 02 - Phase 10 Batch 2. The gentle, legless ground-hugger:
+    /// five connected segments that taper from a broad chest to a rounded tail,
+    /// each with a raised dorsal fold that covers the seam to the next, a warm
+    /// cream underside band, a lighter mossy back with darker spots, and a
+    /// blunt wide snout with heavy, kind brows. Both combat sockets ride the
+    /// middle segment, which is a Segment bone and deforms with the undulation.
     public static class FrontierLoam
     {
         public static readonly FrontierRigDefinition Rig=new FrontierRigDefinition("loam",new[]{
-            Bone("root",-1,0,0,0,FrontierBoneRole.Root),Bone("middle",0,0,.26f,0,FrontierBoneRole.Segment,0,0),
-            Bone("rear",1,-.31f,.235f,0,FrontierBoneRole.Segment,0,-.8f),Bone("tail",2,-.60f,.205f,0,FrontierBoneRole.Segment,0,-1.6f),
-            Bone("front",1,.31f,.28f,0,FrontierBoneRole.Segment,0,.8f),Bone("head",4,.63f,.285f,0,FrontierBoneRole.Head),
-            Bone("eye-l",5,.83f,.37f,-.16f,FrontierBoneRole.Eye,-1),Bone("eye-r",5,.83f,.37f,.16f,FrontierBoneRole.Eye,1)
-        },Socket(1,-.10f,.53f,0,.64f),Socket(1,.08f,.30f,-.32f,.55f,true),Socket(5,.79f,.49f,0,.4f),new Vector3(.20f,.16f,.20f));
+            Bone("root",-1,0,0,0,FrontierBoneRole.Root),Bone("middle",0,0,.25f,0,FrontierBoneRole.Segment,0,0),
+            Bone("rear",1,-.33f,.22f,0,FrontierBoneRole.Segment,0,-.8f),Bone("tail",2,-.62f,.19f,0,FrontierBoneRole.Segment,0,-1.6f),
+            Bone("front",1,.33f,.27f,0,FrontierBoneRole.Segment,0,.8f),Bone("head",4,.66f,.27f,0,FrontierBoneRole.Head),
+            Bone("eye-l",5,.86f,.37f,-.17f,FrontierBoneRole.Eye,-1),Bone("eye-r",5,.86f,.37f,.17f,FrontierBoneRole.Eye,1)
+        },Socket(1,-.08f,.55f,0,.64f),Socket(1,.06f,.30f,-.34f,.55f,true),Socket(5,.78f,.50f,0,.4f),new Vector3(.20f,.16f,.20f));
+
         public static void Build(FrontierMesh b)
         {
-            var moss=Hex("#7cc492");var shadow=Hex("#50846a");var cream=Hex("#e5d7a5");b.Polish=.10f;
-            // Each overlapping volume follows its own segment. Broad folds cover joint seams.
+            var moss=Hex("#7cc492");var back=Hex("#5f9f75");var shadow=Hex("#46795d");var cream=Hex("#ead9a8");var spot=Hex("#3f6d52");
+            // Four body segments, tapering toward the tail; each carries its own
+            // fold ridge that overlaps the seam behind it.
+            float[] scale={0,1f,.93f,.80f,1.05f};
             for(int i=1;i<=4;i++)
             {
-                b.Bone=i;var p=Rig.Bones[i].Position;float scale=i==3?.78f:i==2?.92f:1;
-                b.Sphere(p,new Vector3(.255f,.26f,.32f)*scale,Color.Lerp(moss,shadow,i==3?.22f:.06f),20,12);
-                b.Sphere(p+new Vector3(.02f,-.17f*scale,0),new Vector3(.24f,.09f,.26f)*scale,cream,16,8);
-                b.Sphere(p+new Vector3(-.11f,.04f,0),new Vector3(.065f,.245f,.315f)*scale,shadow,16,10);
-                b.Sphere(p+new Vector3(-.105f,.062f,0),new Vector3(.075f,.224f,.29f)*scale,moss,16,10);
+                b.Bone=i;var p=Rig.Bones[i].Position;float s=scale[i];
+                b.Polish=.10f;
+                b.Sphere(p,new Vector3(.27f,.27f,.33f)*s,moss,14,9);
+                b.Polish=.14f;
+                b.Sphere(p+new Vector3(0,.10f*s,0),new Vector3(.24f,.20f,.30f)*s,back,12,7,upperOnly:true);
+                b.Polish=.08f;
+                b.Sphere(p+new Vector3(.02f,-.16f*s,0),new Vector3(.25f,.10f,.27f)*s,cream,12,6);
+                // The fold: a raised ridge at the back of the segment, broad and soft.
+                b.Polish=.12f;
+                b.Sphere(p+new Vector3(-.13f*s,.05f*s,0),new Vector3(.07f,.25f,.335f)*s,shadow,12,7);
+                b.Sphere(p+new Vector3(-.12f*s,.075f*s,0),new Vector3(.08f,.235f,.31f)*s,moss,12,7);
+                // Darker spots along the back and a side nub where a leg is not.
+                for(int side=-1;side<=1;side+=2)
+                {
+                    b.Sphere(p+new Vector3(.05f*s,.22f*s,side*.14f*s),new Vector3(.05f,.03f,.06f)*s,spot,8,5);
+                    b.Sphere(p+new Vector3(.0f,-.06f*s,side*.31f*s),new Vector3(.07f,.06f,.05f)*s,back,8,5);
+                }
             }
-            b.Bone=5;
-            b.Sphere(new Vector3(.64f,.285f,0),new Vector3(.30f,.235f,.27f),moss,22,12);
-            var muzzle=new Vector3(.825f,.205f,0);var mr=new Vector3(.19f,.11f,.22f);
-            b.Sphere(muzzle,mr,cream,18,10);Smile(b,muzzle,mr,.15f);Eyes(b,Rig,.081f,moss,Hex("#91774a"));
+            // The tail end: a rounded cap behind the last segment.
+            b.Bone=3;b.Polish=.10f;
+            b.Sphere(Rig.Bones[3].Position+new Vector3(-.20f,-.02f,0),new Vector3(.14f,.16f,.20f),moss,12,8);
+            // Head: broad and low, a blunt wide snout, heavy kind brows, big eyes.
+            b.Bone=5;b.Polish=.10f;
+            b.Sphere(new Vector3(.66f,.28f,0),new Vector3(.32f,.245f,.30f),moss,18,10);
+            b.Polish=.14f;
+            b.Sphere(new Vector3(.62f,.40f,0),new Vector3(.26f,.15f,.27f),back,14,7,upperOnly:true);
+            var muzzle=new Vector3(.86f,.19f,0);var mr=new Vector3(.20f,.115f,.245f);
+            b.Polish=.08f;b.Sphere(muzzle,mr,cream,18,10);Smile(b,muzzle,mr,.16f);
+            for(int side=-1;side<=1;side+=2) b.Sphere(new Vector3(1.03f,.25f,side*.07f),new Vector3(.012f,.010f,.016f),shadow,8,5);
+            Eyes(b,Rig,.085f,moss,Hex("#8d7346"));
+            // Heavy brows: a thick ridge over each eye, drooping outward.
+            b.Bone=5;b.Polish=.10f;
             for(int side=-1;side<=1;side+=2)
-                b.Sphere(new Vector3(.980f,.261f,side*.066f),new Vector3(.009f,.009f,.013f),shadow,8,5);
-            b.Bone=0;
+                b.Sphere(new Vector3(.82f,.475f,side*.17f),new Vector3(.11f,.045f,.11f),back,10,6,Quaternion.Euler(side*10,0,-8));
+            b.Bone=0;b.Polish=.10f;
         }
     }
 }
