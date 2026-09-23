@@ -37,9 +37,8 @@ namespace Broodline.Game.Shell
     ///      console's own `Clear` and `Close` chrome is in the simulator
     ///      framework too. The scripting API survives on device
     ///      (`developerConsoleEnabled` appears four times against the
-    ///      simulator's six), which is why `ReleaseConsole` still compiles; the
-    ///      UI implementation does not. A binary cannot draw a window whose
-    ///      title it does not contain.
+    ///      simulator's six) while the UI implementation does not. A binary
+    ///      cannot draw a window whose title it does not contain.
     ///   2. **It was not buying anything on the simulator either.** The walk
     ///      that followed fix round 1 found the console still painting, with
     ///      `[defect]` - logged at WARNING severity by that very change - as the
@@ -58,8 +57,18 @@ namespace Broodline.Game.Shell
     /// a warning is what gets filtered out of one. The console was a simulator
     /// cosmetic; a genuine failure that nobody can find in a device log is not.
     ///
-    /// `ReleaseConsole` is still the lever for the simulator, and its header
-    /// says what is and is not known about whether it works.
+    /// AND NOTHING TRIES TO SUPPRESS THE CONSOLE ANY MORE - Phase 9 Task 21i.
+    /// `ReleaseConsole` was the lever for the simulator and it is deleted.
+    /// Task 21h's re-review allowed it "for exactly one more walk", on the
+    /// condition that the class go if the console still painted. The walk ran:
+    /// the wave was genuinely live when the 120s clock expired, so `Defect` fired
+    /// at ERROR severity with `[defect]` in the console's own first line - round
+    /// 2 had already removed the `LogType` filter that made round 1's attempt
+    /// untestable - and the console painted anyway. That is three rounds in which
+    /// setting `developerConsoleEnabled`/`Visible`, at `BeforeSceneLoad` and then
+    /// again on every log line, suppressed nothing. It was only ever a simulator
+    /// cosmetic; a developer sees the console and a tester cannot, so it is now
+    /// accepted rather than fought.
     public static class Diagnostics
     {
         /// The marker a device log is grepped for. Distinct from `[Ftue]`, which

@@ -70,17 +70,34 @@ public static class ShellProbe
     const float DefaultSafeTop = 62f;
     const float DefaultSafeBottom = 34f;
 
-    /// The two sheets and the four screens whose bottom control a walk
-    /// actually puts a thumb on. `AbandonedWaveSheet` is not in
-    /// `ScreenFixtures.Names` and so is not in the corpus either - it is built
-    /// here directly.
+    /// EVERY SHEET THE APP PRESENTS, AND THE FOUR SCREENS WHOSE BOTTOM CONTROL A
+    /// WALK PUTS A THUMB ON.
+    ///
+    /// THE SHEET LIST IS THE ONE THAT HAS TO BE COMPLETE, because a sheet is
+    /// what `#sheet-layer` holds and the layer is what was wrong. Counted off
+    /// the call sites of `ScreenFlow.ShowSheetAsync`, not guessed: `CodexSheet`
+    /// and `AbandonedWaveSheet` from `FtueDirector`'s two direct calls, and both
+    /// `ConfirmDialog` faces from `ConfirmAsync`, which picks between them per
+    /// dialog. Three of the four are absent from `ScreenFixtures.Names` and so
+    /// from the screenshot corpus as well - which is part of how this went four
+    /// tasks unseen.
+    ///
+    /// `ConfirmDialog` IS BOTH FACES ON PURPOSE. `Standard`'s scrim is
+    /// `PickingMode.Position` and wired to `cancel` (splice_confirm_spec section
+    /// 4), so the band the tab bar used to own was a band where tapping outside
+    /// the dialog silently failed to dismiss it. `Named`'s scrim is
+    /// `PickingMode.Ignore` by bible 3.3, so its scrim never dismissed anything
+    /// - but its two BUTTONS are in the same band as every other sheet's, and it
+    /// is the dialog that stands between a player and losing their Founder.
     static readonly string[] DefaultSubjects =
     {
-        "AbandonedWaveSheet", "CodexSheet",
+        "AbandonedWaveSheet", "CodexSheet", "ConfirmDialogStandard", "ConfirmDialogNamed",
         "DeployView", "PostWaveView", "FounderNamingView", "InterruptedView",
     };
 
     const string AbandonedWaveSheetSubject = "AbandonedWaveSheet";
+    const string ConfirmDialogStandardSubject = "ConfirmDialogStandard";
+    const string ConfirmDialogNamedSubject = "ConfirmDialogNamed";
 
     public static void Run()
     {
@@ -110,11 +127,12 @@ public static class ShellProbe
 
         var unreachable = new List<string>();
         var threw = new List<string>();
+        var asserted = 0;
         foreach (var subject in subjects)
         {
             try
             {
-                Probe(subject.Trim(), width, height, safeTop, safeBottom, unreachable);
+                asserted += Probe(subject.Trim(), width, height, safeTop, safeBottom, unreachable);
             }
             catch (Exception e)
             {
@@ -126,10 +144,21 @@ public static class ShellProbe
             }
         }
 
+        // THE COUNT OF CONTROLS IS IN THE SUMMARY SO THE GREEN CARRIES ITS OWN
+        // EVIDENCE, and it is here because of what this instrument is for.
+        // `Measure` skips a control whose rect is empty or NaN - which is right,
+        // since a `display: none` control is not a defect - but it means a panel
+        // that resolved NOTHING would skip every control, leave `unreachable`
+        // empty, and print the same "OK" as a run that checked eight. That is
+        // precisely the could-not-fail shape this file exists to catch, one level
+        // up, inside the catcher. A reader now sees "8 subjects, 10 controls" and
+        // knows something was asked; `Measure` reddens a subject that yields
+        // none at all, so a silent nothing cannot pass either.
         Debug.Log("[shell] probed " + (subjects.Count - threw.Count) + " of " + subjects.Count
                   + " subjects at " + width + "x" + height
                   + " with safe insets " + safeTop.ToString("0.#", CultureInfo.InvariantCulture)
-                  + "/" + safeBottom.ToString("0.#", CultureInfo.InvariantCulture));
+                  + "/" + safeBottom.ToString("0.#", CultureInfo.InvariantCulture)
+                  + "; asserted " + asserted + " control(s)");
 
         if (unreachable.Count > 0)
         {
@@ -142,8 +171,11 @@ public static class ShellProbe
         if (unreachable.Count > 0 || threw.Count > 0) EditorApplication.Exit(1);
     }
 
-    static void Probe(string subject, int width, int height, float safeTop, float safeBottom,
-                      List<string> unreachable)
+    /// Returns how many controls it actually asserted on, which the caller adds
+    /// up and prints. Zero from a subject is itself a finding and `Measure`
+    /// records it.
+    static int Probe(string subject, int width, int height, float safeTop, float safeBottom,
+                     List<string> unreachable)
     {
         var rt = new RenderTexture(width, height, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB)
         {
@@ -219,7 +251,7 @@ public static class ShellProbe
             if (isSheet) host.ShowSheet(presented); else host.Show(presented);
 
             ScreenshotCapture.ForceRender(root);
-            Measure(subject, width, height, root, presented, unreachable);
+            return Measure(subject, root, presented, isSheet, unreachable);
         }
         finally
         {
@@ -233,18 +265,50 @@ public static class ShellProbe
     static VisualElement Build(string subject)
     {
         if (subject == AbandonedWaveSheetSubject) return new AbandonedWaveSheet(() => { });
+
+        // THE SPLICE PAIR THE WHOLE HARNESS USES, so the dialog carries the copy
+        // a walk actually reads - and copy is geometry here, because `#body`
+        // wraps and a shorter sentence makes a shorter card and moves the
+        // buttons. `SpliceScreen.Build` is what `FtueDirector` calls too, and it
+        // is the only public route to a `SpliceDialog` (every property is
+        // `internal set`).
+        if (subject == ConfirmDialogStandardSubject)
+        {
+            return ConfirmDialog.Standard(ScreenFixtures.SpliceModel().StandardDialog,
+                confirm: () => { }, cancel: () => { });
+        }
+        if (subject == ConfirmDialogNamedSubject)
+        {
+            return ConfirmDialog.Named(ScreenFixtures.SpliceModel().FounderDialog,
+                confirm: () => { }, cancel: () => { });
+        }
+
         return ScreenFixtures.Build(subject);
     }
 
-    /// A sheet goes to `#sheet-layer`, a screen to `#screen-host`, and
-    /// `ScreenFixtures.GoesInTheScreenHost` is already the list of which is
-    /// which for everything the corpus knows about. `AbandonedWaveSheet` is not
-    /// in that list because it is not a fixture, so it is named here.
+    /// WHICH LAYER THIS SUBJECT BELONGS IN, AND IT IS A LIST OF SHEETS RATHER
+    /// THAN THE NEGATION OF ANOTHER LIST.
+    ///
+    /// THIS USED TO READ `!ScreenFixtures.GoesInTheScreenHost(subject)` AND THAT
+    /// WAS WRONG. "Not in the screen host" is not "is a sheet": that method also
+    /// answers false for `WaveHudView`, which `WaveRunner` adds to the wave
+    /// scene's own panel root, and for the seven component catalogues, which the
+    /// shell never holds at all. So `probe-shell.sh 402x874 62,34 WaveHudView`
+    /// would have mounted the wave HUD through `ShowSheet` and measured, in
+    /// silence, an arrangement the app never produces - a probe answering
+    /// confidently about something that does not exist, which is the failure
+    /// this whole task was called in to end.
+    ///
+    /// Named explicitly, so a fixture added to `ScreenFixtures` for any other
+    /// reason cannot quietly become a sheet here.
     static bool IsSheet(string subject) =>
-        subject == AbandonedWaveSheetSubject || !ScreenFixtures.GoesInTheScreenHost(subject);
+        subject == AbandonedWaveSheetSubject
+        || subject == ConfirmDialogStandardSubject
+        || subject == ConfirmDialogNamedSubject
+        || subject == "CodexSheet";
 
-    static void Measure(string subject, int width, int height, VisualElement root, VisualElement presented,
-                        List<string> unreachable)
+    static int Measure(string subject, VisualElement root, VisualElement presented, bool isSheet,
+                       List<string> unreachable)
     {
         var panel = root.panel;
         var tabBarSlot = root.Q<VisualElement>("tab-bar");
@@ -271,6 +335,39 @@ public static class ShellProbe
         // what every primary action in this project is; `.btn-quiet` links are
         // Buttons too, which is what puts FounderNamingView's "Not now" in
         // here without naming it.
+        var asserted = 0;
+
+        // A PRESENTED SHEET OWNS THE TAB BAR'S BAND, AND THIS IS THE ASSERTION
+        // THAT SAYS SO RATHER THAN THE BUTTON SWEEP BELOW.
+        //
+        // WHY THE SWEEP IS NOT ENOUGH, found by review and not by this file:
+        // `ConfirmDialog` is a CENTRED dialog, so its two buttons sit at y=485
+        // and were never in the band at all - but `Standard`'s SCRIM is
+        // `PickingMode.Position` and wired to `cancel` (splice_confirm_spec
+        // section 4), and the scrim does reach the band. So the spec's "tapping
+        // outside it cancels" was false in the bottom 56 points and no sweep over
+        // Buttons could ever have noticed. A scrim cannot be swept the way a
+        // button is, either: its own card is a later sibling and legitimately
+        // wins the middle of the column, which a sweep would report as dead.
+        //
+        // ONE PICK, AT THE CENTRE OF THE BAR'S BAND, asserting only that it lands
+        // somewhere INSIDE the sheet - scrim, card or button, whichever the sheet
+        // puts there. That is the whole of what "the overlay is on top" means, it
+        // is what the tab bar was taking, and it is true of all four sheets.
+        if (isSheet)
+        {
+            asserted++;
+            var atBar = new Vector2(tabBarRect.center.x, tabBarRect.center.y);
+            var hit = panel.Pick(atBar);
+            if (!IsInside(hit, presented))
+            {
+                unreachable.Add(string.Format(CultureInfo.InvariantCulture,
+                    "{0} does not own the tab bar's band: a tap at ({1:0.#}, {2:0.#}) goes to {3} instead "
+                    + "of to the sheet, so the bar is drawn over the sheet and takes its taps",
+                    subject, atBar.x, atBar.y, Describe(hit)));
+            }
+        }
+
         foreach (var control in presented.Query<Button>().Build())
         {
             var rect = control.worldBound;
@@ -287,9 +384,25 @@ public static class ShellProbe
             // `#cta-row`, `#footer-note` - and everything on a sheet.
             if (InsideAScrollView(control, presented)) continue;
 
+            asserted++;
             var verdict = Reach(panel, control);
             if (verdict != null) unreachable.Add(subject + "/" + label + " " + verdict);
         }
+
+        // A SUBJECT THAT ANSWERED NOTHING IS A FAILURE, NOT A PASS. Every one of
+        // the eight default subjects has at least one Button outside a
+        // ScrollView; if a run asserts on none of them, the panel did not resolve
+        // - which is the one thing this probe claims over an EditMode test, and
+        // the one thing it must not silently lose. It goes in the same list a
+        // dead control goes in, so it reddens the script the same way.
+        if (asserted == 0)
+        {
+            unreachable.Add(subject + " yielded NO measurable control at all, so nothing about it was "
+                            + "checked - either the panel resolved no layout or every control it has is "
+                            + "inside a ScrollView");
+        }
+
+        return asserted;
     }
 
     /// Walks the centre column of a control one point at a time and asks the
@@ -302,30 +415,52 @@ public static class ShellProbe
     /// ever produced one.
     ///
     /// Returns null when every point resolves to the control (or to something
-    /// inside it), and a sentence naming the dead band and its thief otherwise.
+    /// inside it), and a sentence naming the dead points and their thief
+    /// otherwise.
+    ///
+    /// THE DENOMINATOR IS COUNTED, NOT DERIVED, AND THE END OF THE BAND IS
+    /// OBSERVED. This method's first version divided by `rect.height - 2`, which
+    /// is 53 for a 55-point button while the loop actually samples 54, and it
+    /// printed the band's end as `rect.yMax - 1` unconditionally - so three
+    /// scattered dead points would have read as a band running to the bottom
+    /// edge. In a project where the gate is the red's MESSAGE, an instrument that
+    /// mis-states its own denominator is the defect it was built to find.
+    /// `sampled`, `firstDead` and `lastDead` are all now what happened.
     static string Reach(IPanel panel, VisualElement control)
     {
         var rect = control.worldBound;
         var x = rect.center.x;
         var firstDead = float.NaN;
+        var lastDead = float.NaN;
         VisualElement thief = null;
         var dead = 0;
+        var sampled = 0;
 
         // Inset by a point at each end: the boundary row of a rect is shared
         // with whatever abuts it and is not a place a finger is aimed.
         for (var y = rect.yMin + 1f; y <= rect.yMax - 1f; y += 1f)
         {
+            sampled++;
             var hit = panel.Pick(new Vector2(x, y));
             if (hit == control || IsInside(hit, control)) continue;
 
             dead++;
+            lastDead = y;
             if (float.IsNaN(firstDead)) { firstDead = y; thief = hit; }
         }
 
         if (dead == 0) return null;
+
+        // CONTIGUOUS OR NOT, SAID OUT LOUD. A bar lying across the bottom of a
+        // button produces one run; anything else - a hole in the middle, a
+        // checkerboard of some child's picking - is a different defect wearing
+        // the same numbers, and the reader should not have to do the subtraction.
+        var contiguous = Mathf.Approximately(lastDead - firstDead + 1f, dead);
         return string.Format(CultureInfo.InvariantCulture,
-            "{0:0.#} of its {1:0.#} points are dead, from y={2:0.#} down to y={3:0.#}; the tap goes to {4}",
-            dead, Mathf.Max(0f, rect.height - 2f), firstDead, rect.yMax - 1f, Describe(thief));
+            "{0} of its {1} sampled points are dead, topmost y={2:0.#}, lowest y={3:0.#}, {4}; "
+            + "the topmost miss goes to {5}",
+            dead, sampled, firstDead, lastDead,
+            contiguous ? "one contiguous band" : "SCATTERED, not one band", Describe(thief));
     }
 
     static bool IsInside(VisualElement element, VisualElement ancestor)

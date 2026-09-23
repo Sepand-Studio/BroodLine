@@ -1,15 +1,42 @@
-Phase 9 EditMode baseline - Task 20, 2026-09-22, from a closed Editor.
-Sole expected failure: MainThreadAffinityTests.NoConfigureAwaitFalse_InCodeThatTouchesTheUi
-(deliberate; see that class's comment). Any other failure is a finding.
+Phase 9 EditMode baseline.
 
-total=466 passed=465 failed=1 skipped=0
+RE-TAKEN BY TASK 21i (fix round 1), 2026-09-22, from a closed Editor. The count
+below had stood at total=466 since Task 20 and was SIXTY behind, on a file whose
+own purpose is to supersede any count written into a sentence. That is the exact
+failure this file exists to prevent, so it is corrected here and the old figure
+is kept beside the new one rather than overwritten in silence.
+
+Sole expected failure: MainThreadAffinityTests.NoConfigureAwaitFalse_InCodeThatTouchesTheUi
+(deliberate; see that class's comment). Any other failure is a finding. THE COUNT
+IS NOT THE CHECK - read the failure's MESSAGE from
+implementation/results/test-results-EditMode.xml and confirm it still names
+exactly SessionTests.cs:223, :238 and :262 and nothing else. A red that changes
+identity while the count holds has cost this phase real time.
+
+total=525 passed=524 failed=1 skipped=0
 FAILED: Broodline.Game.Tests.MainThreadAffinityTests.NoConfigureAwaitFalse_InCodeThatTouchesTheUi
     ConfigureAwait(false) in UI-facing code resumes the await off Unity's main thread, and the next VisualElement built after it throws. Remove it (Net/ is exempt - see this class's comment):
+      Game/Tests/SessionTests.cs:223
+      Game/Tests/SessionTests.cs:238
+      Game/Tests/SessionTests.cs:262
 
-Companion gates, same run window:
-  check-stylesheets.sh   44 stylesheets, all compile to at least one rule
-  check-silent-drops.sh  37 .uxml / 44 .uss, 0 defects (new this task)
+HOW 525 IS REACHED FROM TASK 21i'S OWN STARTING POINT, because it lands on the
+same number Task 21i inherited and that coincidence must not be read as "nothing
+moved":
+  525  the count this task started from (Task 21h's, passed=524 failed=1)
+  +1   ScreenHostTests.TheSheetLayerIsDeclaredLastSoAnOverlayIsActuallyOnTop
+  -1   ReleaseConsoleTests.UnitysDeveloperConsoleSwitches_AreStillRealAndSettable,
+       deleted with the ReleaseConsole class it guarded
+  =525 with passed=524 failed=1, identical totals reached by two changes
+
+Companion gates re-run at this count:
+  check-silent-drops.sh  37 .uxml / 44 .uss, 0 defects
   verify-uss-tokens.sh   Token layer verified.
+  probe-shell.sh         8 subjects, 10 controls asserted at 402x874 (new this task)
+
+Companion gates last verified at Task 20 and NOT re-run since - stated so the
+list is not read as one run window:
+  check-stylesheets.sh   44 stylesheets, all compile to at least one rule
   verify-unity-settings.sh  Task 2 settings verified.
   generate-contract.sh   exit 0, no drift in openapi/ or client/Assets/Generated/
   BAKE=1 generate-creatures.sh  21 assets + 150 sprites, no drift

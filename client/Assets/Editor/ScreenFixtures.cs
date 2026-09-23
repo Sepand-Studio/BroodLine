@@ -540,6 +540,25 @@ public static class ScreenFixtures
         return view;
     }
 
+    /// THE SPLICE PAIR, SEPARATELY REACHABLE, so a second harness can build the
+    /// CONFIRM DIALOGS this pair produces without re-deriving the pair.
+    /// `ShellProbe` needs `StandardDialog` and `FounderDialog`; the dialogs'
+    /// every property is `internal set` to `Broodline.UI`, so
+    /// `SpliceScreen.Build` is the only public route to one, and it is the same
+    /// route `FtueDirector.ConfirmAsync` takes.
+    ///
+    /// Extracted from `SpliceChamber` below rather than copied beside it: two
+    /// harnesses measuring two different splice pairs would be two different
+    /// measurements presented as one.
+    internal static SpliceScreenModel SpliceModel()
+    {
+        var a = Creature("Vetch", 4, name: "Ash", founder: true, id: ParentAId,
+            trait1: "Carapace", tier1: 3, trait2: "Taunt", tier2: 1);
+        var b = Creature("Skitter", 6, name: null, founder: false, id: ParentBId,
+            trait1: "Sprint", tier1: 2, trait2: "Litter", tier2: 1);
+        return SpliceScreen.Build(a, b, Preview(a, b));
+    }
+
     static VisualElement SpliceChamber()
     {
         // THE HANDOFF'S OWN PAIR, IN SPECIES AND IN GENERATION: `Splice
@@ -549,11 +568,7 @@ public static class ScreenFixtures
         // roster and the reveal show the same animals), with each parent's
         // traits its own species' - which is what makes the two tiles' chips
         // tint differently and the inheritance bars' dots disagree.
-        var a = Creature("Vetch", 4, name: "Ash", founder: true, id: ParentAId,
-            trait1: "Carapace", tier1: 3, trait2: "Taunt", tier2: 1);
-        var b = Creature("Skitter", 6, name: null, founder: false, id: ParentBId,
-            trait1: "Sprint", tier1: 2, trait2: "Litter", tier2: 1);
-        var model = SpliceScreen.Build(a, b, Preview(a, b));
+        var model = SpliceModel();
 
         var view = new SpliceChamberView();
         view.Bind(model, lockedOut: new HashSet<Guid>(), onSplice: () => { });
