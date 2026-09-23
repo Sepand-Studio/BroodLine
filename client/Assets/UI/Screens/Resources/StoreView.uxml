@@ -1,0 +1,11 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="StoreView.uss" />
+    <ui:VisualElement name="body" class="store__body">
+        <ui:VisualElement name="tabs" class="store__tabs" />
+        <ui:VisualElement name="panels" class="store__panels">
+            <ui:VisualElement name="packs" class="store__panel" />
+            <ui:VisualElement name="chest" class="store__panel" />
+            <ui:VisualElement name="pass" class="store__panel" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

@@ -298,12 +298,16 @@ namespace Broodline.UI.Tests
             // stranded screen the walk left behind rather than sitting on top
             // of one whose control is dead. So it takes the frame like the
             // other ten and is NOT added to the exemption list above.
-            Assert.That(all.Count, Is.EqualTo(13),
-                "the namespace holds 13 constructible VisualElements; if this moved, the " +
+            // FOURTEEN TO EIGHTEEN IN PHASE 10 TASKS 1.4-1.5: HomeBaseView,
+            // WorldMapView, StoreView, LabView and AlliesView, the tab
+            // destinations the skin pass added. All five compose the frame;
+            // none joins the exemption list.
+            Assert.That(all.Count, Is.EqualTo(18),
+                "the namespace holds 18 constructible VisualElements; if this moved, the " +
                 "sweep's exemption list below needs re-deciding rather than silently widening");
 
             var screens = all.Where(t => !exempt.Contains(t.Name)).ToList();
-            Assert.That(screens.Count, Is.EqualTo(11), "11 screens must carry the frame");
+            Assert.That(screens.Count, Is.EqualTo(16), "16 screens must carry the frame");
 
             var bare = screens
                 .Where(t => ((VisualElement)Activator.CreateInstance(t))
@@ -363,8 +367,11 @@ namespace Broodline.UI.Tests
             // whichever is nearest would lose the distinction that makes
             // this sweep worth running.
             var noScaffold = new[] { "CodexSheet", "WaveHudView" };
+            // `HomeBaseView` IS HEADERLESS FOR THE HERO SCREENS' REASON - Phase
+            // 10 Task 1.4: the base picture is the header, as the founder's
+            // creature is on FounderNamingView.
             var headerless = new[]
-                { "FounderNamingView", "SpliceRevealView", "WaveDefeatView", "PostWaveView" };
+                { "FounderNamingView", "SpliceRevealView", "WaveDefeatView", "PostWaveView", "HomeBaseView" };
 
             var titled = typeof(Broodline.UI.Screens.RosterView).Assembly
                 .GetTypes()
@@ -383,8 +390,10 @@ namespace Broodline.UI.Tests
             // gets the page header every other headerless-less screen gets.
             // Putting it in `headerless` would have been the cheaper edit and
             // would have made that list mean two different things.
-            Assert.That(titled.Count, Is.EqualTo(7),
-                "seven screens pass a non-empty title; if this moved, decide which list the " +
+            // ELEVEN AS OF PHASE 10 TASK 1.5: WorldMapView, StoreView, LabView
+            // and AlliesView all pass a title and draw the page header.
+            Assert.That(titled.Count, Is.EqualTo(11),
+                "eleven screens pass a non-empty title; if this moved, decide which list the " +
                 "new screen belongs in rather than widening one silently");
 
             var lost = titled

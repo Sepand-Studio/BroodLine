@@ -6,7 +6,7 @@ namespace Broodline.Frontier
 {
     /// Authored procedural proof assets; owns all transient meshes and materials.
     /// No imported PNG, model, paid asset, or network call is required by this scene.
-    public sealed class FrontierArt : IDisposable
+    public sealed partial class FrontierArt : IDisposable
     {
         readonly Dictionary<string, Mesh> _meshes = new Dictionary<string, Mesh>();
         readonly List<Mesh> _environmentMeshes = new List<Mesh>();

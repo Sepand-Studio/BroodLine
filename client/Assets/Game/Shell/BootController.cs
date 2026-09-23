@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using Broodline.Model;
+using Broodline.Model.Stub;
 using Broodline.Net;
 using Broodline.UI.Components;
+using Broodline.UI.Screens;
 using Broodline.UI.Shell;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -48,6 +50,22 @@ namespace Broodline.Game.Shell
         LaneStage _stage;
         FtueDirector _ftue;
         NoticeToast _toast;
+        ResourceBar _resources;
+        HomeStage _home;
+        HubRouter _router;
+        StubLedger _ledger;
+        IReadOnlyList<string> _tabs = new string[0];
+
+        /// PlayerPrefs as the stub ledger's store. Lives here, not in Model,
+        /// because Model must not know it is running in Unity.
+        sealed class PrefsStore : StubLedger.IStore
+        {
+            public string Get(string key) => PlayerPrefs.HasKey(key) ? PlayerPrefs.GetString(key) : null;
+            public void Set(string key, string value)
+            {
+                if (value == null) PlayerPrefs.DeleteKey(key); else PlayerPrefs.SetString(key, value);
+            }
+        }
 
         /// Gives the panel root AND the notice toast the safe-area inset, and
         /// hands back the binders so nothing re-derives them.
@@ -125,6 +143,13 @@ namespace Broodline.Game.Shell
             var tabBarSlot = root.Q<VisualElement>("tab-bar");
             _tabBar = new TabBar();
             tabBarSlot.Add(_tabBar);
+
+            // THE RESOURCE ROW, IN THE TOP BAR THAT WAS EMPTY SINCE PHASE 7 -
+            // Phase 10 Task 1.2. Bound from every snapshot below; its "+"
+            // opens the Store through the router.
+            _resources = new ResourceBar();
+            root.Q<VisualElement>("top-bar").Add(_resources);
+            _resources.OnOpenStore += () => _router?.ShowStore();
 
             var noticeLayer = root.Q<VisualElement>("notice-layer");
             _toast = new NoticeToast();
@@ -237,6 +262,27 @@ namespace Broodline.Game.Shell
             // cameras disabled until shown - see LaneStage.Create.
             _stage = LaneStage.Create(transform);
 
+            // The home base and the hub - Phase 10 Tasks 1.3 and 1.4. Built
+            // before the director so the walk can hand the host to the hub
+            // the moment its last beat ends.
+            _home = HomeStage.Create(transform);
+            _ledger = new StubLedger(new PrefsStore(), line => Debug.Log(line));
+            _router = new HubRouter(
+                _screenHost,
+                () => _session.Snapshot,
+                () => _session.Api.RegionStateAsync(),
+                claim: async slot =>
+                {
+                    var result = await _outbox.ClaimNodeAsync(slot);
+                    return result.Outcome == OutboxOutcome.Sent ? null : FtueNotice.For(result.Outcome, FtueNotice.Claim, result.Error);
+                },
+                _ledger,
+                OnNotice,
+                setActiveTab: tab => _tabBar.Render(_tabs, tab, OnTabSelected),
+                _home);
+            _router.OpenCodex = ShowCodex;
+            TraitChip.AnyTapped += _ => ShowCodex();
+
             _ftue = new FtueDirector(
                 _session.Api,
                 _outbox,
@@ -246,7 +292,10 @@ namespace Broodline.Game.Shell
                 () => _session.ColdStartAsync(),
                 OnNotice,
                 _studio,
-                _stage);
+                _stage,
+                hub: _router.RunAsync);
+            _router.Defend = _ftue.DefendOnceAsync;
+            _router.SpliceFromRoster = _ftue.SpliceFromRosterAsync;
 
             try
             {
@@ -307,33 +356,31 @@ namespace Broodline.Game.Shell
         {
             var thresholds = snapshot.Tabs ?? new Dictionary<string, int>();
             var tabs = Progression.TabsFor(snapshot.HighestWaveCleared, thresholds);
-            var active = tabs.Count > 0 ? tabs[0] : null;
+            _tabs = tabs;
+            var active = _router?.Active ?? (tabs.Count > 0 ? tabs[0] : null);
             _tabBar.Render(tabs, active, OnTabSelected);
+            _resources?.Bind(snapshot.Balances);
         }
 
-        /// DELIBERATELY EMPTY, and it is the largest limitation of this build.
-        ///
-        /// PHASE 7 SHIPS FTUE-ONLY NAVIGATION. The tab bar above renders real
-        /// progression data and every tab is tappable; a tap does nothing,
-        /// because nothing routes a tab to a screen. `FtueDirector` is the
-        /// ONLY production file in the client that constructs a screen, so
-        /// `RosterView` and `RegionView` are never built outside tests.
-        ///
-        /// THE SENTENCE THAT USED TO FOLLOW - "after `Beat.Done` the walk
-        /// ends with no screen taking the shell" - WAS TRUE AND IS NOT ANY
-        /// MORE, Phase 9 Task 21g. The walk cannot end without putting a
-        /// screen up with a live control on it; `FtueDirector.RunAsync` has
-        /// the whole reasoning. What that does NOT do is give the tabs
-        /// anywhere to go, so this method is still empty and still the
-        /// largest limitation of this build.
-        ///
-        /// An earlier version of this comment read "no screens exist yet for
-        /// any tab (they arrive in later tasks)". They arrived, in Tasks
-        /// 15-17; the comment did not notice. Wiring the tabs is new feature
-        /// work and is named as inherited in
-        /// `implementation/2026-09-15-phase7-followups.md`, section 13.
+        void ShowCodex()
+        {
+            var traits = _session?.Snapshot?.Traits;
+            if (traits == null) return;
+            var sheet = new CodexSheet();
+            sheet.Bind(traits, onDismiss: _screenHost.HideSheet);
+            _screenHost.ShowSheet(sheet);
+        }
+
+        /// THE TABS ROUTE - Phase 10 Task 1.3. This was deliberately empty
+        /// from Phase 7 to Phase 9 and named as "the largest limitation of
+        /// this build"; `HubRouter` is the answer. While a first-hour beat
+        /// still owns the host (`FtueDirector.Busy`) a tap says so rather
+        /// than pulling the screen out from under a turn.
         void OnTabSelected(string tab)
         {
+            if (_router == null) return;
+            if (_ftue != null && _ftue.Busy) { OnNotice(FtueNotice.TabsAfterFirstHour); return; }
+            _ = _router.ShowAsync(tab);
         }
 
         static string LoadApiBaseUrl()

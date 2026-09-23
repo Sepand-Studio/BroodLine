@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using Broodline.Api;
 using Broodline.Model;
+using Broodline.Model.Catalogs;
+using Broodline.Model.Stub;
 using Broodline.UI;
 using Broodline.UI.Components;
 using Broodline.UI.Screens;
@@ -104,6 +106,15 @@ public static class ScreenFixtures
         "SpliceRevealView",
         "WaveDefeatView",
         "WaveHudView",
+        // PHASE 10 TASK 1.5: the four tab destinations that did not exist
+        // before the skin pass, and the home base. Fixture-fed, so a
+        // capture of them says how the screen looks and nothing about
+        // whether its stub ledger is plausible.
+        "HomeBaseView",
+        "WorldMapView",
+        "StoreView",
+        "LabView",
+        "AlliesView",
         // NOT SCREENS, and last for that reason - see Primitives(),
         // Icons(), Scaffold() and Components() below. Each exists because
         // the twelve screens above it cannot show the thing it shows.
@@ -176,6 +187,11 @@ public static class ScreenFixtures
             case "SpliceRevealView": return SpliceReveal();
             case "WaveDefeatView": return WaveDefeat();
             case "WaveHudView": return WaveHud();
+            case "HomeBaseView": return HomeBase();
+            case "WorldMapView": return WorldMap();
+            case "StoreView": return Store();
+            case "LabView": return Lab();
+            case "AlliesView": return Allies();
             case "Primitives": return Primitives();
             case "Icons": return Icons();
             case "Scaffold": return Scaffold();
@@ -925,6 +941,60 @@ public static class ScreenFixtures
     /// header's 8-14-10 padding and the CTA row hold a real screen's
     /// furniture at the sizes the handoff gives them, and a placeholder
     /// rectangle cannot answer it.
+
+    // ---------------------------------------------------------------
+    // Phase 10 Task 1.5 - the skin pass's new destinations
+    // ---------------------------------------------------------------
+
+    static VisualElement HomeBase()
+    {
+        var view = new HomeBaseView();
+        var hotspots = new List<HomeHotspot>();
+        foreach (var (id, x, y) in Broodline.Game.Shell.HubRouter.DefaultAnchors)
+        {
+            var f = FacilityCatalog.Find(id);
+            hotspots.Add(new HomeHotspot { Id = id, Label = f.Name, Tier = id == "core" ? 2 : 1, X01 = x, Y01 = y });
+        }
+        view.Bind(new HomeScreenModel { ArkName = "The Ark", RegionName = "Holdfast", CoreTier = 2, Hotspots = hotspots },
+            null, null, null, null, null);
+        // No stage in a fixture: the frame shows its own deep fill, which is
+        // what the screen shows for the frame before the first paint too.
+        view.SetStage(null);
+        return view;
+    }
+
+    static VisualElement WorldMap()
+    {
+        var view = new WorldMapView();
+        view.Bind(MapScreen.Build("region-1"), null);
+        return view;
+    }
+
+    static VisualElement Store()
+    {
+        var view = new StoreView();
+        view.Bind(new StoreScreenModel { GiftAvailable = true }, null, null);
+        return view;
+    }
+
+    static VisualElement Lab()
+    {
+        var now = new DateTime(2026, 9, 23, 12, 0, 0, DateTimeKind.Utc);
+        var ledger = new StubLedger(new StubLedger.MemoryStore(), now: () => now);
+        ledger.RememberFacility("splicing");
+        ledger.StartUpgrade("splicing", TimeSpan.FromMinutes(42));
+        var view = new LabView();
+        view.Bind(LabScreen.Build(ledger, now), null);
+        return view;
+    }
+
+    static VisualElement Allies()
+    {
+        var view = new AlliesView();
+        view.Bind(null, null);
+        return view;
+    }
+
     static VisualElement Scaffold()
     {
         // .shell-root is --paper, as in Primitives and Icons - the real

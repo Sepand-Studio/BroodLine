@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -54,6 +55,14 @@ namespace Broodline.UI.Components
         /// stylesheet cannot import a constant.
         public const string AberrantUssClassName = "aberrant";
 
+        /// A CHIP WAS TAPPED, ANYWHERE - Phase 10 Task 1.3. The Codex was
+        /// reachable from nothing at runtime (Phase 9 follow-ups §2); every
+        /// trait chip is now a way in. Static, because the chip is built by
+        /// six screens that have no channel to the Game layer, and the one
+        /// subscriber (BootController) shows the sheet. The tap stops here so
+        /// a chip on a selectable card does not also select the card.
+        public static event Action<string> AnyTapped;
+
         /// `species` is one of bible 1.2's six. Anything else - null, empty,
         /// or a display name like "Ember Skitter" that names two of them -
         /// adds no modifier and the chip renders in `.chip`'s default
@@ -82,6 +91,14 @@ namespace Broodline.UI.Components
                 tier == null && !CreatureLabel.IsAbsentTrait(trait));
 
             this.Q<Label>("trait").text = CreatureLabel.TraitWithTier(trait, tier);
+
+            var name = trait;
+            RegisterCallback<ClickEvent>(evt =>
+            {
+                if (CreatureLabel.IsAbsentTrait(name)) return;
+                evt.StopPropagation();
+                AnyTapped?.Invoke(name);
+            });
         }
     }
 }

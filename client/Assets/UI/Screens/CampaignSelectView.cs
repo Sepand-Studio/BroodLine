@@ -57,6 +57,7 @@ namespace Broodline.UI.Screens
         public const string ClearedChipUssClassName = "campaign-select-view__cleared";
 
         readonly VisualElement _waves;
+        readonly ScreenScaffold _scaffold;
 
         public CampaignSelectView()
         {
@@ -78,7 +79,7 @@ namespace Broodline.UI.Screens
             // THE EYEBROW IS ALREADY UPPERCASE AND NOTHING HERE MAKES IT SO -
             // UI Toolkit has no `text-transform`, so the casing is baked into
             // the constant. `CampaignSelectScreen.Eyebrow` has the note.
-            var scaffold = new ScreenScaffold(
+            _scaffold = new ScreenScaffold(
                 CampaignSelectScreen.Title, eyebrow: CampaignSelectScreen.Eyebrow);
 
             // ONE CARD FOR THE WHOLE LIST, NOT ONE PER ROW. The rows are a
@@ -87,17 +88,21 @@ namespace Broodline.UI.Screens
             // drop shadow and turn a list into a stack of unrelated panels.
             var card = new SectionCard();
             card.Body.Add(_waves);
-            scaffold.Content.Add(card);
-            Add(scaffold);
+            _scaffold.Content.Add(card);
+            Add(_scaffold);
         }
 
         /// `waves` is the bundle's authored ids, as `/v1/sync`'s
         /// `config.waves` sent them. IN THE ORDER GIVEN - the config is the
         /// campaign's order and re-sorting it here would be this view
         /// deciding something the bundle already decided.
-        public void Bind(IReadOnlyList<int> waves, int highestWaveCleared, Action<int> onPick)
+        public void Bind(IReadOnlyList<int> waves, int highestWaveCleared, Action<int> onPick, Action onBack = null)
         {
             if (waves == null) throw new ArgumentNullException(nameof(waves));
+
+            // A back only when the hub shows this as a pushed step (Phase 10
+            // Task 1.3's Defend); the tutorial shows it top-level and passes none.
+            _scaffold.OnBack = onBack;
 
             _waves.Clear();
 

@@ -93,6 +93,7 @@ namespace Broodline.Game
         public const string NameFounder = "Naming";
         public const string SpliceStock = "The tutorial stock";
         public const string SpliceCommit = "The splice";
+        public const string Claim = "The claim";
         /// The cold start left no snapshot behind, so the walk has nothing to
         /// derive a beat from.
         ///
@@ -231,6 +232,13 @@ namespace Broodline.Game
         /// so they get the same sentence, from one definition.
         public const string WalkThrew = ServerError.UnexpectedProblem;
 
+        /// A tab was tapped while a first-hour beat still owns the screen -
+        /// Phase 10 Task 1.3. The tabs route only after `Beat.Done` hands
+        /// the host to the hub; before that a tap says so instead of
+        /// pulling a screen out from under a beat mid-turn.
+        public const string TabsAfterFirstHour = "Finish this step first - the tabs open once your Ark is settled.";
+        public const string PickAnotherParent = "Now choose the second parent.";
+
         /// The last resort, in `BootController`, when even the recovery
         /// screen could not be put up.
         ///
@@ -364,7 +372,8 @@ namespace Broodline.Game
             Func<Task> resync,
             Action<string> notice,
             PortraitStudio studio = null,
-            LaneStage stage = null)
+            LaneStage stage = null,
+            Func<Task> hub = null)
         {
             _api = api ?? throw new ArgumentNullException(nameof(api));
             _outbox = outbox ?? throw new ArgumentNullException(nameof(outbox));
@@ -390,6 +399,72 @@ namespace Broodline.Game
             };
             _studio = studio;
             _stage = stage;
+            _hub = hub;
+        }
+
+        /// The hub the walk hands the screen host to after its last beat -
+        /// Phase 10 Task 1.3. Null keeps Phase 9's behaviour (the campaign
+        /// loop owns the host forever). When set, `Busy` drops to false the
+        /// moment the hub takes over, and `BootController` reads it to decide
+        /// whether a tab tap routes or toasts.
+        readonly Func<Task> _hub;
+
+        public bool Busy { get; private set; } = true;
+
+        async Task HubOrCampaignAsync()
+        {
+            if (_hub == null) { await CampaignAsync(); return; }
+            Busy = false;
+            await _hub();
+        }
+
+        /// ONE DEFENCE FROM THE HUB: pick a wave, fight it, resync, return.
+        /// The campaign screen carries a back here, which the tutorial's own
+        /// `CampaignAsync` never offers, because from the hub there is
+        /// somewhere to go back to.
+        public async Task DefendOnceAsync()
+        {
+            var snapshot = _snapshot();
+            if (snapshot == null) { _notice(FtueNotice.CampaignUnreadable); return; }
+            var waves = WaveIdsIn(snapshot);
+            if (waves.Count == 0) { _notice(FtueNotice.NoWavesAuthored); return; }
+
+            var view = new CampaignSelectView();
+            var picked = await _flow.ShowAsync<int>(view, resume =>
+                view.Bind(waves, snapshot.HighestWaveCleared, onPick: resume, onBack: () => resume(0)));
+            if (picked == 0) return;
+
+            if (!await LoadRosterAsync()) return;
+            if (!await FightAsync(picked)) return;
+            await ResyncAsync();
+        }
+
+        /// THE SPLICE TAB: the roster in pick-parents mode. Two taps choose
+        /// the parents (a third on a chosen one un-chooses it), the chamber
+        /// takes over from there, and back on the roster returns to the hub.
+        public async Task SpliceFromRosterAsync()
+        {
+            if (!await LoadRosterAsync()) return;
+            var selected = new List<Guid>();
+            while (true)
+            {
+                var view = new RosterView();
+                var pick = await _flow.ShowAsync<CreatureDto>(view, resume =>
+                    view.Bind(_roster, onSelect: resume, onBack: () => resume(null)));
+                if (pick == null) return;
+
+                Toggle(selected, pick.CreatureId);
+                if (selected.Count < 2) { _notice(FtueNotice.PickAnotherParent); continue; }
+
+                var a = _roster.Find(selected[0]);
+                var b = _roster.Find(selected[1]);
+                selected.Clear();
+                if (a == null || b == null) continue;
+                if (!_roster.CanSplice(a.CreatureId, b.CreatureId, out var blocker)) { _notice(blocker); continue; }
+
+                await SplicePairAsync(a, b);
+                return;
+            }
         }
 
         // ---------------------------------------------------------------
@@ -464,6 +539,7 @@ namespace Broodline.Game
         {
             while (true)
             {
+                Busy = true;
                 var snapshot = _snapshot();
                 if (snapshot == null)
                 {
@@ -529,11 +605,11 @@ namespace Broodline.Game
                     // why `RunAsync` treats every way out of the walk alike.
                     case Beat.Lineage:
                         await LineageAsync(lineage: null);
-                        await CampaignAsync();
+                        await HubOrCampaignAsync();
                         return;
 
                     case Beat.Done:
-                        await CampaignAsync();
+                        await HubOrCampaignAsync();
                         return;
                 }
 
@@ -1181,8 +1257,16 @@ namespace Broodline.Game
                 return false;
             }
 
-            var parentA = pair[0];
-            var parentB = pair[1];
+            return await SplicePairAsync(pair[0], pair[1]);
+        }
+
+        /// The chamber, the commit and the reveal for a chosen pair. Split
+        /// out of the tutorial's `SpliceAsync` in Phase 10 Task 1.3 so the
+        /// hub's Splice tab runs the same code with a player-chosen pair.
+        public async Task<bool> SplicePairAsync(CreatureDto parentA, CreatureDto parentB)
+        {
+            if (parentA == null) throw new ArgumentNullException(nameof(parentA));
+            if (parentB == null) throw new ArgumentNullException(nameof(parentB));
             var lockedOut = LockedOut(_roster.Known);
 
             // splice_confirm_spec section 6: "the named Founder is visibly

@@ -1,0 +1,4 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="AlliesView.uss" />
+    <ui:VisualElement name="body" />
+</ui:UXML>

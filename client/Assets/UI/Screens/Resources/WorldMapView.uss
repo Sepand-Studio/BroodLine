@@ -1,0 +1,2 @@
+.world-map { flex-grow: 1; }
+.world-map__region .option-row__title { font-size: var(--text-card-title); }

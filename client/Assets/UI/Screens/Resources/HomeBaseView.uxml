@@ -1,0 +1,20 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="HomeBaseView.uss" />
+    <ui:VisualElement name="body" class="home-base__body">
+        <ui:VisualElement name="stage-frame" class="home-base__stage-frame">
+            <ui:VisualElement name="stage" class="home-base__stage" />
+            <ui:VisualElement name="hotspots" class="home-base__hotspots" picking-mode="Ignore" />
+            <ui:Label name="eyebrow" class="home-base__eyebrow t-micro" picking-mode="Ignore" />
+        </ui:VisualElement>
+        <ui:VisualElement name="ark-card" class="card home-base__card">
+            <ui:Label name="ark-name" class="t-section" />
+            <ui:Label name="ark-subtitle" class="t-secondary" />
+            <ui:Button name="defend" class="btn-primary home-base__defend" />
+            <ui:VisualElement name="actions" class="home-base__actions">
+                <ui:Button name="roster" class="btn-secondary home-base__action" />
+                <ui:Button name="codex" class="btn-secondary home-base__action" />
+                <ui:Button name="store" class="btn-secondary home-base__action" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

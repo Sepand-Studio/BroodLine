@@ -1,0 +1,67 @@
+/* The Ark home base - Phase 10 Task 1.4. The stage is the upper ~56% of the
+ * content column and bleeds to the gutter; the markers sit over it by
+ * percentage; the card below is the ordinary card. The stage's own fill is
+ * the deep backdrop so an un-painted frame (tests, the fixture) still reads
+ * as a place and not a hole. */
+.home-base { flex-grow: 1; }
+.home-base__body { flex-grow: 1; flex-direction: column; }
+
+.home-base__stage-frame {
+    height: 520px;
+    margin-left: -12px;
+    margin-right: -12px;
+    background-color: var(--surface-deep);
+    overflow: hidden;
+}
+.home-base__stage {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    -unity-background-scale-mode: scale-and-crop;
+}
+.home-base__hotspots {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+}
+.home-base__eyebrow {
+    position: absolute;
+    top: var(--space-3);
+    left: var(--gutter);
+    color: var(--brass-light);
+}
+
+/* A marker: a small dark pill with brass text, centred on its plot by the
+ * negative translate (half of its ~30px height / ~90px width is unknown, so
+ * the translate is the pill's own percentage, which UI Toolkit supports). */
+.home-base__hotspot {
+    position: absolute;
+    translate: -50% -50%;
+    font-size: var(--text-secondary);
+    color: var(--brass-light);
+    background-color: var(--hud-frame);
+    border-width: 1px;
+    border-color: var(--brass);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--brass);
+    border-radius: 14px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    padding-left: var(--space-3);
+    padding-right: var(--space-3);
+    margin: 0;
+}
+.home-base__hotspot:active {
+    translate: -50% -50%;
+    background-color: var(--hud-frame-edge);
+    border-bottom-width: 1px;
+}
+
+.home-base__card { margin-top: var(--space-3); }
+.home-base__defend { margin-top: var(--space-3); }
+.home-base__actions { flex-direction: row; justify-content: space-between; }
+.home-base__action {
+    flex-grow: 1; flex-basis: 0;
+    margin-left: var(--space-1); margin-right: var(--space-1);
+    font-size: var(--text-body);
+    padding-top: 10px; padding-bottom: 10px;
+    padding-left: var(--space-2); padding-right: var(--space-2);
+}
