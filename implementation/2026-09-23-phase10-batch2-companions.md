@@ -57,3 +57,28 @@ the browser page.
 does (Ember's bounce and arm wave, Pale's hover and wing-dip greeting exist);
 the Companion Studio in the proof is unchanged and still the place to watch
 motion; the user's review of this pair is the gate before Skitter/Hollow.
+
+## Task 2.3 — Skitter and Hollow (2026-09-23)
+
+**Skitter, revision 02.** A compact amber egg with a darker saddle and a
+light chest ruff; a bigger, rounder head with a light muzzle, a dark nose,
+eyes at .078 with brows, cheek marks and two ear tufts; a short tail tuft;
+six legs that are limbs - a rounded shoulder, a thigh, a dark rounded knee,
+a shin and a dark paw with three toes - clearly separated at every joint.
+Warm-blooded rather than chitinous (bible 10.7): no shell, no mandibles.
+7,806 body triangles, 8,790 assembled.
+
+**Hollow, revision 02.** The tiny torso, stilt legs and long forward neck
+kept; a tapered head with a brow ridge over focused eyes, two plumes on the
+crown, a dark nose; a pale throat stripe the length of the neck's underside;
+a pale chest; a short three-strand plume tail; thigh, rounded knee, and a
+dark sock down to three long toes and a dew claw. Violet `#7a6ac0` kept;
+deep `#5b4c9c`, plume `#a99bd9`. 5,232 body triangles, 6,216 assembled.
+Nothing shared with Ember: no mane, no bulk, a line aimed forward.
+
+**Production baselines.** `Editor/ProductionBaselineExport.cs` flattens each
+Phase 9 production body prefab (the SDF-meshed `Creatures/Resources` set)
+into the comparison page's JSON at
+`implementation/results/frontier/production-baselines/`, so Skitter, Hollow
+and Loam have a real "before" beside the redesign. Run it in batch mode
+(`-executeMethod ProductionBaselineExport.Export`) and regenerate the page.
