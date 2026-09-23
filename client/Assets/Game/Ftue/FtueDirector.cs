@@ -45,13 +45,23 @@ namespace Broodline.Game
                     return action + " needs a connection. Try again when you are back online.";
                 case OutboxOutcome.Rejected:
                     // NO `Diagnostics.Defect` HERE, AND IT IS THE ONE EXEMPTION
-                    // AMONG THE NINE READERS OF `PlayerMessage`. `error` is a
+                    // AMONG THE NINE READERS OF `PlayerMessage` - the reason the
+                    // other count in this file is eight. `error` is a
                     // `BroodlineApiException`, which `ServerError.From` answers
                     // on one of its two API branches and never on the transport
-                    // branch this task changed - so nothing is lost to log, and
-                    // the status and the server's own sentence are already in
-                    // `PlayerMessage`. It is also `static` and reached from the
-                    // outbox rather than from a catch.
+                    // branch this task changed, so the raw `Exception.Message`
+                    // this file stopped showing a player was never what reached
+                    // here and there is nothing for a log to recover.
+                    //
+                    // WHAT IS NOT CLAIMED, because fix round 1 claimed it and it
+                    // was false: the STATUS is not in `PlayerMessage`.
+                    // `PlayerMessage` is the server's `message` alone,
+                    // `StatusCode` is a separate property, and nothing on this
+                    // path logs it. A refusal that needs its status read is a
+                    // reason to log here after all; none has come up.
+                    //
+                    // It is also `static` and reached from the outbox rather
+                    // than from a catch.
                     var why = error == null ? string.Empty : ServerError.From(error).PlayerMessage;
                     return string.IsNullOrEmpty(why)
                         ? action + " was refused."
@@ -208,13 +218,17 @@ namespace Broodline.Game
         /// THE RULING IS NOW INSIDE `PlayerMessage` AND THIS IS DEFINED FROM
         /// IT - Phase 9 Task 21h. `ServerError.From(Exception)`'s transport
         /// branch no longer surfaces a raw `Exception.Message` at all, so the
-        /// NINE readers of `PlayerMessage` in this file get the same treatment
-        /// this constant gave itself - nine and not eight, corrected in fix
-        /// round 1: the catch this constant is said from reads `PlayerMessage`
-        /// nowhere, so it was never one of them. A player caught by a defect at
-        /// the call that made it and a player caught by one thrown out of the
-        /// whole walk are in the same situation, so they get the same sentence,
-        /// from one definition.
+        /// EIGHT readers of `PlayerMessage` in this file that can reach that
+        /// branch get the same treatment this constant gave itself. Eight of
+        /// nine, corrected in fix round 2: nine sites read `PlayerMessage`, and
+        /// `FtueNotice.For` is not one of the eight because its `error` is a
+        /// `BroodlineApiException` and never reaches the transport branch. The
+        /// catch this constant is said from is in neither count - it reads
+        /// `PlayerMessage` nowhere, which is what 21g did about it.
+        ///
+        /// A player caught by a defect at the call that made it and a player
+        /// caught by one thrown out of the whole walk are in the same situation,
+        /// so they get the same sentence, from one definition.
         public const string WalkThrew = ServerError.UnexpectedProblem;
 
         /// The last resort, in `BootController`, when even the recovery

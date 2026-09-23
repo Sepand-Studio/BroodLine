@@ -495,7 +495,11 @@ namespace Broodline.Game.Tests
             // 21h. The case above asserts the exact sentence for the one
             // exception the device met; this asserts the shape for the whole
             // class, because `ServerError.From(Exception)`'s transport branch is
-            // reached by all NINE of `FtueDirector`'s `PlayerMessage` readers.
+            // reached by EIGHT of `FtueDirector`'s nine `PlayerMessage` readers.
+            // Eight and not nine, corrected in fix round 2 - `FtueNotice.For`'s
+            // `error` is a `BroodlineApiException`, so it is always answered by
+            // one of the two API branches. That file's own exemption comment
+            // said so in the same commit this one said otherwise.
             //
             // FOUR REPRESENTATIVES, NOT AN ENUMERATION - fix round 1 corrected
             // this comment, which claimed to be "the four that are actually

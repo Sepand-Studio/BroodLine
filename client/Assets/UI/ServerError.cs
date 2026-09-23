@@ -334,17 +334,22 @@ namespace Broodline.UI
             // 21g had already written the ruling down at the one call site it
             // touched (`FtueNotice.WalkThrew`: "`PlayerMessage` degrades to
             // the raw `Exception.Message` ... a stack trace wearing a
-            // sentence's clothes") and left ALL NINE OF THEM able to do it.
-            // Counted again in fix round 1, because the first count was wrong
-            // three different ways in one commit: nine production sites read
-            // `PlayerMessage`, every one of them in `FtueDirector`, and NONE of
-            // them is the site that comment sat on - `RunAsync`'s outermost
-            // catch deliberately does not read `PlayerMessage` at all, which is
-            // the whole of what 21g did about it. `RosterScreen` reads none
-            // either; it RETURNS a `ServerError` and the director reads it. So
-            // the ruling was written down beside one caller and applied to
-            // nothing, and it is settled here instead, once, where all nine
-            // meet it.
+            // sentence's clothes") and left every caller that could do it
+            // doing it.
+            //
+            // TWO NUMBERS, BOTH STATED SO THEY CANNOT DRIFT APART AGAIN - this
+            // count has been wrong four times across three rounds, once inside
+            // the commit that was fixing it. **NINE** production sites read
+            // `PlayerMessage`, every one of them in `FtueDirector`; `RosterScreen`
+            // reads none, it RETURNS a `ServerError` and the director reads it.
+            // **EIGHT** of those nine can arrive at THIS branch. The ninth is
+            // `FtueNotice.For`, whose `error` is typed `BroodlineApiException`
+            // and therefore always answered by one of the two branches above.
+            // And NONE of the nine is the site that comment sat on - `RunAsync`'s
+            // outermost catch deliberately does not read `PlayerMessage` at all,
+            // which is the whole of what 21g did about it. So the ruling was
+            // written down beside one caller and applied to nothing, and it is
+            // settled here instead, once, where the eight meet it.
             //
             // TWO SENTENCES BECAUSE THERE ARE TWO SITUATIONS, AND THE SPLIT IS
             // `Retry.IsTransient`'s RATHER THAN A SECOND ONE OF THIS FILE'S.

@@ -2,91 +2,89 @@ using UnityEngine;
 
 namespace Broodline.Game.Shell
 {
-    /// Keeps Unity's on-screen developer console off in a RELEASE player.
+    /// Asks Unity to keep its on-screen developer console off in a RELEASE
+    /// player. **It is a SIMULATOR concern only, and it is not known to work.**
     ///
-    /// THE DEFECT THIS CLOSES, found on the simulator during Phase 9's exit
-    /// gate: a packaged, NON-development player — `BuildOptions.None`, no
-    /// `player-connection` in its `boot.config`, verified against a
-    /// development build of the same tree that carries seven such lines —
-    /// drew the red developer console over the UI on a `Debug.LogError`. In
-    /// the capture that settled it, the console was painting across the tab
-    /// bar and covering the Map tab.
+    /// WHAT WAS SEEN, twice, on an iPhone 17 simulator: a `Debug.LogError` -
+    /// first from `BootController`'s cold-start catch, later from the
+    /// wave-timeout path - raised Unity's Development Console, which drew a full
+    /// red stack trace across the title bar, the recovery screen, the sheet and
+    /// every button on it. In a build proven non-development by its own
+    /// `boot.config` (no `player-connection` line where a development build has
+    /// seven) and `Classes/Preprocessor.h` (`UNITY_DEVELOPER_BUILD 0` against
+    /// its `1`).
     ///
-    /// WHY THAT IS NOT A CURIOSITY. `BootController.Start` logs an error when
-    /// the cold start fails, deliberately, so a failed boot cannot vanish as
-    /// an unobserved exception out of an `async void`. And the backend runs at
-    /// `min_instance_count = 0`, so a first launch against a cold service can
-    /// time out. Those two compose: a tester opens the app, the request times
-    /// out, the boot logs its error, and a red debug console appears over the
-    /// game. Neither half is wrong on its own; together they are what a
-    /// TestFlight tester would have seen first.
+    /// **AND IT CANNOT HAPPEN ON THE SHIPPING PLATFORM, WHICH IS THE WHOLE
+    /// REASON THIS FILE IS SMALL** - Phase 9 Task 21h, fix round 2. A release
+    /// DEVICE framework and a release SIMULATOR framework were built from the
+    /// same non-development settings, differing only in SDK, and compared:
     ///
-    /// DEVELOPMENT BUILDS KEEP IT, deliberately. The console is what surfaced
-    /// the launch crash this phase spent a task on — it printed the
-    /// `ArgumentNullException` that led to `Shader.Find` answering null in a
-    /// player. Suppressing it everywhere would trade a real diagnostic for a
-    /// cosmetic one, so the switch is `Debug.isDebugBuild` and nothing else.
+    ///     marker                      simulator   device
+    ///     "Development Console"               1        0
+    ///     developerConsoleVisible             6        4
+    ///     developerConsoleEnabled             6        4
+    ///     UnityFramework                 122 MB   112 MB
     ///
-    /// BEFORE THE SCENE LOADS, not from `BootController`, because the console
-    /// answers the FIRST error and anything logged during scene load would
-    /// already have raised it.
+    /// The console's own `Clear` and `Close` chrome - the exact buttons in the
+    /// screenshots - is in the simulator framework and not the device one. The
+    /// scripting API survives on device, which is why the two properties below
+    /// still compile and why `ReleaseConsoleTests` still passes; the UI
+    /// implementation does not ship there. A binary cannot draw a window whose
+    /// title string it does not contain.
     ///
-    /// ---------------------------------------------------------------------
+    /// THE HONEST LIMIT: that is an absence found with `strings` over a
+    /// controlled pair of binaries, so it is strong evidence and not proof, and
+    /// no release build has yet run on real hardware. What makes it strong is
+    /// the contrast being 1 against 0 on the exact string observed on screen.
     ///
-    /// **AND IT DID NOT WORK. Phase 9 Task 21h, fix round 1.** The same
-    /// release player, re-walked on an iPhone 17, drew the console over the
-    /// whole recovery screen on a `Debug.LogError` from the wave-timeout path.
-    /// So this class has been fixed in name only since it landed, and nothing
-    /// noticed because for a while nothing on a reachable path logged an error
-    /// - which was itself not true: `BootController`'s cold-start catch has
-    /// logged one all along, on exactly the timed-out-first-launch path this
-    /// header describes.
+    /// THE HEADER USED TO SAY THE OPPOSITE AND IT WAS THE REASONING, NOT A
+    /// DETAIL. It read: "a tester opens the app, the request times out, the boot
+    /// logs its error, and a red debug console appears over the game ... that is
+    /// what a TestFlight tester would have seen first." On the platform
+    /// TestFlight ships to, they would have seen no console at all. Everything
+    /// this file claimed about a player-facing risk was about the simulator.
     ///
-    /// WHAT IS RULED OUT, from the build artifacts rather than by argument:
+    /// SO WHY KEEP IT. Because a developer working on the simulator meets the
+    /// console over the game, it is two property writes, and it is the API Unity
+    /// documents for the job. It is not kept because it is known to help:
     ///
-    ///   - **It is not a development build.** `build/ios-simulator/Data/boot.config`
-    ///     carries no `player-connection` line where the development build's
-    ///     carries seven, and `Classes/Preprocessor.h` has
-    ///     `UNITY_DEVELOPER_BUILD 0` against the development project's `1`. So
-    ///     `Debug.isDebugBuild` is false and the guard below does not swallow
-    ///     the call.
-    ///   - **`Disable` is not stripped and does run.** It is listed in the
-    ///     release player's own `Data/RuntimeInitializeOnLoads.json` as
+    ///   - **Setting both properties once at `BeforeSceneLoad` does not suppress
+    ///     it.** Walked. `Disable` is not stripped and does run - it is listed in
+    ///     the release player's own `Data/RuntimeInitializeOnLoads.json` as
     ///     `Broodline.Game / Broodline.Game.Shell / ReleaseConsole / Disable`
-    ///     with `loadTypes: 1`, which is `BeforeSceneLoad`.
-    ///   - **It is not an ordering problem.** The error that raised the console
-    ///     came out of `FightAsync` minutes into play, long after
-    ///     `BeforeSceneLoad`.
-    ///   - **The API has not gone away.** Both properties still have getters
-    ///     and setters in 6000.6 and neither is `[Obsolete]` -
-    ///     `ReleaseConsoleTests` asserts that, so an Editor upgrade that
-    ///     deprecates them reddens rather than silently no-ops.
+    ///     with `loadTypes: 1`, which is `BeforeSceneLoad` - and the console
+    ///     appeared anyway, on an error raised minutes into play, long after it.
+    ///   - **Neither property is deprecated.** Both still carry a setter in
+    ///     6000.6 and neither is `[Obsolete]`, which `ReleaseConsoleTests`
+    ///     asserts so an Editor upgrade that changes that reddens rather than
+    ///     hollowing this class out in silence.
+    ///   - **The re-assert below is UNTESTED, not refuted.** It was added in fix
+    ///     round 1 and skipped warnings, and the walk that followed logged its
+    ///     defect at warning severity - so the one path that raised the console
+    ///     was the one path the handler ignored. It no longer skips anything,
+    ///     because that walk also proved the console shows warnings. Nobody has
+    ///     walked it since.
     ///
-    /// WHAT IS LEFT, AND IT IS NOT DIAGNOSED: the two properties were set and
-    /// the console appeared anyway. Either they no longer gate it, or something
-    /// turns it back on after `BeforeSceneLoad`. Nothing reachable from a test
-    /// machine can tell those apart, so this round does two things instead of
-    /// guessing between them:
+    /// **DO NOT SPEND MORE ON THIS WITHOUT A REASON.** Three rounds have gone
+    /// into a red rectangle that a shipped build cannot draw. If a future walk
+    /// still sees it on the simulator, the next honest step is to stop trying to
+    /// suppress it and accept it as something developers see and testers do not.
     ///
-    ///   1. **Re-asserts on every error**, below, for the "something turns it
-    ///      back on" arm. It cannot help the other arm and it cannot hurt.
-    ///   2. **Reads the properties back and logs what it got**, which is what
-    ///      makes the NEXT device walk conclusive rather than a third attempt.
-    ///      If that line is missing, this method did not run. If it says
-    ///      `enabled=True`, the setter did not take. If it says
-    ///      `enabled=False` and the console still appears, the properties do
-    ///      not gate it and the only remaining lever is severity - which is
-    ///      why `Diagnostics` exists and does not depend on any of this.
+    /// DEVELOPMENT BUILDS KEEP IT, deliberately and unchanged. The console is
+    /// what surfaced this phase's launch crash - it printed the
+    /// `ArgumentNullException` behind `Shader.Find` answering null in a player.
+    /// The switch is `Debug.isDebugBuild` and nothing else.
     ///
-    /// The readback is a `Debug.Log`, deliberately: an error or a warning here
-    /// would be a line that could raise the very thing it is reporting on.
+    /// THERE IS NO READBACK LINE ANY MORE. Fix round 1 logged one so a device
+    /// walk could tell "the method never ran" from "the setter did not take".
+    /// The walk that followed received no game-side `Debug` output at all - a
+    /// `--console-pty` capture stopped after 161 lines of engine startup - so it
+    /// was a diagnostic nobody could read, aimed at a surface that does not ship.
+    /// If something here ever does need to report to a device walk, the app's
+    /// `Documents/` directory persists and already holds `snapshot.json` and
+    /// `tokens.json`; a log line does not reach anyone.
     public static class ReleaseConsole
     {
-        /// What the readback line starts with, so a device log can be grepped
-        /// for it and `ReleaseConsoleTests` can assert its shape without a
-        /// player.
-        public const string Marker = "[ReleaseConsole]";
-
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         static void Disable()
         {
@@ -94,24 +92,29 @@ namespace Broodline.Game.Shell
 
             KeepItDown();
 
+            // RE-ASSERTED ON EVERY LINE, for the one hypothesis left standing:
+            // that something turns the console back on after
+            // `BeforeSceneLoad`. Two bool writes per log line, in a release
+            // player only.
+            //
             // `logMessageReceived`, NOT `logMessageReceivedThreaded`. The
-            // threaded one fires on whatever thread logged, and these two
-            // properties are main-thread state; the non-threaded one is
-            // marshalled to the main thread, which is where a re-assert is
-            // legal. Never unsubscribed, because there is nothing after a
-            // player's lifetime to unsubscribe for - and in the Editor this
-            // method returns above, so nothing subscribes there either.
+            // threaded one fires on whatever thread logged, and these are
+            // main-thread state; the non-threaded one is marshalled to the main
+            // thread, which is where writing them is legal. Never unsubscribed,
+            // because there is nothing after a player's lifetime to unsubscribe
+            // for - and in the Editor this method returns above, so nothing
+            // subscribes there either.
             Application.logMessageReceived += OnLogged;
-
-            Debug.Log(Readback(Debug.developerConsoleEnabled, Debug.developerConsoleVisible));
         }
 
+        /// NO FILTER BY `LogType`, AND THAT IS THE FIX ROUND 2 CHANGE. This used
+        /// to return early for `Log` and `Warning` on the assumption that only
+        /// errors raise the console. The walk after fix round 1 painted the
+        /// console from a WARNING, so the assumption was wrong and the filter was
+        /// exactly what stopped this handler ever running on the path that
+        /// mattered.
         static void OnLogged(string condition, string stackTrace, LogType type)
         {
-            // Only the three that raise it, and never for a Log or a Warning -
-            // the readback above is a `Debug.Log` and re-entering here for it
-            // would be pointless work on every line the game ever prints.
-            if (type == LogType.Log || type == LogType.Warning) return;
             KeepItDown();
         }
 
@@ -119,13 +122,6 @@ namespace Broodline.Game.Shell
         {
             Debug.developerConsoleEnabled = false;
             Debug.developerConsoleVisible = false;
-        }
-
-        /// The readback line, as a pure function so its shape is asserted
-        /// without a player. What a device log will show is exactly this.
-        public static string Readback(bool enabled, bool visible)
-        {
-            return Marker + " suppressed: enabled=" + enabled + " visible=" + visible;
         }
     }
 }
