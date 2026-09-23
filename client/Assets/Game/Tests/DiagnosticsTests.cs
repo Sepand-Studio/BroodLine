@@ -8,13 +8,15 @@ namespace Broodline.Game.Tests
 {
     /// **A defect must reach a device log with the exception that caused it.**
     ///
-    /// THE NAME IS HISTORICAL AND THE CLASS IT IS NAMED FOR NO LONGER EXISTS -
-    /// Phase 9 Task 21i. `ReleaseConsole` was deleted; the file keeps its name so
-    /// the two cases below keep their full test names, and nothing in it has been
-    /// about a console for two rounds. Task 21h's D1 fix stopped `ServerError`'s
-    /// transport branch handing a raw `Exception.Message` to a player, which took
-    /// that text away from the only place it was recorded; `Diagnostics` is where
-    /// it goes instead, and dropping it is the regression these cases catch.
+    /// NAMED FOR WHAT IT TESTS, AS OF PHASE 9 TASK 21i FIX ROUND 2. This was
+    /// `ReleaseConsoleTests` for two rounds after it stopped being about a
+    /// console, and for one round after `ReleaseConsole` was deleted outright -
+    /// a class name pointing at a file that does not exist, which is the first
+    /// thing a reader trusts and the cheapest thing to get wrong. Task 21h's D1
+    /// fix stopped `ServerError`'s transport branch handing a raw
+    /// `Exception.Message` to a player, which took that text away from the only
+    /// place it was recorded; `Diagnostics` is where it goes instead, and
+    /// dropping it is the regression these cases catch.
     ///
     /// Fix round 1 also made a release player log a defect at WARNING severity,
     /// to keep Unity's on-screen Development Console from painting over the
@@ -27,14 +29,14 @@ namespace Broodline.Game.Tests
     /// constant - a `Defect` that computed the right severity and then logged at
     /// a different one would pass the other way.
     ///
-    /// THE CASE THAT USED TO GUARD THE CONSOLE PROPERTIES IS GONE WITH THE CLASS.
+    /// THE CASE THAT USED TO GUARD THE CONSOLE PROPERTIES WENT WITH THE CLASS.
     /// It asserted that `Debug.developerConsoleEnabled`/`Visible` were still real
     /// and not `[Obsolete]`, so that an Editor upgrade could not hollow
     /// `ReleaseConsole` out in silence. With no file setting either property,
     /// that case guarded nothing but Unity's own surface - and a test that
     /// reddens when an engine API moves, over behaviour this project no longer
     /// attempts, is a gate on somebody else's code.
-    public class ReleaseConsoleTests
+    public class DiagnosticsTests
     {
         [Test]
         public void ADefectReachesTheLogAtERRORSeverity_CarryingTheExceptionThatCausedIt()

@@ -58,11 +58,23 @@
  *     #sheet-layer  y=  62.0  h=778.0  bottom=840.0   spans the bar entirely
  *     forfeit       y= 745.0  h= 55.0  bottom=800.0   16.0 under the bar
  *
- * and `IPanel.Pick` down the button's own centre column answered `TabBar` for
- * every point from y=784 to y=799. `OnTabSelected` is empty, so those taps were
- * delivered, swallowed and answered with nothing - which is what a player met
- * on an iPhone 17: the lower third of the only button on `AbandonedWaveSheet`
- * did not work, four times. `CodexSheet`'s dismiss was worse, 28 points of 49.
+ * and `IPanel.Pick` down the button's own centre column came back inside the tab
+ * bar for 16 of the 54 points it samples, y=784 to y=799, one contiguous band.
+ * NOT ALL TO THE SAME ELEMENT, and the distinction matters because the bar is
+ * made of parts: the topmost dead row resolves to the `TabBar` CONTAINER - the
+ * bar's own 1px `border-top-width` plus its `padding-top`, which no tab's box
+ * covers - and the lowest resolves to a tab BUTTON. Neither has a handler that
+ * does anything: `OnTabSelected` is empty and the container was never wired at
+ * all. So those taps were delivered, swallowed and answered with nothing, which
+ * is what a player met on an iPhone 17 - the lower third of the only button on
+ * `AbandonedWaveSheet` did not work, four times.
+ *
+ * AND IT WAS EVERY SHEET, not that one. `CodexSheet`'s dismiss lost 28 of the 50
+ * points it samples. Both `ConfirmDialog` faces lost the whole band to the bar -
+ * and there the buttons were never in it (they are centred, 259 points clear),
+ * so what was lost was `Standard`'s SCRIM, which splice_confirm_spec section 4
+ * wires to `cancel`: tapping outside the dialog silently failed to dismiss it in
+ * the bottom 56 points.
  *
  * THE ORDER IN Shell.uxml IS THE FIX AND THE ONLY FIX, because UI Toolkit has
  * no z-index: both paint order and hit-test order are sibling order, so the

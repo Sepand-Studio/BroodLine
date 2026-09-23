@@ -32,7 +32,13 @@ moved":
 Companion gates re-run at this count:
   check-silent-drops.sh  37 .uxml / 44 .uss, 0 defects
   verify-uss-tokens.sh   Token layer verified.
-  probe-shell.sh         8 subjects, 10 controls asserted at 402x874 (new this task)
+  probe-shell.sh         8 subjects at 402x874, asserting 11 control sweeps and
+                         4 sheet band picks (new this task). THIS FIGURE READ
+                         "10 controls" for one round and was wrong by five, on
+                         the one count this file's own round added in order to
+                         defeat vacuity. Read it off the instrument's summary
+                         line, never off a sentence - which is this file's
+                         standing rule about the test count too.
 
 Companion gates last verified at Task 20 and NOT re-run since - stated so the
 list is not read as one run window:
