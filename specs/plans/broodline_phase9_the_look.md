@@ -464,6 +464,86 @@ named gap becomes a task and the walk repeats.
 
 ---
 
+## 10. Errata, found in execution
+
+*Recorded 2026-09-22 by Phase 9 Task 22, against the tree at the end of the
+phase. These are defects in **this design document**, found by implementing it.
+They are written here, where they were written, rather than quietly
+reimplemented somewhere else. **Numbered §10 and not §11**: the document has
+nine numbered sections, and a §11 after a §9 would be its own erratum.*
+
+**§3.4's triangle budgets are wrong, both of them: 1500 → 2500 per body, and
+300 → 400 per part.** Measured rather than negotiated. Naive surface nets emit
+one vertex per surface cell and very nearly one quad per vertex, so triangles
+≈ 2 × surface cells and the count scales with **grid squared**. At a grid that
+reads smooth — 24 cells across a body, which is what the Task 7 brief
+estimated at "about 2000–2500" — Vetch meshes to **3336**. The shipped budgets
+are `MesherTests.BodyTriangleBudget = 2500` and `PartTriangleBudget = 400`,
+still **a quarter of the 10000 per body `broodline_rig_proof.md` §8.3
+measured**, with the ~25% of frame that document says not to spend still
+unspent.
+
+**Two consequences of the same arithmetic, both worth keeping.** First, the
+grids in the recipes are lower than any brief's: Vetch ships at grid **20**
+(2352 triangles), because 22 measures 2748 and 21 measures 2524 — both still
+over. The lever for more detail is a **smaller padding**, not a bigger grid.
+Second, parts run high for a structural reason: `grid` is a cell **count** per
+axis, not a cell **size**, so a part whose bounding box is far from cubic gets
+anisotropic cells and its short axis is oversampled. The cinder crest's box is
+0.96 × 0.90 × 0.46 and meshed to 884 at grid 16 against a 400 budget; it ships
+at grid 10. `SurfaceNets.Build` was deliberately **not** changed to derive
+per-axis counts from the longest axis, because that would change what `grid`
+means for every future recipe.
+
+**§2.1 part 3 puts the abandoned-wave check in the wrong place.** It says
+*"`BootController`, after cold start and before the director runs, checks the
+snapshot."* It is **inside the director, after the roster loads**:
+`FtueDirector.WalkAsync` calls `LoadRosterAsync()` and then
+`ForfeitIfLockedAsync()` (`client/Assets/Game/Ftue/FtueDirector.cs:485-486`),
+both before `Ftue.Derive`. It had to move, and the reason is not organisational:
+**the snapshot does not say whether a creature is committed** — `NeedsForfeit`
+reads `_roster.Known`, which does not exist until the roster load has
+happened. The design's actual guarantee is unchanged and is now stated at the
+site: the sheet is shown before the beat is derived, so `FightAsync` never meets
+an all-committed roster. One thing the design did not anticipate and the code
+now carries: the forfeit can *fail*, so `ForfeitIfLockedAsync` re-reads the
+roster afterwards and stops on a toast rather than a blank screen if the lock
+survives.
+
+**§2.2's proof is not a new test and it cannot run headlessly.** Three
+corrections. (1) The assertions live in the **existing**
+`client/Assets/Game/Tests/PlayMode/WaveCapturePlayTests.cs`, on both the
+completion path and the forced-throw path, rather than in a test of their own —
+those two tests already drive `WaveHost.RunAsync` through exactly the two paths
+this proof needs. (2) **A `bool` alone cannot prove the ordering this fix is
+about.** The reverted attempt hid the shell *before* the additive load and would
+record the same `false`, so the recording callback records
+`(Visible, SceneLoaded)` pairs and the assertion is
+`{ (false, true), (true, true) }` — hidden while the scene is already resident,
+restored while it still is. (3) **The proof runs from the Unity Editor's Test
+Runner, by a human.** `implementation/scripts/run-unity-tests.sh PlayMode` still
+uses `-runTests` and is expected to deadlock on this Editor; the script says so
+in its own comment rather than routing somewhere that would report a false
+green. So "the EditMode suite runs green before the commit" is a gate an agent
+can meet and **the PlayMode proof is not** — it was unrun for most of the phase
+and was run at the exit gate. Anywhere this design says "proven by a PlayMode
+test", read: proven by a person opening the Test Runner.
+
+**§3.7 and §3.8 describe "a hidden layer" without naming it, and it is
+project-wide state.** It is **layer 6, named `Studio`**, authored in
+`client/ProjectSettings/TagManager.asset` and referenced everywhere as
+`CreatureAssembler.StudioLayer`. Four consumers rely on it and a fifth on its
+absence: `PortraitStudio` and `LaneStage` each put their rig, camera and light
+on it and set `cullingMask` to `1 << StudioLayer`; `CreatureBaker` does the same
+for the bake rig; and `WaveSceneBuilder` excludes it from the wave camera
+(`"Everything but Studio (layer 6)"`) so an off-screen rig cannot appear on the
+battlefield. Worth naming in a design rather than leaving to four call sites,
+because a layer index is the kind of shared state a later scene, camera or
+physics setting collides with silently — and because the layer's whole job is
+that nothing else ever draws it.
+
+---
+
 *Owns: Phase 9's scope, rulings, sequencing, gates and exit. Does not own: the
 art direction (bible §10), the socket standard (`broodline_rig_proof.md`), the
 handoff's tokens (`specs/Designs/design_handoff_broodline/README.md`), or the

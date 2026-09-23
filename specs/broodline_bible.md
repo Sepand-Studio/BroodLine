@@ -1030,6 +1030,14 @@ Those 24 assets assemble into roughly 2,400 distinct creatures. At four trait sl
 
 **Animation is body-level, never trait-level**, or the budget is unbounded.
 
+**This pipeline exists, as of Phase 9.** Six species bodies, three raider bodies
+and twelve trait parts are generated from C# recipes in `Broodline.Creatures`
+(`client/Assets/Creatures/`) into committed meshes, materials, prefabs and baked
+sprites, assembled by slot per `broodline_rig_proof.md` §3.1. `sk_crown` is
+authored on every body and carries nothing, as this section requires. The
+governing design is `specs/plans/broodline_phase9_the_look.md` §3, whose §10
+records where its own numbers were wrong.
+
 ## 10.4 Trait visibility
 
 **The two combat traits are visible on the body.** Under hard counters a player scanning the roster must see at a glance who carries Chill and who carries Reach — that read decides waves. This is the single most important functional requirement in the art direction.
