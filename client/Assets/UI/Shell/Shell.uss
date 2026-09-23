@@ -43,6 +43,44 @@
     flex-grow: 1;
 }
 
+/* `bottom: 0` IS #shell-root's BOTTOM, WHICH IS BELOW THE TAB BAR, AND THAT
+ * IS DELIBERATE - Phase 9 Task 21i. A bottom sheet is flush with the bottom of
+ * the frame; it does not stop at a piece of chrome. What it costs is that the
+ * tab bar and every sheet occupy the same band, and for four tasks this file
+ * declared the layer BEFORE `#tab-bar`, so the bar won that band twice over.
+ *
+ * MEASURED, AT 402x874 WITH THE IPHONE 17'S OWN 62/34 INSETS, by
+ * `probe-shell.sh` against this very .uxml:
+ *
+ *     #shell-root   y=  62.0  h=778.0  bottom=840.0
+ *     #screen-host  y=  78.0  h=706.0  bottom=784.0   clear of the bar
+ *     #tab-bar      y= 784.0  h= 56.0  bottom=840.0
+ *     #sheet-layer  y=  62.0  h=778.0  bottom=840.0   spans the bar entirely
+ *     forfeit       y= 745.0  h= 55.0  bottom=800.0   16.0 under the bar
+ *
+ * and `IPanel.Pick` down the button's own centre column answered `TabBar` for
+ * every point from y=784 to y=799. `OnTabSelected` is empty, so those taps were
+ * delivered, swallowed and answered with nothing - which is what a player met
+ * on an iPhone 17: the lower third of the only button on `AbandonedWaveSheet`
+ * did not work, four times. `CodexSheet`'s dismiss was worse, 28 points of 49.
+ *
+ * THE ORDER IN Shell.uxml IS THE FIX AND THE ONLY FIX, because UI Toolkit has
+ * no z-index: both paint order and hit-test order are sibling order, so the
+ * layer that is meant to be on top has to be declared last. Nothing here moved
+ * and nothing about the tab bar moved - an absolutely positioned child is out
+ * of flow, so its position among its siblings changes no box's geometry.
+ *
+ * WHAT IT CHANGES FOR THE PLAYER, said plainly because it is a behaviour change
+ * and not only a repair: while a sheet is up, its scrim now covers the tab bar
+ * and takes taps there. That is what a modal overlay is for, it is what the
+ * scrim was already claiming visually, and `ScreenHost.ShowSheet`'s "the tab
+ * bar's visibility does not change under it" still holds - the bar is still
+ * displayed, now dimmed under the scrim rather than drawn on top of it.
+ *
+ * `#notice-layer` NEEDED NONE OF THIS and the difference is worth keeping: it
+ * is `PickingMode.Ignore` from its root down (see below, and `NoticeToast.cs`),
+ * so it has always overlapped everything and stolen nothing. A sheet cannot
+ * take that route - it exists to be pressed. */
 .sheet-layer {
     position: absolute;
     top: 0;

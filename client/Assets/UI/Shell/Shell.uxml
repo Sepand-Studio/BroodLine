@@ -7,8 +7,15 @@
     <ui:VisualElement name="shell-root" class="shell-root">
         <ui:VisualElement name="top-bar" class="top-bar" />
         <ui:VisualElement name="screen-host" class="screen-host" />
-        <ui:VisualElement name="sheet-layer" class="sheet-layer" />
         <ui:VisualElement name="tab-bar" class="tab-bar-slot" />
+        <!-- LAST, SO THE OVERLAY IS ABOVE THE CHROME IT OVERLAYS. This is not
+             tidying: UI Toolkit has no z-index, so a sibling's POSITION IN
+             THIS FILE is the whole of both paint order and picking order.
+             While this element sat above the tab bar, the tab bar was drawn
+             across the bottom of every sheet and took the taps there too.
+             Shell.uss's .sheet-layer note carries the measurement. It is
+             absolutely positioned, so its order changes no layout at all. -->
+        <ui:VisualElement name="sheet-layer" class="sheet-layer" />
     </ui:VisualElement>
     <ui:VisualElement name="notice-layer" class="notice-layer" picking-mode="Ignore" />
 </ui:UXML>

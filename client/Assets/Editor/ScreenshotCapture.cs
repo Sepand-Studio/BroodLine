@@ -271,7 +271,15 @@ public static class ScreenshotCapture
     /// indistinguishable from "worked" until a human opens the PNG. Copying
     /// the real asset carries those references, its theme, and its dynamic
     /// atlas settings over for free.
-    static PanelSettings BuildPanelSettings(RenderTexture rt)
+    ///
+    /// `internal` RATHER THAN PRIVATE AS OF PHASE 9 TASK 21i, together with
+    /// `ForceRender` below, and for the reason this file's own header gives for
+    /// copying the asset in the first place: a second harness that built its
+    /// own panel would be measuring its own panel. `ShellProbe` needs a live
+    /// runtime panel to ask `IPanel.Pick` what a thumb hits, and it must be the
+    /// SAME panel the corpus renders through or its answer is about something
+    /// else. Nothing outside Assembly-CSharp-Editor can see either method.
+    internal static PanelSettings BuildPanelSettings(RenderTexture rt)
     {
         var existing = AssetDatabase.LoadAssetAtPath<PanelSettings>(SharedPanelSettingsPath);
         PanelSettings settings;
@@ -322,7 +330,7 @@ public static class ScreenshotCapture
     /// already-resolved layout rather than trusting the first frame's
     /// numbers to be final - cheap insurance for a script whose entire
     /// output is a picture nobody re-renders to double check.
-    static void ForceRender(VisualElement root)
+    internal static void ForceRender(VisualElement root)
     {
         var panel = root.panel;
         if (panel == null)
