@@ -10,6 +10,7 @@ namespace Broodline.Frontier
         public Transform Flank { get; private set; }
         public Transform Crown { get; private set; }
         public Transform[] Bones { get; private set; }
+        public Bounds PortraitBounds { get; internal set; }
         public bool Moving;
         public bool ReducedMotion;
         public bool Paused;
@@ -39,8 +40,8 @@ namespace Broodline.Frontier
             _tintId = Shader.PropertyToID("_Tint");
             SpeciesId = id; Bones = bones; _renderer = renderer; _phase = phase; _limbEnd = limbEnd;
             _headRestPosition = bones[1].localPosition;
-            Dorsal = Socket("sk_dorsal", bones[0], id == "pale" ? new Vector3(-.08f,.66f,0) : new Vector3(-.13f,.84f,0), Quaternion.identity);
-            Flank = Socket("sk_flank", bones[0], id == "pale" ? new Vector3(0,.44f,-.23f) : new Vector3(-.07f,.47f,-.49f), Quaternion.Euler(-90,0,0));
+            Dorsal = Socket("sk_dorsal", bones[0], id == "vetch" ? FrontierVetch.DorsalPosition : id == "pale" ? new Vector3(-.08f,.66f,0) : new Vector3(-.13f,.84f,0), Quaternion.identity);
+            Flank = Socket("sk_flank", bones[0], id == "vetch" ? FrontierVetch.FlankPosition : id == "pale" ? new Vector3(0,.44f,-.23f) : new Vector3(-.07f,.47f,-.49f), Quaternion.Euler(-90,0,0));
             Crown = Socket("sk_crown", bones[1], id == "pale" ? new Vector3(.04f,.16f,0) : new Vector3(.06f,.18f,0), Quaternion.identity);
         }
 

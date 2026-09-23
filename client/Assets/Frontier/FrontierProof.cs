@@ -121,7 +121,7 @@ namespace Broodline.Frontier
             var motion = new Toggle("Reduced motion") { value = _reducedMotion };
             motion.RegisterValueChangedCallback(e => { _reducedMotion = e.newValue; ApplyMotion(); });
             footer.Add(motion);
-            Text(footer, "OFFLINE ART PROOF", "proof-note");
+            Text(footer, "VETCH REDESIGN · 02", "proof-note");
             SetLayer(_world, 6);
             ApplyMotion(); ResizeStage();
         }
@@ -138,7 +138,7 @@ namespace Broodline.Frontier
             var name = new TextField("Give them a name") { value = _founder, maxLength = 20 };
             name.AddToClassList("name-field"); _card.Add(name);
             var turn = new Slider("Look around", -80, 80);
-            turn.RegisterValueChangedCallback(e => _hero.transform.localRotation = Quaternion.Euler(0, e.newValue, 0)); _card.Add(turn);
+            turn.RegisterValueChangedCallback(e => { _hero.transform.localRotation = Quaternion.Euler(0, e.newValue, 0); ResizeStage(); }); _card.Add(turn);
             _primary = Action(_card, "Begin our journey", () => { _founder = name.value.Trim(); Show(Page.Deploy); }, true);
             name.RegisterValueChangedCallback(e =>
             {
@@ -271,7 +271,7 @@ namespace Broodline.Frontier
             var growth = new Slider("Growth preview", 0, 1);
             growth.RegisterValueChangedCallback(e => _hero.Growth = e.newValue); _card.Add(growth);
             var turn = new Slider("Turn your creature", -100, 100);
-            turn.RegisterValueChangedCallback(e => _hero.transform.localRotation = Quaternion.Euler(0, e.newValue, 0)); _card.Add(turn);
+            turn.RegisterValueChangedCallback(e => { _hero.transform.localRotation = Quaternion.Euler(0, e.newValue, 0); ResizeStage(); }); _card.Add(turn);
             var inspect = new Foldout { text = "Compare appearances", value = false }; _card.Add(inspect);
             var comparison = Text(inspect, "Viewing Cinderplate · combined appearance", "caption");
             var choices = Element(inspect, "button-row");
@@ -285,7 +285,7 @@ namespace Broodline.Frontier
                     _hero = _art.Creature(_world, hybrid ? "vetch" : selected.ToLowerInvariant(), hybrid ? "cinder" : null, hybrid ? "carapace" : null);
                     _heroName = selected; _hero.Greet();
                     _hero.Growth = growth.value; _hero.transform.localRotation = Quaternion.Euler(0, turn.value, 0);
-                    SetLayer(_hero.transform, 6); ApplyMotion();
+                    SetLayer(_hero.transform, 6); ApplyMotion(); ResizeStage();
                     comparison.text = "Viewing " + selected + (hybrid ? " · combined appearance" : " · base species reference");
                     _status.text = selected.ToUpperInvariant() + "  /  ART PREVIEW";
                     Notice("Tap " + selected + " to say hello");
@@ -446,21 +446,28 @@ namespace Broodline.Frontier
             else _image.image = _texture;
             stageCamera.aspect = width / height;
             bool battle = _page == Page.Battle || _page == Page.Deploy;
-            Vector3 center = battle ? new Vector3(12, .6f, .55f) : new Vector3(0, .62f, 0);
+            if (!battle && _hero == null) return;
+            var portrait = _hero != null ? _hero.PortraitBounds : default;
+            // Reserve growth space up front so the slider visibly grows the creature,
+            // rather than cancelling its effect by zooming out on every value change.
+            float growth = _page == Page.Reveal ? 1.34f : 1;
+            Vector3 center = battle ? new Vector3(12, .6f, .55f) : _hero.transform.TransformPoint(portrait.center * growth);
             // A nearly lengthwise camera keeps the 24-tile lane legible in portrait.
             Vector3 offset = battle ? new Vector3(24, 27, -5) : new Vector3(3.2f, 1.65f, -3.8f);
             stageCamera.transform.SetPositionAndRotation(center + offset, Quaternion.LookRotation(-offset));
-            Vector3 extent = battle ? new Vector3(15, 1.7f, 2.2f) : new Vector3(1.18f, 1.04f, 1.18f);
+            Vector3 extent = battle ? new Vector3(15, 1.7f, 2.2f) : (portrait.extents + new Vector3(.06f,.10f,.06f)) * growth;
             Quaternion inverse = Quaternion.Inverse(stageCamera.transform.rotation);
             float size = 0;
             for (int x = -1; x <= 1; x += 2)
                 for (int y = -1; y <= 1; y += 2)
                     for (int z = -1; z <= 1; z += 2)
                     {
-                        Vector3 p = inverse * Vector3.Scale(extent, new Vector3(x, y, z));
+                        Vector3 corner = Vector3.Scale(extent, new Vector3(x, y, z));
+                        Vector3 p = inverse * (battle ? corner : _hero.transform.rotation * corner);
                         size = Mathf.Max(size, Mathf.Abs(p.y), Mathf.Abs(p.x) / stageCamera.aspect);
                     }
-            stageCamera.orthographicSize = size * 1.06f;
+            // Frame the actual rest mesh and attachments. Fixed animation allowance prevents idle zoom jitter.
+            stageCamera.orthographicSize = size * (battle ? 1.06f : 1.16f);
         }
 
         void ReleaseTexture()

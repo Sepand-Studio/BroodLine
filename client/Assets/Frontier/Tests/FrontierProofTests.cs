@@ -40,13 +40,15 @@ namespace Broodline.Frontier.Tests
 
         static void ValidMesh(Mesh mesh, bool checkWinding)
         {
-            var vertices = mesh.vertices; var normals = mesh.normals; var indices = mesh.triangles;
+            var vertices = mesh.vertices; var normals = mesh.normals; var indices = mesh.triangles; var surface = mesh.uv;
             Assert.That(mesh.colors.Length, Is.EqualTo(vertices.Length));
             Assert.That(normals.Length, Is.EqualTo(vertices.Length));
+            Assert.That(surface.Length, Is.EqualTo(vertices.Length), "surface polish channel missing");
             for (int i = 0; i < vertices.Length; i++)
             {
                 Assert.That(float.IsNaN(vertices[i].sqrMagnitude) || float.IsInfinity(vertices[i].sqrMagnitude), Is.False);
                 Assert.That(normals[i].magnitude, Is.EqualTo(1).Within(.001));
+                Assert.That(surface[i].x, Is.InRange(0f, 1f));
             }
             for (int i = 0; i < indices.Length; i += 3)
             {
@@ -68,6 +70,9 @@ namespace Broodline.Frontier.Tests
             author.Box(new Vector3(3, 0, 0), new Vector3(1, 2, 3), Color.white, 31);
             author.Cone(new Vector3(6, 0, 0), new Vector3(6.2f, 1, .3f), .3f, .02f, Color.white);
             author.Wing(-1, Color.white); author.Wing(1, Color.white);
+            author.Sphere(new Vector3(9,0,0), new Vector3(.8f,.5f,.6f), Color.white, upperOnly: true);
+            author.ShellPlate(new Vector3(12,0,0), new Vector3(.8f,.5f,.6f),
+                new[] { new Vector2(.8f,0), new Vector2(0,-.7f), new Vector2(-.8f,0), new Vector2(0,.7f) }, Color.white, 3);
             var mesh = author.Finish("test");
             try { ValidMesh(mesh, true); } finally { Object.DestroyImmediate(mesh); }
         }
@@ -88,7 +93,15 @@ namespace Broodline.Frontier.Tests
                         var renderer = creature.GetComponentInChildren<SkinnedMeshRenderer>();
                         ValidMesh(renderer.sharedMesh, true);
                         int triangleCount = renderer.sharedMesh.triangles.Length / 3;
-                        foreach (var filter in creature.GetComponentsInChildren<MeshFilter>()) triangleCount += filter.sharedMesh.triangles.Length / 3;
+                        var portrait = creature.PortraitBounds;
+                        portrait.Expand(.001f); // float round-off at attachment corners
+                        foreach (var filter in creature.GetComponentsInChildren<MeshFilter>())
+                        {
+                            ValidMesh(filter.sharedMesh, true);
+                            triangleCount += filter.sharedMesh.triangles.Length / 3;
+                            foreach (var vertex in filter.sharedMesh.vertices)
+                                Assert.That(portrait.Contains(creature.transform.InverseTransformPoint(filter.transform.TransformPoint(vertex))), Is.True, "portrait clips an attachment");
+                        }
                         Assert.That(triangleCount, Is.LessThanOrEqualTo(10000), species);
                         Assert.That(renderer.sharedMesh.bindposes.Length, Is.EqualTo(creature.Bones.Length));
                         foreach (var weight in renderer.sharedMesh.boneWeights)
@@ -101,6 +114,7 @@ namespace Broodline.Frontier.Tests
                         var binds = renderer.sharedMesh.bindposes;
                         for (int i = 0; i < vertices.Length; i++)
                         {
+                            Assert.That(portrait.Contains(vertices[i]), Is.True, "portrait clips body");
                             int bone = weights[i].boneIndex0;
                             var bindVertex = renderer.transform.worldToLocalMatrix * creature.Bones[bone].localToWorldMatrix * binds[bone];
                             Assert.That(Vector3.Distance(bindVertex.MultiplyPoint3x4(vertices[i]), vertices[i]), Is.LessThan(.0001f), "rest pose changed a vertex");

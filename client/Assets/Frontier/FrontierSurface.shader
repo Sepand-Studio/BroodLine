@@ -28,8 +28,8 @@ Shader "Broodline/FrontierSurface"
                 float4 _BaseMap_ST;
                 float _Cutoff, _Smoothness;
             CBUFFER_END
-            struct Attributes { float4 positionOS:POSITION; float3 normalOS:NORMAL; float4 color:COLOR; };
-            struct Varyings { float4 positionCS:SV_POSITION; float3 positionWS:TEXCOORD0; float3 normalWS:TEXCOORD1; float4 shadowCoord:TEXCOORD2; float4 color:COLOR; };
+            struct Attributes { float4 positionOS:POSITION; float3 normalOS:NORMAL; float4 color:COLOR; float2 surface:TEXCOORD0; };
+            struct Varyings { float4 positionCS:SV_POSITION; float3 positionWS:TEXCOORD0; float3 normalWS:TEXCOORD1; float4 shadowCoord:TEXCOORD2; float4 color:COLOR; float polish:TEXCOORD3; };
             Varyings vert(Attributes input)
             {
                 Varyings output;
@@ -39,6 +39,7 @@ Shader "Broodline/FrontierSurface"
                 output.normalWS = TransformObjectToWorldNormal(input.normalOS);
                 output.shadowCoord = GetShadowCoord(p);
                 output.color = input.color;
+                output.polish = input.surface.x;
                 // Mesh palette values are authored as sRGB hex colors.
                 #ifndef UNITY_COLORSPACE_GAMMA
                     output.color.rgb = SRGBToLinear(output.color.rgb);
@@ -59,7 +60,10 @@ Shader "Broodline/FrontierSurface"
                 float3 lighting = lerp(float3(.48,.56,.66), float3(1.0,.96,.83), diffuse);
                 lighting *= lerp(.65, 1.0, light.shadowAttenuation);
                 float3 view = GetWorldSpaceNormalizeViewDir(input.positionWS);
-                float spec = pow(saturate(dot(n, normalize(light.direction + view))), 38) * .18 * light.shadowAttenuation;
+                // A soft skin response, satin armor and a sharp eye reflection, on one material.
+                float polish = saturate(input.polish);
+                float spec = pow(saturate(dot(n, normalize(light.direction + view))), lerp(12, 120, polish))
+                    * lerp(.035, .65, polish * polish) * light.shadowAttenuation;
                 float rim = pow(1-saturate(dot(n,view)), 4) * .055;
                 float3 baseColor = input.color.rgb * _Tint.rgb;
                 return half4(baseColor * lighting * light.color + spec + rim, 1);

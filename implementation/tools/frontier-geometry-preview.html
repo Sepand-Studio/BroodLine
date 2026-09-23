@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vetch · character redesign</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f5ebd9;color:#302d40;font:16px system-ui,sans-serif}
+main{max-width:1440px;margin:auto;padding:36px}header{display:flex;align-items:end;justify-content:space-between;gap:30px}
+small{letter-spacing:.15em;font-weight:700;color:#6b4ec2}h1{font-size:38px;letter-spacing:-.035em;margin:8px 0}p{color:#686177;line-height:1.55;margin:6px 0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:28px 0 20px}article{background:#fff8eb;border:1px solid #d9cbae;border-radius:24px;overflow:hidden}
+h2{font-size:19px;margin:22px 24px 3px}article p{margin:0 24px;font-size:14px}canvas{width:100%;height:410px;display:block;touch-action:none;cursor:grab}
+.controls{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin:18px 0}button{border:1px solid #d9cbae;background:#fff8eb;color:#302d40;padding:10px 18px;border-radius:20px;cursor:pointer;font:inherit}button:focus-visible,input:focus-visible{outline:3px solid #6b4ec2}label{display:flex;gap:12px;align-items:center}input{accent-color:#6b4ec2}
+.notes{display:grid;grid-template-columns:repeat(3,1fr);gap:30px;padding:20px 0}.notes strong{display:block;margin-bottom:6px}.disclaimer{font-size:13px;border-top:1px solid #d9cbae;padding-top:16px}
+@media(max-width:700px){main{padding:20px}.grid{grid-template-columns:1fr}canvas{height:320px}header{display:block}.notes{grid-template-columns:1fr;gap:16px}h1{font-size:30px}}
+</style>
+<main>
+<header><div><small>BROODLINE / THE LIVING FRONTIER</small><h1>A founder with a stronger character.</h1><p>Actual source geometry, before and after. Drag either creature to turn both.</p></div></header>
+<div class="grid"><article><h2>Previous Vetch</h2><p>Small face · rounded shell bumps · narrow feet</p><canvas aria-label="Previous Vetch 3D mesh"></canvas></article><article><h2>Redesigned Vetch</h2><p>Broad face · beveled armor · planted stance</p><canvas aria-label="Redesigned Vetch 3D mesh"></canvas></article></div>
+<div class="controls"><button id="three">Three-quarter</button><button id="front">Face</button><button id="side">Silhouette</button><label>Turn <input id="turn" type="range" min="-180" max="180" value="-50"></label><label><input id="spin" type="checkbox"> Auto-rotate</label><label><input id="hybrid" type="checkbox"> Show Cinderplate</label></div>
+<div class="notes"><div><strong>Read the face first</strong><p>Larger amber eyes, a wide cream chin and a smile tucked beneath the shell.</p></div><div><strong>Armor that feels connected</strong><p>Seven broad curved plates share one dome, with recessed seams and beveled edges.</p></div><div><strong>Weight and material</strong><p>Broader paws anchor the silhouette. Skin stays matte; shell and eyes catch different highlights.</p></div></div>
+<p class="disclaimer">Geometry preview only. Meshes are generated from the repository’s C# builders, with the same scale and camera for comparison. WebGL lighting approximates the material; this is not a Unity screenshot and does not validate rigging, shadows, UI or performance.</p>
+<p id="error" role="alert"></p>
+</main>
+<script>
+const meshes=/*MESH_DATA*/[];
+const turn=document.querySelector('#turn'), spin=document.querySelector('#spin'),hybrid=document.querySelector('#hybrid');
+let yaw=-50, last=0;
+const normalize=v=>{const d=Math.hypot(...v);return v.map(x=>x/d)},dot=(a,b)=>a.reduce((s,v,i)=>s+v*b[i],0),cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+const views=[...document.querySelectorAll('canvas')].map((canvas,i)=>{
+ const gl=canvas.getContext('webgl',{antialias:true,preserveDrawingBuffer:true});if(!gl)throw Error('WebGL unavailable');
+ function shader(type,source){const s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s}
+ const vs=shader(gl.VERTEX_SHADER,`attribute vec3 pos,norm,color;attribute float polish;uniform vec3 right,up,eye;uniform vec2 scale;uniform float focus;varying vec3 N,C;varying float P;void main(){vec3 p=pos-vec3(0.,focus,0.);gl_Position=vec4(dot(p,right)*scale.x,dot(p,up)*scale.y,-dot(p,eye)*.2,1.);N=norm;C=color;P=polish;}`);
+ const fs=shader(gl.FRAGMENT_SHADER,`precision highp float;varying vec3 N,C;varying float P;uniform vec3 eye;uniform float legacy;void main(){vec3 n=normalize(N),light=normalize(vec3(2.,4.,-3.));float diffuse=smoothstep(-.35,.8,dot(n,light));vec3 lighting=mix(vec3(.48,.56,.66),vec3(1.,.96,.83),diffuse);float exponent=mix(mix(12.,120.,P),38.,legacy);float strength=mix(mix(.035,.65,P*P),.18,legacy);float spec=pow(max(0.,dot(n,normalize(light+eye))),exponent)*strength;float rim=pow(1.-max(0.,dot(n,eye)),4.)*.055;vec3 linear=pow(C,vec3(2.2))*lighting+spec+rim;gl_FragColor=vec4(pow(linear,vec3(1./2.2)),1.);}`);
+ const program=gl.createProgram();gl.attachShader(program,vs);gl.attachShader(program,fs);gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program));gl.useProgram(program);
+ const attributes=[['pos','positions',3],['norm','normals',3],['color','colors',3],['polish','polish',1]];
+ const gpu=meshes.map(mesh=>{const buffers=attributes.map(([name,key,size])=>{const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(mesh[key]),gl.STATIC_DRAW);return {buf,loc:gl.getAttribLocation(program,name),size}});const index=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,index);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(mesh.indices),gl.STATIC_DRAW);return {buffers,index,count:mesh.indices.length}});
+ gl.enable(gl.DEPTH_TEST);gl.enable(gl.CULL_FACE);
+ const u=Object.fromEntries(['right','up','eye','scale','legacy','focus'].map(n=>[n,gl.getUniformLocation(program,n)]));
+ let start=null;canvas.onpointerdown=e=>{start={x:e.clientX,yaw};canvas.setPointerCapture(e.pointerId)};canvas.onpointermove=e=>{if(start){yaw=start.yaw+(e.clientX-start.x)*.45;turn.value=yaw;spin.checked=false}};canvas.onpointerup=canvas.onpointercancel=()=>start=null;
+ return ()=>{const mesh=gpu[i===1&&hybrid.checked?2:i];for(const {buf,loc,size} of mesh.buffers){gl.bindBuffer(gl.ARRAY_BUFFER,buf);gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,size,gl.FLOAT,false,0,0)}gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,mesh.index);const ratio=Math.min(devicePixelRatio,2),w=Math.round(canvas.clientWidth*ratio),h=Math.round(canvas.clientHeight*ratio);if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h}gl.viewport(0,0,w,h);gl.clearColor(.98,.955,.90,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);const a=yaw*Math.PI/180,eye=normalize([Math.cos(a),.32,Math.sin(a)]),right=normalize(cross([0,1,0],eye)),up=cross(eye,right);gl.uniform3fv(u.right,right);gl.uniform3fv(u.up,up);gl.uniform3fv(u.eye,eye);const sy=1/(hybrid.checked?1.12:1.02);gl.uniform1f(u.focus,hybrid.checked?.70:.52);gl.uniform2f(u.scale,sy*h/w,sy);gl.uniform1f(u.legacy,i===0?1:0);gl.drawElements(gl.TRIANGLES,mesh.count,gl.UNSIGNED_SHORT,0)};
+});
+hybrid.onchange=()=>{document.querySelectorAll('h2')[1].textContent=hybrid.checked?'Cinderplate':'Redesigned Vetch'};
+turn.oninput=()=>{yaw=Number(turn.value);spin.checked=false};for(const[id,value]of[['three',-50],['front',0],['side',-90]])document.getElementById(id).onclick=()=>{yaw=value;turn.value=value;spin.checked=false};
+function frame(t){if(spin.checked&&last){yaw=(yaw+(t-last)*.022+180)%360-180;turn.value=yaw}last=t;views.forEach(draw=>draw());requestAnimationFrame(frame)}requestAnimationFrame(frame);
+</script>

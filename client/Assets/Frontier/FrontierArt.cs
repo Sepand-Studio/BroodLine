@@ -15,7 +15,7 @@ namespace Broodline.Frontier
 
         public static Color Hex(string value) { ColorUtility.TryParseHtmlString(value, out var color); return color; }
         static readonly Color Cream = Hex("#f4dfb9"), Ink = Hex("#253345"), Gold = Hex("#c99a49");
-        static readonly Color Teal = Hex("#6ba7c0"), Coral = Hex("#e5867a"), Frost = Hex("#c6cede");
+        static readonly Color Coral = Hex("#e5867a"), Frost = Hex("#c6cede");
         static readonly Vector3[] GroundBones = {
             Vector3.zero, new Vector3(.5f,.47f,0), new Vector3(.32f,.24f,.32f),
             new Vector3(.32f,.24f,-.32f), new Vector3(-.34f,.24f,.32f), new Vector3(-.34f,.24f,-.32f)
@@ -36,13 +36,13 @@ namespace Broodline.Frontier
 
         public FrontierCreature Creature(Transform parent, string id, string first = null, string second = null, float phase = 0)
         {
-            var positions = id == "pale" ? WingBones : id == "ember" ? EmberBones : GroundBones;
+            var positions = id == "vetch" ? FrontierVetch.BindPositions : id == "pale" ? WingBones : id == "ember" ? EmberBones : GroundBones;
             int limbEnd = positions.Length;
             if (id == "vetch" || id == "ember" || id == "pale")
             {
                 var withEyes = new Vector3[limbEnd + 2]; Array.Copy(positions, withEyes, limbEnd);
-                var center = id == "vetch" ? new Vector3(.66f,.59f,0) : id == "pale" ? new Vector3(.46f,.59f,0) : new Vector3(.28f,1.065f,0);
-                float spacing = id == "vetch" ? .245f : id == "pale" ? .14f : .145f;
+                var center = id == "vetch" ? FrontierVetch.EyeCenter : id == "pale" ? new Vector3(.46f,.59f,0) : new Vector3(.28f,1.065f,0);
+                float spacing = id == "vetch" ? FrontierVetch.EyeSpacing : id == "pale" ? .14f : .145f;
                 withEyes[limbEnd] = center + Vector3.back * spacing;
                 withEyes[limbEnd + 1] = center + Vector3.forward * spacing;
                 positions = withEyes;
@@ -51,7 +51,7 @@ namespace Broodline.Frontier
             if (!_meshes.TryGetValue(key, out var mesh))
             {
                 var author = new FrontierMesh();
-                if (id == "vetch") Vetch(author);
+                if (id == "vetch") FrontierVetch.Build(author);
                 else if (id == "pale") Pale(author);
                 else if (id == "ember") Ember(author);
                 else if (id == "courser" || id == "skirmisher" || id == "lash") Raider(author, id);
@@ -75,41 +75,34 @@ namespace Broodline.Frontier
             renderer.localBounds = new Bounds(new Vector3(0,.65f,0), new Vector3(3,2.5f,3));
             var creature = go.AddComponent<FrontierCreature>();
             creature.Initialize(id, bones, renderer, phase, limbEnd);
-            Mount(creature.Dorsal, first); Mount(creature.Flank, second);
+            float partScale = id == "vetch" ? 1f : .8f;
+            Mount(creature.Dorsal, first, partScale); Mount(creature.Flank, second, partScale);
+            var portrait = mesh.bounds;
+            foreach (var filter in go.GetComponentsInChildren<MeshFilter>())
+            {
+                var partBounds = filter.sharedMesh.bounds;
+                for (int x = -1; x <= 1; x += 2)
+                    for (int y = -1; y <= 1; y += 2)
+                        for (int z = -1; z <= 1; z += 2)
+                            portrait.Encapsulate(go.transform.InverseTransformPoint(filter.transform.TransformPoint(
+                                partBounds.center + Vector3.Scale(partBounds.extents, new Vector3(x,y,z)))));
+            }
+            creature.PortraitBounds = portrait;
             return creature;
         }
 
-        void Mount(Transform socket, string trait)
+        void Mount(Transform socket, string trait, float scale)
         {
             if (string.IsNullOrEmpty(trait)) return;
             string key = "part-" + trait;
             if (!_meshes.TryGetValue(key, out var mesh))
             {
                 var b = new FrontierMesh();
-                switch (trait)
-                {
-                    case "cinder":
-                        for (int i = 0; i < 3; i++)
-                            b.Cone(new Vector3(-.25f+i*.23f,0,0), new Vector3(-.32f+i*.23f,.22f+i*.09f,0), .105f, .015f, Hex("#f1934d"), 6);
-                        break;
-                    case "carapace":
-                        for (int i = 0; i < 3; i++) b.Sphere(new Vector3((i-1)*.2f,.035f,0), new Vector3(.145f,.07f,.17f), i == 1 ? Cream : Hex("#aac4c6"), 8, 4);
-                        break;
-                    case "chill":
-                        for (int i = 0; i < 3; i++) b.Cone(new Vector3((i-1)*.18f,0,0), new Vector3((i-1)*.23f,.25f-Mathf.Abs(i-1)*.08f,0), .09f,.005f,Frost,5);
-                        break;
-                    case "taunt":
-                        for (int i = -1; i <= 1; i += 2) b.Sphere(new Vector3(i*.13f,.09f,0),new Vector3(.11f,.15f,.065f),Gold,10,6);
-                        break;
-                    case "splash":
-                        for (int i = -1; i <= 1; i += 2) b.Sphere(new Vector3(i*.14f,.07f,0),new Vector3(.12f,.12f,.13f),Coral,10,6);
-                        break;
-                    default: throw new ArgumentException("No proof part for " + trait);
-                }
+                FrontierParts.Build(b, trait);
                 mesh = b.Finish(key); _meshes.Add(key, mesh);
             }
             var part = Draw(socket, trait, mesh);
-            part.transform.localScale = Vector3.one * .8f;
+            part.transform.localScale = Vector3.one * scale;
         }
 
         static void Eyes(FrontierMesh b, Vector3 center, float spacing, float size, int eyeStart)
@@ -125,36 +118,6 @@ namespace Broodline.Frontier
                 b.Sphere(eye+new Vector3(size*.91f,size*.28f,side*size*.23f),Vector3.one*size*.17f,Color.white,8,5);
             }
             b.Bone = previousBone;
-        }
-
-        static void Vetch(FrontierMesh b)
-        {
-            b.Sphere(new Vector3(0,.48f,0),new Vector3(.65f,.35f,.49f),Teal,20,12);
-            b.Sphere(new Vector3(.13f,.31f,0),new Vector3(.57f,.18f,.4f),Cream,16,8);
-            for (int x = -1; x <= 1; x++)
-                for (int z = -1; z <= 1; z++)
-                {
-                    float y = .75f - Mathf.Abs(z)*.12f - Mathf.Abs(x)*.035f;
-                    b.Sphere(new Vector3(x*.31f,y,z*.29f),new Vector3(.21f,.09f,.19f),Color.Lerp(Teal,Cream,.13f+(x+1)*.07f),8,4);
-                    // A pale inset gives the shell plates a readable layered edge.
-                    if ((x + z) % 2 == 0)
-                        b.Sphere(new Vector3(x*.31f,y+.067f,z*.29f),new Vector3(.095f,.028f,.085f),Color.Lerp(Teal,Cream,.46f),8,4);
-                }
-            b.Bone = 1;
-            b.Sphere(new Vector3(.51f,.47f,0),new Vector3(.29f,.25f,.34f),Teal,18,10);
-            b.Sphere(new Vector3(.66f,.37f,0),new Vector3(.2f,.12f,.29f),Cream,16,8);
-            Eyes(b,new Vector3(.66f,.59f,0),.245f,.094f,6);
-            FaceDetails(b, new Vector3(.66f,.59f,0), .245f, .094f, Teal, new Vector3(.51f,.47f,0), new Vector3(.29f,.25f,.34f));
-            Smile(b, new Vector3(.66f,.37f,0), new Vector3(.2f,.12f,.29f), .348f, .175f, .03f, .009f);
-            for (int side = -1; side <= 1; side += 2)
-                b.Sphere(new Vector3(.822f,.426f,side*.095f),new Vector3(.018f,.012f,.016f),Ink,8,4);
-            for (int i = 2; i < GroundBones.Length; i++)
-            {
-                b.Bone = i; var p = GroundBones[i];
-                b.Sphere(p,new Vector3(.19f,.24f,.17f),Teal,12,8);
-                b.Sphere(p+new Vector3(.045f,-.13f,0),new Vector3(.205f,.09f,.18f),Color.Lerp(Teal,Ink,.45f),12,6);
-                for (int toe=-1;toe<=1;toe++) b.Sphere(p+new Vector3(.20f,-.125f,toe*.065f),new Vector3(.053f,.035f,.034f),Cream,8,4);
-            }
         }
 
         static void Pale(FrontierMesh b)

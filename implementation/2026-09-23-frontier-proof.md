@@ -1,10 +1,38 @@
 # Living Frontier — playable art proof
 
-Status: **the user confirmed the proof runs after the initialization fix; the new creature-personality pass awaits Unity review**. Screenshots, formal Unity test results, final visual acceptance, and device performance remain pending. This is an implementation of the [approved visual direction](../specs/plans/broodline_visual_upgrade_plan.md), not completion of the full visual-upgrade plan.
+Status: **the user confirmed the proof runs, found the personality-only pass too subtle, and authorized a substantial character redesign**. Vetch and Cinderplate now have rebuilt geometry and a source-derived comparison preview. The redesign still needs Unity rendering, animation and device review. This is an implementation of the [approved visual direction](../specs/plans/broodline_visual_upgrade_plan.md), not completion of the full visual-upgrade plan.
+
+## Vetch / Cinderplate redesign — revision 02
+
+The founder now has a larger inset face, amber eyes with skin-colored orbital ridges, a broad cream muzzle, a wider four-foot stance and dark rounded toes. Seven beveled polygon plates follow a continuous domed shell instead of individual spherical bumps. Skin, shell and eyes carry separate polish values in UV0 while sharing the same material. Cinderplate uses the same redesigned body with larger two-tone dorsal spikes and beveled flank armor; its attachment sockets follow the new shell dimensions.
+
+Founder and Reveal cameras now frame the actual body and attachment bounds, with a fixed allowance for animation. Turning or switching species recalculates the framing. Reveal reserves space for maximum growth up front, so changing the growth slider does not cancel the visible growth by moving the camera. The footer reads **VETCH REDESIGN · 02**, making it easy to identify the new source on the Unity machine.
+
+This pass redesigns **Vetch and its Cinderplate variant**. Ember and Pale keep their earlier bodies. Shared Carapace geometry and surface shading also appear on their existing attachments/materials. This remains procedural stylized art; it does not yet match the sculpted, textured finish of the approved concept images.
+
+To inspect the actual meshes without Unity:
+
+```bash
+python3 implementation/scripts/preview-frontier-vetch.py
+```
+
+Open the resulting `implementation/results/frontier/vetch-redesign.html` in a browser. Both models use the same scale and camera; drag to turn, select front/side views, or enable **Show Cinderplate**. The left mesh comes from commit `ae35c7c`; the right comes from the current C# builders. Full Git history containing that baseline and Mono/Roslyn are required (override `--mono` / `--csc` when needed). The preview is self-contained once generated, without CDN dependencies or network calls.
+
+The exporter uses a small math/mesh adapter outside Unity's Assets folder. It checks finite vertices, unit normals, face winding, bone indices and triangle counts, but **does not validate Unity APIs, skinning, shader import, lighting or performance**. Browser lighting approximates the Unity material; these images are geometry previews, not Unity screenshots. Preview output remains an ignored, regenerable artifact.
+
+Revision 02 checks performed locally:
+
+- Previous Vetch: **5,448 triangles**; redesigned Vetch: **8,180**; assembled Cinderplate: **8,798**. All passed the offline geometry checks and remain below the existing 10,000-triangle assembled ceiling.
+- Inspected front, side and three-quarter browser renders, then corrected the exposed lower shell and detached brow appearance. Inspected Cinderplate's assembly as well.
+- The interactive preview loaded without JavaScript errors; view controls, Cinderplate switching and auto-rotation worked. The 390px layout had no horizontal overflow.
+- Eight changed/new C# files passed Roslyn syntax parsing. This is not a Unity compile.
+- Existing Unity geometry tests now also cover the upper dome, curved plate primitive, polish channel and portrait containment of bodies/attachments. Unity tests remain unexecuted here.
+
+On the Unity machine, stop Play, pull `phase_10`, wait for compilation and reopen **Broodline → Frontier Proof → Open**. Check Founder first, then **Preview Cinderplate** from formation. Confirm the revision 02 footer, clear Console, run the EditMode tests below, and capture both screens. In particular, check eye blinking, head rotation/growth intersections with the shell, spike visibility and framing at all three supported Game-view sizes.
 
 ## Open it on your Unity machine
 
-A transferable source patch is packaged at `implementation/results/frontier/broodline-frontier-proof-source.zip`. Its README explains how to run `git apply --check` and then apply the patch to a compatible checkout. The package is an alternative to syncing the working tree; it is not a compiled build. The patch application is verified against the current base commit in a temporary directory.
+A historical source patch is packaged at `implementation/results/frontier/broodline-frontier-proof-source.zip`. Its application was verified against its recorded base in a temporary directory. It is not a compiled build and predates the startup fix, personality pass and revision 02 redesign. **Pull `phase_10` for the current implementation.**
 
 **Second presentation pass:** The ZIP now includes selectable deployment stones with occupied-position swaps, defender/enemy health bars, pooled damage/status cues, Rally and breach announcements, hit reactions, target-aware head turns, blink bones, species comparison controls, and richer foliage/path edging. This is a complete replacement package from its recorded base commit, not an incremental patch over the first ZIP.
 
