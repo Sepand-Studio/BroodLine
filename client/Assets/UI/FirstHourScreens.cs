@@ -604,6 +604,19 @@ namespace Broodline.UI
             return "Wave " + waveId.ToString(CultureInfo.InvariantCulture);
         }
 
+        /// THE END OF THE AUTHORED CAMPAIGN - Phase 10 Task 1.7. Before this
+        /// a player who cleared every wave saw a list with nothing playable
+        /// and no sentence saying why (Phase 9 follow-ups: "the campaign has
+        /// no proper end state").
+        public const string HeldLabel = "Frontier held";
+        public const string HeldDetail = "Every wave in this chapter is cleared. The next chapter brings new ground.";
+        public const string HeldName = "held";
+
+        public static bool AllCleared(IReadOnlyList<int> authored, int highestWaveCleared)
+        {
+            return authored != null && authored.Count > 0 && NextWave(authored, highestWaveCleared) == null;
+        }
+
         /// The element name a row carries, so a test - and the director -
         /// can find one wave without counting children.
         public static string RowName(int waveId)

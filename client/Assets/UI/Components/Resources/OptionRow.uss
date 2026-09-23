@@ -44,7 +44,7 @@
 .option-row--selected {
     background-color: var(--surface);
     border-width: 2px;
-    border-color: var(--ring);
+    border-color: var(--selection);
 }
 
 /* Layout, not type: the gap between the two lines. */

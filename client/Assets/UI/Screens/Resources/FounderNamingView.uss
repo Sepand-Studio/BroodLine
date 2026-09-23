@@ -115,7 +115,7 @@
 /* The handoff lights every bar up to and including the current step. Beat 4
  * is step 1, so exactly one is lit and this modifier is on exactly one pip
  * in the UXML. --violet is the handoff's own `ON` (#7a6ac0), to the digit. */
-.progress-pip--current { background-color: var(--violet); }
+.progress-pip--current { background-color: var(--action); }
 
 /* "1 / 5". The handoff sets it at 10.5px in #a29bb5, which is --mute
  * exactly; the size comes from `.t-num` at --text-secondary (11px), because
@@ -135,7 +135,7 @@
  * With the old fixed-width pips the same overflow was shared. Four glyphs
  * that say which step this is must not be what gives way. */
 .founder-naming-view__step {
-    color: var(--mute);
+    color: var(--ink-secondary);
     flex-shrink: 0;
 }
 

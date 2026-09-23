@@ -113,6 +113,11 @@ namespace Broodline.UI.Screens
         /// ONE direct child of this root. `Place` measures it; see the note
         /// there, and the UXML's own beside `#chrome`.
         readonly VisualElement _chrome;
+        readonly Button _pause, _speed;
+
+        /// Raised by the two controls; `WaveRunner` owns the clock they act on.
+        public event Action OnPause;
+        public event Action OnSpeed;
 
         /// The last integrity and tick each readout was written for, so an
         /// unchanged frame does not rebuild its string.
@@ -256,6 +261,17 @@ namespace Broodline.UI.Screens
             foreach (var element in this.Query<VisualElement>().ToList())
                 element.pickingMode = PickingMode.Ignore;
 
+            // Exactly two exceptions, re-enabled AFTER the sweep so the sweep
+            // stays a sweep. WaveScreensTests pins that these are the only two.
+            _pause = this.Q<Button>("pause");
+            _speed = this.Q<Button>("speed");
+            _pause.pickingMode = PickingMode.Position;
+            _speed.pickingMode = PickingMode.Position;
+            _pause.clicked += () => OnPause?.Invoke();
+            _speed.clicked += () => OnSpeed?.Invoke();
+            SetPaused(false);
+            SetSpeed(1.0);
+
             _chrome = this.Q<VisualElement>("chrome");
             _integrity = this.Q<Label>("integrity");
             _tick = this.Q<Label>("tick");
@@ -280,6 +296,22 @@ namespace Broodline.UI.Screens
         /// boundary. The simulation ticks at a fixed 30Hz and the renderer
         /// does not; a HUD updated on tick boundaries would be a second
         /// clock disagreeing with `WaveClock`'s interpolation.
+        public void SetPaused(bool paused) => _pause.text = paused ? WaveHudScreen.ResumeLabel : WaveHudScreen.PauseLabel;
+        public void SetSpeed(double scale) => _speed.text = WaveHudScreen.SpeedLabel(scale);
+
+        /// WHETHER A TAP AT THIS SCREEN POSITION LANDS ON A CONTROL. Everything
+        /// else in the view ignores picking, so the panel's pick is null over
+        /// the battlefield and non-null only over the two buttons; the runner
+        /// uses this to keep "tap anywhere is Rally" true everywhere else.
+        public bool PicksControlAt(Vector2 screenPosition)
+        {
+            var p = panel;
+            if (p == null) return false;
+            var local = RuntimePanelUtils.ScreenToPanel(p, new Vector2(screenPosition.x, Screen.height - screenPosition.y));
+            var picked = p.Pick(local);
+            return picked != null && (picked == _pause || picked == _speed || _pause.Contains(picked) || _speed.Contains(picked));
+        }
+
         public void Bind(Func<HudSnapshot> read)
         {
             _read = read ?? throw new ArgumentNullException(nameof(read));

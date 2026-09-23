@@ -55,7 +55,7 @@
 
 .resource-bar__pill .resource-bar__value {
     font-size: 15px;
-    color: var(--ink);
+    color: var(--ink-primary);
 }
 
 .resource-bar__pill .resource-bar__timer {

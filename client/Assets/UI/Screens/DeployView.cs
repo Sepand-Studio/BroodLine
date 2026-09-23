@@ -320,7 +320,7 @@ namespace Broodline.UI.Screens
 
             _scaffold.OnBack = onBack;
 
-            _waveNumber.text = DeployScreen.WaveStatValue(m.WaveId);
+            _waveNumber.text = DeployScreen.HeaderWave(m.WaveId);
             _energyValue.text = DeployScreen.EnergyValue(facts.Energy);
             _integrityValue.text = DeployScreen.IntegrityFull;
 

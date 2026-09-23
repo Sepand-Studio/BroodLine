@@ -878,9 +878,32 @@ namespace Broodline.UI.Tests
                 Assert.Contains(bar.Q<Label>("tag"), elements);
             }
 
+            // EXACTLY TWO EXCEPTIONS AS OF PHASE 10 TASK 1.7: pause and speed,
+            // which WaveRunner tells apart from a Rally by asking
+            // `PicksControlAt` before it rallies. Named, so a third pickable
+            // thing still fails here.
+            var controls = new[] { "pause", "speed" };
+            foreach (var name in controls)
+                Assert.AreEqual(PickingMode.Position, view.Q<Button>(name).pickingMode, name + " must be tappable");
             foreach (var element in elements)
+            {
+                if (Array.IndexOf(controls, element.name) >= 0) continue;
                 Assert.AreEqual(PickingMode.Ignore, element.pickingMode,
                     "pickable element in the HUD: " + (element.name ?? element.GetType().Name));
+            }
+        }
+
+        [Test]
+        public void WaveHud_PauseAndSpeedControls_SayTheirState()
+        {
+            var view = new WaveHudView();
+            Assert.AreEqual(WaveHudScreen.PauseLabel, view.Q<Button>("pause").text);
+            Assert.AreEqual(WaveHudScreen.SpeedLabel(1), view.Q<Button>("speed").text);
+            view.SetPaused(true);
+            view.SetSpeed(2);
+            Assert.AreEqual(WaveHudScreen.ResumeLabel, view.Q<Button>("pause").text);
+            Assert.AreEqual(WaveHudScreen.SpeedLabel(2), view.Q<Button>("speed").text);
+            Assert.AreNotEqual(WaveHudScreen.SpeedLabel(1), WaveHudScreen.SpeedLabel(2));
         }
 
         [Test]
@@ -1548,7 +1571,7 @@ namespace Broodline.UI.Tests
 
             Assert.AreEqual(DeployScreen.Eyebrow, view.Q<Label>("eyebrow").text);
             Assert.AreEqual(DeployScreen.Title, view.Q<Label>("title").text);
-            Assert.AreEqual(DeployScreen.WaveStatValue(7), view.Q<Label>("wave-number").text);
+            Assert.AreEqual(DeployScreen.HeaderWave(7), view.Q<Label>("wave-number").text);
 
             // THE TWO LABELS ARE THE HANDOFF'S ONE LINE. A screen that put
             // the number into the title Label would pass neither of the two
@@ -1582,8 +1605,8 @@ namespace Broodline.UI.Tests
                 DeployScreen.Build(waveId: 2, roster: otherRoster, selected: new List<Guid> { creature.CreatureId }),
                 onStart: () => { }, roster: otherRoster.Known);
 
-            Assert.AreEqual(DeployScreen.WaveStatValue(7), one.Q<Label>("wave-number").text);
-            Assert.AreEqual(DeployScreen.WaveStatValue(2), two.Q<Label>("wave-number").text);
+            Assert.AreEqual(DeployScreen.HeaderWave(7), one.Q<Label>("wave-number").text);
+            Assert.AreEqual(DeployScreen.HeaderWave(2), two.Q<Label>("wave-number").text);
             Assert.AreEqual(DeployScreen.IncomingHeading(7), one.Q<Label>("incoming-heading").text);
             Assert.AreEqual(DeployScreen.IncomingHeading(2), two.Q<Label>("incoming-heading").text);
             Assert.AreNotEqual(

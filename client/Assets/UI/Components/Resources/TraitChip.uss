@@ -12,7 +12,7 @@
  *
  * THE FILL IS ON THE CHIP AND THE INK IS ON THE LABEL, which is not
  * symmetry for its own sake: colour inherited from the chip loses to
- * Theme.uss's `Label { color: var(--ink); }`, because a direct rule beats an
+ * Theme.uss's `Label { color: var(--ink-primary); }`, because a direct rule beats an
  * inherited value whatever the ancestor's specificity was. GenChip.uss's
  * header has the long form. `TraitPip` found this out first.
  *
@@ -82,7 +82,7 @@
 .trait-chip--skitter .trait-chip__label { color: var(--amber-text); }
 .trait-chip--hollow  .trait-chip__label { color: var(--violet-text); }
 .trait-chip--loam    .trait-chip__label { color: var(--green-text); }
-.trait-chip--pale    .trait-chip__label { color: var(--ink); }
+.trait-chip--pale    .trait-chip__label { color: var(--ink-primary); }
 
 /* An Aberrant carries no coverage tier at all (data_model 2), so the chip
  * that shows one has no roman numeral to distinguish it from a tier-less

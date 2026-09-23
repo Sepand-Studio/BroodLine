@@ -141,7 +141,7 @@
 }
 
 .stat-cell__value {
-    color: var(--ink);
+    color: var(--ink-primary);
     height: 15px;
     -unity-text-align: middle-left;
 }

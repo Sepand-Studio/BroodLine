@@ -160,6 +160,9 @@ namespace Broodline.UI.Components
 
             /// `Wave Defeat.dc.html:31`.
             Coral,
+            /// The Living Frontier hero backdrop - Phase 10 Task 1.6: slate under a
+            /// brass ring, so the creature is the brightest thing on the screen.
+            Deep,
         }
 
         /// The modifier a tint puts on the ROOT, so `HeroBand.uss` can reach
@@ -185,6 +188,7 @@ namespace Broodline.UI.Components
             {
                 case Tint.Violet: return null;
                 case Tint.Coral: return UssClassName + "--coral";
+                case Tint.Deep: return UssClassName + "--deep";
                 default:
                     throw new System.ArgumentOutOfRangeException(
                         nameof(tint), tint,

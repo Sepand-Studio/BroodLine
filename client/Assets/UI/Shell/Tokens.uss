@@ -35,17 +35,12 @@
  */
 :root {
     /* ---- Surfaces and ink ---- */
-    --ink: #302d40;               /* primary text */
-    --ink-deep: #263345;          /* deck / dark surfaces */
-    --paper: #f5ebd9;             /* screen background */
     --surface: #fff8eb;           /* cards */
     --surface-sunk: #f3e7d2;      /* inset rows, unselected options */
     --surface-raised: #fffcf4;    /* CreatureCard's selected fill, above --surface */
 
     /* ---- Brand ---- */
-    --violet: #6b4ec2;            /* primary brand, CTAs */
     --violet-deep: #5f43b5;       /* CTA gradient end -> solid CTA fill here */
-    --violet-shadow: #49348d;     /* CTA drop edge */
     --violet-tint: #eee7f9;       /* secondary button, violet panels */
     --violet-text: #5b45ae;       /* violet-on-light text */
     --violet-light: #8a6fd6;      /* CTA gradient start, selection ring */
@@ -245,11 +240,9 @@
     --hud-scrim: rgba(38, 51, 69, 0.72);
 
     /* ---- Secondary ink ---- */
-    --mute: #686177;              /* secondary text, inactive nav */
     --mute-soft: #8e8799;         /* tertiary text, placeholders */
     --divider: #ebdfc9;           /* hairline dividers */
     --hairline: #e6d9c1;          /* unselected option outline */
-    --ring: #6b4ec2;              /* selected option 2px ring */
 
     /* ---- Spacing. Screen gutter is 12. ---- */
     --gutter: 12px;
@@ -452,14 +445,19 @@
      * warning. Until Task 1.6 finishes the migration the same hex appears
      * twice; PaletteContrastTests pins the species six, and the rest are
      * caught by the eye on the capture corpus. */
-    --surface-paper: #f5ebd9;     /* = --paper: the screen background */
-    --surface-deep: #263345;      /* = --ink-deep: portrait stages, HUD frames, backdrops */
-    --ink-primary: #302d40;       /* = --ink */
-    --ink-secondary: #686177;     /* = --mute: supporting labels, 5.3:1 on --surface */
-    --action: #6b4ec2;            /* = --violet: primary CTA, selection, genetic energy */
-    --action-shadow: #49348d;     /* = --violet-shadow: CTA depth and pressed state */
+    /* THE MIGRATION IS DONE - Phase 10 Task 1.6. --paper, --ink, --mute,
+     * --ink-deep, --violet, --violet-shadow and --ring are deleted; these
+     * are their only names now. (--violet-deep/-light/-tint/-text/-pressed/
+     * -edge/-glow/-pale remain: they are shades of the action violet, not
+     * the brand token itself.) */
+    --surface-paper: #f5ebd9;     /* the screen background */
+    --surface-deep: #263345;      /* portrait stages, HUD frames, backdrops */
+    --ink-primary: #302d40;       /* body copy and numbers on light surfaces */
+    --ink-secondary: #686177;     /* supporting labels, 5.3:1 on --surface */
+    --action: #6b4ec2;            /* primary CTA, selection, genetic energy */
+    --action-shadow: #49348d;     /* CTA depth and pressed state */
     --action-text: #ffffff;       /* ink on --action, 6.0:1 */
-    --selection: #6b4ec2;         /* = --ring */
+    --selection: #6b4ec2;         /* the selected option's ring */
     --reward: #e9b44c;            /* rewards and earned milestones ONLY - not Skitter, not a warning */
     --reward-text: #5a4308;       /* ink on --reward, 7.4:1 */
     --reward-tint: #fbf0d2;       /* reward row fill */

@@ -54,7 +54,7 @@
  * selector, which is the thing the floor actually forbids. */
 .cost-cta-row .cost-cta-row__cost {
     font-size: var(--text-cta);
-    color: var(--ink);
+    color: var(--ink-primary);
 }
 
 /* `flex-basis: 0` as well as `flex-grow: 1`, so the button takes the row's

@@ -98,7 +98,7 @@
 /* ---------------------------------------------------------------- surfaces */
 
 .shell-root {
-    background-color: var(--paper);
+    background-color: var(--surface-paper);
 }
 
 /* ------------------------------------------------------------------- text */
@@ -131,43 +131,43 @@ Label, Button, TextField {
  * 0/O must be unambiguous" is about. Weight comes from the face, not from a
  * style flag. */
 Label {
-    color: var(--ink);
+    color: var(--ink-primary);
     font-size: var(--text-body);
 }
 
 .t-screen-title {
     font-size: var(--text-screen-title);
-    color: var(--ink);
+    color: var(--ink-primary);
     -unity-font-style: bold;
 }
 
 .t-section {
     font-size: var(--text-section);
-    color: var(--ink);
+    color: var(--ink-primary);
     -unity-font-style: bold;
 }
 
 .t-hero {
     font-size: var(--text-hero);
-    color: var(--ink);
+    color: var(--ink-primary);
     -unity-font-style: bold;
 }
 
 .t-card-title {
     font-size: var(--text-card-title);
-    color: var(--ink);
+    color: var(--ink-primary);
     -unity-font-style: bold;
 }
 
 .t-secondary {
     font-size: var(--text-secondary);
-    color: var(--mute);
+    color: var(--ink-secondary);
 }
 
 /* Uppercase micro label - handoff: 9-10px, 800, letter-spacing .1em, mute. */
 .t-micro {
     font-size: var(--text-micro);
-    color: var(--mute);
+    color: var(--ink-secondary);
     letter-spacing: 1px;
     -unity-font-style: bold;
 }
@@ -345,13 +345,13 @@ Button {
     -unity-font-style: bold;
     font-size: var(--text-cta);
     color: var(--surface);
-    background-color: var(--violet);
+    background-color: var(--action);
     background-image: none;
     border-left-width: 0;
     border-right-width: 0;
     border-top-width: 0;
     border-bottom-width: 3px;
-    border-bottom-color: var(--violet-shadow);
+    border-bottom-color: var(--action-shadow);
     border-radius: var(--radius-cta);
     padding-top: 12px;
     padding-bottom: 12px;
@@ -434,7 +434,7 @@ Button:disabled {
     border-radius: var(--radius-card);
     padding: var(--space-4);
 }
-.panel-deep Label { color: var(--paper); }
+.panel-deep Label { color: var(--surface-paper); }
 
 /* Secondary: violet on tint, per the handoff's secondary button. */
 .btn-secondary {
@@ -451,7 +451,7 @@ Button:disabled {
 /* A text-only action: no fill, no drop edge. Used for "skip" and the like. */
 .btn-quiet {
     background-color: rgba(0, 0, 0, 0);
-    color: var(--mute);
+    color: var(--ink-secondary);
     border-bottom-width: 0;
     font-size: var(--text-body);
 }
@@ -469,13 +469,13 @@ TextField > * {
     border-radius: var(--radius-row);
     border-width: 1px;
     border-color: var(--hairline);
-    color: var(--ink);
+    color: var(--ink-primary);
     font-size: var(--text-card-title);
     padding: 10px;
 }
 
 TextField:focus > * {
-    border-color: var(--ring);
+    border-color: var(--selection);
     border-width: 2px;
 }
 
@@ -620,5 +620,5 @@ TextField:focus > * {
 .option--selected {
     background-color: var(--surface);
     border-width: 2px;
-    border-color: var(--ring);
+    border-color: var(--selection);
 }

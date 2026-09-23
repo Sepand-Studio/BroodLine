@@ -63,6 +63,17 @@
              never lands on the readouts; a tick drawn outside that element
              would be a readout the reservation does not cover. -->
         <ui:Label name="tick" class="wave-hud-view__tick t-num" />
+
+        <!-- THE TWO CONTROLS, AND THE ONLY PICKABLE THINGS IN THIS VIEW -
+             Phase 10 Task 1.7. The constructor sets every element to Ignore
+             and then re-enables exactly these two; WaveRunner asks
+             `PicksControlAt` before it turns a tap into a Rally, which is
+             what makes a control here a control and not a Rally by another
+             name (the reason none was drawn before). -->
+        <ui:VisualElement name="controls" class="wave-hud-view__controls">
+            <ui:Button name="pause" class="wave-hud-view__control" />
+            <ui:Button name="speed" class="wave-hud-view__control" />
+        </ui:VisualElement>
     </ui:VisualElement>
 
     <ui:VisualElement name="bars" class="wave-hud-view__bars" />

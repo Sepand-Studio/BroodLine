@@ -17,7 +17,7 @@
     border-bottom-width: 0;
     border-radius: var(--radius-tile);
     background-color: rgba(0, 0, 0, 0);
-    color: var(--mute);
+    color: var(--ink-secondary);
     font-size: var(--text-body);
 }
 .store__tab:active { translate: 0 0; border-bottom-width: 0; background-color: var(--surface-raised); }

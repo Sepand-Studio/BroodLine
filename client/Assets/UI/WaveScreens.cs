@@ -515,6 +515,12 @@ namespace Broodline.UI
         /// otherwise and was wrong.
         public const string WaveWord = "Wave";
 
+        /// The two controls that arrived in Phase 10 Task 1.7, once a tap on
+        /// them could be told from a Rally tap (`WaveHudView.PicksControlAt`).
+        public const string PauseLabel = "Pause";
+        public const string ResumeLabel = "Resume";
+        public static string SpeedLabel(double scale) => scale >= 2 ? "2\u00d7" : "1\u00d7";
+
         /// `Wave Defense.dc.html:40` - "Wave {{ wave }} / 12", both numerals
         /// in one `t-num` Label because they are one reading ("six of twelve")
         /// and a span between them would be a third element for a space.

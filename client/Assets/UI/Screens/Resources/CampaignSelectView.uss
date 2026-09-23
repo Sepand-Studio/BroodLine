@@ -70,3 +70,8 @@
     background-color: var(--green-tint);
     color: var(--green-text);
 }
+.campaign-select-view .campaign-select-view__held {
+    background-color: var(--green-tint);
+    border-color: var(--green);
+}
+.campaign-select-view .campaign-select-view__held .option-row__title { color: var(--green-text); }

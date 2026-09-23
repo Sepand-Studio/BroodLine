@@ -153,8 +153,16 @@ namespace Broodline.UI
         /// `DeployView` renders the pair and never this.
         public static string WaveTitle(int waveId)
         {
-            return Title + " " + WaveStatValue(waveId);
+            return Title + " " + HeaderWave(waveId);
         }
+
+        /// THE HEADER'S NUMBER, AND IT IS THE HUD'S - Phase 10 Task 1.7.
+        /// Phase 9's walk saw "Wave 7" here and "Wave 6 / 12" in the fight,
+        /// two spellings of the campaign position on consecutive screens;
+        /// this is `WaveHudScreen.WaveOf` so they cannot differ again.
+        /// `WaveStatValue` stays the bare number for `IncomingHeading`,
+        /// which must not gain a "/ 12".
+        public static string HeaderWave(int waveId) => WaveHudScreen.WaveOf(waveId);
 
         /// What the field list says when it holds nothing.
         ///

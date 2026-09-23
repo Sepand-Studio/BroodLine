@@ -99,7 +99,7 @@ SIGMA = 5.0         # blur, texture px
 DY = 10.0 / 3.0     # downward offset, texture px -> 2px at 0.6, 4px at 1.2
 SIZE = 64
 BORDER = 20         # the slice border ArtImportSettings re-asserts
-INK = tok("--ink")  # the shadow ink is the ink token; USS tints it via --elev-N-tint
+INK = tok("--ink-primary")  # the shadow ink is the ink token; USS tints it via --elev-N-tint
 
 
 def phi(z):

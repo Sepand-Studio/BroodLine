@@ -253,6 +253,7 @@ namespace Broodline.Game.Shell
             // (Tasks 14 and 16); the camera costs nothing until then - see
             // PortraitStudio.Create.
             _studio = PortraitStudio.Create(transform);
+            _screenHost.ScreenChanging += () => _studio.ClearIfPending();
 
             // Task 17, and created here for Task 11's reason: the deploy
             // screen asks for a lane the moment the first beat reaches it,

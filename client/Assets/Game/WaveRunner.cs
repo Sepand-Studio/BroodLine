@@ -245,6 +245,8 @@ namespace Broodline.Game
             _hud = new WaveHudView { Camera = Camera.main, Wave = waveId };
             root.Add(_hud);
             _hud.Bind(Snapshot);
+            _hud.OnPause += () => { _clock.Paused = !_clock.Paused; _hud.SetPaused(_clock.Paused); };
+            _hud.OnSpeed += () => { _clock.Scale = _clock.Scale >= 2.0 ? 1.0 : 2.0; _hud.SetSpeed(_clock.Scale); };
         }
 
         /// True on the frame a tap or click begins.
@@ -259,14 +261,23 @@ namespace Broodline.Game
         /// unless simulated, so neither can be assumed. The device that
         /// matters for the done-when is the touchscreen; the mouse is what
         /// makes the Editor run usable.
-        static bool TapBegan()
+        /// A press that began this frame, and where. `WaveHudView.PicksControlAt`
+        /// then decides whether it was a control or a Rally - Phase 10 Task 1.7.
+        static bool TapBegan(out Vector2 at)
         {
+            at = default;
             var touch = Touchscreen.current;
-            if (touch != null && touch.primaryTouch.press.wasPressedThisFrame) return true;
-
+            if (touch != null && touch.primaryTouch.press.wasPressedThisFrame)
+            {
+                at = touch.primaryTouch.position.ReadValue();
+                return true;
+            }
             var mouse = Mouse.current;
-            if (mouse != null && mouse.leftButton.wasPressedThisFrame) return true;
-
+            if (mouse != null && mouse.leftButton.wasPressedThisFrame)
+            {
+                at = mouse.position.ReadValue();
+                return true;
+            }
             return false;
         }
 
@@ -286,7 +297,7 @@ namespace Broodline.Game
             // a creature is a deployment-UI concern and this phase has no UI
             // for it. The HUD is PickingMode.Ignore throughout precisely so
             // this still reaches here.
-            if (_inputEnabled && TapBegan()) _clock.RequestRally(0);
+            if (_inputEnabled && TapBegan(out var at) && !(_hud != null && _hud.PicksControlAt(at))) _clock.RequestRally(0);
 
             // Time.deltaTime, NOT a fixed value. Feeding the accumulator the
             // real frame delta is the whole point - it is what makes a stall

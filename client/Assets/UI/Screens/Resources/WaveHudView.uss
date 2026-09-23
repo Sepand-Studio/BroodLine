@@ -127,7 +127,9 @@
  * battlefield. --space-2 rather than --space-3 because this is chrome over a
  * scene and not a block on a page; both are on the scale. */
 .wave-hud-view__band {
-    background-color: var(--hud-scrim);
+    background-color: var(--hud-frame);
+    border-width: 1px;
+    border-color: var(--brass);
     border-radius: var(--radius-row);
     padding: var(--space-2);
 }
@@ -208,7 +210,9 @@
 .wave-hud-view__pill {
     flex-direction: row;
     align-items: center;
-    background-color: var(--hud-scrim);
+    background-color: var(--hud-frame);
+    border-width: 1px;
+    border-color: var(--brass);
     border-radius: var(--radius-row);
     padding-top: var(--space-2);
     padding-bottom: var(--space-2);
@@ -416,4 +420,35 @@
 .wave-hud-view__tag {
     -unity-text-align: upper-center;
     color: var(--surface);
+}
+
+/* THE TWO CONTROLS - Phase 10 Task 1.7. Slate pills on the brass-edged
+ * frame's vocabulary; no foot, because a 28px pill that drops 2px reads as
+ * a glitch rather than a press. */
+.wave-hud-view__controls {
+    flex-direction: row;
+    margin-top: var(--space-2);
+}
+.wave-hud-view .wave-hud-view__control {
+    background-color: var(--hud-frame);
+    color: var(--surface-paper);
+    border-width: 1px;
+    border-color: var(--brass);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--brass);
+    border-radius: 14px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    padding-left: var(--space-3);
+    padding-right: var(--space-3);
+    margin-top: 0;
+    margin-bottom: 0;
+    margin-left: 0;
+    margin-right: var(--space-2);
+    font-size: var(--text-body);
+}
+.wave-hud-view .wave-hud-view__control:active {
+    translate: 0 0;
+    border-bottom-width: 1px;
+    background-color: var(--hud-frame-edge);
 }

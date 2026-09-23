@@ -76,12 +76,21 @@ namespace Broodline.View
         /// re-simulates from must be exactly what the local run consumed.
         public void RequestRally(int creatureId) => _pendingRally = creatureId;
 
+        /// PRESENTATION PACING ONLY - Phase 10 Task 1.7. Paused stops the
+        /// accumulator; Scale multiplies the seconds it is fed. Neither touches
+        /// the runner, the tick count, the RNG or the outcome hash: the same
+        /// ticks happen in the same order, just spread over more or less wall
+        /// clock. A pending Rally survives a pause and lands on the next tick.
+        public bool Paused { get; set; }
+        public double Scale { get; set; } = 1.0;
+
         public void Advance(SimRunner runner, double deltaSeconds, Action onTick)
         {
             StepsLastFrame = 0;
             if (Terminated) return;
+            if (Paused) return;
 
-            _accumulator += deltaSeconds;
+            _accumulator += deltaSeconds * Scale;
 
             while (_accumulator >= TickSeconds && StepsLastFrame < MaxCatchUpSteps)
             {

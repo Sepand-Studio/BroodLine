@@ -91,12 +91,12 @@
  * Ember gets #eda093 over #fbeae7 - so the frame says whose animal it is
  * before the name under it is read. Same table as TraitChip.uss, same
  * two-class specificity rule. */
-.hero-slot--vetch   .hero-slot__ring { -unity-background-image-tint-color: var(--teal); }
-.hero-slot--ember   .hero-slot__ring { -unity-background-image-tint-color: var(--coral); }
-.hero-slot--skitter .hero-slot__ring { -unity-background-image-tint-color: var(--amber); }
-.hero-slot--hollow  .hero-slot__ring { -unity-background-image-tint-color: var(--violet); }
-.hero-slot--loam    .hero-slot__ring { -unity-background-image-tint-color: var(--green); }
-.hero-slot--pale    .hero-slot__ring { -unity-background-image-tint-color: var(--slate); }
+.hero-slot--vetch   .hero-slot__ring { -unity-background-image-tint-color: var(--species-vetch); }
+.hero-slot--ember   .hero-slot__ring { -unity-background-image-tint-color: var(--species-ember); }
+.hero-slot--skitter .hero-slot__ring { -unity-background-image-tint-color: var(--species-skitter); }
+.hero-slot--hollow  .hero-slot__ring { -unity-background-image-tint-color: var(--species-hollow); }
+.hero-slot--loam    .hero-slot__ring { -unity-background-image-tint-color: var(--species-loam); }
+.hero-slot--pale    .hero-slot__ring { -unity-background-image-tint-color: var(--species-pale); }
 
 .hero-slot--vetch   .hero-slot__disc { background-color: var(--teal-tint); }
 .hero-slot--ember   .hero-slot__disc { background-color: var(--coral-tint); }

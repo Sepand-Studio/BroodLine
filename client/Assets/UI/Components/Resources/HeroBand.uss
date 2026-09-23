@@ -291,3 +291,18 @@
     height: 160px;
     border-radius: 80px;
 }
+
+/* THE DEEP BAND - Phase 10 Task 1.6, the approved mockups' hero framing:
+ * the creature on slate with a brass ring and a violet glow, every label
+ * inside it in paper ink. No ramp texture: the surface is one deep fill. */
+.hero-band--deep .hero-band__surface {
+    background-image: none;
+    background-color: var(--surface-deep);
+}
+.hero-band--deep .hero-band__ring { -unity-background-image-tint-color: var(--brass); }
+.hero-band--deep .hero-band__glow { background-color: var(--hud-frame-edge); }
+.hero-band--deep Label,
+.hero-band--deep .t-hero,
+.hero-band--deep .t-section,
+.hero-band--deep .t-secondary,
+.hero-band--deep .t-micro { color: var(--surface-paper); }

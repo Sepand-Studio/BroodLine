@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Broodline.UI.Shell;
 using UnityEngine.UIElements;
@@ -17,6 +18,13 @@ namespace Broodline.Game.Shell
         readonly VisualElement _sheetLayer;
         readonly TabBar _tabBar;
         readonly Stack<VisualElement> _backStack = new Stack<VisualElement>();
+
+        /// THE SCREEN IS ABOUT TO BE REPLACED - Phase 10 Task 1.7. Raised at
+        /// the top of every Show/Push/Pop, before the old screen leaves. The
+        /// portrait studio clears on this rather than in a beat's `finally`,
+        /// so a departing screen never shows a blank portrait while the next
+        /// one is still loading (Phase 9 follow-ups, the ScreenFlow row).
+        public event Action ScreenChanging;
 
         public ScreenHost(VisualElement screenHost, VisualElement sheetLayer, TabBar tabBar)
         {
@@ -68,6 +76,7 @@ namespace Broodline.Game.Shell
 
         void SetScreen(VisualElement screen)
         {
+            ScreenChanging?.Invoke();
             _screenHost.Clear();
             if (screen != null) _screenHost.Add(screen);
             _tabBar.style.display = _backStack.Count > 0 ? DisplayStyle.None : DisplayStyle.Flex;

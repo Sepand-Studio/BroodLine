@@ -90,7 +90,7 @@
     height: 28px;
     margin-top: -2px;
     border-width: 2px;
-    border-color: var(--violet);
+    border-color: var(--action);
 }
 
 .lineage-strip__gen {

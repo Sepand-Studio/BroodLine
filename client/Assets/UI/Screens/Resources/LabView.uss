@@ -1,5 +1,6 @@
 .lab { flex-grow: 1; }
-.lab__facility { padding-left: 48px; }
+/* Two classes, so this outranks OptionRow.uss's own `padding` shorthand. */
+.lab .lab__facility { padding-left: 48px; }
 .lab__facility .lab__glyph {
     position: absolute;
     left: var(--space-3);

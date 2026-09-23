@@ -51,8 +51,23 @@ namespace Broodline.Game.Shell
             return studio;
         }
 
+        bool _clearPending;
+
+        /// Clear WHEN THE NEXT SCREEN PRESENTS, not now - Phase 10 Task 1.7.
+        /// `ScreenHost.ScreenChanging` calls `ClearIfPending`; a `Show` in
+        /// between cancels it, because a new creature is a new reason to run.
+        public void ClearLater() => _clearPending = true;
+
+        public void ClearIfPending()
+        {
+            if (!_clearPending) return;
+            _clearPending = false;
+            Clear();
+        }
+
         public Texture Show(string species, string trait1, string trait2, float growth01)
         {
+            _clearPending = false;
             Clear();
             _creature = CreatureAssembler.Build(new CreatureLook { Species = species, Trait1 = trait1, Trait2 = trait2, Growth01 = growth01 });
             _creature.transform.SetParent(transform, false);

@@ -76,7 +76,7 @@
 .creature-card__name {
     font-size: var(--text-card-title);
     -unity-font-style: bold;
-    color: var(--ink);
+    color: var(--ink-primary);
 }
 
 /* The role line - bible 1.2's role word and the creature's Instinct, which
@@ -89,7 +89,7 @@
 .creature-card__instinct {
     margin-top: 1px;
     font-size: var(--text-micro);
-    color: var(--mute);
+    color: var(--ink-secondary);
 }
 
 .creature-card__traits {

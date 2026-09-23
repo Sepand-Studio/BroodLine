@@ -24,6 +24,8 @@
  */
 .lane-preview-card {
     height: var(--lane-card-height);
+    border-width: 2px;
+    border-color: var(--brass);
     border-radius: var(--radius-card);
     background-color: var(--green-tint);
     overflow: hidden;
@@ -68,7 +70,7 @@
 .lane-preview-card__slot {
     background-color: var(--surface-sunk);
     border-width: 1px;
-    border-color: var(--ring);
+    border-color: var(--selection);
     border-radius: 10px;
     color: var(--violet-text);
     font-size: var(--text-micro);

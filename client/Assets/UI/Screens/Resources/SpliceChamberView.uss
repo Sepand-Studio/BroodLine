@@ -174,7 +174,7 @@
  * ornament to the type ladder. */
 .splice-chamber-view .splice-chamber-view__join-glyph {
     font-size: 18px;
-    color: var(--violet);
+    color: var(--action);
     -unity-text-align: middle-center;
 }
 

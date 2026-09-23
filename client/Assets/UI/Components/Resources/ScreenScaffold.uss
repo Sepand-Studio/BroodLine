@@ -110,7 +110,7 @@
  * `.1em` tracking - it is what makes a 10px uppercase line read as a label
  * rather than as small text. */
 .screen-scaffold__eyebrow {
-    color: var(--mute);
+    color: var(--ink-secondary);
     letter-spacing: 1px;
     display: none;
 }
@@ -192,7 +192,7 @@
  * `Splice Chamber.dc.html`, on this file's own convention. */
 .resource-pill .resource-pill__value {
     font-size: 15px;
-    color: var(--ink);
+    color: var(--ink-primary);
 }
 
 /* "/5" - the cap, at --text-secondary and --mute-soft, which is the
@@ -298,7 +298,7 @@
     -unity-text-align: middle-center;
     white-space: normal;
     flex-shrink: 0;
-    color: var(--mute);
+    color: var(--ink-secondary);
     padding-left: var(--gutter);
     padding-right: var(--gutter);
     padding-top: var(--space-2);

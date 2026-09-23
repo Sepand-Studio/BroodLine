@@ -1,5 +1,5 @@
 .allies { flex-grow: 1; }
 .allies .allies__pennant {
     width: 96px; height: 96px;
-    -unity-background-image-tint-color: var(--violet);
+    -unity-background-image-tint-color: var(--action);
 }

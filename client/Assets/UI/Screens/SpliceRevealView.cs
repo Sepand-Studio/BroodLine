@@ -165,7 +165,7 @@ namespace Broodline.UI.Screens
             // never changes, `:40` says which of two things just happened.
             _kicker.text = SpliceRevealScreen.Eyebrow;
 
-            _child = new HeroBand { name = "child" };
+            _child = new HeroBand(tint: HeroBand.Tint.Deep) { name = "child" };
             _child.AddToClassList(ChildUssClassName);
             _child.AddToClassList("reveal-flare");
             _child.Fix(BandHeight);

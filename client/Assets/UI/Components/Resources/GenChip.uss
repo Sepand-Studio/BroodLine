@@ -8,7 +8,7 @@
  *
  * 1. COLOUR DOES NOT REACH A CHILD LABEL. `.chip` sets `color:
  *    var(--violet-text)` on the chip element, and colour is inherited - but
- *    Theme.uss also sets `Label { color: var(--ink); }`, and a rule that
+ *    Theme.uss also sets `Label { color: var(--ink-primary); }`, and a rule that
  *    applies DIRECTLY to an element beats a value inherited into it however
  *    specific the ancestor's rule was. So a Label inside a chip is --ink
  *    unless its own rule says otherwise. Measured the same way `TraitPip`

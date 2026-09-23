@@ -20,6 +20,6 @@
     padding-left: var(--space-4);
     padding-right: var(--space-4);
 }
-.abandoned-wave-sheet__eyebrow { color: var(--mute); margin-bottom: var(--space-1); }
+.abandoned-wave-sheet__eyebrow { color: var(--ink-secondary); margin-bottom: var(--space-1); }
 .abandoned-wave-sheet__headline { margin-bottom: var(--space-2); }
-.abandoned-wave-sheet__body { color: var(--ink); white-space: normal; margin-bottom: var(--space-4); }
+.abandoned-wave-sheet__body { color: var(--ink-primary); white-space: normal; margin-bottom: var(--space-4); }

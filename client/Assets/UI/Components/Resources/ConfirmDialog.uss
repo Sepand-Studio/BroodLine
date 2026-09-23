@@ -33,14 +33,14 @@
 .confirm-dialog__title {
     font-size: var(--text-section);
     -unity-font-style: bold;
-    color: var(--ink);
+    color: var(--ink-primary);
     white-space: normal;
 }
 
 .confirm-dialog__body {
     margin-top: var(--space-2);
     font-size: var(--text-body);
-    color: var(--mute);
+    color: var(--ink-secondary);
     white-space: normal;
 }
 

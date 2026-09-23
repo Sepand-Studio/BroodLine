@@ -77,7 +77,7 @@
 }
 
 .inheritance-bar__trait {
-    color: var(--ink);
+    color: var(--ink-primary);
     flex-shrink: 1;
 }
 
@@ -88,7 +88,7 @@
  * place StatCell declined to make it. */
 .inheritance-bar .inheritance-bar__odds {
     font-size: var(--text-card-title);
-    color: var(--ink);
+    color: var(--ink-primary);
 }
 
 /* The DOM/REC tag. `.chip` from Theme.uss gives it the shape; these give it
@@ -118,7 +118,7 @@
 .inheritance-bar__dot--amber  { background-color: var(--amber-text); }
 .inheritance-bar__dot--violet { background-color: var(--violet-text); }
 .inheritance-bar__dot--green  { background-color: var(--green-text); }
-.inheritance-bar__dot--mute   { background-color: var(--mute); }
+.inheritance-bar__dot--mute   { background-color: var(--ink-secondary); }
 
 .inheritance-bar .inheritance-bar__tag--teal   { background-color: var(--teal-tint);   color: var(--teal-text); }
 .inheritance-bar .inheritance-bar__tag--coral  { background-color: var(--coral-tint);  color: var(--coral-text); }
@@ -133,4 +133,4 @@
  * had one - so the row that is supposed to say "this trait is recessive"
  * instead said "this row is unfinished". --hairline is the token whose job
  * is exactly an edge that has to be visible on white. */
-.inheritance-bar .inheritance-bar__tag--mute   { background-color: var(--hairline);    color: var(--ink); }
+.inheritance-bar .inheritance-bar__tag--mute   { background-color: var(--hairline);    color: var(--ink-primary); }

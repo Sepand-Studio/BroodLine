@@ -22,7 +22,7 @@
 .timer-chip__time {
     font-size: var(--text-secondary);
     -unity-font-style: bold;
-    color: var(--ink);
+    color: var(--ink-primary);
 }
 
 .timer-chip.expired .timer-chip__time {

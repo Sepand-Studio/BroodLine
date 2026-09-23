@@ -62,7 +62,7 @@
 /* Width is set inline, in percent, by ProgressBar.Fill. */
 .progress-bar__fill {
     flex-shrink: 0;
-    background-color: var(--violet);
+    background-color: var(--action);
 }
 
 /* The other five families the handoff fills these bars with. Counted over

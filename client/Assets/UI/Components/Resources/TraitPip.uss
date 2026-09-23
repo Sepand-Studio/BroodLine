@@ -27,7 +27,7 @@
     width: 8px;
     height: 8px;
     border-radius: 4px;
-    background-color: var(--violet);
+    background-color: var(--action);
     margin-right: 5px;
 }
 

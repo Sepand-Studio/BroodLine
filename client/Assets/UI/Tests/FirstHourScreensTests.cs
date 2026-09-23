@@ -1038,6 +1038,20 @@ namespace Broodline.UI.Tests
         }
 
         [Test]
+        public void CampaignSelect_SaysTheFrontierIsHeldOnceEveryWaveIsCleared()
+        {
+            var view = new CampaignSelectView();
+            view.Bind(new[] { 1, 2, 6 }, highestWaveCleared: 6, onPick: _ => { });
+            var held = view.Q<OptionRow>(CampaignSelectScreen.HeldName);
+            Assert.IsNotNull(held, "a cleared campaign says so");
+            Assert.AreEqual(CampaignSelectScreen.HeldLabel, held.Q<Label>("title").text);
+
+            var open = new CampaignSelectView();
+            open.Bind(new[] { 1, 2, 6 }, highestWaveCleared: 2, onPick: _ => { });
+            Assert.IsNull(open.Q<OptionRow>(CampaignSelectScreen.HeldName), "not while a wave is still next");
+        }
+
+        [Test]
         public void CampaignSelect_LocksEverythingPastTheNextWave()
         {
             var view = BoundCampaign(highestWaveCleared: 2);

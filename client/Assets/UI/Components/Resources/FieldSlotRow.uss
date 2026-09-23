@@ -63,12 +63,12 @@
 .field-slot-row__label {
     flex-grow: 1;
     flex-shrink: 1;
-    color: var(--mute);
+    color: var(--ink-secondary);
     font-size: var(--text-secondary);
 }
 
 .field-slot-row--filled .field-slot-row__label {
-    color: var(--ink);
+    color: var(--ink-primary);
 }
 
 /* A filled pocket's badge takes the violet tint, so the letter reads as
@@ -82,5 +82,5 @@
  * does not change - only its colour - so nothing reflows on selection. */
 .field-slot-row--selected {
     background-color: var(--surface);
-    border-color: var(--ring);
+    border-color: var(--selection);
 }

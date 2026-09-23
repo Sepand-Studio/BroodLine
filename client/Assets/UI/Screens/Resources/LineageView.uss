@@ -63,8 +63,8 @@
     border-left-color: var(--divider);
 }
 
-.node.founder  { border-left-color: var(--amber); }
-.node.mutated  { border-left-color: var(--violet); }
+.node.founder  { border-left-color: var(--reward); }
+.node.mutated  { border-left-color: var(--action); }
 
 /* THE SECOND CHANNEL. bible 10.4 - "Colour never carries information alone."
  * The two rules above are 3px of colour on a tile that draws no creature, so
@@ -105,7 +105,7 @@
 .node__mark {
     font-size: var(--text-secondary);
     -unity-font-style: bold;
-    color: var(--ink);
+    color: var(--ink-primary);
     margin-right: var(--space-2);
 }
 

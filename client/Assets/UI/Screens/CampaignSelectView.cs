@@ -55,6 +55,7 @@ namespace Broodline.UI.Screens
         /// rather than typed as a literal at the two places that need it -
         /// this file and the stylesheet - on `SectionCard`'s convention.
         public const string ClearedChipUssClassName = "campaign-select-view__cleared";
+        public const string HeldUssClassName = "campaign-select-view__held";
 
         readonly VisualElement _waves;
         readonly ScreenScaffold _scaffold;
@@ -134,6 +135,15 @@ namespace Broodline.UI.Screens
             // is left, and it is safe here because every `Bind` clears the
             // list and rebuilds it, so no row can keep a cancellation it is
             // no longer entitled to.
+            if (CampaignSelectScreen.AllCleared(waves, highestWaveCleared))
+            {
+                var held = new OptionRow(CampaignSelectScreen.HeldLabel, CampaignSelectScreen.HeldDetail, null)
+                    { name = CampaignSelectScreen.HeldName };
+                held.AddToClassList(HeldUssClassName);
+                _waves.Add(held);
+                last = held;
+            }
+
             if (last != null) last.style.marginBottom = 0;
         }
 

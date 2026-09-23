@@ -22,7 +22,7 @@
 .notice-toast__rows { flex-direction: column; }
 
 .notice-toast__row {
-    background-color: var(--ink-deep);
+    background-color: var(--surface-deep);
     color: var(--surface);
     border-radius: var(--radius-row);
     padding-top: var(--space-3);

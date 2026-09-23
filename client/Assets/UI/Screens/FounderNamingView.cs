@@ -194,7 +194,7 @@ namespace Broodline.UI.Screens
             // getting that wrong is what cost Task 14b a capture, and
             // `HeroBand.Fill` is where that knowledge now lives so that no
             // screen has to carry it again.
-            var hero = new HeroBand();
+            var hero = new HeroBand(tint: HeroBand.Tint.Deep);
             hero.Fill(BandFloor);
             hero.Subject.Add(_founder);
 

@@ -1215,7 +1215,7 @@ namespace Broodline.Game
                 // for no gain.
                 try
                 {
-                    if (_studio != null) _studio.Clear();
+                    if (_studio != null) _studio.ClearLater();
                 }
                 catch (Exception error)
                 {
@@ -1371,7 +1371,7 @@ namespace Broodline.Game
                 // own note has the long form.
                 try
                 {
-                    if (_studio != null) _studio.Clear();
+                    if (_studio != null) _studio.ClearLater();
                 }
                 catch (Exception error)
                 {
