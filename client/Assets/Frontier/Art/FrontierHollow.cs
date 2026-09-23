@@ -44,14 +44,18 @@ namespace Broodline.Frontier
             b.Sphere(new Vector3(.70f,1.16f,0),new Vector3(.24f,.15f,.15f),violet,20,10);
             var muzzle=new Vector3(.89f,1.10f,0);var mr=new Vector3(.16f,.06f,.105f);
             b.Polish=.10f;b.Sphere(muzzle,mr,pale,16,8);Smile(b,muzzle,mr,.065f);
-            b.Sphere(new Vector3(1.04f,1.12f,0),new Vector3(.025f,.016f,.028f),dark,8,5);
+            Nose(b,new Vector3(1.035f,1.125f,0),new Vector3(.037f,.022f,.051f),deep,dark);
             b.Polish=.16f;
             b.Sphere(new Vector3(.80f,1.27f,0),new Vector3(.14f,.045f,.15f),deep,14,6);
             Eyes(b,Rig,.070f,violet,Hex("#b9c26a"));
             b.Bone=2;b.Polish=.16f;
             for(int side=-1;side<=1;side+=2)
+            {
                 b.Sweep(new[]{new Vector3(.62f,1.28f,side*.05f),new Vector3(.50f,1.42f,side*.09f),new Vector3(.36f,1.50f,side*.13f)},
                     new[]{new Vector2(.035f,.025f),new Vector2(.025f,.018f),new Vector2(.005f,.005f)},plume,8);
+                b.Sweep(new[]{new Vector3(.56f,1.37f,side*.09f),new Vector3(.45f,1.46f,side*.12f),new Vector3(.37f,1.50f,side*.135f)},
+                    new[]{new Vector2(.009f,.007f),new Vector2(.007f,.005f),new Vector2(.002f,.002f)},pale,6);
+            }
             // Stilt legs: thigh, a rounded knee, a dark sock down to long toes.
             for(int hip=3;hip<=5;hip+=2)
             {
@@ -62,7 +66,12 @@ namespace Broodline.Frontier
                 var ankle=new Vector3(-.09f,.075f,side*.18f);
                 b.Cone(Rig.Bones[knee].Position,ankle,.044f,.034f,dark,12);
                 b.Sphere(ankle+new Vector3(.03f,-.03f,0),new Vector3(.11f,.04f,.06f),dark,12,7);
-                for(int toe=-1;toe<=1;toe++) b.Cone(ankle+new Vector3(.02f,-.03f,0),new Vector3(.16f,.02f,side*.18f+toe*.055f),.022f,.008f,dark,8);
+                for(int toe=-1;toe<=1;toe++)
+                {
+                    var tip=new Vector3(.16f,.02f,side*.18f+toe*.055f);
+                    b.Cone(ankle+new Vector3(.02f,-.03f,0),tip,.022f,.012f,dark,8);
+                    Nail(b,tip,new Vector3(.045f,-.025f,toe*.007f),.010f,pale);
+                }
                 b.Cone(ankle+new Vector3(-.02f,-.03f,0),new Vector3(-.16f,.02f,side*.18f),.018f,.006f,dark,8);
             }
             b.Bone=0;b.Polish=.16f;

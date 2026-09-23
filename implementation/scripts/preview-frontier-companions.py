@@ -7,6 +7,9 @@ import subprocess
 import tempfile
 
 root = Path(__file__).resolve().parents[2]
+art_root = root / 'client/Assets/Frontier/Art'
+if not art_root.is_dir():
+    art_root = root / 'client/Assets/Frontier'
 runtime = Path('/Library/Frameworks/Mono.framework/Versions/Current')
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--mono', default=str(runtime / 'Commands/mono'))
@@ -43,7 +46,7 @@ with tempfile.TemporaryDirectory(prefix='frontier-companions-') as temp:
     subprocess.run([args.mono, args.csc, '-nologo', '-langversion:preview', '-r:System.Numerics.dll', '-r:System.Web.Extensions.dll',
                     '-out:' + str(executable), str(temp / 'Baseline.cs'), str(temp / 'BaselineVetch.cs'),
                     str(root / 'implementation/tools/FrontierUnityMath.cs'), str(root / 'implementation/tools/FrontierCompanionExport.cs'),
-                    *[str(root / ('client/Assets/Frontier/Art/' + n + '.cs')) for n in names]], check=True)
+                    *[str(art_root / (n + '.cs')) for n in names]], check=True)
     geometry = temp / 'cast.json'
     subprocess.run([args.mono, str(executable), str(geometry)], check=True)
     cast = json.loads(geometry.read_text())

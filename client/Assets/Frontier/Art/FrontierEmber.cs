@@ -3,7 +3,7 @@ using static Broodline.Frontier.FrontierFace;
 
 namespace Broodline.Frontier
 {
-    /// EMBER, REVISION 02 - Phase 10 Batch 2. The tall narrow biped kept; a
+    /// EMBER, REVISION 03 - Phase 10 Batch 2. The tall narrow biped kept; a
     /// real neck under a sleeker head; a swept flame mane that runs from the
     /// brow over the crown and down the nape as one shape rather than three
     /// blades; a cream chest and throat; a long tapered tail for balance; and
@@ -18,7 +18,7 @@ namespace Broodline.Frontier
             Bone("leg-l",0,-.03f,.42f,.17f,FrontierBoneRole.Leg,1),Bone("knee-l",3,.06f,.21f,.19f,FrontierBoneRole.Knee,1),
             Bone("leg-r",0,-.03f,.42f,-.17f,FrontierBoneRole.Leg,-1,Mathf.PI),Bone("knee-r",5,.06f,.21f,-.19f,FrontierBoneRole.Knee,-1,Mathf.PI),
             Bone("arm-l",0,.07f,.82f,.22f,FrontierBoneRole.Arm,1),Bone("arm-r",0,.07f,.82f,-.22f,FrontierBoneRole.Arm,-1),
-            Bone("eye-l",2,.37f,1.19f,-.165f,FrontierBoneRole.Eye,-1),Bone("eye-r",2,.37f,1.19f,.165f,FrontierBoneRole.Eye,1)
+            Bone("eye-l",2,.405f,1.205f,-.115f,FrontierBoneRole.Eye,-1),Bone("eye-r",2,.405f,1.205f,.115f,FrontierBoneRole.Eye,1)
         },Socket(0,-.22f,.90f,0,.70f),Socket(0,-.09f,.62f,-.255f,.62f,true),Socket(2,.30f,1.36f,0,.42f),new Vector3(.16f,.15f,.14f));
 
         public static void Build(FrontierMesh b)
@@ -51,17 +51,29 @@ namespace Broodline.Frontier
             b.Polish=.09f;
             b.Sphere(new Vector3(.16f,.98f,0),new Vector3(.07f,.11f,.09f),cream,12,8);
 
-            // Head: sleek, a broad cream muzzle, expressive eyes with brows.
+            // A narrow wedge and long upper snout distinguish Ember from the
+            // founder's broad inset face and Loam's flat, low head.
             b.Bone=2;b.Polish=.12f;
-            b.Sphere(new Vector3(.22f,1.15f,0),new Vector3(.215f,.185f,.185f),coral,22,12);
-            var muzzle=new Vector3(.40f,1.07f,0);var mr=new Vector3(.17f,.09f,.135f);
-            b.Polish=.09f;b.Sphere(muzzle,mr,cream,18,10);
-            Smile(b,muzzle,mr,.10f);
-            for(int side=-1;side<=1;side+=2) b.Sphere(new Vector3(.545f,1.095f,side*.05f),new Vector3(.012f,.010f,.016f),deep,8,5);
-            Eyes(b,Rig,.10f,coral,Hex("#c58730"));
-            // Cheek flush: two soft spots that read as warmth, not freckles.
+            b.Sphere(new Vector3(.22f,1.16f,0),new Vector3(.195f,.165f,.145f),coral,20,10);
+            b.Sweep(new[]{new Vector3(.29f,1.135f,0),new Vector3(.43f,1.12f,0),
+                    new Vector3(.56f,1.105f,0),new Vector3(.64f,1.083f,0)},
+                new[]{new Vector2(.088f,.108f),new Vector2(.072f,.085f),
+                    new Vector2(.048f,.061f),new Vector2(.014f,.023f)},coral,10);
+            b.Polish=.09f;
+            b.Sweep(new[]{new Vector3(.30f,1.06f,0),new Vector3(.45f,1.04f,0),
+                    new Vector3(.56f,1.033f,0),new Vector3(.625f,1.054f,0)},
+                new[]{new Vector2(.060f,.090f),new Vector2(.052f,.076f),
+                    new Vector2(.037f,.052f),new Vector2(.008f,.012f)},cream,10);
+            for(int side=-1;side<=1;side+=2)
+            {
+                b.Cone(new Vector3(.39f,1.026f,side*.080f),new Vector3(.55f,1.017f,side*.052f),.006f,.003f,deep,6);
+                b.Sphere(new Vector3(.645f,1.079f,side*.021f),new Vector3(.010f,.007f,.010f),deep,8,5);
+            }
+            AlertEyes(b,Rig,shade,Hex("#c58730"));
+            // Small cheek planes keep the eye area expressive without adding a
+            // round muzzle pad.
             b.Bone=2;b.Polish=.12f;
-            for(int side=-1;side<=1;side+=2) b.Sphere(new Vector3(.31f,1.08f,side*.175f),new Vector3(.045f,.035f,.02f),shade,10,6);
+            for(int side=-1;side<=1;side+=2) b.Sphere(new Vector3(.31f,1.09f,side*.132f),new Vector3(.046f,.026f,.014f),shade,10,6);
 
             // The mane: one swept flame from the brow over the crown and down the
             // nape, built from overlapping blades so it reads as a single crest.
@@ -85,7 +97,8 @@ namespace Broodline.Frontier
                     new[]{new Vector2(.085f,.08f),new Vector2(.06f,.055f),new Vector2(.045f,.045f)},coral,10);
                 var hand=s+new Vector3(.20f,-.175f,side*.10f);
                 b.Polish=.09f;b.Sphere(hand,new Vector3(.075f,.055f,.065f),cream,12,7);b.Polish=.12f;
-                for(int finger=-1;finger<=1;finger++) b.Cone(hand+new Vector3(.05f,0,finger*.03f),hand+new Vector3(.11f,-.02f,finger*.04f),.014f,.005f,claw,6);
+                for(int finger=-1;finger<=1;finger++)
+                    Nail(b,hand+new Vector3(.055f,.006f,finger*.032f),new Vector3(.065f,-.018f,finger*.012f),.012f,claw);
             }
 
             // Legs: thigh, knee, shin, and a planted foot with three toes and claws.
@@ -106,7 +119,7 @@ namespace Broodline.Frontier
                 {
                     var tip=ankle+new Vector3(.30f,-.03f,toe*.075f);
                     b.Sphere(ankle+new Vector3(.24f,-.025f,toe*.07f),new Vector3(.075f,.038f,.036f),cream,10,6);
-                    b.Cone(tip,tip+new Vector3(.055f,-.01f,toe*.01f),.022f,.004f,claw,6);
+                    Nail(b,tip,new Vector3(.065f,-.008f,toe*.012f),.019f,claw);
                 }
                 b.Sphere(ankle+new Vector3(-.10f,-.02f,0),new Vector3(.06f,.035f,.05f),shade,8,5);
             }

@@ -49,13 +49,15 @@ namespace Broodline.Frontier
             b.Sphere(new Vector3(.31f,.48f,0),new Vector3(.20f,.165f,.18f),amber,18,10);
             var muzzle=new Vector3(.46f,.415f,0);var mr=new Vector3(.115f,.06f,.12f);
             b.Polish=.10f;b.Sphere(muzzle,mr,light,14,8);Smile(b,muzzle,mr,.075f);
-            b.Sphere(new Vector3(.575f,.44f,0),new Vector3(.028f,.02f,.03f),paw,8,5);
+            Nose(b,new Vector3(.570f,.445f,0),new Vector3(.041f,.027f,.054f),dark,paw);
             Eyes(b,Rig,.078f,amber,Hex("#7a4f24"));
             b.Bone=1;b.Polish=.14f;
             for(int side=-1;side<=1;side+=2)
             {
                 b.Sweep(new[]{new Vector3(.24f,.60f,side*.11f),new Vector3(.18f,.72f,side*.16f),new Vector3(.14f,.80f,side*.19f)},
                     new[]{new Vector2(.05f,.035f),new Vector2(.035f,.025f),new Vector2(.006f,.006f)},saddle,8);
+                b.Sweep(new[]{new Vector3(.22f,.66f,side*.145f),new Vector3(.18f,.73f,side*.173f),new Vector3(.16f,.76f,side*.182f)},
+                    new[]{new Vector2(.020f,.012f),new Vector2(.013f,.009f),new Vector2(.003f,.003f)},light,6);
                 b.Sphere(new Vector3(.36f,.44f,side*.16f),new Vector3(.04f,.03f,.02f),saddle,8,5);
             }
             // Six legs: shoulder pad, thigh, knee, shin, paw with three toes.
@@ -69,7 +71,12 @@ namespace Broodline.Frontier
                 b.Sphere(knee,Vector3.one*.06f,dark,10,6);b.Bone=i+1;
                 b.Sweep(new[]{knee,foot+Vector3.up*.02f},new[]{new Vector2(.040f,.036f),new Vector2(.028f,.026f)},dark,10);
                 b.Sphere(foot,new Vector3(.06f,.035f,.05f),paw,10,6);
-                for(int toe=-1;toe<=1;toe++) b.Sphere(foot+new Vector3(.05f,-.005f,toe*.03f+side*.01f),new Vector3(.03f,.02f,.018f),paw,8,5);
+                for(int toe=-1;toe<=1;toe++)
+                {
+                    var tip=foot+new Vector3(.05f,-.005f,toe*.032f+side*.01f);
+                    b.Sphere(tip,new Vector3(.034f,.022f,.019f),paw,8,5);
+                    Nail(b,tip+new Vector3(.027f,.003f,0),new Vector3(.038f,-.005f,toe*.005f),.009f,light,true);
+                }
             }
             b.Bone=0;b.Polish=.16f;
         }

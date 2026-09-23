@@ -27,13 +27,15 @@ public static class ProductionBaselineExport
         Directory.CreateDirectory(outDir);
         foreach (var species in new[] { "vetch", "ember", "pale", "skitter", "hollow", "loam" })
         {
+            var outputPath = Path.Combine(outDir, species + "-baseline.json");
+            if (File.Exists(outputPath)) { Debug.Log("[baseline] preserving frozen " + species); continue; }
             var prefab = CreatureLibrary.BodyPrefab(species);
             if (prefab == null) { Debug.LogWarning("[baseline] no production body for " + species); continue; }
             var instance = Object.Instantiate(prefab);
             try
             {
                 var json = Flatten(instance);
-                File.WriteAllText(Path.Combine(outDir, species + "-baseline.json"), json);
+                File.WriteAllText(outputPath, json);
                 Debug.Log("[baseline] wrote " + species);
             }
             finally { Object.DestroyImmediate(instance); }
@@ -58,12 +60,13 @@ public static class ProductionBaselineExport
                 else if (material.HasProperty("_Color")) tint = material.color;
             }
             var toRoot = root.transform.worldToLocalMatrix * r.transform.localToWorldMatrix;
+            var normalMatrix = toRoot.inverse.transpose;
             int offset = positions.Count / 3;
             var v = mesh.vertices; var n = mesh.normals; var c = mesh.colors;
             for (int i = 0; i < v.Length; i++)
             {
                 var p = toRoot.MultiplyPoint3x4(v[i]); positions.Add(p.x); positions.Add(p.y); positions.Add(p.z);
-                var nn = (n.Length == v.Length ? toRoot.MultiplyVector(n[i]) : Vector3.up).normalized;
+                var nn = (n.Length == v.Length ? normalMatrix.MultiplyVector(n[i]) : Vector3.up).normalized;
                 normals.Add(nn.x); normals.Add(nn.y); normals.Add(nn.z);
                 var col = c.Length == v.Length ? c[i] * tint : tint;
                 colors.Add(col.r); colors.Add(col.g); colors.Add(col.b);

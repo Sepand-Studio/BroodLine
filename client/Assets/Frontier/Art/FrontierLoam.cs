@@ -3,7 +3,7 @@ using static Broodline.Frontier.FrontierFace;
 
 namespace Broodline.Frontier
 {
-    /// LOAM, REVISION 02 - Phase 10 Batch 2. The gentle, legless ground-hugger:
+    /// LOAM, REVISION 03 - Phase 10 Batch 2. The gentle, legless ground-hugger:
     /// five connected segments that taper from a broad chest to a rounded tail,
     /// each with a raised dorsal fold that covers the seam to the next, a warm
     /// cream underside band, a lighter mossy back with darker spots, and a
@@ -15,7 +15,7 @@ namespace Broodline.Frontier
             Bone("root",-1,0,0,0,FrontierBoneRole.Root),Bone("middle",0,0,.25f,0,FrontierBoneRole.Segment,0,0),
             Bone("rear",1,-.33f,.22f,0,FrontierBoneRole.Segment,0,-.8f),Bone("tail",2,-.62f,.19f,0,FrontierBoneRole.Segment,0,-1.6f),
             Bone("front",1,.33f,.27f,0,FrontierBoneRole.Segment,0,.8f),Bone("head",4,.66f,.27f,0,FrontierBoneRole.Head),
-            Bone("eye-l",5,.86f,.37f,-.17f,FrontierBoneRole.Eye,-1),Bone("eye-r",5,.86f,.37f,.17f,FrontierBoneRole.Eye,1)
+            Bone("eye-l",5,.78f,.46f,-.25f,FrontierBoneRole.Eye,-1),Bone("eye-r",5,.78f,.46f,.25f,FrontierBoneRole.Eye,1)
         },Socket(1,-.08f,.55f,0,.64f),Socket(1,.06f,.30f,-.34f,.55f,true),Socket(5,.78f,.50f,0,.4f),new Vector3(.20f,.16f,.20f));
 
         public static void Build(FrontierMesh b)
@@ -47,19 +47,28 @@ namespace Broodline.Frontier
             // The tail end: a rounded cap behind the last segment.
             b.Bone=3;b.Polish=.10f;
             b.Sphere(Rig.Bones[3].Position+new Vector3(-.20f,-.02f,0),new Vector3(.14f,.16f,.20f),moss,12,8);
-            // Head: broad and low, a blunt wide snout, heavy kind brows, big eyes.
+            // A flattened head flows into the first body fold. Raised eye humps
+            // and a wide two-layer lip replace the founder's round face/chin.
             b.Bone=5;b.Polish=.10f;
-            b.Sphere(new Vector3(.66f,.28f,0),new Vector3(.32f,.245f,.30f),moss,18,10);
+            b.Sphere(new Vector3(.64f,.24f,0),new Vector3(.37f,.175f,.36f),moss,18,10);
             b.Polish=.14f;
-            b.Sphere(new Vector3(.62f,.40f,0),new Vector3(.26f,.15f,.27f),back,14,7,upperOnly:true);
-            var muzzle=new Vector3(.86f,.19f,0);var mr=new Vector3(.20f,.115f,.245f);
-            b.Polish=.08f;b.Sphere(muzzle,mr,cream,18,10);Smile(b,muzzle,mr,.16f);
-            for(int side=-1;side<=1;side+=2) b.Sphere(new Vector3(1.03f,.25f,side*.07f),new Vector3(.012f,.010f,.016f),shadow,8,5);
-            Eyes(b,Rig,.085f,moss,Hex("#8d7346"));
-            // Heavy brows: a thick ridge over each eye, drooping outward.
+            b.Sphere(new Vector3(.61f,.34f,0),new Vector3(.30f,.115f,.32f),back,14,7,upperOnly:true);
+            b.Polish=.08f;
+            b.Sphere(new Vector3(.87f,.105f,0),new Vector3(.22f,.072f,.285f),cream,18,8);
+            b.Sphere(new Vector3(.89f,.193f,0),new Vector3(.23f,.075f,.305f),moss,18,8);
+            for(int side=-1;side<=1;side+=2)
+            {
+                b.Sphere(new Vector3(.68f,.407f,side*.25f),new Vector3(.14f,.095f,.13f),moss,12,8);
+                b.Sphere(new Vector3(1.075f,.23f,side*.13f),new Vector3(.038f,.026f,.052f),back,10,6);
+                b.Sphere(new Vector3(1.108f,.237f,side*.135f),new Vector3(.012f,.009f,.014f),shadow,8,5);
+                b.Cone(new Vector3(1.025f,.125f,side*.12f),new Vector3(.975f,.14f,side*.22f),.006f,.003f,shadow,6);
+            }
+            Eyes(b,Rig,.07f,moss,Hex("#8d7346"));
+            // Soft upper lids cap the raised eyes instead of continuing the
+            // founder's long horizontal brow.
             b.Bone=5;b.Polish=.10f;
             for(int side=-1;side<=1;side+=2)
-                b.Sphere(new Vector3(.82f,.475f,side*.17f),new Vector3(.11f,.045f,.11f),back,10,6,Quaternion.Euler(side*10,0,-8));
+                b.Sphere(new Vector3(.76f,.523f,side*.25f),new Vector3(.10f,.034f,.11f),back,10,6,Quaternion.Euler(side*10,0,-8));
             b.Bone=0;b.Polish=.10f;
         }
     }

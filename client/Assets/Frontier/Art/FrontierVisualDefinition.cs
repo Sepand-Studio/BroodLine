@@ -56,14 +56,14 @@ namespace Broodline.Frontier
         {
             var d = new Dictionary<string, FrontierVisualDefinition>();
             void Add(FrontierVisualDefinition v) => d[v.Id] = v;
-            // Revisions: Vetch is the accepted reference (revision 02, 2026-09-23);
-            // the other five start at 1 and step with each accepted redesign.
+            // Revisions invalidate cached portraits whenever authored mesh
+            // geometry changes. Vetch remains the accepted revision 02 reference.
             Add(new FrontierVisualDefinition("vetch", FrontierKind.Companion, FrontierRigDefinition.For("vetch"), FrontierVetch.Build, new FrontierPortrait(-32, 12, .12f), 0, 1, 2));
-            Add(new FrontierVisualDefinition("ember", FrontierKind.Companion, FrontierEmber.Rig, FrontierEmber.Build, new FrontierPortrait(-30, 8, .14f), 0, 1, 1));
-            Add(new FrontierVisualDefinition("pale", FrontierKind.Companion, FrontierPale.Rig, FrontierPale.Build, new FrontierPortrait(-38, 14, .10f), 0, 1, 1));
-            Add(new FrontierVisualDefinition("skitter", FrontierKind.Companion, FrontierSkitter.Rig, FrontierSkitter.Build, new FrontierPortrait(-34, 16, .14f), 0, 1, 1));
-            Add(new FrontierVisualDefinition("hollow", FrontierKind.Companion, FrontierHollow.Rig, FrontierHollow.Build, new FrontierPortrait(-30, 8, .12f), 0, 1, 1));
-            Add(new FrontierVisualDefinition("loam", FrontierKind.Companion, FrontierLoam.Rig, FrontierLoam.Build, new FrontierPortrait(-36, 18, .12f), 0, 1, 1));
+            Add(new FrontierVisualDefinition("ember", FrontierKind.Companion, FrontierEmber.Rig, FrontierEmber.Build, new FrontierPortrait(-30, 8, .14f), 0, 1, 3));
+            Add(new FrontierVisualDefinition("pale", FrontierKind.Companion, FrontierPale.Rig, FrontierPale.Build, new FrontierPortrait(-38, 14, .10f), 0, 1, 2));
+            Add(new FrontierVisualDefinition("skitter", FrontierKind.Companion, FrontierSkitter.Rig, FrontierSkitter.Build, new FrontierPortrait(-34, 16, .14f), 0, 1, 2));
+            Add(new FrontierVisualDefinition("hollow", FrontierKind.Companion, FrontierHollow.Rig, FrontierHollow.Build, new FrontierPortrait(-30, 8, .12f), 0, 1, 2));
+            Add(new FrontierVisualDefinition("loam", FrontierKind.Companion, FrontierLoam.Rig, FrontierLoam.Build, new FrontierPortrait(-36, 18, .12f), 0, 1, 3));
             foreach (var raider in new[] { "courser", "skirmisher", "lash" })
             {
                 var id = raider;

@@ -36,7 +36,8 @@ namespace Broodline.Frontier
                     new[]{new Vector2(.03f,.018f),new Vector2(.02f,.012f),new Vector2(.005f,.005f)},slate,8);
                 // Tucked feet under the belly.
                 b.Sphere(new Vector3(.05f,.27f,side*.11f),new Vector3(.07f,.035f,.045f),slate,8,5);
-                for(int toe=-1;toe<=1;toe++) b.Cone(new Vector3(.08f,.26f,side*.11f+toe*.02f),new Vector3(.15f,.245f,side*.12f+toe*.03f),.012f,.004f,slate,6);
+                for(int toe=-1;toe<=1;toe++)
+                    Nail(b,new Vector3(.08f,.26f,side*.11f+toe*.02f),new Vector3(.07f,-.013f,side*.01f+toe*.01f),.011f,slate);
             }
 
             // Wings: the membrane, its dark leading spar blended shoulder→tip, the wrist, and finger spars.
@@ -64,6 +65,20 @@ namespace Broodline.Frontier
                     b.BoneBlend=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.40f,.90f,t0));
                     b.Cone(from,to,.020f,.006f,dark,6);
                 }
+                // Fine blue veins sit just above the upper membrane, following
+                // the same skin blend as the wing beneath them.
+                b.Polish=.15f;
+                for(int f=0;f<3;f++)
+                {
+                    float t=.24f+f*.20f;
+                    b.BoneBlend=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.40f,.90f,t));
+                    var a=MembranePoint(side,t,.18f);
+                    var middle=MembranePoint(side,t+.055f,.48f);
+                    var end=MembranePoint(side,t+.12f,.84f);
+                    var vein=Color.Lerp(frost,dark,.30f);
+                    b.Cone(a,middle,.009f,.007f,vein,6);
+                    b.Cone(middle,end,.007f,.002f,vein,6);
+                }
                 b.SecondBone=-1;b.BoneBlend=0;
             }
 
@@ -76,7 +91,7 @@ namespace Broodline.Frontier
             Eyes(b,Rig,.090f,frost,Hex("#5c74bd"));
             Smile(b,new Vector3(.46f,.48f,0),new Vector3(.155f,.075f,.16f),.09f);
             b.Bone=1;b.Polish=.14f;
-            for(int side=-1;side<=1;side+=2) b.Sphere(new Vector3(.58f,.50f,side*.045f),new Vector3(.01f,.009f,.014f),slate,8,5);
+            Nose(b,new Vector3(.60f,.515f,0),new Vector3(.044f,.026f,.070f),slate,mask);
             // Two small ear tufts, dark, so the head has a silhouette of its own.
             for(int side=-1;side<=1;side+=2)
                 b.Sweep(new[]{new Vector3(.20f,.70f,side*.12f),new Vector3(.13f,.82f,side*.17f),new Vector3(.08f,.90f,side*.20f)},
@@ -92,6 +107,12 @@ namespace Broodline.Frontier
         {
             float leading=.34f-.43f*t*t, trailing=-.40f-.34f*Mathf.Sin(t*Mathf.PI)+.28f*t;
             return new Vector3(trailing+.03f,FrontierMesh.MembraneY(t,1,Rise)+.02f,side*(.15f+1.18f*t));
+        }
+        static Vector3 MembranePoint(float side,float t,float u)
+        {
+            float leading=.34f-.43f*t*t,trailing=-.40f-.34f*Mathf.Sin(t*Mathf.PI)+.28f*t;
+            return new Vector3(Mathf.Lerp(leading,trailing,u),
+                FrontierMesh.MembraneY(t,u,Rise)+.019f+.022f*(1-t),side*(.15f+1.18f*t));
         }
     }
 }

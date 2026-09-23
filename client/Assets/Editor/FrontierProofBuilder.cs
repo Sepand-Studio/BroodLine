@@ -24,7 +24,7 @@ public static class FrontierProofBuilder
     // Unity -batchmode -quit -projectPath client -executeMethod FrontierProofBuilder.Build
     public static void Build()
     {
-        var shader = AssetDatabase.LoadAssetAtPath<Shader>("Assets/Frontier/FrontierSurface.shader");
+        var shader = AssetDatabase.LoadAssetAtPath<Shader>("Assets/Frontier/Art/FrontierSurface.shader");
         var sheet = AssetDatabase.LoadAssetAtPath<StyleSheet>("Assets/Frontier/FrontierProof.uss");
         var existing = AssetDatabase.LoadAssetAtPath<PanelSettings>("Assets/UI/Shell/PanelSettings.asset");
         if (shader == null || ShaderUtil.ShaderHasError(shader) || sheet == null || existing == null)
