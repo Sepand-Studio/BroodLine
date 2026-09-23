@@ -20,14 +20,6 @@ namespace Broodline.Frontier
             Vector3.zero, new Vector3(.5f,.47f,0), new Vector3(.32f,.24f,.32f),
             new Vector3(.32f,.24f,-.32f), new Vector3(-.34f,.24f,.32f), new Vector3(-.34f,.24f,-.32f)
         };
-        static readonly Vector3[] WingBones = {
-            Vector3.zero, new Vector3(.32f,.53f,0), new Vector3(0,.64f,.18f), new Vector3(0,.64f,-.18f)
-        };
-        static readonly Vector3[] EmberBones = {
-            Vector3.zero, new Vector3(.16f,1.01f,0), new Vector3(0,.26f,.16f), new Vector3(0,.26f,-.16f),
-            new Vector3(.15f,.77f,.19f), new Vector3(.15f,.77f,-.19f)
-        };
-
         public FrontierArt(Shader shader)
         {
             if (shader == null) throw new ArgumentNullException(nameof(shader), "Build the Frontier Proof scene to assign its surface shader.");
@@ -36,47 +28,39 @@ namespace Broodline.Frontier
 
         public FrontierCreature Creature(Transform parent, string id, string first = null, string second = null, float phase = 0)
         {
-            var positions = id == "vetch" ? FrontierVetch.BindPositions : id == "pale" ? WingBones : id == "ember" ? EmberBones : GroundBones;
-            int limbEnd = positions.Length;
-            if (id == "vetch" || id == "ember" || id == "pale")
-            {
-                var withEyes = new Vector3[limbEnd + 2]; Array.Copy(positions, withEyes, limbEnd);
-                var center = id == "vetch" ? FrontierVetch.EyeCenter : id == "pale" ? new Vector3(.46f,.59f,0) : new Vector3(.28f,1.065f,0);
-                float spacing = id == "vetch" ? FrontierVetch.EyeSpacing : id == "pale" ? .14f : .145f;
-                withEyes[limbEnd] = center + Vector3.back * spacing;
-                withEyes[limbEnd + 1] = center + Vector3.forward * spacing;
-                positions = withEyes;
-            }
+            var rig = FrontierRigDefinition.For(id);
             string key = "body-" + id;
             if (!_meshes.TryGetValue(key, out var mesh))
             {
                 var author = new FrontierMesh();
                 if (id == "vetch") FrontierVetch.Build(author);
-                else if (id == "pale") Pale(author);
-                else if (id == "ember") Ember(author);
+                else if (id == "pale") FrontierPale.Build(author);
+                else if (id == "ember") FrontierEmber.Build(author);
+                else if (id == "skitter") FrontierSkitter.Build(author);
+                else if (id == "hollow") FrontierHollow.Build(author);
+                else if (id == "loam") FrontierLoam.Build(author);
                 else if (id == "courser" || id == "skirmisher" || id == "lash") Raider(author, id);
                 else throw new ArgumentException("No proof body for " + id);
-                mesh = author.Finish(key, positions); _meshes.Add(key, mesh);
+                mesh = author.FinishRig(key, rig); _meshes.Add(key, mesh);
             }
             var go = new GameObject(id); go.transform.SetParent(parent, false);
-            var bones = new Transform[positions.Length];
+            var bones = new Transform[rig.Bones.Length];
             for (int i = 0; i < bones.Length; i++)
             {
-                bool eye = i >= limbEnd;
-                bones[i] = new GameObject(i == 0 ? "root" : i == 1 ? "head" : eye ? "eye-" + (i - limbEnd) : "limb-" + i).transform;
-                bones[i].SetParent(i == 0 ? go.transform : eye ? bones[1] : bones[0], false);
-                bones[i].localPosition = eye ? positions[i] - positions[1] : positions[i];
+                var definition = rig.Bones[i];
+                bones[i] = new GameObject(definition.Name).transform;
+                bones[i].SetParent(definition.Parent < 0 ? go.transform : bones[definition.Parent], false);
+                bones[i].localPosition = rig.LocalPosition(i);
             }
             var body = new GameObject("body"); body.transform.SetParent(go.transform, false);
             var renderer = body.AddComponent<SkinnedMeshRenderer>();
             renderer.sharedMesh = mesh; renderer.sharedMaterial = _surface;
             renderer.bones = bones; renderer.rootBone = bones[0];
             // Bounds include limb motion and the proof's growth curve.
-            renderer.localBounds = new Bounds(new Vector3(0,.65f,0), new Vector3(3,2.5f,3));
+            renderer.localBounds = new Bounds(mesh.bounds.center * 1.2f, mesh.bounds.size * 1.8f + rig.MotionAllowance * 2);
             var creature = go.AddComponent<FrontierCreature>();
-            creature.Initialize(id, bones, renderer, phase, limbEnd);
-            float partScale = id == "vetch" ? 1f : .8f;
-            Mount(creature.Dorsal, first, partScale); Mount(creature.Flank, second, partScale);
+            creature.Initialize(rig, bones, renderer, phase);
+            Mount(creature.Dorsal, first); Mount(creature.Flank, second);
             var portrait = mesh.bounds;
             foreach (var filter in go.GetComponentsInChildren<MeshFilter>())
             {
@@ -91,7 +75,7 @@ namespace Broodline.Frontier
             return creature;
         }
 
-        void Mount(Transform socket, string trait, float scale)
+        void Mount(Transform socket, string trait)
         {
             if (string.IsNullOrEmpty(trait)) return;
             string key = "part-" + trait;
@@ -102,102 +86,7 @@ namespace Broodline.Frontier
                 mesh = b.Finish(key); _meshes.Add(key, mesh);
             }
             var part = Draw(socket, trait, mesh);
-            part.transform.localScale = Vector3.one * scale;
-        }
-
-        static void Eyes(FrontierMesh b, Vector3 center, float spacing, float size, int eyeStart)
-        {
-            int previousBone = b.Bone;
-            for (int side = -1; side <= 1; side += 2)
-            {
-                b.Bone = eyeStart + (side == -1 ? 0 : 1);
-                var eye = center + new Vector3(0,0,spacing*side);
-                b.Sphere(eye, new Vector3(size*.8f,size,size*.7f), Cream,12,8);
-                b.Sphere(eye+new Vector3(size*.58f,0,side*size*.16f),new Vector3(size*.36f,size*.72f,size*.47f),Gold,12,8);
-                b.Sphere(eye+new Vector3(size*.78f,0,side*size*.2f),new Vector3(size*.23f,size*.55f,size*.34f),Ink,12,8);
-                b.Sphere(eye+new Vector3(size*.91f,size*.28f,side*size*.23f),Vector3.one*size*.17f,Color.white,8,5);
-            }
-            b.Bone = previousBone;
-        }
-
-        static void Pale(FrontierMesh b)
-        {
-            b.Sphere(new Vector3(0,.46f,0),new Vector3(.38f,.22f,.22f),Hex("#7f98b6"));
-            b.Sphere(new Vector3(.08f,.37f,0),new Vector3(.29f,.12f,.17f),Cream);
-            b.Bone=1;
-            b.Sphere(new Vector3(.32f,.53f,0),new Vector3(.22f,.17f,.20f),Frost);
-            Eyes(b,new Vector3(.46f,.59f,0),.14f,.055f,4);
-            FaceDetails(b, new Vector3(.46f,.59f,0), .14f, .055f, Frost, new Vector3(.32f,.53f,0), new Vector3(.22f,.17f,.20f));
-            Smile(b, new Vector3(.32f,.53f,0), new Vector3(.22f,.17f,.20f), .475f, .09f, .018f, .006f);
-            for(int side=-1;side<=1;side+=2)
-            {
-                b.Bone=side==1?2:3; b.Wing(side,Frost);
-                b.Cone(new Vector3(.32f,.66f,side*.12f),new Vector3(-.1f,.96f,side*1.03f),.042f,.018f,Hex("#7f98b6"),8);
-                // Membrane ribs follow each wing bone, preserving the broad wing silhouette.
-                b.Cone(new Vector3(.12f,.79f,side*.35f),new Vector3(-.34f,.76f,side*.7f),.023f,.008f,Hex("#93adca"),6);
-                b.Cone(new Vector3(.04f,.72f,side*.24f),new Vector3(-.52f,.60f,side*.33f),.021f,.006f,Hex("#93adca"),6);
-            }
-        }
-
-        static void Ember(FrontierMesh b)
-        {
-            b.Sphere(new Vector3(0,.66f,0),new Vector3(.22f,.35f,.20f),Coral);
-            b.Sphere(new Vector3(.14f,.63f,0),new Vector3(.1f,.25f,.14f),Cream);
-            b.Cone(new Vector3(-.13f,.42f,0),new Vector3(-.62f,.32f,0),.14f,.015f,Coral);
-            b.Bone=1;
-            b.Sphere(new Vector3(.16f,1.01f,0),new Vector3(.23f,.19f,.19f),Coral);
-            b.Sphere(new Vector3(.31f,.945f,0),new Vector3(.13f,.07f,.14f),Cream);
-            Eyes(b,new Vector3(.28f,1.065f,0),.145f,.065f,6);
-            FaceDetails(b, new Vector3(.28f,1.065f,0), .145f, .065f, Coral, new Vector3(.16f,1.01f,0), new Vector3(.23f,.19f,.19f));
-            Smile(b, new Vector3(.31f,.945f,0), new Vector3(.13f,.07f,.14f), .934f, .08f, .02f, .007f);
-            for(int i=0;i<3;i++) b.Cone(new Vector3(.14f-i*.11f,1.16f-i*.025f,0),new Vector3(.03f-i*.16f,1.45f-i*.1f,0),.075f,.006f,Hex("#eda745"),7);
-            for(int i=2;i<4;i++)
-            {
-                b.Bone=i;var p=EmberBones[i];
-                b.Sphere(p,new Vector3(.12f,.26f,.10f),Coral);
-                b.Sphere(p+new Vector3(.08f,-.18f,0),new Vector3(.19f,.08f,.12f),Ink);
-            }
-            for(int i=4;i<6;i++)
-            {
-                b.Bone=i; var shoulder=EmberBones[i]; float side=i==4?1:-1;
-                var elbow=shoulder+new Vector3(.04f,-.14f,side*.07f);
-                var hand=elbow+new Vector3(.13f,.03f,0);
-                b.Cone(shoulder,elbow,.067f,.05f,Coral,8);
-                b.Cone(elbow,hand,.05f,.04f,Coral,8);
-                b.Sphere(hand,new Vector3(.065f,.05f,.06f),Cream,10,6);
-            }
-        }
-
-        static void FaceDetails(FrontierMesh b, Vector3 eyes, float spacing, float size, Color skin, Vector3 head, Vector3 radius)
-        {
-            // Weighted to the head, so brows/cheeks stay put when the eye bones blink.
-            for(int side=-1;side<=1;side+=2)
-            {
-                var center=eyes+new Vector3(0,0,side*spacing);
-                b.Sphere(center+new Vector3(-size*.2f,size*1.04f,0),new Vector3(size*.8f,size*.24f,size*.65f),Color.Lerp(skin,Ink,.2f),10,5);
-                for(int spot=0;spot<3;spot++)
-                    b.Sphere(FacePoint(head,radius,center.y-size*(1.3f+spot*.12f),center.z+side*size*(.1f+spot*.25f),.002f),
-                        Vector3.one*size*.14f,Color.Lerp(skin,Cream,.35f),7,4);
-            }
-        }
-
-        static Vector3 FacePoint(Vector3 center, Vector3 radius, float y, float z, float offset)
-        {
-            float dy=(y-center.y)/radius.y, dz=(z-center.z)/radius.z;
-            return new Vector3(center.x+radius.x*Mathf.Sqrt(Mathf.Max(0,1-dy*dy-dz*dz))+offset,y,z);
-        }
-
-        static void Smile(FrontierMesh b, Vector3 center, Vector3 radius, float height, float halfWidth, float lift, float thickness)
-        {
-            Vector3 previous=Vector3.zero;
-            const int segments=8;
-            for(int i=0;i<=segments;i++)
-            {
-                float t=(float)i/segments*2-1;
-                var point=FacePoint(center,radius,height+t*t*lift,t*halfWidth,.003f);
-                if(i>0)b.Cone(previous,point,thickness,thickness,Ink,6);
-                previous=point;
-            }
+            part.transform.localScale = Vector3.one;
         }
 
         static void Raider(FrontierMesh b,string id)

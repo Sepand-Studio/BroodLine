@@ -16,7 +16,7 @@ namespace Broodline.Frontier
         [SerializeField] StyleSheet styleSheet;
         [SerializeField] Camera stageCamera;
 
-        enum Page { Founder, Deploy, Battle, Reveal }
+        enum Page { Founder, Deploy, Battle, Reveal, Studio }
         Page _page;
         VisualElement _root, _screen, _stage, _overlays, _card, _roster;
         Image _image;
@@ -42,6 +42,8 @@ namespace Broodline.Frontier
         bool _paused, _reducedMotion, _resultShown;
         string _founder = "Pebble";
         string _heroName;
+        string _studioSpecies = "ember", _studioFirst = "None", _studioSecond = "None", _studioAnimation = "Idle";
+        float _studioTurn, _studioGrowth;
         static readonly string[] Bodies = { "vetch", "ember", "pale" };
         static readonly string[] First = { "taunt", "splash", "chill" };
         static readonly string[] Second = { "carapace", "carapace", "taunt" };
@@ -86,7 +88,7 @@ namespace Broodline.Frontier
             wordmark.Add(new FrontierIcon(FrontierIcon.Symbol.Leaf));
             Text(wordmark, "BROODLINE", "brand");
             Text(header, "THE LIVING FRONTIER", "eyebrow");
-            Text(_screen, page == Page.Founder ? "A small beginning." : page == Page.Reveal ? "Something wonderful." : "Hold the frontier.", "page-title");
+            Text(_screen, page == Page.Founder ? "A small beginning." : page == Page.Reveal ? "Something wonderful." : page == Page.Studio ? "Companion Studio" : "Hold the frontier.", "page-title");
 
             _stage = Element(_screen, "stage");
             _image = new Image { scaleMode = ScaleMode.StretchToFill, pickingMode = PickingMode.Ignore };
@@ -96,7 +98,7 @@ namespace Broodline.Frontier
             _notice = Text(_stage, "", "stage-notice"); _notice.pickingMode = PickingMode.Ignore;
             _notice.style.display = DisplayStyle.None;
             _stage.RegisterCallback<GeometryChangedEvent>(_ => ResizeStage());
-            if (page == Page.Founder || page == Page.Reveal)
+            if (page == Page.Founder || page == Page.Reveal || page == Page.Studio)
             {
                 _stage.focusable = true;
                 _stage.tooltip = "Tap or press Enter to say hello";
@@ -115,13 +117,14 @@ namespace Broodline.Frontier
             _card = Element(scroll.contentContainer, "paper-card");
             if (page == Page.Founder) Founder();
             else if (page == Page.Reveal) Reveal();
+            else if (page == Page.Studio) Studio();
             else Battlefield(page == Page.Battle);
 
             var footer = Element(_screen, "footer");
             var motion = new Toggle("Reduced motion") { value = _reducedMotion };
             motion.RegisterValueChangedCallback(e => { _reducedMotion = e.newValue; ApplyMotion(); });
             footer.Add(motion);
-            Text(footer, "VETCH REDESIGN · 02", "proof-note");
+            Text(footer, "COMPANION ART · 03", "proof-note");
             SetLayer(_world, 6);
             ApplyMotion(); ResizeStage();
         }
@@ -201,6 +204,7 @@ namespace Broodline.Frontier
                 Action(row, _wave == 6 ? "Courser • selected" : "Courser", () => { _wave = 6; Show(Page.Deploy); });
                 _primary = Action(_card, "Protect the Ark", () => Show(Page.Battle), true);
                 Action(_card, "Preview Cinderplate", () => Show(Page.Reveal)).AddToClassList("text-button");
+                Action(_card, "Companion Studio", () => Show(Page.Studio)).AddToClassList("text-button");
                 return;
             }
             _runner = new SimRunner(wave, wave.Lane, FrontierFormation.Create(_pockets), 6);
@@ -294,6 +298,62 @@ namespace Broodline.Frontier
             Text(_card, "An appearance preview. Cinder combat and breeding rewards are not part of this proof.", "caption");
             _primary = Action(_card, "Back to the frontier", () => Show(Page.Deploy), true);
             Action(_card, "Meet your founder again", () => Show(Page.Founder)).AddToClassList("text-button");
+        }
+
+        void Studio()
+        {
+            _art.Environment(_world, 0, Array.Empty<int>(), true);
+            Text(_card, "MEET THE WHOLE CAST", "eyebrow");
+            Text(_card, "Inspect, turn, and say hello.", "card-title");
+            Text(_card, "Appearance and movement previews. Studio selections do not change your battle formation.", "caption");
+            var species = new DropdownField { label = "Companion", choices = new System.Collections.Generic.List<string>(FrontierRigDefinition.Companions), value = _studioSpecies };
+            _card.Add(species); species.RegisterValueChangedCallback(e => { _studioSpecies = e.newValue; RebuildStudioHero(); });
+            foreach (bool dorsal in new[] { true, false })
+            {
+                var part = new DropdownField { label = dorsal ? "Dorsal appearance" : "Flank appearance",
+                    choices = new System.Collections.Generic.List<string> { "None", "cinder", "carapace", "chill", "taunt", "splash" }, value = dorsal ? _studioFirst : _studioSecond };
+                _card.Add(part);
+                part.RegisterValueChangedCallback(e => { if (dorsal) _studioFirst = e.newValue; else _studioSecond = e.newValue; RebuildStudioHero(); });
+            }
+            Text(_card, "Cinder is an art preview only. Traits here show attachment fit, not breeding outcomes.", "caption");
+            var turn = new Slider("Turn", -180, 180) { value = _studioTurn }; _card.Add(turn);
+            turn.RegisterValueChangedCallback(e => { _studioTurn = e.newValue; _hero.transform.localRotation = Quaternion.Euler(0,_studioTurn,0); ResizeStage(); });
+            var growth = new Slider("Growth", 0, 1) { value = _studioGrowth }; _card.Add(growth);
+            growth.RegisterValueChangedCallback(e => { _studioGrowth = e.newValue; _hero.Growth = _studioGrowth; });
+            var animation = new DropdownField { label = "Movement", choices = new System.Collections.Generic.List<string> {
+                "Idle", "Walk", "Attack", "Hit", "Exhausted", "Greet", "Celebrate" }, value = _studioAnimation };
+            _card.Add(animation); animation.RegisterValueChangedCallback(e => { _studioAnimation = e.newValue; PlayStudioAnimation(); });
+            var controls = Element(_card, "button-row");
+            Action(controls, "Play again", PlayStudioAnimation);
+            _pause = Action(controls, "Pause", () => { _paused = !_paused; _pause.text = _paused ? "Resume" : "Pause"; ApplyMotion(); });
+            Action(_card, "Back to formation", () => Show(Page.Deploy), true);
+            RebuildStudioHero();
+        }
+
+        void RebuildStudioHero()
+        {
+            if (_hero != null) { _hero.gameObject.SetActive(false); Destroy(_hero.gameObject); }
+            _hero = _art.Creature(_world, _studioSpecies, _studioFirst == "None" ? null : _studioFirst, _studioSecond == "None" ? null : _studioSecond);
+            _heroName = char.ToUpperInvariant(_studioSpecies[0]) + _studioSpecies.Substring(1);
+            _hero.Growth = _studioGrowth; _hero.transform.localRotation = Quaternion.Euler(0,_studioTurn,0);
+            _status.text = _heroName.ToUpperInvariant() + " / ART PREVIEW";
+            SetLayer(_hero.transform,6); ApplyMotion(); PlayStudioAnimation(); ResizeStage();
+            Notice("Tap " + _heroName + " to say hello");
+        }
+
+        void PlayStudioAnimation()
+        {
+            if (_hero == null) return;
+            _hero.ResetReactions(); _hero.Moving = _studioAnimation == "Walk"; _hero.Hurt = _studioAnimation == "Exhausted" ? 1 : 0;
+            switch (_studioAnimation)
+            {
+                case "Attack": _hero.Attack(); break;
+                case "Hit": _hero.Hit(); break;
+                case "Greet": _hero.Greet(); break;
+                case "Celebrate": _hero.Celebrate(); break;
+            }
+            // Pose refresh uses the current clock; pause remains authoritative.
+            if (!_paused) _hero.AdvancePresentation(0);
         }
 
         void OnTick()
@@ -450,12 +510,12 @@ namespace Broodline.Frontier
             var portrait = _hero != null ? _hero.PortraitBounds : default;
             // Reserve growth space up front so the slider visibly grows the creature,
             // rather than cancelling its effect by zooming out on every value change.
-            float growth = _page == Page.Reveal ? 1.34f : 1;
+            float growth = _page == Page.Reveal || _page == Page.Studio ? 1.34f : 1;
             Vector3 center = battle ? new Vector3(12, .6f, .55f) : _hero.transform.TransformPoint(portrait.center * growth);
             // A nearly lengthwise camera keeps the 24-tile lane legible in portrait.
             Vector3 offset = battle ? new Vector3(24, 27, -5) : new Vector3(3.2f, 1.65f, -3.8f);
             stageCamera.transform.SetPositionAndRotation(center + offset, Quaternion.LookRotation(-offset));
-            Vector3 extent = battle ? new Vector3(15, 1.7f, 2.2f) : (portrait.extents + new Vector3(.06f,.10f,.06f)) * growth;
+            Vector3 extent = battle ? new Vector3(15, 1.7f, 2.2f) : (portrait.extents + _hero.Rig.MotionAllowance) * growth;
             Quaternion inverse = Quaternion.Inverse(stageCamera.transform.rotation);
             float size = 0;
             for (int x = -1; x <= 1; x += 2)

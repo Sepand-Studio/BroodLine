@@ -114,3 +114,6 @@
 .frontier-proof .victory { background-color: #286846; }
 .frontier-proof Foldout { margin: 6px 0; }
 .frontier-proof Foldout > Toggle { min-height: 44px; }
+.frontier-proof DropdownField { margin: 6px 0; min-height: 44px; }
+.frontier-proof DropdownField > .unity-base-field__label { min-width: 125px; color: #302d40; }
+.frontier-proof DropdownField > .unity-base-field__input { background-color: #fff8eb; color: #302d40; border-radius: 8px; }

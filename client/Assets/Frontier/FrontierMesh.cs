@@ -15,6 +15,8 @@ namespace Broodline.Frontier
         readonly List<BoneWeight> _weights = new List<BoneWeight>();
         readonly List<Vector2> _surface = new List<Vector2>();
         public int Bone;
+        public int SecondBone = -1;
+        public float BoneBlend;
         // Per-vertex polish: skin, shell and eyes share a draw call, but not a finish.
         public float Polish = .18f;
 
@@ -24,7 +26,8 @@ namespace Broodline.Frontier
             _vertices.Add(position);
             _normals.Add(normal.normalized);
             _colors.Add(color);
-            _weights.Add(new BoneWeight { boneIndex0 = Bone, weight0 = 1f });
+            float blend = SecondBone < 0 ? 0 : Mathf.Clamp01(BoneBlend);
+            _weights.Add(new BoneWeight { boneIndex0 = Bone, weight0 = 1 - blend, boneIndex1 = SecondBone < 0 ? 0 : SecondBone, weight1 = blend });
             _surface.Add(new Vector2(Polish, 0));
             return index;
         }
@@ -32,6 +35,102 @@ namespace Broodline.Frontier
         void Triangle(int a, int b, int c)
         {
             _indices.Add(a); _indices.Add(b); _indices.Add(c);
+        }
+
+        void SmoothNormals(int startVertex, int startIndex)
+        {
+            for (int i = startVertex; i < _vertices.Count; i++) _normals[i] = Vector3.zero;
+            for (int i = startIndex; i < _indices.Count; i += 3)
+            {
+                int a = _indices[i], b = _indices[i+1], c = _indices[i+2];
+                var n = Vector3.Cross(_vertices[b]-_vertices[a],_vertices[c]-_vertices[a]);
+                _normals[a] += n; _normals[b] += n; _normals[c] += n;
+            }
+            for (int i = startVertex; i < _vertices.Count; i++) _normals[i] = _normals[i].normalized;
+        }
+
+        /// Rounded, swept volume for crests, necks and tails; no open tube ends.
+        public void Sweep(Vector3[] points, Vector2[] radii, Color color, int sides = 12)
+        {
+            int start = _vertices.Count, firstIndex = _indices.Count;
+            var previousTangent=(points[1]-points[0]).normalized;
+            var rotation=Quaternion.FromToRotation(Vector3.up,previousTangent);
+            for (int row = 0; row < points.Length; row++)
+            {
+                var tangent = (points[Mathf.Min(row+1,points.Length-1)] - points[Mathf.Max(row-1,0)]).normalized;
+                rotation=Quaternion.FromToRotation(previousTangent,tangent)*rotation;
+                previousTangent=tangent;
+                for (int j = 0; j < sides; j++)
+                {
+                    float angle = j*Mathf.PI*2/sides;
+                    Vertex(points[row] + rotation * new Vector3(Mathf.Cos(angle)*radii[row].x,0,Mathf.Sin(angle)*radii[row].y), Vector3.up, color);
+                }
+            }
+            for (int row = 0; row < points.Length-1; row++)
+                for (int j = 0; j < sides; j++)
+                {
+                    int a=start+row*sides+j, b=start+row*sides+(j+1)%sides;
+                    Triangle(a,a+sides,b); Triangle(b,a+sides,b+sides);
+                }
+            for (int cap = 0; cap < 2; cap++)
+            {
+                int row=cap==0?0:points.Length-1, c=Vertex(points[row],Vector3.up,color), offset=start+row*sides;
+                for (int j=0;j<sides;j++)
+                    if(cap==0)Triangle(c,offset+j,offset+(j+1)%sides);
+                    else Triangle(c,offset+(j+1)%sides,offset+j);
+            }
+            SmoothNormals(start,firstIndex);
+        }
+
+        /// A closed curved membrane, with smoothly blended shoulder/tip weights.
+        public void Membrane(float side, int shoulder, int tip, Color color)
+        {
+            const int spans=10, chords=8;
+            int start=_vertices.Count, firstIndex=_indices.Count, previousBone=Bone;
+            int previousSecond=SecondBone; float previousBlend=BoneBlend;
+            for(int face=0;face<2;face++)
+                for(int s=0;s<=spans;s++)
+                    for(int c=0;c<=chords;c++)
+                    {
+                        float t=s/(float)spans, u=c/(float)chords;
+                        float leading=.34f-.43f*t*t, trailing=-.40f-.34f*Mathf.Sin(t*Mathf.PI)+.28f*t;
+                        float x=Mathf.Lerp(leading,trailing,u), z=side*(.15f+1.18f*t);
+                        float y=.66f+.24f*Mathf.Sin(t*Mathf.PI*.65f)+.085f*Mathf.Sin(u*Mathf.PI)*(1-t);
+                        y+=(face==0?1:-1)*(.014f+.022f*(1-t));
+                        Bone=shoulder;SecondBone=tip;BoneBlend=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.40f,.90f,t));
+                        Vertex(new Vector3(x,y,z),Vector3.up,Color.Lerp(color,Color.white,.12f*Mathf.Sin(u*Mathf.PI)));
+                    }
+            int layer=(spans+1)*(chords+1);
+            for(int face=0;face<2;face++)
+                for(int s=0;s<spans;s++)
+                    for(int c=0;c<chords;c++)
+                    {
+                        int a=start+face*layer+s*(chords+1)+c,b=a+chords+1;
+                        bool reverse=(side>0)^(face==1);
+                        if(reverse){Triangle(a,a+1,b);Triangle(a+1,b+1,b);}
+                        else {Triangle(a,b,a+1);Triangle(a+1,b,b+1);}
+                    }
+            // Follow top perimeter winding; each side joins the top edge to its lower copy.
+            var perimeter=new List<int>();
+            for(int c=0;c<=chords;c++)perimeter.Add(start+c);
+            for(int s=1;s<=spans;s++)perimeter.Add(start+s*(chords+1)+chords);
+            for(int c=chords-1;c>=0;c--)perimeter.Add(start+spans*(chords+1)+c);
+            for(int s=spans-1;s>0;s--)perimeter.Add(start+s*(chords+1));
+            for(int i=0;i<perimeter.Count;i++)
+            {
+                int a=perimeter[i],b=perimeter[(i+1)%perimeter.Count];
+                if(side<0){Triangle(a,b,a+layer);Triangle(b,b+layer,a+layer);}
+                else {Triangle(a,a+layer,b);Triangle(b,a+layer,b+layer);}
+            }
+            SmoothNormals(start,firstIndex);
+            Bone=previousBone;SecondBone=previousSecond;BoneBlend=previousBlend;
+        }
+
+        public Mesh FinishRig(string name, FrontierRigDefinition rig)
+        {
+            var positions=new Vector3[rig.Bones.Length];
+            for(int i=0;i<positions.Length;i++)positions[i]=rig.Bones[i].Position;
+            var mesh=Finish(name,positions);mesh.bindposes=rig.BindPoses();return mesh;
         }
 
         public void Sphere(Vector3 center, Vector3 radius, Color color, int sides = 16, int rings = 10, Quaternion? orientation = null, bool upperOnly = false)

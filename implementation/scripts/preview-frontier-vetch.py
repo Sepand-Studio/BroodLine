@@ -45,6 +45,8 @@ with tempfile.TemporaryDirectory(prefix='frontier-geometry-') as temp:
     subprocess.run([args.mono, args.csc, '-nologo', '-langversion:preview', '-r:System.Numerics.dll',
                     '-r:System.Web.Extensions.dll', '-out:' + str(executable), str(baseline),
                     str(root / 'implementation/tools/FrontierGeometryExport.cs'),
+                    str(root / 'implementation/tools/FrontierUnityMath.cs'),
+                    *map(str, [root / ('client/Assets/Frontier/' + name + '.cs') for name in ['FrontierRigDefinition','FrontierFace','FrontierEmber','FrontierPale','FrontierSkitter','FrontierHollow','FrontierLoam']]),
                     str(root / 'client/Assets/Frontier/FrontierMesh.cs'),
                     str(root / 'client/Assets/Frontier/FrontierParts.cs'),
                     str(root / 'client/Assets/Frontier/FrontierVetch.cs')], check=True)
