@@ -3,12 +3,41 @@ using Broodline.Sim.Combat;
 using Broodline.View;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.TestTools;
 using Object = UnityEngine.Object;
 
 namespace Broodline.Frontier.Tests
 {
     public sealed class FrontierProofTests
     {
+        [Test]
+        public void NewlyCreatedActiveAndInactiveCreaturesApplyTheirFirstPoseWithoutErrors()
+        {
+            foreach (bool active in new[] { true, false })
+            {
+                var root = new GameObject("initialization regression");
+                root.SetActive(active);
+                using (var art = new FrontierArt(Shader.Find("Broodline/FrontierSurface")))
+                {
+                    try
+                    {
+                        var creature = art.Creature(root.transform, "vetch");
+                        creature.Chilled = true;
+                        Assert.DoesNotThrow(() => creature.Pose(0, true));
+                        var renderer = creature.GetComponentInChildren<SkinnedMeshRenderer>(true);
+                        var properties = new MaterialPropertyBlock();
+                        renderer.GetPropertyBlock(properties);
+                        var tint = properties.GetColor(Shader.PropertyToID("_Tint"));
+                        Assert.That(tint.r, Is.EqualTo(.65f).Within(.001f));
+                        Assert.That(tint.g, Is.EqualTo(.85f).Within(.001f));
+                        Assert.That(tint.b, Is.EqualTo(1f).Within(.001f));
+                        LogAssert.NoUnexpectedReceived();
+                    }
+                    finally { Object.DestroyImmediate(root); }
+                }
+            }
+        }
+
         static void ValidMesh(Mesh mesh, bool checkWinding)
         {
             var vertices = mesh.vertices; var normals = mesh.normals; var indices = mesh.triangles;

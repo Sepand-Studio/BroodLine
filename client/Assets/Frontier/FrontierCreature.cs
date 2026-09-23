@@ -22,11 +22,16 @@ namespace Broodline.Frontier
         float _hitUntil;
         int _limbEnd;
         SkinnedMeshRenderer _renderer;
-        readonly MaterialPropertyBlock _properties = new MaterialPropertyBlock();
-        static readonly int Tint = Shader.PropertyToID("_Tint");
+        MaterialPropertyBlock _properties;
+        int _tintId;
 
         public void Initialize(string id, Transform[] bones, SkinnedMeshRenderer renderer, float phase, int limbEnd)
         {
+            // Called by FrontierArt on the main thread, including for inactive
+            // objects where Awake has not run. Native rendering objects cannot
+            // be constructed in a MonoBehaviour field initializer.
+            if (_properties == null) _properties = new MaterialPropertyBlock();
+            _tintId = Shader.PropertyToID("_Tint");
             SpeciesId = id; Bones = bones; _renderer = renderer; _phase = phase; _limbEnd = limbEnd;
             Dorsal = Socket("sk_dorsal", bones[0], id == "pale" ? new Vector3(-.08f,.66f,0) : new Vector3(-.13f,.84f,0), Quaternion.identity);
             Flank = Socket("sk_flank", bones[0], id == "pale" ? new Vector3(0,.44f,-.23f) : new Vector3(-.07f,.47f,-.49f), Quaternion.Euler(-90,0,0));
@@ -45,7 +50,7 @@ namespace Broodline.Frontier
 
         public void Pose(float time, bool rest = false)
         {
-            if (Bones == null) return;
+            if (Bones == null || _renderer == null || _properties == null) return;
             bool animate = !rest && !ReducedMotion;
             float phase = time + _phase;
             float breath = animate ? Mathf.Sin(phase * 2.4f) * .018f : 0;
@@ -68,7 +73,7 @@ namespace Broodline.Frontier
             for (int i = _limbEnd; i < Bones.Length; i++) Bones[i].localScale = new Vector3(1, blink, 1);
             Color tint = Chilled ? new Color(.65f,.85f,1f) : Color.Lerp(Color.white, new Color(.7f,.75f,.8f), Mathf.Clamp01(Hurt)*.45f);
             if (animate && Time.time < _hitUntil) tint = Color.Lerp(tint, new Color(1.3f,1.15f,.9f), .6f);
-            _properties.SetColor(Tint, tint);
+            _properties.SetColor(_tintId, tint);
             _renderer.SetPropertyBlock(_properties);
         }
 
