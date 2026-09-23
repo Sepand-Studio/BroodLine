@@ -306,3 +306,7 @@
 .hero-band--deep .t-section,
 .hero-band--deep .t-secondary,
 .hero-band--deep .t-micro { color: var(--surface-paper); }
+/* A tinted pill inside the deep band keeps its own ink: the reveal's amber
+ * "mutation rolled" pill read paper-on-amber on the simulator walk. */
+.hero-band--deep .panel-amber Label,
+.hero-band--deep .t-warn { color: var(--amber-text); }

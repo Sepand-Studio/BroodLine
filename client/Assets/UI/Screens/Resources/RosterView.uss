@@ -67,7 +67,11 @@
  * it composed, but it has to outrank the component's own rule to do it -
  * which is the same two-class move `CostCtaRow.uss` and `MutationBanner.uss`
  * make against `icons.uss` and say so. */
-.roster-view__cards > .roster-view__card { width: 198px; margin-bottom: var(--space-3); }
+/* 48%, NOT 198px: two 198px cards fit the 430 capture frame and not the 402
+ * phone the game ships to (the simulator walk of Phase 10 Task 1.8 showed one
+ * column). A percentage is two columns at every width the corpus and the
+ * device share. */
+.roster-view__cards > .roster-view__card { width: 48%; margin-bottom: var(--space-3); }
 
 /* The empty case is one element in a row that lays out tiles, so it has to be
  * told to take the whole line - a CreatureCard is a fixed 160px and an

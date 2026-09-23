@@ -1483,7 +1483,11 @@ namespace Broodline.Game
             // the tree the player sees is the tree the mutation flag came
             // from.
             await LineageAsync(lineage);
-            await CampaignAsync();
+            // THE THIRD ROAD TO THE HUB - found on the simulator walk of Phase 10
+            // Task 1.8: the reveal path showed the lineage and then the
+            // campaign loop directly, so the very first pass through the first
+            // hour never reached the hub and the tabs stayed gated.
+            await HubOrCampaignAsync();
 
             // `false` MEANS "STOP THE WALK", AND IT IS NOT A CELEBRATION.
             // Session one does end on the tree, but control does not stop

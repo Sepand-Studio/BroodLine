@@ -26,7 +26,13 @@ namespace Broodline.UI.Screens
             Resources.Load<VisualTreeAsset>("StoreView").CloneTree(this);
             var body = this.Q<VisualElement>("body");
             body.RemoveFromHierarchy();
-            _scaffold = new ScreenScaffold(StoreScreen.Title, eyebrow: StoreScreen.Eyebrow);
+            // PUSHED, SO THE CHEVRON DRAWS. The router pushes the Store over
+            // whatever tab is showing and the push hides the tab bar, so the
+            // chevron is the only way out - the simulator walk of Task 1.8
+            // found a Store with neither, which is a screen a player cannot
+            // leave. ScreenScaffold draws the chevron only for a pushed
+            // screen with a back action.
+            _scaffold = new ScreenScaffold(StoreScreen.Title, pushed: true, eyebrow: StoreScreen.Eyebrow);
             _scaffold.Content.Add(body);
             _scaffold.FooterNote = StoreScreen.Preview;
             Add(_scaffold);

@@ -1,0 +1,34 @@
+Phase 10 Batch 1 EditMode baseline, taken 2026-09-23 from a closed Editor
+after Task 1.7 (commit cdf4c2f), by implementation/scripts/run-unity-tests.sh.
+
+Sole expected failure: MainThreadAffinityTests.NoConfigureAwaitFalse_InCodeThatTouchesTheUi
+(deliberate; see that class's comment and phase9-test-baseline.txt). Any other
+failure is a finding. THE COUNT IS NOT THE CHECK - read the failure's MESSAGE
+from implementation/results/test-results-EditMode.xml and confirm it still
+names exactly SessionTests.cs:223, :238 and :262 and nothing else.
+
+total=546 passed=545 failed=1 skipped=0
+FAILED: Broodline.Game.Tests.MainThreadAffinityTests.NoConfigureAwaitFalse_InCodeThatTouchesTheUi
+    ConfigureAwait(false) in UI-facing code resumes the await off Unity's main thread, and the next VisualElement built after it throws. Remove it (Net/ is exempt - see this class's comment):
+      Game/Tests/SessionTests.cs:223
+      Game/Tests/SessionTests.cs:238
+      Game/Tests/SessionTests.cs:262
+
+HOW 546 IS REACHED FROM PHASE 9'S 525, AS MEASURED RUN BY RUN (each figure
+is a run-unity-tests.sh total, not a count typed from memory):
+  525  phase9-test-baseline.txt
+  529  after Task 1.0 alone: the Frontier assemblies' 11 tests now run under
+       the harness, and the +4 net against 525 was NOT reconciled - Phase 9's
+       file was re-taken on 2026-09-22 and the proof landed 2026-09-23, so
+       which seven of the eleven that file already counted is unknown. Read
+       the XML, not this paragraph, if the origin of a test matters.
+  531  after Task 1.2: ResourceBar's 4 tests replace CurrencyHeader's 2
+  544  after Tasks 1.3-1.5: HubRouterTests 4, HomeStageTests 1, CatalogTests 8
+  546  after Task 1.7: the "Frontier held" row and the HUD controls, 1 each
+
+Companion gates at this count:
+  verify-uss-tokens.sh   Token layer verified (40 stylesheets; no legacy names remain)
+  check-silent-drops.sh  37 .uxml / 45 .uss, 0 defects
+  check-stylesheets.sh   45 stylesheets, all compile to at least one rule
+  capture-screens.sh     26 of 26 screens at 430x932
+  Phase0Setup.Apply      Broodline/FrontierSurface on Always Included Shaders
