@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Broodline.Net;
 using UnityEngine;
@@ -50,6 +51,9 @@ namespace Broodline.Game.Shell
         /// until then it is at least not silently dropped. Capped at
         /// `MaxNotices`, oldest evicted first.
         public IReadOnlyList<string> Notices => _notices;
+
+        /// The surface, when one is attached. `Notices` keeps the log either way.
+        public Action<string> OnNotice;
 
         /// Wires this pump to the outbox it should drive. Called once by
         /// the composition root (`BootController`) after `OutboxClient` is
@@ -111,6 +115,7 @@ namespace Broodline.Game.Shell
         {
             _notices.Add(notice);
             if (_notices.Count > MaxNotices) _notices.RemoveRange(0, _notices.Count - MaxNotices);
+            OnNotice?.Invoke(notice);
         }
     }
 }

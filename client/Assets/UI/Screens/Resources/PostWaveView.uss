@@ -37,14 +37,46 @@
  */
 .post-wave-view { flex-grow: 1; }
 
+/* THE KICKER, AND IT IS IN THE CONTENT COLUMN BECAUSE THIS SCREEN HAS NO PAGE
+ * HEADER AS OF PHASE 9 TASK 21e - `PostWaveScreen.Headline`'s note has the
+ * ruling in full. The short form: the header's only content was the title
+ * "Post-Wave", which is design section 5.1's own SECTION NAME rather than
+ * copy, and the exit gate's walk of the packaged app read it as one. The
+ * verdict underneath already says what happened.
+ *
+ * THE SAME MOVE `SpliceRevealView` MADE IN TASK 16b, AND FOR THE SAME REASON
+ * RATHER THAN BY IMITATION: `#header` is where the scaffold's eyebrow lives,
+ * so a screen that goes headerless and leaves its kicker there loses it
+ * silently. `.t-micro` is the type the scaffold's own eyebrow wears (10px,
+ * --mute, `.1em` tracking), so the line renders as it did; what changed is
+ * where it sits.
+ *
+ * CENTRED, UNLIKE THE SCAFFOLD'S EYEBROW AND LIKE THE HEADLINE IT NOW SITS
+ * OVER. In the header it was the first line of a left-aligned titles column;
+ * here its only neighbour is a centred verdict, and a flush-left kicker over
+ * a centred headline reads as a mistake. `SpliceRevealView`'s does the same.
+ *
+ * 10px AND 2px ARE `SpliceRevealView`'s OWN, FROM `Splice Reveal.dc.html:38`
+ * and `:40` - a kicker/headline pair at the top of a headerless content
+ * column, which is exactly this pair. Quoted rather than re-derived: the
+ * handoff draws no post-wave screen at all (`PostWaveScreen.Headline`), so
+ * the nearest measured instance of this shape is the right source, and the
+ * two screens are one beat apart. */
+.post-wave-view__kicker {
+    -unity-text-align: middle-center;
+    margin-top: 10px;
+    margin-bottom: 2px;
+}
+
 
 /* A sentence, not a label, so it wraps - "Wave not cleared." fits on one line
  * at 28px on a 430 frame and a longer verdict from a later server would not. */
 /* CENTRED AS TEXT, NOT AS LAYOUT. This screen's root used to carry
  * `align-items: center` and it was dropped on the claim that the scaffold's
  * content region supplies it. It does not - `.screen-scaffold__content` is
- * `flex-grow` alone and its content-container rule sets padding only - so a
- * short verdict stretched to full content width and rendered flush left,
+ * `flex-grow` alone and its content-container rule sets a gutter and a
+ * `min-height` only, neither of which centres anything - so a short verdict
+ * stretched to full content width and rendered flush left,
  * while SpliceRevealView, the third screen of the same beat, stayed centred.
  *
  * The fix is text-align rather than the container's `align-items`, because
@@ -58,7 +90,20 @@
     margin-bottom: var(--space-3);
 }
 
-.post-wave-view__stats { flex-direction: row; }
+/* THE -4px IS `StatCell.uss`'s OWN PRESCRIPTION AND NOT A NUDGE. A cell
+ * carries half the handoff's 8px gap on each of its own sides, because USS
+ * here has no `gap` and no `:last-child`, and that file says what a caller
+ * that wants the row flush does about it: "cancels it with a -4px margin on
+ * the container, which is one line at the call site rather than a rule that
+ * looks like it works and does not." Without it the row is inset 4px from the
+ * card's padding on both sides. `DeployView.uss` and `WaveDefeatView.uss`
+ * carry the same cancel for the same row; this screen was the one that did
+ * not, which is a residual Phase 9 Task 18 closed rather than a new rule. */
+.post-wave-view__stats {
+    flex-direction: row;
+    margin-left: -4px;
+    margin-right: -4px;
+}
 
 /* The arrivals, laid out like RosterView's grid and for the same reason: a
  * CreatureCard is a fixed 160px, two of them plus the 12px gutter leave 406

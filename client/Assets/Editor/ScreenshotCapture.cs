@@ -145,13 +145,35 @@ public static class ScreenshotCapture
 
     static byte[] Capture(VisualElement screen, bool inScreenHost)
     {
+        return Capture(screen, inScreenHost, Width, Height, null);
+    }
+
+    /// THE SAME CAPTURE AT A FRAME THE CALLER CHOOSES, AND `measure` IS RUN
+    /// ON THE HOST WHILE THE PANEL IS STILL ALIVE.
+    ///
+    /// PHASE 9 TASK 21e ADDED THIS BECAUSE THE CORPUS'S 430 IS NOT A PHONE.
+    /// The app runs at 390-402 points and the corpus renders at 430, and that
+    /// gap has now hidden two defects that a person found by walking the
+    /// packaged app: Task 21b's lane crop (0.903 units at 390 measured 0.100
+    /// at 430) and this task's clipped founder card. A capture is a picture;
+    /// what a narrower frame needs is a MEASUREMENT, taken after layout has
+    /// resolved and before the panel is torn down - which is the one moment
+    /// `resolvedStyle` means anything, and the moment an EditMode test can
+    /// never reach (it builds no panel, so every rect there reads zero -
+    /// `ScaffoldTests.cs:218` and `FirstHourScreensTests.cs:1291` both say so).
+    ///
+    /// `FrameProbe` is the only caller and it reports rather than asserts,
+    /// for `LabelBoxProbe`'s stated reason.
+    public static byte[] Capture(VisualElement screen, bool inScreenHost,
+                                 int width, int height, Action<VisualElement> measure)
+    {
         // ARGB32 + sRGB read/write: PanelSettings.targetTexture's own doc
         // asks for an sRGB-formatted target when the project's color space
         // is linear, which ProjectSettings.asset's m_ActiveColorSpace: 1
         // says this one is. Wrong here would not throw or shrink the file -
         // it would just quietly wash out or darken every colour, which is
         // exactly the kind of wrong this task's screenshots must not be.
-        var rt = new RenderTexture(Width, Height, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB)
+        var rt = new RenderTexture(width, height, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB)
         {
             name = "ScreenshotCapture",
         };
@@ -174,7 +196,7 @@ public static class ScreenshotCapture
             ScreenHarness.AddShellStyles(document.rootVisualElement);
             document.rootVisualElement.AddToClassList("shell-root");
 
-            var host = new VisualElement { style = { width = Width, height = Height } };
+            var host = new VisualElement { style = { width = width, height = height } };
 
             // A SCREEN GOES IN A `screen-host` SLOT, NOT STRAIGHT INTO THE
             // FRAME, AND THAT IS THE WHOLE POINT OF THIS ELEMENT.
@@ -215,11 +237,12 @@ public static class ScreenshotCapture
             screen.MarkDirtyRepaint();
 
             ForceRender(host);
+            if (measure != null) measure(host);
 
             var previouslyActive = RenderTexture.active;
             RenderTexture.active = rt;
-            tex = new Texture2D(Width, Height, TextureFormat.RGBA32, false);
-            tex.ReadPixels(new Rect(0, 0, Width, Height), 0, 0);
+            tex = new Texture2D(width, height, TextureFormat.RGBA32, false);
+            tex.ReadPixels(new Rect(0, 0, width, height), 0, 0);
             tex.Apply();
             RenderTexture.active = previouslyActive;
 
@@ -248,7 +271,15 @@ public static class ScreenshotCapture
     /// indistinguishable from "worked" until a human opens the PNG. Copying
     /// the real asset carries those references, its theme, and its dynamic
     /// atlas settings over for free.
-    static PanelSettings BuildPanelSettings(RenderTexture rt)
+    ///
+    /// `internal` RATHER THAN PRIVATE AS OF PHASE 9 TASK 21i, together with
+    /// `ForceRender` below, and for the reason this file's own header gives for
+    /// copying the asset in the first place: a second harness that built its
+    /// own panel would be measuring its own panel. `ShellProbe` needs a live
+    /// runtime panel to ask `IPanel.Pick` what a thumb hits, and it must be the
+    /// SAME panel the corpus renders through or its answer is about something
+    /// else. Nothing outside Assembly-CSharp-Editor can see either method.
+    internal static PanelSettings BuildPanelSettings(RenderTexture rt)
     {
         var existing = AssetDatabase.LoadAssetAtPath<PanelSettings>(SharedPanelSettingsPath);
         PanelSettings settings;
@@ -299,7 +330,7 @@ public static class ScreenshotCapture
     /// already-resolved layout rather than trusting the first frame's
     /// numbers to be final - cheap insurance for a script whose entire
     /// output is a picture nobody re-renders to double check.
-    static void ForceRender(VisualElement root)
+    internal static void ForceRender(VisualElement root)
     {
         var panel = root.panel;
         if (panel == null)

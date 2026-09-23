@@ -81,8 +81,23 @@ public static class ScreenFixtures
         "CodexSheet",
         "DeployView",
         "FounderNamingView",
+        // THE SCREEN NOBODY IS SUPPOSED TO SEE, WHICH IS EXACTLY WHY IT IS
+        // CAPTURED - Phase 9 Task 21g. It goes up only when the walk stops,
+        // so it is the one screen in the app a play-through does not reach on
+        // purpose; a corpus that skipped it would leave the failure path as
+        // the only unlooked-at surface in a phase about the look.
+        "InterruptedView",
         "LineageView",
         "PostWaveView",
+        // THE OTHER ARM OF THE ONE SCREEN THAT RENDERS BOTH VERDICTS.
+        // `PostWaveView.Bind` toggles `t-success`/`t-danger` off the SERVER's
+        // result and `PostWaveScreen.Headline` has two sentences; a
+        // non-win response reaching this screen is a documented path
+        // (`WinResult`'s own note) and until Phase 9 Task 18 no capture in the
+        // corpus showed it. A branch nobody has looked at is a branch that has
+        // shipped wrong before in this project - the green blank strip and the
+        // shadow round bare paper were both this shape.
+        "PostWaveLoss",
         "RegionView",
         "RosterView",
         "SpliceChamberView",
@@ -96,6 +111,9 @@ public static class ScreenFixtures
         "Icons",
         "Scaffold",
         "Components",
+        "Vocabulary",
+        "Lane",
+        "Band",
     };
 
     /// Whether the shell holds this fixture in `#screen-host`, which is the
@@ -108,13 +126,19 @@ public static class ScreenFixtures
     /// false:
     ///   CodexSheet  - ScreenHost.ShowSheet puts it in `#sheet-layer`, which
     ///                 is `position: absolute` and `display: none` until that
-    ///                 method sets it Flex inline. It carries no padding, so
-    ///                 the sheet renders the same either way and this harness
-    ///                 does not reproduce the overlay layer.
+    ///                 method sets it Flex inline. This harness does not
+    ///                 reproduce the overlay layer; the sheet POSITIONS
+    ///                 ITSELF absolutely against whatever holds it (Phase 9
+    ///                 Task 19 made it the bottom sheet five specs call it),
+    ///                 so it fills this frame the way it fills that layer.
+    ///                 The old reason given here - "it carries no padding" -
+    ///                 stopped being true in that task: the padding moved one
+    ///                 level in, to `#surface`, and the root positions.
     ///   WaveHudView - never reaches ScreenHost at all. `WaveRunner` adds it
     ///                 straight to the wave scene's own panel root.
-    ///   the four catalogues - Primitives, Icons, Scaffold and Components are
-    ///                 not screens and have no place in the shell.
+    ///   the seven catalogues - Primitives, Icons, Scaffold, Components,
+    ///                 Vocabulary, Lane and Band are not screens and have no
+    ///                 place in the shell.
     public static bool GoesInTheScreenHost(string name)
     {
         switch (name)
@@ -125,6 +149,9 @@ public static class ScreenFixtures
             case "Icons":
             case "Scaffold":
             case "Components":
+            case "Vocabulary":
+            case "Lane":
+            case "Band":
                 return false;
             default:
                 return true;
@@ -139,8 +166,10 @@ public static class ScreenFixtures
             case "CodexSheet": return Codex();
             case "DeployView": return Deploy();
             case "FounderNamingView": return FounderNaming();
+            case "InterruptedView": return Interrupted();
             case "LineageView": return Lineage();
             case "PostWaveView": return PostWave();
+            case "PostWaveLoss": return PostWaveLost();
             case "RegionView": return Region();
             case "RosterView": return Roster();
             case "SpliceChamberView": return SpliceChamber();
@@ -151,6 +180,9 @@ public static class ScreenFixtures
             case "Icons": return Icons();
             case "Scaffold": return Scaffold();
             case "Components": return Components();
+            case "Vocabulary": return Vocabulary();
+            case "Lane": return Lane();
+            case "Band": return Band();
             default: throw new ArgumentException("ScreenFixtures has no fixture named '" + name + "'", nameof(name));
         }
     }
@@ -168,8 +200,9 @@ public static class ScreenFixtures
     /// species out of it without guessing which. (The plan read it as a
     /// Skitter; it could as easily have been read as an Ember.)
     ///
-    /// It was invisible while nothing consumed the field. `SpeciesProxy` is
-    /// the first consumer, it matches the six exactly and refuses to guess,
+    /// It was invisible while nothing consumed the field. `SpeciesProxy`
+    /// (Phase 8 Task 13, retired by Phase 9 Task 9's `CreatureSprites`) was
+    /// the first consumer, it matched the six exactly and refused to guess,
     /// and with the old strings in place fourteen of the sixteen captures
     /// would have shown an empty silhouette slot and looked like a wiring
     /// bug. The same strings are still in `Broodline.UI.Tests`, where they
@@ -231,6 +264,29 @@ public static class ScreenFixtures
         return r;
     }
 
+    /// The chamber's forecast, drawn from the two parents' OWN traits.
+    ///
+    /// THREE ROWS AND NOT TWO, WHICH IS THE COUNT THE CARD IS SIZED FOR.
+    /// `combatPool` is the two parents' four combat slots and `merged()`
+    /// collapses duplicate (trait, tier) pairs, so three distinct outcomes is
+    /// the ceiling and is what the handoff draws (`Splice Chamber.dc.html
+    /// :139-173`). A two-row fixture could not show what three bars look like
+    /// stacked, which is the whole point of the component.
+    ///
+    /// AND THE ODDS STRADDLE THE DOM/REC LINE - 0.78, 0.54 and 0.31 are the
+    /// handoff's own three numbers, so the capture shows two `DOM` tags and
+    /// one `REC` rather than three of a kind.
+    static SplicePreviewResponse Preview(CreatureDto a, CreatureDto b)
+    {
+        var r = new SplicePreviewResponse();
+        r.Forecast = new SpliceForecast { Mutation = 0.09, Aberrant = 0.01 };
+        r.Forecast.Combat2.Add(new CombatOutcomeDto { Trait = a.Trait1, Tier = a.Tier1, P = 0.78 });
+        r.Forecast.Combat2.Add(new CombatOutcomeDto { Trait = b.Trait1, Tier = b.Tier1, P = 0.54 });
+        r.Forecast.Combat2.Add(new CombatOutcomeDto { Trait = b.Trait2, Tier = b.Tier2, P = 0.31 });
+        r.Forecast.Instinct.Add(new Instinct { Instinct1 = "Forage", P = 1.0 });
+        return r;
+    }
+
     // ---------------------------------------------------------------
     // Screens
     // ---------------------------------------------------------------
@@ -258,22 +314,74 @@ public static class ScreenFixtures
         return view;
     }
 
+    /// Wave 7, WHICH IS THE HANDOFF'S OWN WAVE, so this capture and
+    /// `specs/Designs/shots/wave-defense.png` can be laid side by side
+    /// without first translating one into the other. Its numbers are the
+    /// handoff's too - 145 energy, five foes, 120 shards - except the two
+    /// this project states differently and says why: `DEPLOYED 2 / 5`
+    /// against the handoff's `2 / 4`, because `DeployScreen.Cap` is the
+    /// server's (services/api/src/wave/issuance.ts) and its 4 is a drawing;
+    /// and `ARK INTEGRITY 100%` against its 82%, because this screen is
+    /// shown BEFORE the wave (`DeployScreen.IntegrityFull`).
+    ///
+    /// FOUR CREATURES FOR TWO POCKETS, so the capture shows BOTH row states -
+    /// two filled rows lettered A and B, and two undeployed ones carrying
+    /// `DeployScreen.EmptyPocketTag`. A fixture that selected every creature
+    /// it owned would render one of the two and leave the other as a code
+    /// path nobody has looked at, which is exactly how Pale's hero disc
+    /// shipped invisible through two components (see `Band()`).
+    ///
+    /// FOUR AND NOT SIX, AND THE FIRST CAPTURE DECIDED IT. Six creatures is
+    /// three pairs, and three pairs ran the content column past the CTA row:
+    /// the last pair was clipped at y=860 in a 932 frame. Nothing is wrong
+    /// with that - the scaffold's content region is a ScrollView and a real
+    /// roster of twenty scrolls - but a corpus image that cannot show its own
+    /// last row cannot be compared against anything. Four is also the
+    /// handoff's own count (`Wave Defense.dc.html:246-260` draws exactly four
+    /// field rows), which is what makes the two pictures comparable at all.
+    ///
+    /// NO LANE TEXTURE, AND THAT IS THE DESIGNED STATE HERE RATHER THAN A
+    /// GAP. `LaneStage` is a camera and a render texture in `Broodline.Game`;
+    /// no fixture in this file drives one, including `FounderNaming()`, which
+    /// shows the portrait studio's fallback for the same reason. What the
+    /// capture therefore checks is the card's own geometry and its pocket
+    /// strip - `.lane-preview-card`'s flat --green-tint fill is described in
+    /// its own sheet as being "for the capture corpus, where no stage runs at
+    /// all". The picture itself is proven by `LaneStagePlayTests` and by a
+    /// human running `Boot.unity`.
     static VisualElement Deploy()
     {
         var roster = new RosterScreen();
         var response = new RosterResponse { Cap = 20 };
+        // BIBLE 1.2's SIX, not the handoff's display names. Its lane says
+        // "Vetch Wall R2" and "Cinderplate R1"; `broodline_data_model.md`
+        // section 2 makes `species` one of six ids, and "Cinderplate" is not
+        // one of them. The note at the head of `Creature()` records what the
+        // wrong strings cost the last time this file carried them.
+        var species = new[] { "Vetch", "Ember", "Loam", "Pale" };
         var selected = new List<Guid>();
-        for (var i = 0; i < 3; i++)
+        for (var i = 0; i < species.Length; i++)
         {
-            var creature = Creature("Vetch", 1, name: null, founder: false);
+            var creature = Creature(species[i], i < 2 ? 2 : 1, name: null, founder: false);
             response.Creatures.Add(creature);
-            selected.Add(creature.CreatureId);
+            if (i < 2) selected.Add(creature.CreatureId);
         }
         roster.ApplyRoster(response);
 
-        var model = DeployScreen.Build(waveId: 6, roster: roster, selected: selected);
+        var model = DeployScreen.Build(waveId: 7, roster: roster, selected: selected);
         var view = new DeployView();
-        view.Bind(model, onStart: () => { });
+        view.Bind(
+            model,
+            onStart: () => { },
+            roster: roster.Known,
+            onToggle: _ => { },
+            facts: new DeployWaveFacts
+            {
+                Energy = 145,
+                Foes = 5,
+                RewardCurrency = "shards",
+                RewardAmount = 120,
+            });
         return view;
     }
 
@@ -282,6 +390,24 @@ public static class ScreenFixtures
         var founder = Creature("Vetch", 1, name: null, founder: true, id: FounderId);
         var view = new FounderNamingView();
         view.Bind(founder, FounderNamingScreen.DefaultFor(founder), onName: _ => { }, onSkip: () => { });
+        return view;
+    }
+
+    static VisualElement Interrupted()
+    {
+        var view = new InterruptedView();
+
+        // A REAL SENTENCE OFF THE REAL PATH, not lorem, and the LONGEST one
+        // this build authors for this screen (97 characters against
+        // `ColdStartFailed`'s 69) - so the capture shows the wrapping case
+        // rather than the flattering one. A server's own refusal can be
+        // longer still; nothing in this client bounds that.
+        //
+        // FULLY QUALIFIED rather than imported: `Broodline.Game` also holds
+        // a type `Ftue` and `Broodline.Api` (imported above) holds another,
+        // so a `using` for it would make a bare `Ftue` ambiguous in this file
+        // for one constant's sake.
+        view.Bind(Broodline.Game.FtueNotice.ForfeitFailed, onRetry: () => { });
         return view;
     }
 
@@ -302,6 +428,9 @@ public static class ScreenFixtures
         return view;
     }
 
+    /// THE WIN. `WaveDefeat()` below is wave 6, the designed loss, so this is
+    /// the wave after it - which is also the wave `Wave Defense.dc.html` is
+    /// drawn at (`:303`, `wave: 7`).
     static VisualElement PostWave()
     {
         var response = new WaveSubmitResponse
@@ -313,7 +442,28 @@ public static class ScreenFixtures
         var granted = new List<CreatureDto> { Creature("Pale", 1, name: null, founder: false) };
 
         var view = new PostWaveView();
-        view.Bind(response, granted, next: () => { });
+        // waves_01_12 section 3's "expected roster 5" is the deployment both
+        // verdict screens state as KEPT.
+        view.Bind(response, granted, next: () => { }, wave: 7, deployed: 5);
+        return view;
+    }
+
+    /// THE SAME SCREEN ON THE OTHER VERDICT, and the only frame in the corpus
+    /// that shows it. Everything differs from `PostWave()` that the branch
+    /// touches and nothing that it does not: a non-win result, no reward, no
+    /// arrivals and no integrity left - so the headline's coral, the collapsed
+    /// grant row and an empty reward cell are all readable in one picture.
+    static VisualElement PostWaveLost()
+    {
+        var response = new WaveSubmitResponse
+        {
+            Result = "Loss",
+            IntegrityRemaining = 0,
+            Reward = new Reward { Currency = "shards", Amount = 0 },
+        };
+
+        var view = new PostWaveView();
+        view.Bind(response, new List<CreatureDto>(), next: () => { }, wave: 6, deployed: 5);
         return view;
     }
 
@@ -354,12 +504,34 @@ public static class ScreenFixtures
                 // body sits beside the Founder's amber border and a Hollow's
                 // violet body sits above the violet CTA. It does; see
                 // implementation/results/species-collision.md.
-                Creature("Vetch", 4, name: "Ash", founder: true),
-                Creature("Skitter", 6, name: null, founder: false),
-                Creature("Hollow", 5, name: null, founder: false),
-                Creature("Ember", 3, name: null, founder: false),
-                Creature("Loam", 2, name: null, founder: false),
-                Creature("Pale", 1, name: null, founder: false),
+                // AND EACH CARRIES ITS OWN SPECIES' TRAITS AS OF PHASE 9
+                // TASK 16, which the default "Chill"/"Guard" pair did not.
+                // Two things depended on it and neither was visible before:
+                // `CreatureSprites.Part` returns null for a trait the bake
+                // has no part for, so five of the six cards were drawing a
+                // bare body; and the card's marks are `TraitChip`s now, which
+                // are tinted by the species that carries the trait - so a
+                // roster of six identical "Chill I / Guard I" pairs would
+                // have rendered the one thing the chip exists to show as six
+                // copies of the same thing. The pairs are bible 1.2's own
+                // table (`broodline_bible.md:42-48`).
+                Creature("Vetch", 4, name: "Ash", founder: true,
+                    trait1: "Carapace", tier1: 3, trait2: "Taunt", tier2: 1),
+                Creature("Skitter", 6, name: null, founder: false,
+                    trait1: "Sprint", tier1: 2, trait2: "Litter", tier2: 1),
+                Creature("Hollow", 5, name: null, founder: false,
+                    trait1: "Reach", tier1: 2, trait2: "Pierce", tier2: 3),
+                Creature("Ember", 3, name: null, founder: false,
+                    trait1: "Cinder", tier1: 1, trait2: "Splash", tier2: 2),
+                Creature("Loam", 2, name: null, founder: false,
+                    trait1: "Regrow", tier1: 1, trait2: "Burrow", tier2: 2),
+                // AN ABERRANT, WHICH NO FIXTURE HAD. data_model 2 makes a
+                // null coverage tier exactly an Aberrant, and it is the
+                // state `CreatureCard.aberrant` and `TraitChip.aberrant`
+                // both draw - so until this the two treatments existed in
+                // the Vocabulary catalogue and in no screen.
+                Creature("Pale", 1, name: null, founder: false,
+                    trait1: "Screen", tier1: null, trait2: "Chill", tier2: 2),
             },
         });
 
@@ -368,11 +540,35 @@ public static class ScreenFixtures
         return view;
     }
 
+    /// THE SPLICE PAIR, SEPARATELY REACHABLE, so a second harness can build the
+    /// CONFIRM DIALOGS this pair produces without re-deriving the pair.
+    /// `ShellProbe` needs `StandardDialog` and `FounderDialog`; the dialogs'
+    /// every property is `internal set` to `Broodline.UI`, so
+    /// `SpliceScreen.Build` is the only public route to one, and it is the same
+    /// route `FtueDirector.ConfirmAsync` takes.
+    ///
+    /// Extracted from `SpliceChamber` below rather than copied beside it: two
+    /// harnesses measuring two different splice pairs would be two different
+    /// measurements presented as one.
+    internal static SpliceScreenModel SpliceModel()
+    {
+        var a = Creature("Vetch", 4, name: "Ash", founder: true, id: ParentAId,
+            trait1: "Carapace", tier1: 3, trait2: "Taunt", tier2: 1);
+        var b = Creature("Skitter", 6, name: null, founder: false, id: ParentBId,
+            trait1: "Sprint", tier1: 2, trait2: "Litter", tier2: 1);
+        return SpliceScreen.Build(a, b, Preview(a, b));
+    }
+
     static VisualElement SpliceChamber()
     {
-        var a = Creature("Vetch", 4, name: "Ash", founder: true, id: ParentAId);
-        var b = Creature("Skitter", 6, name: null, founder: false, id: ParentBId);
-        var model = SpliceScreen.Build(a, b, Preview());
+        // THE HANDOFF'S OWN PAIR, IN SPECIES AND IN GENERATION: `Splice
+        // Chamber.dc.html` splices a G4 Vetch carrying Carapace III and Root
+        // Anchor against a G6 Ember carrying Cinder Spit and Sprint II. Ours
+        // is the Vetch/Skitter pair the rest of this harness uses (so the
+        // roster and the reveal show the same animals), with each parent's
+        // traits its own species' - which is what makes the two tiles' chips
+        // tint differently and the inheritance bars' dots disagree.
+        var model = SpliceModel();
 
         var view = new SpliceChamberView();
         view.Bind(model, lockedOut: new HashSet<Guid>(), onSplice: () => { });
@@ -381,9 +577,21 @@ public static class ScreenFixtures
 
     static VisualElement SpliceReveal()
     {
-        var a = Creature("Vetch", 4, name: "Ash", founder: true, id: ParentAId);
-        var b = Creature("Skitter", 6, name: null, founder: false, id: ParentBId);
-        var child = Creature("Vetch", 5, name: null, founder: false, id: ChildId);
+        // THE SAME PAIR THE CHAMBER SPLICED, AND A CHILD THAT ACTUALLY
+        // MUTATED. One trait carries from parent A (Carapace III) and the
+        // other is in NEITHER parent (Cinder I), which is what a mutation is
+        // - `SpliceRevealScreen.MutatedTrait` is a set difference over these
+        // three creatures, so a fixture whose child only held its parents'
+        // traits would render the `mutated: true` pill with no trait to name
+        // and both rows reading "From ...". The generation is the server's
+        // own `max(4, 6) + 1` (`splice/commit.ts:292`), which the chamber's
+        // predicted panel states one screen earlier.
+        var a = Creature("Vetch", 4, name: "Ash", founder: true, id: ParentAId,
+            trait1: "Carapace", tier1: 3, trait2: "Taunt", tier2: 1);
+        var b = Creature("Skitter", 6, name: null, founder: false, id: ParentBId,
+            trait1: "Sprint", tier1: 2, trait2: "Litter", tier2: 1);
+        var child = Creature("Vetch", 7, name: null, founder: false, id: ChildId,
+            trait1: "Carapace", tier1: 3, trait2: "Cinder", tier2: 1);
         var committed = new SpliceCommitResponse
         {
             Child = child,
@@ -424,7 +632,12 @@ public static class ScreenFixtures
         var granted = new List<CreatureDto> { Creature("Pale", 1, name: null, founder: false) };
 
         var view = new WaveDefeatView();
-        view.Bind(report, granted, retry: () => { });
+        // wave 6 and waves_01_12 section 3's "expected roster 5, none carrying
+        // Chill" - the deployment the KEPT cell states. The granted Pale
+        // carries Chill I (the `Creature` helper's own default), which is what
+        // lets the counter chip take a real tier and a real species tint
+        // rather than the tier-less fallback `WaveDefeatView.Bind` describes.
+        view.Bind(report, granted, retry: () => { }, wave: 6, deployed: 5);
         return view;
     }
 
@@ -449,8 +662,36 @@ public static class ScreenFixtures
         // That is a real, reachable state (a HUD bound before its camera is
         // wired) and not a fixture defect to paper over.
         var view = new WaveHudView();
+        // WAVE 6, WHICH IS THE ONE THIS HUD IS EVER CAPTURED ON.
+        // `WaveRunner.CaptureWaveId` is 6 and waves_01_12 section 3 designs it
+        // as the loss; the snapshot's integrity of 2 above is that wave's
+        // authored pool. Set BEFORE `Bind` for no reason other than reading
+        // order - `Wave` writes its own Label and never touches the snapshot.
+        view.Wave = 6;
         view.Bind(() => snapshot);
-        return view;
+
+        // CAPTIONED, BECAUSE THE CORPUS CANNOT TELL THIS STATE FROM A DEFECT.
+        // Fix round 1's own minor: with no camera every bar stacks at (0,0)
+        // and draws BREACH/RALLY across the chrome, and a reader of
+        // `WaveHudView.png` cannot distinguish that from the clamp failing -
+        // which is the one risk on this screen that no test reaches, because
+        // `Place` returns early without a panel and a camera. The caption is
+        // ABSOLUTE so it changes none of the HUD's own layout, and the HUD
+        // keeps `flex-grow` so the frame it is measured in is unchanged.
+        var captioned = new VisualElement { name = "wave-hud-fixture" };
+        captioned.style.flexGrow = 1;
+        captioned.Add(view);
+
+        var caption = ComponentCaption(
+            "WaveHudView  -  no camera in this fixture, so every bar stacks at (0,0). "
+            + "Bar POSITIONS here are not evidence of anything.");
+        caption.style.position = Position.Absolute;
+        caption.style.left = 12;
+        caption.style.right = 12;
+        caption.style.bottom = 12;
+        caption.style.whiteSpace = WhiteSpace.Normal;
+        captioned.Add(caption);
+        return captioned;
     }
 
     // ---------------------------------------------------------------
@@ -696,8 +937,22 @@ public static class ScreenFixtures
 
         // No flexGrow set here: .screen-scaffold already carries flex-grow 1,
         // so this frame takes whatever the fixed one below it leaves.
-        var pushed = new ScreenScaffold("Splice Reveal", pushed: true, onBack: () => { });
+        // EYEBROW AND RESOURCE PILL ON THE PUSHED FRAME ONLY, so one capture
+        // holds both header forms: the handoff's full header above, and the
+        // bare title-only header ten screens still build below. That pair is
+        // the only check in existence on whether the eyebrow actually hides
+        // when nothing sets it.
+        var pushed = new ScreenScaffold("Splicing Chamber", pushed: true, onBack: () => { },
+            eyebrow: "Gene Lab");
         FillScaffold(pushed);
+
+        // THE CURRENCY HEADER GOES SO THE PILL CAN BE SEEN. Both live in
+        // `HeaderSlot` and both answer "what do I have"; no screen in the
+        // handoff shows two of them, and side by side in a 390 frame neither
+        // reads. The unpushed frame below keeps the currency header, so the
+        // capture still holds one of each.
+        pushed.HeaderSlot.Clear();
+        pushed.SetResourcePill("icon--charge", "4", "/5");
         pushed.FooterNote = "Consumes both parents.";
         root.Add(pushed);
 
@@ -872,9 +1127,13 @@ public static class ScreenFixtures
         statRow.style.flexDirection = FlexDirection.Row;
         statRow.style.marginLeft = -4;
         statRow.style.marginRight = -4;
-        statRow.Add(new StatCell("Control", "62%"));
+        // ONE OF EACH TREND AND ONE WITHOUT, in a row, because an arrow is
+        // only legible against the other two: "is that green triangle big
+        // enough" is unanswerable next to nothing, and the middle cell is
+        // the proof that a cell with no trend reserves no space for one.
+        statRow.Add(new StatCell("Control", "62%", StatCell.Trend.Up));
         statRow.Add(new StatCell("Travel", "4h 20m"));
-        statRow.Add(new StatCell("Arks", "2"));
+        statRow.Add(new StatCell("Arks", "2", StatCell.Trend.Down));
         stats.Body.Add(statRow);
         Stack(stats);
 
@@ -915,6 +1174,338 @@ public static class ScreenFixtures
         empties.Add(withoutGlyph);
         Stack(empties);
 
+        return root;
+    }
+
+    /// Seven of the nine parts Phase 9 Task 13 added: everything the splice
+    /// chamber is built from, stacked in the order that screen stacks it.
+    ///
+    /// TWO NEW CATALOGUES, AND THE FRAME IS WHY. `Components` was already
+    /// using all 932 of the capture's pixels; these nine parts add roughly
+    /// 900 more, and this file's class comment is explicit about what a flex
+    /// column does with an overflow - it SHRINKS every child that will
+    /// shrink, silently, which once took a 6px ProgressBar track to zero
+    /// height and out of the picture altogether. MEASURED RATHER THAN
+    /// ESTIMATED: the first capture of this fixture held all nine and lost
+    /// the field rows and the cost row off the bottom of the frame
+    /// completely, with the 274px lane card taking a third of the height on
+    /// its own.
+    ///
+    /// SPLIT BY SCREEN, NOT BY SIZE. The two that moved to `Lane` are the
+    /// two the wave screen uses and this one does not, so each frame is a
+    /// screen's vocabulary rather than an arbitrary half of a list - which
+    /// is also what makes each one worth putting beside the handoff capture
+    /// it corresponds to.
+    static VisualElement Vocabulary()
+    {
+        var root = CatalogueRoot();
+
+        void Stack(VisualElement child)
+        {
+            child.style.flexShrink = 0;
+            root.Add(child);
+        }
+
+        var title = new Label("Vocabulary");
+        title.AddToClassList("t-screen-title");
+        Stack(title);
+
+        Stack(ComponentCaption("GenChip  ·  TraitChip  -  the six species tints, and an aberrant"));
+
+        // WRAPPING, and the first capture is why: five chips at the handoff's
+        // own sizes are wider than the 366px content width, and the fifth ran
+        // off the right edge. A row of chips is the caller's to arrange -
+        // StatCell.uss's closing note - so the wrap is set here.
+        var chips = new VisualElement();
+        chips.style.flexDirection = FlexDirection.Row;
+        chips.style.flexWrap = Wrap.Wrap;
+        chips.style.alignItems = Align.Center;
+        chips.style.marginBottom = 8;
+        chips.Add(new GenChip(4));
+        chips.Add(new TraitChip("Carapace", 3, "Vetch"));
+        chips.Add(new TraitChip("Cinder", 2, "Ember"));
+        chips.Add(new TraitChip("Sprint", null, "Skitter"));
+        chips.Add(new TraitChip("Reach", 2, "Hollow"));
+        chips.Add(new TraitChip("Regrow", 1, "Loam"));
+        chips.Add(new TraitChip("Screen", 1, "Pale"));
+        Stack(chips);
+
+        Stack(ComponentCaption("HeroSlot  -  all six species tints, bound-but-unbaked, and live"));
+
+        // ALL SIX, NOT THREE. Fix round 1, Minor 4: the first capture showed
+        // Vetch, Ember and the live form and left four of the six
+        // `.hero-slot--*` ring and disc rules - Skitter, Hollow, Loam, Pale -
+        // never rendered anywhere in the corpus. Vetch is the one species
+        // baked before Task 15, so it is the only slot that shows real
+        // sprites; the other five are bound for their tint with no art
+        // behind them, which is the honest picture until Task 15.
+        //
+        // WRAPPED, LIKE THE CHIP ROW ABOVE, for the same reason: seven 96px
+        // slots are 672px and the content width is 366-406px. Margins are
+        // set here rather than in HeroSlot.uss because a row's layout is the
+        // caller's to arrange - StatCell.uss's closing note.
+        var slots = new VisualElement();
+        slots.style.flexDirection = FlexDirection.Row;
+        slots.style.flexWrap = Wrap.Wrap;
+        slots.style.alignItems = Align.Center;
+
+        void AddSlot(HeroSlot slot)
+        {
+            slot.style.marginRight = 8;
+            slot.style.marginBottom = 8;
+            slots.Add(slot);
+        }
+
+        var vetch = new HeroSlot();
+        vetch.Bind(Creature("Vetch", 4, name: "Ash", founder: true,
+            trait1: "Carapace", tier1: 1, trait2: "Taunt", tier2: 1));
+        AddSlot(vetch);
+
+        var ember = new HeroSlot();
+        ember.Bind(Creature("Ember", 6, name: null, founder: false));
+        AddSlot(ember);
+
+        var skitter = new HeroSlot();
+        skitter.Bind(Creature("Skitter", 3, name: null, founder: false));
+        AddSlot(skitter);
+
+        var hollow = new HeroSlot();
+        hollow.Bind(Creature("Hollow", 5, name: null, founder: false));
+        AddSlot(hollow);
+
+        var loam = new HeroSlot();
+        loam.Bind(Creature("Loam", 2, name: null, founder: false));
+        AddSlot(loam);
+
+        var pale = new HeroSlot();
+        pale.Bind(Creature("Pale", 1, name: null, founder: false));
+        AddSlot(pale);
+
+        // The live form, with nothing in it: no camera runs in a headless
+        // capture, so what this shows is the frame around a portrait - the
+        // violet ring and the transparent stage - which is exactly the part
+        // of it this project owns.
+        AddSlot(new HeroSlot(new CreatureStage()));
+        Stack(slots);
+
+        Stack(ComponentCaption("InheritanceBar  ·  MutationBanner"));
+        Stack(new InheritanceBar("Carapace III", 0.78f, "DOM", "teal"));
+        Stack(new InheritanceBar("Cinder Spit", 0.54f, "DOM", "coral"));
+        Stack(new InheritanceBar("Sprint II", 0.31f, "REC", "mute"));
+
+        var banner = new MutationBanner();
+        banner.Text = "Mutation window open  -  1 in 9 chance of an unlisted trait";
+        Stack(banner);
+
+        Stack(ComponentCaption("LineageStrip  ·  CostCtaRow"));
+        var lineage = new LineageStrip();
+        lineage.Bind(
+            new[] { (1, "vetch", false), (3, "vetch", false), (4, "vetch", false),
+                    (6, "ember", false), (7, "hollow", true) },
+            "Unbroken Vetch line since G1  -  pedigree bonus +12% trait fidelity");
+        Stack(lineage);
+
+        var cost = new CostCtaRow("icon--charge", "2", "Begin Splice", () => { });
+        cost.style.marginTop = 12;
+        Stack(cost);
+
+        return root;
+    }
+
+    /// The other two: what the wave screen puts above and below its lane.
+    ///
+    /// THE LANE CARD IS EMPTY HERE AND THAT IS THE HONEST PICTURE. `LaneStage`
+    /// (Task 17, `Broodline.Game`) is what renders into it, and nothing in a
+    /// headless `-executeMethod` drives a camera - so what this frame checks
+    /// is everything the card owns on its own: the 4:3 height, the radius,
+    /// the fill it shows before the first frame arrives, and the pocket tags.
+    static VisualElement Lane()
+    {
+        var root = CatalogueRoot();
+
+        void Stack(VisualElement child)
+        {
+            child.style.flexShrink = 0;
+            root.Add(child);
+        }
+
+        var title = new Label("Lane");
+        title.AddToClassList("t-screen-title");
+        Stack(title);
+
+        Stack(ComponentCaption("LanePreviewCard  -  4:3, pockets named along the bottom edge"));
+        var lane = new LanePreviewCard();
+        lane.SetSlots(new[] { ("A", true), ("B", false), ("C", false), ("D", true) });
+        Stack(lane);
+
+        Stack(ComponentCaption("FieldSlotRow  -  filled, empty, selected"));
+
+        // IN A CARD, BECAUSE THAT IS WHERE THEY LIVE AND BECAUSE OF WHAT THE
+        // FIRST CAPTURE SHOWED. The handoff puts this list inside its "On the
+        // field" card, and a row's --surface-sunk fill is 4 channel steps from
+        // --paper - so on bare paper these rows read as four labels floating
+        // in space, and the one thing the fixture is for (is a sunk row
+        // visible? is the selected ring stronger than the fill?) cannot be
+        // answered. On the white surface they belong on, both are.
+        var field = new SectionCard("On the field");
+
+        // TWO TO A ROW, which is the handoff's own `grid-template-columns:
+        // 1fr 1fr` for this list. A row of these is the caller's to arrange -
+        // StatCell.uss's closing note: a component's stylesheet reaches its
+        // descendants and never its parent - so the direction is set here.
+        field.Body.Add(FieldPair(
+            new FieldSlotRow("A", "Vetch Wall R2", filled: true, onTap: () => { }),
+            new FieldSlotRow("B", "Empty", filled: false, onTap: () => { })));
+
+        var selected = new FieldSlotRow("C", "Empty", filled: false, onTap: () => { });
+        selected.Selected = true;
+        field.Body.Add(FieldPair(selected,
+            new FieldSlotRow("D", "Cinderplate R1", filled: true, onTap: () => { })));
+        Stack(field);
+
+        return root;
+    }
+
+    /// The tenth part of the vocabulary and the only one Task 13 did not
+    /// build - Phase 9 Task 14c's `HeroBand`, in the three forms the
+    /// handoff's six instances come in.
+    ///
+    /// A FIXTURE OF ITS OWN, BECAUSE `Vocabulary` HAS NO ROOM AND THE FRAME
+    /// DOES NOT SAY SO. That fixture's own note records what a flex column
+    /// does with an overflow - it SHRINKS every child that will shrink,
+    /// silently, which once took a 6px ProgressBar track to zero height and
+    /// out of the picture altogether. One band is 300px on its own; three
+    /// would take every pixel `Vocabulary` has and then some.
+    ///
+    /// AND A FIXTURE IS THE POINT RATHER THAN THE PAPERWORK. `FounderNaming
+    /// View` instances exactly ONE of the three forms - filled, with a ring -
+    /// so on that capture alone the ringless band and the fixed band are two
+    /// code paths nobody has looked at. That is precisely how Pale's hero
+    /// disc shipped invisible through two components and two fix rounds: a
+    /// defect this project had already found and already fixed sat unrendered
+    /// in a second place for as long as no fixture instanced it.
+    ///
+    /// THE MIDDLE BAND IS DELIBERATELY EMPTY. `Gene Ark` and `Gene Lab` draw
+    /// the ringless band around a scene, and what this frame is for is
+    /// everything the band owns on its own - the ramp, the radius-26 corner
+    /// and the elevation - with nothing in front of them. An empty band is
+    /// also the state `AHeroBandWithNoSubjectDoesNotCrash` asserts, rendered.
+    static VisualElement Band()
+    {
+        var root = CatalogueRoot();
+
+        void Stack(VisualElement child)
+        {
+            child.style.flexShrink = 0;
+            root.Add(child);
+        }
+
+        var title = new Label("Band");
+        title.AddToClassList("t-screen-title");
+        Stack(title);
+
+        Stack(ComponentCaption("HeroBand  -  fixed, with the ring and a founder in it"));
+
+        // FIXED RATHER THAN FILLED, AT THE HANDOFF'S OWN 300. `Fill` needs a
+        // column with slack to take and this catalogue's root is a plain
+        // stack, so a filled band here would size to its floor and show
+        // nothing a fixed one does not - and the floor is the number worth
+        // looking at. It is also the smallest band that does NOT clip the
+        // 264px ring, which is what makes this the frame where the ring can
+        // be counted; the two below it are deliberately shorter than that.
+        var withRing = new HeroBand();
+        withRing.Fix(300f);
+        var founder = new HeroSlot();
+        founder.Bind(Creature("Vetch", 4, name: "Ash", founder: true,
+            trait1: "Carapace", tier1: 1, trait2: "Taunt", tier2: 1));
+        withRing.Subject.Add(founder);
+        Stack(withRing);
+
+        Stack(ComponentCaption("HeroBand(ring: false)  -  the ramp, the corner and the elevation alone"));
+        var ringless = new HeroBand(ring: false);
+        ringless.Fix(120f);
+        Stack(ringless);
+
+        // THE TINT HOOK, IN THE ONE PLACE THE TWO RAMPS CAN BE COMPARED.
+        // Phase 9 Task 18 gave `HeroBand` a second ramp for `Wave Defeat
+        // .dc.html:31`, and a tint that renders is the only evidence the swap
+        // worked - a modifier class that matched no rule would draw the violet
+        // band and nothing would say so. Directly under the ringless violet
+        // one above, at the same 120, so the two are the same picture in two
+        // colours and the difference is the whole of what is being shown.
+        //
+        // AND BEFORE THE 200px BAND RATHER THAN AFTER IT, WHICH IS FIX ROUND
+        // 1's OWN MINOR. Appended last it started at y=908 in a 932 frame and
+        // 24 of its 120px fitted - so the frame whose stated purpose is that
+        // the swap is visible showed the ramp's pale end and none of its deep
+        // one. This catalogue has no scroll; anything past ~900 is not in the
+        // picture, and the picture is the point.
+        Stack(ComponentCaption("HeroBand(ring: false, tint: Coral)  -  Wave Defeat's own ramp"));
+        var coral = new HeroBand(ring: false, tint: HeroBand.Tint.Coral);
+        coral.Fix(120f);
+        Stack(coral);
+
+        // THE RING WITH NOTHING INSIDE IT, which is what three of the six
+        // handoff screens would show before their content arrives.
+        //
+        // AND IT IS NOW THE CROPPED ONE. Moving the coral band above it - fix
+        // round 1's own minor - did not remove the crop, it MOVED it: this
+        // band starts near y=830 and about half of its 200px fits. The claim
+        // this comment used to carry, that it is the only frame where the
+        // pool's fill reads against both ends of the ramp at once, is no
+        // longer true of the picture. The arithmetic it was the picture of
+        // (--violet-pressed 64 from the white the band starts at, 26 from the
+        // --violet-tint it ends on) is in HeroBand.uss's note, which is where
+        // it is checkable; this frame shows the top half.
+        //
+        // The trade was deliberate - a tint nobody can see is worth less than
+        // a pool nobody can see twice - but the catalogue has outgrown one
+        // 932px frame and the next component added here will crop something
+        // else. A second fixture is the fix, as the Vocabulary/Lane split
+        // already was in Task 13.
+        Stack(ComponentCaption("HeroBand  -  the ring and the pool, with no subject"));
+        var empty = new HeroBand();
+        empty.Fix(200f);
+        Stack(empty);
+
+        return root;
+    }
+
+    /// Two field rows side by side, each taking half the width whatever its
+    /// text says - `flex-basis: 0` rather than `auto`, so "Empty" and
+    /// "Cinderplate R1" produce two equal columns instead of one narrow one.
+    static VisualElement FieldPair(VisualElement left, VisualElement right)
+    {
+        var row = new VisualElement();
+        row.style.flexDirection = FlexDirection.Row;
+
+        left.style.flexGrow = 1;
+        left.style.flexBasis = 0;
+        left.style.marginRight = 7;
+        row.Add(left);
+
+        right.style.flexGrow = 1;
+        right.style.flexBasis = 0;
+        row.Add(right);
+
+        return row;
+    }
+
+    /// The frame both new catalogues share.
+    ///
+    /// THE GUTTER IS THE REAL ONE, 12px, not the 32 the other catalogues use.
+    /// Half of these parts are full-width - the lane card, the cost row, the
+    /// field rows - and a component measured at the handoff's own 366px
+    /// content width is the only one whose proportions can be checked against
+    /// the handoff's own captures.
+    static VisualElement CatalogueRoot()
+    {
+        var root = new VisualElement();
+        root.AddToClassList("shell-root");
+        root.style.flexGrow = 1;
+        root.style.paddingLeft = 12;
+        root.style.paddingRight = 12;
+        root.style.paddingTop = 20;
         return root;
     }
 

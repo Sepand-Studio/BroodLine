@@ -20,10 +20,74 @@ namespace Broodline.UI.Screens
     /// Every sentence is `FounderNamingScreen`'s, including the default -
     /// see that class's `DefaultFor` for why the default lives on the model
     /// rather than here.
+    ///
+    /// PHASE 9 TASK 14 BROUGHT IT TO `Onboarding.dc.html` STEP 1 AND TASK 14b
+    /// CORRECTED THE COMPOSITION. The handoff's step screen is four bands and
+    /// no page header: a full-width progress row, a hero that takes the rest
+    /// of the column, one white card carrying kicker / title / body / note,
+    /// and the CTAs. Task 14 put the kicker and title in the scaffold's
+    /// HEADER and the body in the card, which left a 21px page title and a
+    /// 19px card line competing across two containers; they are one type
+    /// ladder in one surface again.
+    ///
+    /// THIS IS THE ONLY SCREEN IN THE PROJECT WITH NO PAGE HEADER, and the
+    /// handoff is the whole reason - every other screen in the bundle has one
+    /// and titles it at 20-21px, which is what `--text-screen-title` already
+    /// is. The 26px here is a CARD heading (`--text-card-hero`), not a bigger
+    /// page title.
+    ///
+    /// This is the first screen in the project to compose Task 13's
+    /// vocabulary, so the arrangement here is the one the four screens after
+    /// it follow.
     [UxmlElement]
     public partial class FounderNamingView : VisualElement
     {
         public const string UssClassName = "founder-naming-view";
+
+        /// NO FLOOR, AND THE HANDOFF'S 300 IS WHY THERE ISN'T ONE - PHASE 9
+        /// TASK 21e. `HeroBand.Fill`'s own note already sanctions this shape:
+        /// "a band that wants to grow with no floor passes 0 and says so."
+        ///
+        /// THIS WAS `Onboarding.dc.html:43`'s `min-height: 300px` AND IT
+        /// CLIPPED THE CARD ON A PHONE. The exit gate's walk of the packaged
+        /// app, on an iPhone 17 at 402x874, found this screen's white card cut
+        /// off flat under the name field with no corners and no tip note. The
+        /// numbers, measured with `probe-frame.sh` rather than reasoned about:
+        /// the shell gives a screen 402x704 at that device (874 less a 62pt
+        /// top inset, a 34pt bottom inset, the 16pt top bar and the 58pt tab
+        /// bar), the scaffold's scroll viewport is 582 of that, and this
+        /// column wanted 656 - a progress row of 37, a band pinned at 300, a
+        /// card of 275 and 44 of elevation wrappers.
+        ///
+        /// A FLOOR ON THE COLUMN'S ONLY GROWING CHILD IS EITHER INERT OR
+        /// HARMFUL, AND IT CANNOT BE ANYTHING ELSE. The band is the one
+        /// element in this column carrying `flex-grow`
+        /// (`ScreenScaffold.uss`'s `min-height: 100%` note says so of the
+        /// whole project), so its height is `max(floor, natural + all the
+        /// slack)`. Where there IS slack the band is already past 300 and the
+        /// floor changes nothing - measured at 398 on a 402x874 frame and 456
+        /// at the corpus's 430x932. Where there is NOT, the floor is the only
+        /// reason the column overflows. There is no third case. Removing it
+        /// moves no pixel of the committed corpus and gives the card its
+        /// bottom back at 402.
+        ///
+        /// THE BAND STILL DOES NOT COLLAPSE, WHICH IS WHAT THE FLOOR WAS FOR.
+        /// It grows into whatever is left; at 402 that lands it near 226. Its
+        /// ring is a fixed 264 square and would be sawn off by
+        /// `.hero-band__surface`'s `overflow: hidden` at that height, so
+        /// `HeroBand.OrnamentScale` fits the whole ornament to the band -
+        /// added in this task, and its note has the measurement.
+        ///
+        /// THE BRIEF'S HYPOTHESIS WAS THAT THE CARD WAS BEING SQUEEZED. It is
+        /// not, and the distinction is worth the sentence because it is what
+        /// says this fix is the right one: a ScrollView's content container is
+        /// sized BY its content, so nothing in this column ever shrinks - the
+        /// card measured 275 at every frame from 874 down to 740. What happens
+        /// is that the container grows past the viewport and the tail goes
+        /// below the fold. It scrolls, and a swipe on the device brings the
+        /// note into view. What made it read as broken is that the cut lands
+        /// mid-card, under a pinned CTA that says "this is the end".
+        const float BandFloor = 0f;
 
         readonly Label _prompt;
         readonly VisualElement _founder;
@@ -49,6 +113,29 @@ namespace Broodline.UI.Screens
             _confirm = this.Q<Button>("confirm");
             _skip = this.Q<Button>("skip");
 
+            var progress = this.Q<VisualElement>("progress");
+            this.Q<Label>("step").text = FounderNamingScreen.Step;
+            this.Q<Label>("note-text").text = FounderNamingScreen.Note;
+
+            // THE EYEBROW AND THE TITLE ARE THE CARD'S, NOT THE HEADER'S,
+            // AND THAT IS THIS SCREEN'S WHOLE COMPOSITION.
+            //
+            // UPPERCASE ALREADY, AND NOTHING HERE MAKES IT SO. UI Toolkit has
+            // no `text-transform`, so the handoff's
+            // `.lbl { text-transform: uppercase }` has no property to land in
+            // and the casing is baked into the constant. Read, never
+            // repeated - `FounderNamingScreen.Eyebrow` has the full note.
+            var kicker = this.Q<Label>("kicker");
+            kicker.text = FounderNamingScreen.Eyebrow;
+            // `card-title`, NOT `heading`: `SectionCard` already owns an element
+            // named `heading` (it removes it when the card is built
+            // without one, which is how both cards here are built), and a
+            // second element answering that name inside the same card is a
+            // `Q<Label>("heading")` that means whichever one a future edit
+            // happens to create first.
+            var title = this.Q<Label>("card-title");
+            title.text = FounderNamingScreen.Title;
+
             // THE FRAME, COMPOSED AND NOT INHERITED. ScreenScaffold's class
             // comment has the reason in full: `ScaffoldTests`' sweep asks
             // each screen for a DESCENDANT carrying `screen-scaffold`, and
@@ -59,22 +146,84 @@ namespace Broodline.UI.Screens
             //
             // pushed: false - beat 4 is a top-level destination, so no back
             // chevron. ScreenHost.Show, never Push.
-            var scaffold = new ScreenScaffold(FounderNamingScreen.Title);
+            //
+            // `title: null` IS THE HANDOFF, NOT AN OMISSION, and it is the
+            // one screen in the project that reads that way. `Onboarding
+            // .dc.html` has NO page header: line 33 starts the column with a
+            // full-width row of five `flex: 1` progress bars and the step
+            // label, with nothing above it but the status bar, and its 26px
+            // Baloo title (line 161) is a CARD heading inside the white
+            // surface on line 158. `ScreenScaffold`'s own note has what an
+            // empty title costs the other nine screens - nothing, because all
+            // nine pass a literal - and why it hides the row rather than
+            // removing it.
+            var scaffold = new ScreenScaffold(title: null);
 
             // The UXML declares the screen's own furniture as children of
             // this element; the scaffold's slots take them over here. A
             // re-parent rather than a second tree, so there is exactly one
             // place each element is authored.
-            var card = new SectionCard();
-            card.Body.Add(_founder);
-            card.Body.Add(_name);
+            //
+            // THE PIPS ARE THE FIRST THING IN THE CONTENT REGION, WHICH IS
+            // WHERE THE HANDOFF DRAWS THEM - a full-width row above the hero,
+            // not a badge beside a title. They were in the scaffold's header
+            // slot until this task, squeezed to five fixed 8px marks because
+            // a title column was growing beside them; with no header there is
+            // no column to compete with and `.progress-pip` takes the
+            // handoff's own `flex: 1`. The content container's --gutter is
+            // 12px against the handoff's 16px side padding, on the scale.
+            scaffold.Content.Add(progress);
 
-            scaffold.Content.Add(_prompt);
+            // TWO SURFACES, NOT ONE, AND THE SPLIT IS THE HANDOFF'S. Step 1
+            // draws the creature in a tall panel of its own and the words in
+            // a card beneath it.
+            //
+            // THE HERO IS A `HeroBand` AND NOT A `SectionCard`, WHICH IS
+            // PHASE 9 TASK 14c. Through Task 14b it was a flat white card at
+            // --radius-card, which is ~448px of near-white around a 96px
+            // creature - correct in composition and wrong in fidelity. The
+            // handoff's step hero is a gradient band at radius 26 with a
+            // dashed ring and a violet pool behind the subject
+            // (Onboarding.dc.html:43-47), and five other screens in the
+            // bundle draw the same surface, which is why it is a component
+            // rather than a rule in this screen's sheet.
+            //
+            // `Fill` RATHER THAN A `flex-grow` HERE. The handoff's band is
+            // `flex: 1; min-height: 300px` and BOTH halves have to land on
+            // the band's surface rather than on its elevation wrapper -
+            // getting that wrong is what cost Task 14b a capture, and
+            // `HeroBand.Fill` is where that knowledge now lives so that no
+            // screen has to carry it again.
+            var hero = new HeroBand();
+            hero.Fill(BandFloor);
+            hero.Subject.Add(_founder);
+
+            // ONE WHITE CARD CARRIES EVERYTHING ELSE, IN THE HANDOFF'S OWN
+            // ORDER: kicker, title, body, field, note. `Onboarding.dc.html`
+            // lines 158-169 are exactly that stack in one surface, and Task
+            // 14 split it across two containers - the kicker and title in the
+            // scaffold's header, the body in a card - which is what made a
+            // 21px page title and a 19px card line read as two competing
+            // display lines. They are one ladder again: 10px kicker, 26px
+            // title, 13px body.
+            var card = new SectionCard();
+            card.Body.Add(kicker);
+            card.Body.Add(title);
+            card.Body.Add(_prompt);
+            card.Body.Add(_name);
+            card.Body.Add(_blocker);
+            card.Body.Add(this.Q<VisualElement>("note"));
+
+            scaffold.Content.Add(hero);
             scaffold.Content.Add(card);
-            scaffold.Content.Add(_blocker);
             scaffold.CtaRow.Add(_confirm);
             scaffold.CtaRow.Add(_skip);
-            scaffold.FooterNote = FounderNamingScreen.FooterNote;
+
+            // NO FOOTER NOTE, AND THAT IS THE ONE THING THIS SCREEN GAVE UP.
+            // "Founders keep their names for life." is still on the screen -
+            // it is the tip note inside the card now, which is where
+            // `Onboarding.dc.html` puts its own. Left unset rather than set
+            // to null for effect: the scaffold hides the row by default.
             Add(scaffold);
 
             // Registered once, in the constructor, against fields the next
@@ -85,19 +234,51 @@ namespace Broodline.UI.Screens
             _skip.clicked += Skip;
         }
 
-        public void Bind(CreatureDto founder, string defaultName, Action<string> onName, Action onSkip)
+        /// `portrait` is the live turntable from `Broodline.Game`'s portrait
+        /// studio, and null is a real answer rather than a missing argument.
+        ///
+        /// NULL FALLS BACK TO THE SPRITE STACK, WHICH IS WHY THE PARAMETER IS
+        /// OPTIONAL AND TRAILING. `FtueDirector` is constructed with a studio
+        /// that may be absent (its own field is `PortraitStudio studio =
+        /// null`), the EditMode suite has no camera to render one, and
+        /// `ScreenFixtures` captures this screen in batch mode. All three
+        /// want the same screen with a baked creature in it, and none of them
+        /// should have to say so.
+        ///
+        /// `Texture` RATHER THAN `RenderTexture`, matching
+        /// `PortraitStudio.Show`'s own return type and `CreatureStage`'s
+        /// parameter - the studio hands out a `RenderTexture` today and the
+        /// stage already branches on that, so narrowing it here would put a
+        /// cast in the one place that has no reason to know.
+        public void Bind(CreatureDto founder, string defaultName, Action<string> onName,
+            Action onSkip, Texture portrait = null)
         {
             if (founder == null) throw new ArgumentNullException(nameof(founder));
 
             _prompt.text = FounderNamingScreen.Prompt(founder);
 
+            // THE TWO HeroSlot FORMS, AND `Q("body")` IS WHAT TELLS THEM
+            // APART. A live slot removes its three sprite layers rather than
+            // leaving them empty behind the stage, which is that component's
+            // stated contract and the discriminator `FirstHourScreensTests`
+            // reads. `Bind` runs on both: a live slot still takes the species
+            // tint for its ring, because the studio draws the animal and not
+            // the frame around it.
             _founder.Clear();
-            var card = new CreatureCard { name = founder.CreatureId.ToString() };
-            // No `counters` map reaches this Bind - same reason as
-            // `DeployView`'s: nothing in this assembly can derive one and the
-            // caller's signature carries none.
-            card.Bind(founder, null);
-            _founder.Add(card);
+            HeroSlot slot;
+            if (portrait == null)
+            {
+                slot = new HeroSlot();
+            }
+            else
+            {
+                var stage = new CreatureStage();
+                stage.SetTexture(portrait);
+                slot = new HeroSlot(stage);
+            }
+            slot.name = founder.CreatureId.ToString();
+            slot.Bind(founder);
+            _founder.Add(slot);
 
             // An empty or absent `defaultName` falls back to the model's own
             // default rather than to a blank field. bible 3.3 asks for "a

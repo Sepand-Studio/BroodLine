@@ -1,0 +1,5 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="FieldSlotRow.uss" />
+    <ui:Label name="letter" class="field-slot-row__letter" />
+    <ui:Label name="label" class="field-slot-row__label" />
+</ui:UXML>

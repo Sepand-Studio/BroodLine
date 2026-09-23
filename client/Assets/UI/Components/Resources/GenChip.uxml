@@ -1,0 +1,4 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="GenChip.uss" />
+    <ui:Label name="gen" class="gen-chip__label t-num" />
+</ui:UXML>

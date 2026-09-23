@@ -1,0 +1,4 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="TraitChip.uss" />
+    <ui:Label name="trait" class="trait-chip__label" />
+</ui:UXML>

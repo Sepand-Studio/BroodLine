@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Broodline.Api;
 using Broodline.Game.Shell;
 using Broodline.Model;
+using Broodline.Net;
 using Newtonsoft.Json;
 using NUnit.Framework;
 
@@ -86,6 +87,88 @@ namespace Broodline.Game.Tests
             // handed to the auth store.
             Assert.AreEqual("a2", auth.Saved.AccessToken);
             Assert.AreEqual("r2", auth.Saved.RefreshToken);
+        }
+
+        // -----------------------------------------------------------------
+        // The cold start against a cold BACKEND
+        //
+        // Sighting 3 of task-21d: a packaged app's first launch timed out
+        // through System.Net.HttpWebRequest.RunWithTimeoutWorker and
+        // ServicePointScheduler.WaitAsync, out of BroodlineApiClient.
+        // SyncAsync. A controlled contrast run - backend warmed first, fresh
+        // install, no cached tokens - did not. Both Cloud Run services run
+        // min_instance_count = 0, so every session that begins after an idle
+        // period waits on a container starting.
+        //
+        // DRIVEN THROUGH BroodlineClient RATHER THAN Session, and the reason
+        // is the clock: `Session.ColdStartAsync` leaves `wait` defaulted, so
+        // a test through it would spend the real eleven-second backoff and
+        // post three continuations back to a main thread the test is
+        // blocking. `BroodlineClient.ColdStartAsync` takes the seam.
+        // `Session` is still covered - it forwards both arguments, and
+        // ColdStart_RetriesOnceAfterA401_WithTheRefreshedToken below is what
+        // proves the forwarding did not break the 401 path.
+        // -----------------------------------------------------------------
+
+        [Test]
+        public void ColdStart_RetriesATransportFailure_AndReturnsTheSnapshot()
+        {
+            var handler = new ColdBackendHandler(failures: 2, sync: SnapshotJson(highestWaveCleared: 4));
+            var http = ApiOver(handler);
+            var waits = new List<TimeSpan>();
+            var notices = new List<int>();
+
+            var snapshot = new BroodlineClient("http://stub.invalid/", http)
+                .ColdStartAsync("t", "1.0.0",
+                    onRetry: (attempt, _) => notices.Add(attempt),
+                    wait: d => { waits.Add(d); return Task.CompletedTask; })
+                .GetAwaiter().GetResult();
+
+            Assert.AreEqual(4, snapshot.HighestWaveCleared, "the third attempt's snapshot reached the caller");
+            Assert.AreEqual(3, handler.Calls);
+            Assert.AreEqual(2, waits.Count);
+            CollectionAssert.AreEqual(new[] { 1, 2 }, notices);
+        }
+
+        [Test]
+        public void ColdStart_GivesUpAfterTheBackoffIsSpent()
+        {
+            // Patience is bounded. A retry loop with no end would hold a
+            // player on a blank shell forever instead of letting
+            // BootController say so.
+            var handler = new ColdBackendHandler(failures: 99, sync: SnapshotJson(highestWaveCleared: 4));
+
+            var thrown = Assert.Catch<Exception>(() =>
+                new BroodlineClient("http://stub.invalid/", ApiOver(handler))
+                    .ColdStartAsync("t", "1.0.0", wait: _ => Task.CompletedTask)
+                    .GetAwaiter().GetResult());
+            Assert.IsTrue(Retry.IsTransient(thrown));
+
+            Assert.AreEqual(Retry.ColdBackoff.Count + 1, handler.Calls);
+        }
+
+        [Test]
+        public void ColdStart_DoesNotRetryA401_SoTheTokenRefreshStillRuns()
+        {
+            // THE REGRESSION THE RETRY COULD HAVE CAUSED, asserted at the
+            // level it happens rather than only through Session: a 401 that
+            // got retried would spend four attempts arriving at the same
+            // refusal, and Session's `when (e.StatusCode == 401)` handler -
+            // the returning player's token refresh - would fire four
+            // round-trips late or, against a handler that only refuses once,
+            // never at all.
+            var handler = new RefusingHandler(HttpStatusCode.Unauthorized,
+                ErrorJson("unauthorized", "token expired"));
+
+            // `Catch`, not `Throws`: NSwag throws the GENERIC
+            // BroodlineApiException<ErrorResponse> for a declared status.
+            var thrown = Assert.Catch<BroodlineApiException>(() =>
+                new BroodlineClient("http://stub.invalid/", ApiOver(handler))
+                    .ColdStartAsync("expired", "1.0.0", wait: _ => Task.CompletedTask)
+                    .GetAwaiter().GetResult());
+
+            Assert.AreEqual(401, thrown.StatusCode);
+            Assert.AreEqual(1, handler.Calls, "a verdict is not asked twice");
         }
 
         // -----------------------------------------------------------------
@@ -232,6 +315,63 @@ namespace Broodline.Game.Tests
                     ? JsonResponse(HttpStatusCode.Unauthorized, _unauthorizedJson)
                     : JsonResponse(HttpStatusCode.OK, _syncJson);
                 return Task.FromResult(response);
+            }
+        }
+
+        /// Throws a real transport failure - no status, no body, nothing to
+        /// classify - `failures` times, then answers /v1/sync. Deliberately
+        /// NOT a StubHandler: that base reads the request body first, and the
+        /// point here is that the request never produced a response at all.
+        sealed class ColdBackendHandler : HttpMessageHandler
+        {
+            readonly int _failures;
+            readonly string _syncJson;
+
+            public int Calls { get; private set; }
+
+            public ColdBackendHandler(int failures, string sync)
+            {
+                _failures = failures;
+                _syncJson = sync;
+            }
+
+            protected override Task<HttpResponseMessage> SendAsync(
+                HttpRequestMessage request, CancellationToken cancellationToken)
+            {
+                Calls++;
+                if (Calls <= _failures)
+                {
+                    throw new HttpRequestException("An error occurred while sending the request.");
+                }
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(_syncJson, Encoding.UTF8, "application/json"),
+                });
+            }
+        }
+
+        /// Always refuses, with the given status and a real error body.
+        sealed class RefusingHandler : HttpMessageHandler
+        {
+            readonly HttpStatusCode _status;
+            readonly string _json;
+
+            public int Calls { get; private set; }
+
+            public RefusingHandler(HttpStatusCode status, string json)
+            {
+                _status = status;
+                _json = json;
+            }
+
+            protected override Task<HttpResponseMessage> SendAsync(
+                HttpRequestMessage request, CancellationToken cancellationToken)
+            {
+                Calls++;
+                return Task.FromResult(new HttpResponseMessage(_status)
+                {
+                    Content = new StringContent(_json, Encoding.UTF8, "application/json"),
+                });
             }
         }
 

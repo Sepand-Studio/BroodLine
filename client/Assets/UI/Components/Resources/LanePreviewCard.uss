@@ -1,0 +1,97 @@
+/* The handoff's lane viewport: `margin: 0 12px; height: 300px; background:
+ * linear-gradient(170deg, #eef4f0, #e4eff5); border-radius: 24px;
+ * box-shadow: 0 4px 16px; overflow: hidden`, 406 wide inside a 430 frame.
+ *
+ * THE RADIUS IS --radius-card (20px) AGAINST THE HANDOFF'S 24. The README's
+ * own radius table gives 18-22 for a card and 22-26 for a HERO card, and
+ * this is the only element in the phase that would claim the hero band.
+ * --radius-card is the token layer's single answer for the card band and
+ * inventing a --radius-hero for one element is the drift verify-uss-tokens.sh
+ * exists to stop. Recorded rather than matched.
+ *
+ * THE FILL IS FLAT --green-tint AGAINST A PALE GREEN-TO-BLUE GRADIENT, and
+ * this one is a cost worth naming: a third ramp texture would buy a gradient
+ * that is covered by the render texture the moment the stage produces a
+ * frame. What the fill actually has to do is be the right colour for the
+ * half-second before that, and for the capture corpus, where no stage runs
+ * at all.
+ *
+ * `overflow: hidden` IS WHAT MAKES THE RADIUS REAL. The lane child is
+ * absolute and square-cornered; without the clip its corners poke out of the
+ * card's rounded ones. Confirmed by `ProgressBar`'s track, which clips a
+ * square fill to a rounded end the same way - UI Toolkit clips to the border
+ * radius and not merely to the box.
+ */
+.lane-preview-card {
+    height: var(--lane-card-height);
+    border-radius: var(--radius-card);
+    background-color: var(--green-tint);
+    overflow: hidden;
+    flex-shrink: 0;
+    justify-content: flex-end;
+}
+
+/* scale-and-crop, NOT scale-to-fit, and this is the opposite call from
+ * `HeroSlot.__layer`. A creature that does not fit its disc should shrink;
+ * a LANE that does not fit its card should fill it and lose an edge. The
+ * stage renders 4:3 into a 4:3 card, so nothing is cropped in practice -
+ * this is what happens when a frame is a few pixels out, and letterboxing a
+ * playfield with two bands of --green-tint is the worse of the two failures. */
+.lane-preview-card__lane {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    -unity-background-scale-mode: scale-and-crop;
+}
+
+/* The pocket strip, on the lane's bottom edge. `justify-content: center` so
+ * three pockets and four both sit under the middle of the picture rather
+ * than starting from its left corner. */
+.lane-preview-card__slots {
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    padding-bottom: var(--space-3);
+}
+
+/* A WHITE PILL, AND THE RADIUS IS A LITERAL HALF OF ITS OWN MEASURED
+ * HEIGHT: 10px text, 4px of padding top and bottom, 1px of border - 21px,
+ * so 10px, rounded DOWN. Tokens.uss's radius block has the 50-bar
+ * measurement behind that rule and why down is the only safe direction.
+ *
+ * WHITE ON A PICTURE IS THE POINT. These tags sit over a rendered lane whose
+ * colours change with the dressing and the time of day, so the pill is what
+ * guarantees the letter is readable at all - the same reason the handoff's
+ * own on-lane tiles are white cards rather than text. */
+.lane-preview-card__slot {
+    background-color: var(--surface-sunk);
+    border-width: 1px;
+    border-color: var(--ring);
+    border-radius: 10px;
+    color: var(--violet-text);
+    font-size: var(--text-micro);
+    -unity-text-align: middle-center;
+    /* A FLOOR, NOT A WIDTH, so "A" and "D" are the same size as each other
+     * rather than each shrink-wrapped to its own glyph. Four pills of four
+     * different widths under a lane read as four different kinds of thing.
+     * 26 is the widest of the four at this size plus the padding. */
+    min-width: 26px;
+    padding-top: var(--space-1);
+    padding-bottom: var(--space-1);
+    padding-left: var(--space-2);
+    padding-right: var(--space-2);
+    margin-left: var(--space-1);
+    margin-right: var(--space-1);
+}
+
+/* An OCCUPIED pocket is the solid white one and an empty pocket is the
+ * outlined one, which is the handoff's own treatment on the lane itself:
+ * `slotABg` white with a name in it, against a `#f7f5fb` tile with a violet
+ * ring and a "+". The ring on an empty slot is an invitation; a filled slot
+ * has nothing left to invite. */
+.lane-preview-card__slot--filled {
+    background-color: var(--surface);
+    border-color: var(--surface);
+}

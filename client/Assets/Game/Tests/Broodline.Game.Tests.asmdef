@@ -1,7 +1,7 @@
 {
   "name": "Broodline.Game.Tests",
   "rootNamespace": "Broodline.Game.Tests",
-  "references": ["Broodline.Game", "Broodline.Model", "Broodline.Sim", "Broodline.UI", "Broodline.Net", "Generated.Api", "UnityEngine.TestRunner", "UnityEditor.TestRunner"],
+  "references": ["Broodline.Game", "Broodline.Model", "Broodline.Sim", "Broodline.UI", "Broodline.Net", "Broodline.Creatures", "Broodline.View", "Generated.Api", "UnityEngine.TestRunner", "UnityEditor.TestRunner"],
   "includePlatforms": ["Editor"],
   "excludePlatforms": [],
   "overrideReferences": true,

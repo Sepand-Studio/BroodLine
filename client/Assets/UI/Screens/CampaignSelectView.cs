@@ -24,6 +24,23 @@ namespace Broodline.UI.Screens
     /// `CampaignSelectScreen.RowName(id)`, because that is the handle the
     /// director and the tests reach a single wave by and it belongs to this
     /// screen rather than to the component.
+    ///
+    /// THE ROWS SIT INSIDE ONE `SectionCard` AS OF PHASE 9 TASK 14, AND THAT
+    /// CLOSES A MEASURED DEFECT RATHER THAN MOVING FURNITURE.
+    /// `phase8-visual-review.md`'s "one thing that is objectively out of
+    /// spec" is this list: `OptionRow`'s --surface-sunk fill on --paper
+    /// measures 1.0151:1 and its --hairline border 1.1131:1, both under WCAG
+    /// 1.4.11's 3:1 for a non-text boundary, so a row's extent was carried by
+    /// almost nothing. The review offered three fixes and deferred the choice
+    /// to this phase; design section 4.1 took the third - "`OptionRow` ...
+    /// is composed inside a `SectionCard` where the handoff composes it, so
+    /// its fill sits on white. The WCAG note ... closes by following the
+    /// design, not exceeding it." On white the fill measures 1.0726:1. That
+    /// is better and is still not 3:1, which is the honest state of it: the
+    /// handoff's own unselected option is a 1px #ece7f6 inset on #f7f5fb -
+    /// the same numbers - and the decision taken was to follow it. What
+    /// actually carries each row's state is the word in its detail line plus
+    /// a mark at its right edge, which is bible 10.4 working as designed.
     [UxmlElement]
     public partial class CampaignSelectView : VisualElement
     {
@@ -33,6 +50,11 @@ namespace Broodline.UI.Screens
         /// it is what `CampaignSelectView.uss` hangs the LOCKED treatment off,
         /// which is this screen's own rule rather than the component's.
         public const string RowUssClassName = "campaign-row";
+
+        /// The green "Cleared" chip at a beaten wave's right edge. Named here
+        /// rather than typed as a literal at the two places that need it -
+        /// this file and the stylesheet - on `SectionCard`'s convention.
+        public const string ClearedChipUssClassName = "campaign-select-view__cleared";
 
         readonly VisualElement _waves;
 
@@ -52,8 +74,20 @@ namespace Broodline.UI.Screens
             // own `title` Label is gone: the scaffold's header IS the title,
             // and two elements named "title" in one tree is a Q() that
             // answers whichever it meets first.
-            var scaffold = new ScreenScaffold(CampaignSelectScreen.Title);
-            scaffold.Content.Add(_waves);
+            //
+            // THE EYEBROW IS ALREADY UPPERCASE AND NOTHING HERE MAKES IT SO -
+            // UI Toolkit has no `text-transform`, so the casing is baked into
+            // the constant. `CampaignSelectScreen.Eyebrow` has the note.
+            var scaffold = new ScreenScaffold(
+                CampaignSelectScreen.Title, eyebrow: CampaignSelectScreen.Eyebrow);
+
+            // ONE CARD FOR THE WHOLE LIST, NOT ONE PER ROW. The rows are a
+            // single list of one kind of thing, which is what the handoff
+            // puts on one surface; a card each would give every wave its own
+            // drop shadow and turn a list into a stack of unrelated panels.
+            var card = new SectionCard();
+            card.Body.Add(_waves);
+            scaffold.Content.Add(card);
             Add(scaffold);
         }
 
@@ -77,10 +111,25 @@ namespace Broodline.UI.Screens
                 return;
             }
 
+            VisualElement last = null;
             foreach (var id in waves)
             {
-                _waves.Add(RowFor(id, waves, highestWaveCleared, onPick));
+                last = RowFor(id, waves, highestWaveCleared, onPick);
+                _waves.Add(last);
             }
+
+            // THE LAST ROW'S BOTTOM MARGIN IS CANCELLED INLINE, AND USS
+            // CANNOT DO IT. `.option-row` carries `margin-bottom:
+            // var(--space-2)` so consecutive rows separate; inside a card
+            // that leaves 8px of the component's margin on top of the card's
+            // own 16px padding, so the list sits 24px off the bottom edge
+            // against 16px off the top. UI Toolkit has no structural
+            // pseudo-classes - no `:last-child`, no `:nth-child` - so there
+            // is no selector that can say "this one". An inline style is what
+            // is left, and it is safe here because every `Bind` clears the
+            // list and rebuilds it, so no row can keep a cancellation it is
+            // no longer entitled to.
+            if (last != null) last.style.marginBottom = 0;
         }
 
         static VisualElement RowFor(
@@ -126,6 +175,36 @@ namespace Broodline.UI.Screens
                 lockGlyph.AddToClassList("icon--lock");
                 lockGlyph.pickingMode = PickingMode.Ignore;
                 row.Add(lockGlyph);
+            }
+            else if (CampaignSelectScreen.IsCleared(id, highestWaveCleared))
+            {
+                // THE GREEN CHIP IS THE PADLOCK'S OPPOSITE NUMBER AND IS
+                // REDUNDANT IN EXACTLY THE SAME WAY, ON PURPOSE. "Cleared" is
+                // already in the detail line, as "Locked" already is - and
+                // the mark is what makes a beaten wave findable in a list at
+                // a glance, which words in an 11px second line are not. It
+                // reads the same constant the detail line does, so the two
+                // cannot drift into saying different things.
+                //
+                // A `.chip` RATHER THAN A `GenChip`. That component's whole
+                // interface is `GenChip(int generation)` - it renders
+                // `CreatureLabel.Generation`, which would put a "G" in front
+                // of this - so what is shared is the SHAPE, and the shape is
+                // Theme.uss's `.chip` underneath both. Widening GenChip to
+                // take arbitrary text to serve one row is the kind of
+                // contract change Task 13's vocabulary was fixed to prevent.
+                //
+                // READ OFF `GenChip` RATHER THAN TYPED AGAIN. The shared
+                // shape has a name - `GenChip.ChipUssClassName`, declared for
+                // exactly this - and the line below it in this same method
+                // already reads `ClearedChipUssClassName` for the same
+                // reason. A literal here would have been the one string in
+                // the pair that nothing keeps in step.
+                var chip = new Label(CampaignSelectScreen.ClearedLabel) { name = "cleared" };
+                chip.AddToClassList(GenChip.ChipUssClassName);
+                chip.AddToClassList(ClearedChipUssClassName);
+                chip.pickingMode = PickingMode.Ignore;
+                row.Add(chip);
             }
 
             return row;

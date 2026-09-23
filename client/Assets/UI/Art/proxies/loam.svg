@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192" fill="#ffffff">
-  <!-- Loam, bible 1.2: "Segmented ground-hugger, blunt snout, no legs". Support. -->
-  <rect x="14" y="128" width="30" height="34" rx="14"/>
-  <rect x="40" y="122" width="34" height="44" rx="17"/>
-  <rect x="70" y="116" width="38" height="50" rx="19"/>
-  <rect x="104" y="112" width="40" height="54" rx="20"/>
-  <path d="M138 112 h28 a6 6 0 0 1 6 6 v42 a6 6 0 0 1 -6 6 h-28 z"/>
-</svg>

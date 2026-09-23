@@ -87,13 +87,71 @@ DEFINES_IPHONE=$(defines_for iPhone)
   || bad "Scripting defines differ: Standalone='$DEFINES_STANDALONE' iPhone='$DEFINES_IPHONE'" \
          "Player > Other Settings > Scripting Define Symbols - make both platforms match, then commit ProjectSettings.asset. cross-runtime-diff.sh compares a Standalone IL2CPP player against the iPhone one; a define on only one side means the two are not the same program."
 
-# Unity stores Always Included Shaders by GUID, never by name, so assert the
-# GUID of URP's Lit.shader rather than the string a human would recognise.
-URP_LIT_GUID=933532a4fcc9baf4fa0491de14d08ed7
-grep -q "$URP_LIT_GUID" "$G" \
-  && ok "URP/Lit in Always Included Shaders" \
-  || bad "URP/Lit not in Always Included Shaders" \
-         "Project Settings > Graphics > Always Included Shaders > + > Universal Render Pipeline/Lit  (without it Shader.Find returns null in a build and every device run in Task 5 renders magenta)"
+# --- ALWAYS INCLUDED SHADERS. Unity stores them by GUID, never by name, so
+# assert GUIDs rather than the strings a human would recognise.
+#
+# THIS CHECK EXISTED, IT WAS RIGHT, AND IT COVERED ONE SHADER - Phase 9 Task
+# 21c. It named URP/Lit alone and said exactly why ("Shader.Find returns null
+# in a build"). Then `LaneDressing` started asking for URP/**Unlit**, which no
+# material asset in this project references, and nothing here knew. The
+# packaged app died at launch with `ArgumentNullException` / "Parameter name:
+# shader" out of `Material.CreateWithShader`, inside `BootController.Start`,
+# before any screen - and the Editor could not reproduce it, because in the
+# Editor `Shader.Find` searches the whole project rather than the build.
+#
+# So the list below is no longer the gate on its own. The gate is the pair:
+# these GUIDs, AND the two coupling checks after them, which fail when the
+# runtime learns a shader name this file has not been told about.
+declare -a SHADER_NAMES=(
+  "Universal Render Pipeline/Lit"
+  "Universal Render Pipeline/Unlit"
+)
+declare -a SHADER_GUIDS=(
+  933532a4fcc9baf4fa0491de14d08ed7
+  650dd9526735d5b46b79224bc6e94025
+)
+for i in "${!SHADER_NAMES[@]}"; do
+  grep -q "${SHADER_GUIDS[$i]}" "$G" \
+    && ok "${SHADER_NAMES[$i]} in Always Included Shaders" \
+    || bad "${SHADER_NAMES[$i]} not in Always Included Shaders" \
+           "run  Unity -batchmode -quit -projectPath client -executeMethod Phase0Setup.Apply  and commit client/ProjectSettings/GraphicsSettings.asset. Without it Shader.Find returns null IN A PLAYER ONLY: the Editor finds the shader, every test passes, and the packaged app throws ArgumentNullException from new Material(null)."
+done
+
+# COUPLING 1: every shader name the runtime knows must be checked above.
+# `Broodline.View.RuntimeShaders` is the single list the call sites, the
+# registrar (Phase0Setup) and this gate all read. A name added there without a
+# GUID added here is a shader nothing guarantees into the build - which is the
+# precise shape of the defect this section was extended for.
+R=client/Assets/View/RuntimeShaders.cs
+if [ -f "$R" ]; then
+  declared=$(sed -n 's/.*public const string [A-Za-z]* = "\([^"]*\)".*/\1/p' "$R" | sort)
+  checked=$(printf '%s\n' "${SHADER_NAMES[@]}" | sort)
+  [ "$declared" = "$checked" ] \
+    && ok "RuntimeShaders names match the GUIDs checked here" \
+    || bad "RuntimeShaders declares [$(echo $declared)] but this script checks [$(echo $checked)]" \
+           "add the new shader's GUID to SHADER_GUIDS in this file (read it from its .shader.meta in client/Library/PackageCache), and add its name to SHADER_NAMES, so the always-included assertion above covers it"
+else
+  bad "missing $R" "the shader-name list this gate reads is gone; restore it or this check cannot fail honestly"
+fi
+
+# COUPLING 2: no runtime code may call Shader.Find directly.
+# A raw lookup bypasses `RuntimeShaders.All`, so COUPLING 1 cannot see it and
+# the shader reaches a player unprotected. Editor code and tests are exempt:
+# they only ever run where Shader.Find searches the whole project anyway.
+#
+# `Shader\.Find *(` AND NOT A BARE `Shader.Find`, because the prose that
+# explains this rule names the thing it forbids - `RuntimeShaders`' own header
+# and `LaneDressing`'s call-site comment both say "Shader.Find", and the first
+# draft of this check reported them as violations. Comment lines are dropped
+# and a call parenthesis is required, so a mention costs nothing and a call
+# still fails.
+stray=$(grep -rn 'Shader\.Find *(' --include='*.cs' client/Assets 2>/dev/null \
+        | grep -v '/Editor/' | grep -v '/Tests/' | grep -v 'View/RuntimeShaders.cs' \
+        | grep -v '^[^:]*:[0-9]*: *//' || true)
+[ -z "$stray" ] \
+  && ok "no direct Shader.Find in runtime code (all lookups go through RuntimeShaders)" \
+  || bad "direct Shader.Find in runtime code:"$'\n'"$stray" \
+         "route it through Broodline.View.RuntimeShaders.Require(...) and add the name to RuntimeShaders.All, so the always-included gate above covers it"
 
 # --- The client floor coupling. config/bundles/<highest>/manifest.json's
 # minimumClientVersion is what routes/sync.ts refuses clients below with 426;

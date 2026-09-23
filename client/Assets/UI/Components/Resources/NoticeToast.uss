@@ -1,0 +1,36 @@
+/* The notice surface. Sits in #notice-layer, a sibling of #shell-root, so it
+ * is drawn whether or not the shell is - a blocked beat's sentence must
+ * reach the player during a wave too.
+ *
+ * `top` IS MEASURED FROM THE FRAME'S EDGE, NOT FROM INSIDE THE SAFE AREA -
+ * THIS COMMENT USED TO CLAIM "under the safe area the layer applies" AND THE
+ * LAYER APPLIES NOTHING. #notice-layer is `position: absolute` and so is this
+ * element, and UI Toolkit offsets an absolutely positioned child from its
+ * parent's border box, so neither the panel root's inset nor any padding on
+ * the layer reaches this rule. On an iPhone 17 that drew the first row's text
+ * behind the Dynamic Island. BootController.BindSafeAreas puts the inset on
+ * this element as paddingTop, so `top` below is the GAP BELOW the inset and
+ * the rows land under it; do not re-add the inset here. */
+.notice-toast {
+    position: absolute;
+    left: var(--gutter);
+    right: var(--gutter);
+    top: var(--space-6);
+    flex-direction: column;
+}
+
+.notice-toast__rows { flex-direction: column; }
+
+.notice-toast__row {
+    background-color: var(--ink-deep);
+    color: var(--surface);
+    border-radius: var(--radius-row);
+    padding-top: var(--space-3);
+    padding-bottom: var(--space-3);
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+    margin-bottom: var(--space-2);
+    font-size: var(--text-body);
+    white-space: normal;
+    opacity: 0.96;
+}

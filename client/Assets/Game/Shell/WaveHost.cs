@@ -25,6 +25,7 @@ namespace Broodline.Game.Shell
         public const string SceneName = "Wave";
 
         readonly Func<IReadOnlyList<TraitSummary>> _traits;
+        readonly Action<bool> _setShellVisible;
 
         /// `traits` is read PER RUN rather than captured once, because the
         /// snapshot it comes from is replaced wholesale by every `/v1/sync`
@@ -32,9 +33,10 @@ namespace Broodline.Game.Shell
         /// wholesale, with no merge"). A host holding the list it was
         /// constructed with would name last week's counter on the defeat
         /// screen after a bundle publish.
-        public WaveHost(Func<IReadOnlyList<TraitSummary>> traits)
+        public WaveHost(Func<IReadOnlyList<TraitSummary>> traits, Action<bool> setShellVisible = null)
         {
             _traits = traits ?? throw new ArgumentNullException(nameof(traits));
+            _setShellVisible = setShellVisible ?? (_ => { });
         }
 
         /// How long a hosted wave may run before the host abandons it.
@@ -44,6 +46,60 @@ namespace Broodline.Game.Shell
         /// eighth Skirmisher and `Wave7`'s sixth, both at tick 405), so two
         /// minutes is not a number a wave that is still playing can reach.
         public const double CompletionTimeoutSeconds = 120;
+
+        /// The message the abandonment throws, named rather than written
+        /// inline at the `throw`.
+        ///
+        /// IT IS A DEVELOPER'S LINE AND IT IS SUPPOSED TO BE. A bracketed
+        /// subsystem tag, the runner's type name and "the scene is unloaded"
+        /// are what a developer reading a device console needs. What it is
+        /// not is a sentence for a player, and for most of Phase 9 it was
+        /// one: `FtueDirector`'s guarded `_play` catch said
+        /// `ServerError.From(error).PlayerMessage`, whose transport branch
+        /// handed `Exception.Message` through verbatim, and Task 21g promoted
+        /// that from four seconds of toast to the permanent explanation on
+        /// `InterruptedView`. `ServerError`'s transport branch is where that
+        /// is fixed.
+        ///
+        /// NAMED SO THE TEST CANNOT DRIFT FROM IT, which is the other half.
+        /// `WalkRecoveryTests` had hand-copied an approximation of this string
+        /// - no tag, no scene name, only the first sentence, and thrown as the
+        /// wrong exception type - so the fixture was blind to the exact text
+        /// the defect lived in. It now throws THIS.
+        public static string CompletionTimedOut
+        {
+            get
+            {
+                return "[" + nameof(WaveHost) + "] " + SceneName + " did not finish within " +
+                    CompletionTimeoutSeconds + "s of wall clock. Its " + nameof(WaveRunner) +
+                    " stopped signalling; the scene is unloaded and the wave abandoned.";
+            }
+        }
+
+        /// The message `FindRunner` throws when the scene loaded and has no
+        /// runner in it.
+        ///
+        /// NAMED FOR `CompletionTimedOut`'s SECOND REASON AND NOT ITS FIRST -
+        /// Phase 9 Task 21h, fix round 1. It is a developer's line like that
+        /// one, and it reaches a player through the same `_play` catch, so the
+        /// same rule applies to it. What earned it a name is that a test had
+        /// ALREADY hand-copied an approximation of it while asserting the
+        /// property that such copies must stop - "a WaveRunner is missing from
+        /// the Wave scene", which is not this text at all. A test that wants to
+        /// know what a player is shown for this throw reads it from here.
+        ///
+        /// ITS SIBLING TWO THROWS UP - the scene that did not load at all - is
+        /// deliberately left inline: nothing copies it, and naming a string on
+        /// the chance that something might is how a file accumulates constants
+        /// with one caller.
+        public static string RunnerMissing
+        {
+            get
+            {
+                return "[" + nameof(WaveHost) + "] no " + nameof(WaveRunner) + " in " + SceneName +
+                    " - rebuild it with Broodline > Build Wave Scene.";
+            }
+        }
 
         /// Loads the wave scene, plays `waveId` with `deployment`, and
         /// unloads.
@@ -89,6 +145,15 @@ namespace Broodline.Game.Shell
                 await Await(SceneManager.LoadSceneAsync(SceneName, LoadSceneMode.Additive));
 
                 var runner = FindRunner();
+
+                // Phase 9 design §2.2. AFTER the load, not before: the wave
+                // scene's UIDocument is a sibling root in the shared panel and
+                // is attached by now, so hiding the shell here leaves the HUD
+                // and the battlefield on screen and nothing else. Hidden
+                // before the load, the frame between hide and attach showed
+                // whatever the last camera cleared to - the reverted fix.
+                _setShellVisible(false);
+
                 runner.Configure(WaveDef.ForId(waveId), deployment, seed, inputEnabled);
                 await Completion(runner);
 
@@ -111,6 +176,12 @@ namespace Broodline.Game.Shell
                 // which the runner either deploys wave 6 over the player's
                 // own roster or overwrites the tracked capture artifacts
                 // with a wave nobody asked to record.
+                // RESTORE FIRST, and on every path. The exception path is the
+                // one the reverted fix never restored. Guarded so a throwing
+                // callback cannot skip the unload below.
+                try { _setShellVisible(true); }
+                catch (Exception error) { Debug.LogError("[WaveHost] setShellVisible(true) threw: " + error); }
+
                 await UnloadAsync();
                 WaveRunner.Hosted = false;
                 Interlocked.Exchange(ref _active, 0);
@@ -141,10 +212,7 @@ namespace Broodline.Game.Shell
             {
                 var expired = Task.Delay(TimeSpan.FromSeconds(CompletionTimeoutSeconds), giveUp.Token);
                 if (await Task.WhenAny(completed, expired) != completed)
-                    throw new TimeoutException(
-                        "[WaveHost] " + SceneName + " did not finish within " +
-                        CompletionTimeoutSeconds + "s of wall clock. Its WaveRunner stopped " +
-                        "signalling; the scene is unloaded and the wave abandoned.");
+                    throw new TimeoutException(CompletionTimedOut);
 
                 // So the timer does not sit in the queue for the rest of the
                 // bound after every wave that ends normally. A cancelled
@@ -197,8 +265,7 @@ namespace Broodline.Game.Shell
                 if (runner != null) return runner;
             }
 
-            throw new InvalidOperationException(
-                "[WaveHost] no WaveRunner in " + SceneName + " - rebuild it with Broodline > Build Wave Scene.");
+            throw new InvalidOperationException(RunnerMissing);
         }
 
         /// An `AsyncOperation` as an awaitable.

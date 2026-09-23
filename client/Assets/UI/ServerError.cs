@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Broodline.Api;
+using Broodline.Net;
 
 namespace Broodline.UI
 {
@@ -118,6 +119,18 @@ namespace Broodline.UI
         /// The response body as received, kept when it could not be typed.
         /// Nothing is discarded just because it could not be understood.
         public string RawBody { get; private set; }
+
+        /// The DEVELOPER's text for a failure that produced no response body
+        /// at all, and the reason `PlayerMessage` no longer carries it.
+        ///
+        /// `From(Exception)`'s transport branch used to hand `error.Message`
+        /// straight to `PlayerMessage`, so a `TimeoutException` built for a
+        /// console became the sentence on a player's screen - see that branch.
+        /// Discarding the message instead would have taken a developer's only
+        /// record of the failure away with it on a device where nobody can
+        /// attach a debugger, so it lands here and in `ToString()`, which this
+        /// file already marks "for the log line, not for the player".
+        public string Diagnostic { get; private set; }
 
         public bool IsRecognised { get { return Kind != ServerErrorKind.Unrecognised; } }
 
@@ -303,14 +316,83 @@ namespace Broodline.UI
             }
 
             // A transport failure, not a refusal. Status 0 says so.
-            var transport = From(0, string.Empty, error == null ? string.Empty : error.Message);
+            //
+            // AND `error.Message` DOES NOT REACH THE PLAYER, WHICH IS THE
+            // ASYMMETRY THIS FUNCTION USED TO HAVE WITH ITSELF. The branch
+            // twenty lines up already refuses to show `api.Message` because it
+            // is "a diagnostic, not a sentence to show a player"; this one
+            // passed a raw `Exception.Message` through verbatim. On an iPhone
+            // 17 that put
+            //
+            //   "[WaveHost] Wave did not finish within 120s of wall clock. Its
+            //    WaveRunner stopped signalling; the scene is unloaded and the
+            //    wave abandoned."
+            //
+            // on `InterruptedView` as the permanent, authoritative explanation
+            // of why the game stopped - a bracketed subsystem tag, an internal
+            // type name and a sentence about scene management. Phase 9 Task
+            // 21g had already written the ruling down at the one call site it
+            // touched (`FtueNotice.WalkThrew`: "`PlayerMessage` degrades to
+            // the raw `Exception.Message` ... a stack trace wearing a
+            // sentence's clothes") and left every caller that could do it
+            // doing it.
+            //
+            // TWO NUMBERS, BOTH STATED SO THEY CANNOT DRIFT APART AGAIN - this
+            // count has been wrong four times across three rounds, once inside
+            // the commit that was fixing it. **NINE** production sites read
+            // `PlayerMessage`, every one of them in `FtueDirector`; `RosterScreen`
+            // reads none, it RETURNS a `ServerError` and the director reads it.
+            // **EIGHT** of those nine can arrive at THIS branch. The ninth is
+            // `FtueNotice.For`, whose `error` is typed `BroodlineApiException`
+            // and therefore always answered by one of the two branches above.
+            // And NONE of the nine is the site that comment sat on - `RunAsync`'s
+            // outermost catch deliberately does not read `PlayerMessage` at all,
+            // which is the whole of what 21g did about it. So the ruling was
+            // written down beside one caller and applied to nothing, and it is
+            // settled here instead, once, where the eight meet it.
+            //
+            // TWO SENTENCES BECAUSE THERE ARE TWO SITUATIONS, AND THE SPLIT IS
+            // `Retry.IsTransient`'s RATHER THAN A SECOND ONE OF THIS FILE'S.
+            // Its division is "did the request reach an answer" - exactly the
+            // question that decides which of these is true - and it is already
+            // tested against the three shapes Mono actually produces. A
+            // `NullReferenceException` out of a request builder is not the
+            // server being unreachable and must not claim to be; telling a
+            // player their connection failed when this build has a defect is
+            // the confidently-wrong explanation this phase keeps finding.
+            var transport = From(0, string.Empty,
+                Retry.IsTransient(error) ? UnreachableServer : UnexpectedProblem);
             transport.Remedy = Remedy.RetryLater;
+            transport.Diagnostic = error == null ? string.Empty : error.Message;
             return transport;
         }
 
         /// Shown when the server refused but said nothing this client could
         /// read. Deliberately says only what is known to be true.
         public const string UnreadableRefusal = "The server refused this request.";
+
+        /// Shown when the request never reached an answer, so there is no
+        /// server sentence to show and no refusal to report.
+        ///
+        /// IT REPLACES A STRICTLY WORSE SENTENCE, which is the test the broad
+        /// fix had to pass: the message a player got here was Mono's own
+        /// "An error occurred while sending the request." for a dropped
+        /// connection and "A task was canceled." for `HttpClient`'s timeout.
+        /// Both name the plumbing and neither names a remedy.
+        public const string UnreachableServer =
+            "The server could not be reached. Try again.";
+
+        /// Shown when what arrived was neither a refusal nor a transport
+        /// failure, which leaves a defect in this build.
+        ///
+        /// THE SAME SENTENCE AS `FtueNotice.WalkThrew`, DELIBERATELY AND BY
+        /// REFERENCE: that constant is said when a defect throws its way out
+        /// of the whole walk, this one when a defect is caught at the call
+        /// that made it, and a player cannot tell those apart and should not
+        /// be given two sentences that mean the same thing. `WalkThrew` is
+        /// defined as this string so there is one place to change it.
+        public const string UnexpectedProblem =
+            "The game hit an unexpected problem. Try again.";
 
         /// Pull `code` and `message` out of an error body. Never throws: a
         /// body that is not the error shape - an HTML error page from a proxy,
@@ -352,7 +434,9 @@ namespace Broodline.UI
             return "ServerError(status=" + StatusCode
                 + ", code=" + (Code.Length == 0 ? "<none>" : Code)
                 + ", recognised=" + IsRecognised
-                + ", remedy=" + Remedy + ")";
+                + ", remedy=" + Remedy
+                + (string.IsNullOrEmpty(Diagnostic) ? string.Empty : ", diagnostic=" + Diagnostic)
+                + ")";
         }
     }
 }

@@ -60,59 +60,274 @@
    here duplicates a class the layer already provides, and the three other
    sheets this task touched went 23 to 9 and 31 to 10.
 
-   THERE IS NO WAVE NUMBER HERE, THOUGH THE HANDOFF AND TASK 11 BOTH ASK FOR
-   ONE. The handoff's Wave Defense layout opens "Wave counter and Ark health",
-   and `HudSnapshot` carries `Integrity` and `Tick` and nothing else -
-   Model/WaveReport.cs, three fields. Adding it is a change to
-   Broodline.Model, to WaveRunner's snapshot builder and to
-   `WaveHudScreen.Integrity`, whose sentence DeviceReplayTests' re-capture
-   procedure reads off the screen to time a tap. That is a data-path change
-   and this is a look pass, so the counter is recorded as owed rather than
-   invented from whatever `WaveRunner` happens to have in scope. */
+   THE WAVE NUMBER ARRIVED IN PHASE 9 TASK 18 AND `HudSnapshot` DID NOT
+   CHANGE. This note used to record the counter as owed, and it named the
+   right obstacle for the wrong route: `HudSnapshot` does carry Integrity,
+   Tick and Bodies and nothing else (Model/WaveReport.cs:146-158), and adding
+   a fourth field would have reached Broodline.Model, WaveRunner's per-frame
+   snapshot builder and `WaveHudScreen.Integrity`'s sentence - which the
+   device re-capture procedure reads off the screen to time a tap. None of
+   that was necessary. The wave id is not per-frame data: it is fixed for the
+   whole run, `WaveRunner.Configure` is handed the `WaveDef` that carries it,
+   and `WaveHudView.Wave` is a property set once at attach, on the precedent
+   `Camera` already set on the same view ("not a `Bind` parameter: the brief
+   pins Bind(Func<HudSnapshot>) and the camera outlives any one binding").
+
+   WHAT IS STILL NOT DRAWN, AND IT IS THE REST OF THE HANDOFF'S TOP ROW.
+   `Wave Defense.dc.html:35` is a pause tile and `:42` a speed pill, one each
+   side of the wave counter, and neither is here. Three measurements, each on
+   its own sufficient: there is no `icon--pause` and no `icon--speed` in
+   `icons.uss` (sixteen `.icon--*` rules, none of them either); every element in this
+   view is `PickingMode.Ignore` and `WaveScreensTests
+   .WaveHud_AcceptsNoPointerEventAnywhere` sweeps the whole subtree to keep it
+   that way; and `WaveRunner.Update` makes a tap ANYWHERE Rally creature 0,
+   which combat_engine section 8 makes the player's only input during a wave.
+   So a pause glyph here would not be an inert control - it would be a control
+   whose tap does something else, which is strictly worse than not drawing it.
+   `WaveDefeatView.Bind` already states the rule this follows: a control that
+   does nothing reads as an app that is broken.
+
+   AND THE LEFT STAT PILL - `Gene energy`, `:54` - IS NOT DRAWN EITHER.
+   `WaveHudScreen.IntegrityLabel`'s comment has that one: there is no energy
+   in this game's combat loop for it to state. */
 .wave-hud-view {
     flex-grow: 1;
     flex-direction: column;
 }
 
-/* THE READOUT IS A CHIP, IN Theme.uss's `.panel-*` RECIPE AND NOT A FOURTH
- * SHAPE - fill, --radius-row, one padding step - because the five panel
- * classes are what a tinted surface looks like everywhere else in the app,
- * and a HUD that invented its own would be the bespoke styling this task is
- * here to retire. It is not one of those classes only because none of them is
- * scrim: every `.panel-*` is a light tint for ink on paper, and this one
- * carries white ink over a battlefield. --space-2 rather than --space-3
- * because a readout is a chip and a panel is a block; both are on the scale.
+/* ------------------------------------------------------------- the chrome */
+
+/* THE GUTTER LIVES HERE NOW, ONCE, FOR BOTH THE BAND AND THE READOUT. Each
+ * used to carry its own `margin-left: var(--gutter)`; `Wave Defense.dc.html`
+ * puts both inside the 12px page gutter at `:48` (`:34` is 14, not 12) and they are
+ * one block of chrome, so one element owns it.
  *
- * `align-self` IS THE HALF THAT MAKES IT A CHIP RATHER THAN A BAND. The root
- * is a column, so a child stretches the full width by default - and a
- * full-width fill under one short line is a strip across the top of the
- * battlefield, not a readout. `flex-start` shrink-wraps it to its own text,
- * which is also what keeps the band `ClampIntoFrame` reserves the width of
- * the thing actually being avoided. */
-.wave-hud-view__integrity {
-    align-self: flex-start;
+ * `align-items: flex-start` RATHER THAN A `flex-start` ON EACH CHILD, which
+ * is the same shrink-wrap the readout has always had, hoisted. The root is a
+ * column, so a child stretches the full width by default - and a full-width
+ * scrim under one short line is a strip across the top of the battlefield,
+ * not a readout. It is also what keeps the band `ClampIntoFrame` reserves the
+ * width of the thing actually being avoided.
+ *
+ * NOT `position: absolute`. It is the first child of a column whose only
+ * other child is the absolutely-positioned bar layer, so the chrome's own
+ * height is what `Place` measures and the bars are laid over it. */
+.wave-hud-view__chrome {
+    align-items: flex-start;
     margin-left: var(--gutter);
+    margin-right: var(--gutter);
     margin-top: var(--space-2);
-    padding: var(--space-2);
-    background-color: var(--hud-scrim);
-    border-radius: var(--radius-row);
-    color: var(--surface);
 }
 
-/* `t-num` is on the Label in the UXML and its size is overridden HERE, on a
- * two-class selector, which is the one override in this file and is stated
- * rather than left to the cascade.
+/* THE TOP BAND, IN Theme.uss's `.panel-*` RECIPE AND NOT A FOURTH SHAPE -
+ * fill, --radius-row, one padding step - because the five panel classes are
+ * what a tinted surface looks like everywhere else in the app. It is not one
+ * of those classes only because none of them is scrim: every `.panel-*` is a
+ * light tint for ink on paper, and this one carries white ink over a
+ * battlefield. --space-2 rather than --space-3 because this is chrome over a
+ * scene and not a block on a page; both are on the scale. */
+.wave-hud-view__band {
+    background-color: var(--hud-scrim);
+    border-radius: var(--radius-row);
+    padding: var(--space-2);
+}
+
+/* `Wave Defense.dc.html:39` - the handoff's `.lbl`, in the ONE ink this file
+ * carries. Its own header states that ruling: over a scene that changes every
+ * frame every readout wants the most contrast available, and one ink is one
+ * fewer pair to keep in step. The handoff's #a29bb5 is --mute, which is a mid
+ * grey and is the right answer on paper and the wrong one on a scrim.
  *
- * bible 10.6's 11px is a FLOOR, not a target, and --text-secondary sits
+ * TWO CLASSES, to beat `.t-micro`'s single-class --mute however the panel
+ * orders the two sheets - the rule every override of a Theme class in this
+ * phase follows. */
+.wave-hud-view .wave-hud-view__eyebrow {
+    color: var(--surface);
+    height: 14px;
+    -unity-text-align: middle-left;
+}
+
+.wave-hud-view__wave-line {
+    flex-direction: row;
+    align-items: center;
+    margin-top: 1px;
+}
+
+/* `:40` draws "Wave {{ wave }}" as one 20px Baloo line and this is two Labels
+ * on one row, for the reason `DeployView`'s title line is: bible 10.6 keeps
+ * numerals out of the display face and puts `t-num` on every decision-bearing
+ * one, so the word and the number cannot be one run of text.
+ * `align-items: center` rather than the baseline the handoff gets for free -
+ * UI Toolkit has no `align-items: baseline` at all.
+ *
+ * --text-screen-title IS 21 AGAINST THE HANDOFF'S 20, which is the nearest
+ * step on the scale and the size the deploy screen already draws the same
+ * words at, 30 seconds earlier in the same beat. */
+.wave-hud-view .wave-hud-view__wave-word {
+    color: var(--surface);
+    height: 29px;
+    -unity-text-align: middle-left;
+}
+
+/* THE NUMBERS AT THE WORD'S OWN SIZE, which `.t-num` would otherwise take to
+ * --text-secondary (11px) - half the height of the word beside it. This is
+ * the fourth place in the project to raise a `.t-num` label above the 11px
+ * floor, after `.resource-pill__value` (15), `.cost-cta-row__cost` (17) and
+ * `.deploy-view__wave-number` (21); the floor is a MINIMUM, so going up does
+ * not touch bible 10.6, and what it forbids is --text-micro, which
+ * verify-uss-tokens.sh check 2 reads.
+ *
+ * 4px, WHICH IS THE SPACE CHARACTER THE HANDOFF HAS AND THIS ROW DOES NOT:
+ * two Labels have no word gap between them. --space-1 at this size reads as
+ * the one space in "Wave 6". */
+.wave-hud-view .wave-hud-view__wave-number {
+    font-size: var(--text-screen-title);
+    color: var(--surface);
+    height: 29px;
+    -unity-text-align: middle-left;
+    margin-left: var(--space-1);
+}
+
+/* -------------------------------------------------------- the stat readout */
+
+/* `:48` - `display: flex; gap: 7px; padding: 0 12px 10px`. The 12px is the
+ * chrome's gutter above and is not restated; the 10px below it is the gap to
+ * the lane, which here is the battlefield itself and needs none. 6px is the
+ * handoff's own distance between the band's bottom edge and the readouts'
+ * top, measured on `specs/Designs/shots/wave-defense.png` at 2x. */
+.wave-hud-view__pills {
+    flex-direction: row;
+    margin-top: 6px;
+}
+
+/* ONE PILL, NOT THE HANDOFF'S TWO - see `WaveHudScreen.IntegrityLabel`.
+ * Everything else about it is `:58`'s: a rounded box with a 22px tinted disc
+ * at the left and a two-line column beside it. The fill is the scrim rather
+ * than the handoff's #ffffff, for this file's own reason: a white pill is a
+ * white card over a battlefield. */
+.wave-hud-view__pill {
+    flex-direction: row;
+    align-items: center;
+    background-color: var(--hud-scrim);
+    border-radius: var(--radius-row);
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+    padding-left: 11px;
+    padding-right: 11px;
+}
+
+/* `:59` - a 22px circle behind an 11px glyph, the same ornament
+ * `.deploy-view__pill-disc` draws on the placing phase of this screen. 11 is
+ * half of 22, so this is a true circle: a square element clamps both axes
+ * alike, which is the one shape immune to the lens defect Theme.uss's header
+ * item 4 measured. Not shared with the deploy screen's rule because a screen's
+ * stylesheet reaches its own descendants and this disc is not one of them. */
+.wave-hud-view__pill-disc {
+    width: 22px;
+    height: 22px;
+    border-radius: 11px;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-right: var(--space-2);
+    background-color: var(--coral-tint);
+}
+
+/* TWO CLASSES, to beat `icons.uss`'s 19px and --mute-soft without depending on
+ * which sheet the panel applies last. The handoff draws the mark at 11px
+ * inside the 22px disc and strokes it #c96555; --coral-deep (#d4776a) is the
+ * nearest token at 11+18+21 = 50 in summed channel distance and is the same
+ * pairing `.deploy-view__pill-disc--integrity` already makes with the same
+ * tint, so the two phases of this screen draw one ornament. */
+.wave-hud-view .wave-hud-view__pill-glyph {
+    width: 11px;
+    height: 11px;
+    -unity-background-image-tint-color: var(--coral-deep);
+}
+
+/* HEIGHT ON THE BOX, NEVER ON THE LABEL - Phase 9 Task 16b's rule. Every
+ * Label in this file's chrome carries one, including the three in the band
+ * above: measured on `WaveDefeatView.png`, a Label that is a CHILD of a column
+ * reserves one extra line box of leading that nothing declares, and 29 is
+ * --text-screen-title's own (21 x 1.36 = 28.6, rounded up). These two are
+ * instances of the shape it was written for: Labels
+ * that are CHILDREN of a column rather than the box itself, which 16b measured
+ * at 37-38px inside a 20px chip. The numbers are the authored line boxes
+ * rounded up - Nunito-Bold SDF is m_LineHeight 122.76 on m_PointSize 90 =
+ * 1.36em (`Nunito-Bold SDF.asset:149,152`), so 10px x 1.36 = 13.6 -> 14 and
+ * 17px x 1.36 = 23.1 -> 24. Up rather than down, because a height UNDER the
+ * line box clips descenders and there are none to spare at 10px.
+ * `-unity-text-align: middle-left` is the other half of the rule: a height on
+ * its own pins the box and leaves the glyphs hanging from its top edge.
+ * `.deploy-view__pill-label` and `-value` are the same pair on the same
+ * handoff element in its other phase. */
+.wave-hud-view .wave-hud-view__pill-label {
+    height: 14px;
+    color: var(--surface);
+    -unity-text-align: middle-left;
+}
+
+/* bible 10.6's 11px is a FLOOR, not a target, and --text-secondary sits
  * exactly on it. This is the single number a player reads mid-wave, at arm's
  * length, with a thumb somewhere over the screen, against a scene that is
  * moving - so it takes the largest size on the scale that still reads as
- * chrome rather than as a headline. It was a bespoke 15px before this task,
- * which is on no scale at all; 17px is --text-cta, the project's own "read
- * this at a glance" size, and it is the nearer of the two tokens either side
- * of 15 in the direction that does not shrink the readout. */
-.wave-hud-view__integrity.t-num {
+ * chrome rather than as a headline. It was a bespoke 15px before Phase 8 Task
+ * 11, which is on no scale at all; 17px is --text-cta, the project's own
+ * "read this at a glance" size. */
+.wave-hud-view .wave-hud-view__integrity {
     font-size: var(--text-cta);
+    height: 24px;
+    color: var(--surface);
+    -unity-text-align: middle-left;
+}
+
+/* THE LIVE TICK, AND IT IS DRESSED AS AN INSTRUMENT RATHER THAN AS A STAT -
+ * Phase 9 Task 21e. It used to be appended to `.wave-hud-view__integrity`,
+ * which put a frame counter inside the VALUE of a pill captioned "ARK
+ * INTEGRITY" and read, to the person who walked the packaged app, as
+ * "2 tick 155".
+ *
+ * UNDER THE PILL, NOT IN ONE, WHICH IS THE WHOLE POINT. The pill is the
+ * handoff's stat anatomy - tinted disc, caption, value - and anything inside
+ * it claims to BE the stat. Outside it, in its own small scrim, at a third of
+ * the value's size, it is plainly a separate readout.
+ * `WaveHudScreen.Tick` has why it is on screen at all.
+ *
+ * ITS OWN SCRIM, BECAUSE IT IS NOT INSIDE ANYTHING ELSE'S. Both other pieces
+ * of chrome on this screen carry white ink on --hud-scrim - the band at :129
+ * and the pill at :208 - and they can, because each is a filled box. This
+ * Label is a direct child of `#chrome`, so with no fill of its own it would
+ * be white text laid straight on a pale-green battlefield. Same recipe as the
+ * band, one step smaller in padding because it holds one short line rather
+ * than a two-line column, and `align-items: flex-start` on `#chrome` already
+ * shrink-wraps it.
+ *
+ * --text-secondary IS `t-num`'s OWN SIZE AND IS NOT RESTATED HERE. 11px is
+ * bible 10.6's floor, and the tick IS a number a decision depends on - the
+ * capturer times a tap by it - so it sits ON the floor rather than under it:
+ * the smallest thing this file is allowed to draw, which is the right size
+ * for the least important number on the screen. `t-num` also brings the
+ * tabular digits, without which a counter advancing thirty times a second
+ * would jitter as its glyph widths changed.
+ *
+ * HEIGHT ON THE BOX WITH `middle-left`, THIS FILE'S OWN RULE - see
+ * `.wave-hud-view__pill-label`'s note four rules up, which has the
+ * measurement. 11px x 1.36 = 14.96 -> 15, rounded UP because a height under
+ * the line box clips descenders.
+ *
+ * 6px MATCHES `.wave-hud-view__pills`' OWN TOP MARGIN, which is the handoff's
+ * measured distance between two stacked chrome rows on this screen. */
+.wave-hud-view .wave-hud-view__tick {
+    height: 15px;
+    color: var(--surface);
+    -unity-text-align: middle-left;
+    background-color: var(--hud-scrim);
+    border-radius: var(--radius-row);
+    padding-top: var(--space-1);
+    padding-bottom: var(--space-1);
+    padding-left: var(--space-2);
+    padding-right: var(--space-2);
+    margin-top: 6px;
 }
 
 .wave-hud-view__bars {

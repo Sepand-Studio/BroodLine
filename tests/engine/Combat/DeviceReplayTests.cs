@@ -51,8 +51,10 @@ namespace Broodline.Sim.Tests.Combat
             "requirements - creature 0 holds a target during 184..240, and the Courser must still " +
             "be below the first defender, which ends at 207 - and a tap outside it can round-trip " +
             "perfectly while proving nothing. The two known-good captures landed at 204 and 205. " +
-            "The HUD prints the live tick beside Integrity; expect roughly ten ticks of reaction " +
-            "lag, so aim near 190.\n" +
+            "The HUD prints the live tick in a small scrimmed readout UNDER the ARK INTEGRITY " +
+            "pill - it moved out of that pill's value in Phase 9 Task 21e, where a player read " +
+            "\"2 tick 155\" as the integrity itself. Expect roughly ten ticks of reaction lag, " +
+            "so aim near 190.\n" +
             "IN THE EDITOR it is looser: Rally lasts 120 ticks, so any tap whose window overlaps " +
             "184..240 is valid - the 2026-09-11 capture tapped at 78 and was fine.";
 

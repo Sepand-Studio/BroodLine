@@ -1,9 +1,25 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
     <ui:Style src="FounderNamingView.uss" />
-    <ui:Label name="prompt" class="founder-naming-view__prompt t-section" />
-    <ui:VisualElement name="founder" class="founder-naming-view__founder" />
+    <ui:VisualElement name="progress" class="founder-naming-view__progress">
+        <ui:VisualElement name="pip-1" class="progress-pip progress-pip--current" />
+        <ui:VisualElement name="pip-2" class="progress-pip" />
+        <ui:VisualElement name="pip-3" class="progress-pip" />
+        <ui:VisualElement name="pip-4" class="progress-pip" />
+        <ui:VisualElement name="pip-5" class="progress-pip" />
+        <ui:Label name="step" class="founder-naming-view__step t-num" />
+    </ui:VisualElement>
+    <ui:VisualElement name="founder" />
+    <ui:Label name="kicker" class="founder-naming-view__kicker t-micro" />
+    <ui:Label name="card-title" class="founder-naming-view__card-title t-section" />
+    <ui:Label name="prompt" class="founder-naming-view__prompt" />
     <ui:TextField name="name" class="founder-naming-view__name" />
     <ui:Label name="blocker" class="founder-naming-view__blocker panel-coral t-danger" />
+    <ui:VisualElement name="note" class="founder-naming-view__note panel-violet">
+        <ui:VisualElement name="note-disc" class="founder-naming-view__note-disc">
+            <ui:VisualElement name="note-glyph" class="icon icon--check founder-naming-view__note-glyph" picking-mode="Ignore" />
+        </ui:VisualElement>
+        <ui:Label name="note-text" class="founder-naming-view__note-text t-violet" />
+    </ui:VisualElement>
     <ui:Button name="confirm" class="founder-naming-view__confirm btn-primary" />
     <ui:Button name="skip" class="founder-naming-view__skip btn-quiet" />
 </ui:UXML>

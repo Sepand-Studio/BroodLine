@@ -23,11 +23,43 @@ namespace Broodline.UI
         /// header that outlives it or flatten the prompt into a label.
         public const string Title = "Name your Founder";
 
-        /// The scaffold's footer note. bible 3.3 makes the prompt optional
-        /// and the Roster rename the fallback, so this is the caveat that
-        /// makes `SkipLabel` a real answer rather than a discard: the name is
-        /// permanent for the Founder, which is why the screen exists at all.
-        public const string FooterNote = "Founders keep their names for life.";
+        /// The handoff's kicker, over the title. `Onboarding.dc.html` step 1
+        /// titles itself "This is your Gene Ark"; the screen's own title is
+        /// the instruction, so the Ark is what the eyebrow says instead -
+        /// where in the app the player is standing.
+        ///
+        /// UPPERCASE IN THE CONSTANT, WHICH IS NOT A STYLE CHOICE MADE HERE.
+        /// The handoff renders every eyebrow through `.lbl { text-transform:
+        /// uppercase }` (`Onboarding.dc.html:15`), and UI Toolkit has no
+        /// `text-transform` at all - Task 13 established this and
+        /// `CostCtaRow.CostEyebrow` is the same constant for the same reason.
+        /// So the casing is baked into the string, in ONE place, and
+        /// everything that renders or asserts it reads this rather than
+        /// repeating the literal.
+        public const string Eyebrow = "YOUR GENE ARK";
+
+        /// The step counter beside the progress pips. Onboarding is five
+        /// steps and the Ark is the first of them, which is the handoff's
+        /// own `stepLabel` for that screen.
+        ///
+        /// A NUMBER, SO IT RENDERS ON `.t-num`. bible 10.6's tabular face
+        /// and 11px floor apply to any figure a decision depends on, and
+        /// "how much of this is left" is one.
+        public const string Step = "1 / 5";
+
+        /// The violet tip note under the name field. bible 3.3 makes the
+        /// prompt optional and the Roster rename the fallback, so this is the
+        /// caveat that makes `SkipLabel` a real answer rather than a discard:
+        /// the name is permanent for the Founder, which is why the screen
+        /// exists at all.
+        ///
+        /// IT WAS THE SCAFFOLD'S FOOTER NOTE UNTIL PHASE 9 TASK 14. The
+        /// handoff's step 1 puts its note INSIDE the card, on a violet panel
+        /// behind a glyph, rather than as grey type under the CTA - and the
+        /// sentence is the same sentence, so it moved rather than being
+        /// replaced. Renamed with it: a constant called `FooterNote` that no
+        /// longer reaches `ScreenScaffold.FooterNote` is a name that lies.
+        public const string Note = "Founders keep their names for life.";
 
         /// bible 3.3's "sensible default": the species. It is the only name
         /// the client has that is about THIS creature, and a default the
@@ -89,6 +121,21 @@ namespace Broodline.UI
         /// just happened. One string doing both jobs would either put "A
         /// mutation fired." in a header that outlives the moment or flatten
         /// the payoff into a label.
+        ///
+        /// NOTHING RENDERS IT AS OF PHASE 9 TASK 16b, AND THAT IS THE POINT
+        /// RATHER THAN A LEAK. `Splice Reveal.dc.html:38-41` draws no page
+        /// header at all, so `SpliceRevealView` builds its scaffold with
+        /// `title: null` and the handoff's kicker moved into the content
+        /// column. The constant is kept because it is still the screen's
+        /// NAME - README section 7 and the handoff's own push table both
+        /// call it that, and `FounderNamingScreen.Title` is kept on the
+        /// other headerless screen for the same reason (that one has a card
+        /// heading to spend it on; this one does not).
+        ///
+        /// DO NOT PASS IT BACK INTO `ScreenScaffold`. That restores a page
+        /// header the handoff does not draw, and it would do it silently -
+        /// `ScaffoldTests.EveryTitledScreenStillDrawsItsPageHeader` reads
+        /// the `headerless` list, not this string.
         public const string Title = "Splice Reveal";
 
         /// What the parents row says when it was handed neither parent.
@@ -106,6 +153,28 @@ namespace Broodline.UI
         /// outcome - the worst result is rolling traits the player already
         /// had." So the non-mutated arm states what happened and does not
         /// apologise for it.
+        ///
+        /// ===================================================================
+        /// A RECORDED DIVERGENCE FROM THE HANDOFF, FOR TASK 22's ERRATA.
+        ///
+        ///   handoff:  `Splice Reveal.dc.html:147` - "A new line begins",
+        ///             one fixed string for both arms of its own toggle.
+        ///   ours:     "A mutation fired." / "The splice took."
+        ///   ruling:   THE TWO-ARM COPY STAYS (controller, Task 16 review).
+        ///
+        /// The reveal exists to celebrate an OUTCOME, and copy that varies
+        /// with that outcome does more work than a fixed string the static
+        /// mockup had no way to vary - the mockup's `renderVals` switches
+        /// its kicker, its traits label and its three tones on the same
+        /// `open` flag and leaves the headline alone, which is a limit of
+        /// the prototype rather than a decision about the words.
+        ///
+        /// WHAT WAS WRONG WAS THAT IT DIVERGED SILENTLY. Task 16's report
+        /// listed this headline's SIZE residual (28px against the handoff's
+        /// 26) and never its TEXT. A divergence this deliberate belongs
+        /// beside the string, not only in a report, which is what this block
+        /// is for.
+        /// ===================================================================
         public static string Headline(bool mutated)
         {
             return mutated ? "A mutation fired." : "The splice took.";
@@ -138,17 +207,169 @@ namespace Broodline.UI
         }
 
         /// The child, as this screen names it.
+        ///
+        /// AN EMPTY COMBAT SLOT IS NOT LISTED - Phase 9 Task 21e. This read
+        /// both slots unconditionally, so a child with one trait was
+        /// introduced as "Ash (G3) — Carapace II, None": the wire's word for
+        /// an empty slot, printed in a sentence, with a comma in front of it.
+        /// It is the same defect as the granted card's two "None" chips, in
+        /// prose instead of in chips, and `CreatureLabel.IsAbsentTrait` has
+        /// the ruling. A child with NEITHER trait is named with no dash at
+        /// all rather than with a dangling one, on `CreatureLabel.RoleLine`'s
+        /// own rule - "a line reading ` · Forage` is a hole where a fact
+        /// should be".
         public static string ChildLine(CreatureDto child)
         {
             if (child == null) return string.Empty;
-            return CreatureLabel.WithGeneration(child) + " — "
-                + CreatureLabel.TraitWithTier(child.Trait1, child.Tier1) + ", "
-                + CreatureLabel.TraitWithTier(child.Trait2, child.Tier2);
+
+            var named = new List<string>(2);
+            if (!CreatureLabel.IsAbsentTrait(child.Trait1))
+                named.Add(CreatureLabel.TraitWithTier(child.Trait1, child.Tier1));
+            if (!CreatureLabel.IsAbsentTrait(child.Trait2))
+                named.Add(CreatureLabel.TraitWithTier(child.Trait2, child.Tier2));
+
+            var name = CreatureLabel.WithGeneration(child);
+            return named.Count == 0 ? name : name + " — " + string.Join(", ", named);
         }
 
         /// splice_confirm_spec section 5: "Then show the lineage." The button
         /// says where it goes, because beat 8 is the point of the session.
         public const string NextLabel = "See the lineage";
+
+        // ---------------------------------------------------------------
+        // Phase 9 Task 16 - `Splice Reveal.dc.html`'s own words. Every
+        // eyebrow below ships UPPERCASE for the reason
+        // `FounderNamingScreen.Eyebrow` states in full: the handoff gets it
+        // from `.lbl { text-transform: uppercase }`, UI Toolkit has no
+        // `text-transform`, and the user ruled the casing lives in the
+        // NAMED CONSTANT and nowhere else.
+        // ---------------------------------------------------------------
+
+        /// The kicker over the headline - `Splice Reveal.dc.html:123`'s
+        /// revealed arm, verbatim. It states the cost in the past tense,
+        /// which is splice_confirm_spec 5's whole point: the reveal
+        /// CONFIRMS what the chamber already said rather than disclosing it.
+        ///
+        /// IT IS THE CONTENT COLUMN'S NOW, NOT THE SCAFFOLD EYEBROW'S -
+        /// Phase 9 Task 16b. `:39` draws it centred over the headline with
+        /// no header above either, so it moved with the header's removal
+        /// rather than being deleted by it. Named `Eyebrow` still, because
+        /// it is the same string in the same role and renaming a constant
+        /// four tests read buys nothing.
+        public const string Eyebrow = "SPLICE COMPLETE · CHARGE SPENT";
+
+        /// The traits card's eyebrow and its right-hand note -
+        /// `Splice Reveal.dc.html:125` and `:126`, revealed arm. "final" is
+        /// lowercase in the handoff and is not a `.lbl`, so it is not
+        /// uppercased here - the pair reads "these are odds no longer".
+        public const string TraitsHeading = "INHERITED TRAITS";
+        public const string TraitsNote = "final";
+
+        /// Which parent brought one of the child's traits, or null when
+        /// neither did - which is what a mutation is.
+        ///
+        /// THE CREATURE AND NOT ITS SPECIES, WHICH `SpliceScreen.TraitOwner`
+        /// RETURNS AND IS THE RIGHT ANSWER THERE. The chamber needs a colour
+        /// family and two parents of one species would colour alike either
+        /// way; the reveal needs to NAME the parent, and "From Ash" and
+        /// "From Bramble" are two different sentences from one species. Two
+        /// callers, two questions, and neither is the other's helper.
+        ///
+        /// A IS CHECKED FIRST, and where both carry the trait either answer
+        /// names a real source - the tie is broken by order rather than by
+        /// inventing a rule, which is the same call `TraitOwner` makes.
+        public static CreatureDto SourceOf(string trait, CreatureDto parentA, CreatureDto parentB)
+        {
+            if (string.IsNullOrEmpty(trait)) return null;
+            if (Holds(parentA, trait)) return parentA;
+            if (Holds(parentB, trait)) return parentB;
+            return null;
+        }
+
+        /// What a trait row says brought it - `Splice Reveal.dc.html:127-129`.
+        ///
+        /// THE PLAYER'S NAME WHERE THERE IS ONE, on `CreatureLabel
+        /// .DisplayName`'s rule and not the handoff's bare species. bible 3.3
+        /// makes the Founder's name the thing that carries weight, and "From
+        /// Ash" on the screen that just consumed Ash is the whole lesson of
+        /// the beat; "From Vetch" is a fact about stock.
+        ///
+        /// "Mutation" WHEN NEITHER PARENT CARRIES IT, which is the handoff's
+        /// own third row at `:129` and is the definition the reveal's note
+        /// states in words ("it isn't in either parent", `:137`).
+        public static string SourceLabel(string trait, CreatureDto parentA, CreatureDto parentB)
+        {
+            var source = SourceOf(trait, parentA, parentB);
+            if (source == null) return MutationLabel;
+            var name = CreatureLabel.DisplayName(source);
+            return name.Length == 0 ? MutationLabel : "From " + name;
+        }
+
+        /// What a trait row says when NEITHER parent brought it -
+        /// `Splice Reveal.dc.html:129`.
+        public const string MutationLabel = "Mutation";
+
+        /// Which of the child's two combat traits is the mutation, or null.
+        ///
+        /// A SET DIFFERENCE OVER THREE DTOs, NOT A RE-DERIVED FORECAST, and
+        /// the distinction matters because `SpliceConfirmTests` is built on
+        /// this assembly never computing odds. A mutation is DEFINED as a
+        /// trait that is in neither parent - the reveal's own note says so in
+        /// as many words ("it isn't in either parent",
+        /// `Splice Reveal.dc.html:137`) - so with both parents and the child
+        /// in hand, naming it is a lookup. Nothing here decides WHETHER a
+        /// mutation happened: that is `mutated`, and it arrives from
+        /// `GET /v1/lineage`.
+        ///
+        /// NULL IS A REAL ANSWER AND HAS TWO CAUSES, both handled the same
+        /// way by the caller: either parent missing (the reveal already says
+        /// so through `NoParentsMessage`), or a `mutated` child whose two
+        /// traits both appear in a parent - which is reachable, because the
+        /// flag comes from the tree and the tree records the ROLL rather than
+        /// the slot it landed in. In both cases the pill states that a
+        /// mutation rolled without naming a trait it cannot identify.
+        public static string MutatedTrait(CreatureDto child, CreatureDto parentA, CreatureDto parentB)
+        {
+            if (child == null || parentA == null || parentB == null) return null;
+            if (IsNew(child.Trait1, parentA, parentB)) return child.Trait1;
+            if (IsNew(child.Trait2, parentA, parentB)) return child.Trait2;
+            return null;
+        }
+
+        static bool IsNew(string trait, CreatureDto parentA, CreatureDto parentB)
+        {
+            if (string.IsNullOrEmpty(trait)) return false;
+            return !Holds(parentA, trait) && !Holds(parentB, trait);
+        }
+
+        static bool Holds(CreatureDto creature, string trait)
+        {
+            if (creature == null) return false;
+            return string.Equals(creature.Trait1, trait, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(creature.Trait2, trait, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// The gold pill on the hero card - `Splice Reveal.dc.html:62`'s
+        /// `MUTATION ROLLED · ASHVEIL`.
+        ///
+        /// UPPERCASE INCLUDING THE TRAIT, which is the one place in this file
+        /// a runtime value is upper-cased rather than typed that way. The
+        /// handoff's pill is a `letter-spacing: .06em` label in the same
+        /// uppercase voice as every `.lbl`, and the trait is part of the
+        /// label rather than a value beside it. `ToUpperInvariant`, not the
+        /// current culture: a Turkish locale lower-cases `I` to a dotless
+        /// glyph, and a trait id is an identifier.
+        ///
+        /// WITHOUT A TRAIT IT STILL SAYS THE EVENT HAPPENED. `MutatedTrait`
+        /// returns null for a reachable state, and "MUTATION ROLLED" alone is
+        /// true; a pill that vanished would drop the rarest outcome in the
+        /// game off the screen built to celebrate it.
+        public static string MutationPill(string trait)
+        {
+            const string Rolled = "MUTATION ROLLED";
+            return string.IsNullOrEmpty(trait)
+                ? Rolled : Rolled + " · " + trait.ToUpperInvariant();
+        }
     }
 
     /// Beat 8 - the two-generation tree that closes session one.
@@ -158,6 +379,25 @@ namespace Broodline.UI
         /// carrying one image: a family tree with a creature they named at
         /// the bottom of it."
         public const string Title = "Lineage";
+
+        /// The handoff's kicker, over the title - where in the app the player
+        /// is standing, which is what every other screen's eyebrow says
+        /// ("GENE LAB" over Splicing Chamber, "HOLLOW REACH · DEFENSE" over a
+        /// wave). The bundle draws no Lineage screen at all, so the word is
+        /// taken from what the rest of the client already calls this record:
+        /// `SpliceScreen.LineageHeading` heads the chamber's own strip and
+        /// `SpliceChamberView`'s content-order note names that card "the
+        /// pedigree". The title says WHAT this screen is; the eyebrow says
+        /// what kind of thing a lineage is, which is the one fact a player
+        /// arriving from a splice has not been told.
+        ///
+        /// UPPERCASE IN THE CONSTANT, for the reason `FounderNamingScreen
+        /// .Eyebrow` states in full: the handoff renders every eyebrow
+        /// through `.lbl { text-transform: uppercase }` and UI Toolkit has no
+        /// `text-transform` at all. So the casing is baked here, in ONE
+        /// place, and everything that renders or asserts it reads this rather
+        /// than writing the cased form as a literal in markup or in a test.
+        public const string Eyebrow = "PEDIGREE";
 
         /// Shown when the server returned a tree with nothing in it. Not a
         /// blank screen: an empty tree after a splice would be the one
@@ -269,6 +509,37 @@ namespace Broodline.UI
     {
         public const string Title = "Campaign";
 
+        /// The handoff's kicker, over the title: the region these waves are
+        /// fought in. design 5.2 gives this screen no `.dc.html` of its own,
+        /// so the eyebrow is the one the rest of the bundle uses for a wave -
+        /// `Wave Defense.dc.html` heads its own with "Hollow Reach · defense".
+        ///
+        /// UPPERCASE IN THE CONSTANT, for the reason
+        /// `FounderNamingScreen.Eyebrow` states in full: the handoff gets it
+        /// from `text-transform`, and USS has none.
+        public const string Eyebrow = "HOLLOW REACH";
+
+        /// The word a cleared wave is marked with, in the detail line AND in
+        /// the green chip at the row's right edge.
+        ///
+        /// ONE CONSTANT FOR BOTH, deliberately. `StateLabel` returns it and
+        /// the chip renders it, so a row cannot end up saying "Cleared" in
+        /// one place and "Complete" in the other - which is exactly what a
+        /// second literal at the chip's call site would eventually produce.
+        public const string ClearedLabel = "Cleared";
+
+        /// Whether this wave has already been beaten - the replay branch.
+        ///
+        /// SEPARATE FROM `IsPlayable`, though a cleared wave is always
+        /// playable. The two answer different questions: `IsPlayable` gates
+        /// the tap, this decides which MARK the row wears, and a screen that
+        /// derived the mark from the gate would put the green chip on the
+        /// next unplayed wave as well.
+        public static bool IsCleared(int waveId, int highestWaveCleared)
+        {
+            return waveId >= 1 && waveId <= highestWaveCleared;
+        }
+
         /// What the list says when the bundle authored no waves at all.
         /// `FtueDirector.CampaignAsync` returns early on an empty set today,
         /// so this is reachable only through a direct `Bind` - but a list
@@ -324,7 +595,7 @@ namespace Broodline.UI
         /// and "Locked" must never read the same as each other.
         public static string StateLabel(int waveId, IReadOnlyList<int> authored, int highestWaveCleared)
         {
-            if (waveId <= highestWaveCleared) return "Cleared";
+            if (IsCleared(waveId, highestWaveCleared)) return ClearedLabel;
             return IsPlayable(waveId, authored, highestWaveCleared) ? "Next" : "Locked";
         }
 

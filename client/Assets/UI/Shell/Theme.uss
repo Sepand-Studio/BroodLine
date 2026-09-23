@@ -193,6 +193,42 @@ Label {
     margin-bottom: var(--space-2);
 }
 
+/* The predicted-hybrid panel, and the one panel in the set whose fill is a
+ * gradient rather than a flat tint - `Splice Chamber.dc.html` is explicit
+ * that this surface is different from the cards above and below it. USS has
+ * no gradient (this file's header, item 1), so it is a ramp texture like the
+ * CTA's, stretched.
+ *
+ * THE COLOUR UNDER THE IMAGE IS DELIBERATE AND IS THE OPPOSITE CALL FROM
+ * `.btn-primary`, WHICH SETS IT TRANSPARENT. There, `--violet` was already
+ * on the element from the `Button` rule and would have tinted the ramp. Here
+ * nothing is under it, so the fill costs nothing while the image is present
+ * and is what the panel degrades to if the texture ever fails to import -
+ * the panel's own deepest tint rather than white. This phase exists partly
+ * because a missing asset rendered as nothing and nobody noticed.
+ *
+ * NOT `.btn-primary--hybrid`, which is what this task's brief named. That
+ * would be a modifier on the primary CTA, and nothing in the phase composes
+ * one: the ramp belongs to a SectionCard in the splice chamber, which is a
+ * panel. Named for what it is.
+ *
+ * NO CONSUMER IN THE APP AS OF PHASE 9 TASK 16, AND NOT RETIRED - DO NOT
+ * REACH FOR IT. The predicted-hybrid panel turned out to be `HeroBand`,
+ * measured property by property against `Splice Chamber.dc.html:101`: this
+ * class would be carried by a `SectionCard`, which is `.elev-1` (0 2px 8px
+ * .06) where the handoff's own surface is `0 4px 16px rgba(63,58,82,.08)` -
+ * `.elev-2`, a whole elevation step wrong - and --hybrid-tint-deep is 25 in
+ * summed channel distance from the handoff's `#f4f0fb` against the band's
+ * 8. `hybrid-ramp.png` has no consumer either, for the same reason.
+ * Retiring a Theme class and an asset is a palette-owner call and is not
+ * Task 16b's; this line exists so Tasks 17-19 do not compose a surface that
+ * was already measured and beaten. */
+.panel-hybrid {
+    background-image: url("project:///Assets/UI/Art/hybrid-ramp.png");
+    -unity-background-scale-mode: stretch-to-fill;
+    background-color: var(--hybrid-tint-deep);
+}
+
 .panel-violet { background-color: var(--violet-tint); border-radius: var(--radius-row); padding: var(--space-3); }
 .panel-teal   { background-color: var(--teal-tint);   border-radius: var(--radius-row); padding: var(--space-3); }
 .panel-green  { background-color: var(--green-tint);  border-radius: var(--radius-row); padding: var(--space-3); }
@@ -395,12 +431,70 @@ TextField:focus > * {
 
 /* ------------------------------------------------------------------ chips */
 
+/* THE HEIGHT IS THE CHIP'S, NOT THE LABEL'S, AND THAT IS THE WHOLE FIX.
+ * Phase 9 Task 16b. Measured off the capture corpus rather than reasoned:
+ *
+ *   - `.chip` WORN BY A LABEL rendered 22px - this rule's old 4+4 of
+ *     vertical padding around a 14px line box. `InheritanceBar`'s DOM/REC
+ *     tag (SpliceChamberView.png, y=665..686) and `CampaignSelectView`'s
+ *     Cleared chip (CampaignSelectView.png, y=133..154) are both that shape
+ *     and both measured exactly 22.
+ *   - `.chip` WORN BY A CONTAINER with a Label inside it rendered 37-38:
+ *     `GenChip` 37 (RosterView.png, y=109..145), `TraitChip` 38
+ *     (y=300..337). Same 8px of padding, plus TraitChip's 1px border a
+ *     side - so the INNER Label was measuring 28-29, which is TWO line
+ *     boxes, where the identical Label as the chip itself measures one.
+ *
+ * SO IT WAS NEVER THE FONT'S LINE METRICS. Nunito-Bold SDF is m_LineHeight
+ * 122.76 on m_PointSize 90 = 1.36em: 13.6px at --text-micro, 15.0 at
+ * --text-secondary, and `.pill`'s own note below measured the same 1.36
+ * independently at --text-body (25px = 8 + 16.4). Changing the asset's
+ * metrics would move every Label in the application to fix a number that is
+ * already right. WHY a child Label measures two line boxes where a leaf
+ * measures one is NOT instrumented here and is not claimed; what is
+ * measured is that a height on the chip makes both shapes one box.
+ *
+ * *** TASK 20 INSTRUMENTED IT, AND IT IS NOT TWO LINE BOXES. ***
+ * `LabelBoxProbe` (implementation/scripts/probe-label-box.sh) reads
+ * resolvedStyle off a real panel: Unity's DEFAULT RUNTIME THEME gives every
+ * Label padding 4/4 and margin 4/2. So at --text-micro the inner Label's
+ * border box is 4 + 14 + 4 = 22 and its MARGIN box is 4 + 22 + 2 = 28. That
+ * is one 14px line box inside 14px of fixed chrome - and 28 is what the
+ * measurements above read as "TWO line boxes", because 2 x 13.6 = 27.2 sits
+ * 0.8px away from it.
+ *
+ * IT REPRODUCES BOTH NUMBERS ABOVE EXACTLY. A Label WEARING `.chip` gets the
+ * chip's own 4+4 around its 14px line box = 22. A CONTAINER wearing `.chip`
+ * gets 4+4 around the inner Label's 28px margin box = 36, plus TraitChip's
+ * 1px border a side = 38. Being a constant, the chrome also cannot scale
+ * with font-size, which is the non-linearity Task 18 recorded at StatCell.
+ *
+ * THE RULE ABOVE IS UNAFFECTED AND STILL RIGHT - a height on the box wins
+ * whatever the child's chrome does. The cheaper general fix, if one is ever
+ * wanted, is zeroing the Label's own padding and margin: the probe shows
+ * that takes `TraitPip` from 34px to exactly `TraitChip`'s 20. NOT DONE
+ * HERE - it would move every Label in the application, which is the same
+ * objection this note already makes about the font asset's metrics.
+ *
+ * THE VERTICAL PADDING IS GONE RATHER THAN LEFT BESIDE THE HEIGHT. `height`
+ * in UI Toolkit is border-box - Yoga sizes padding and border INSIDE it -
+ * so with a height those two declarations could only shrink the content box
+ * the label is centred in, which is a declaration that no longer decides
+ * anything. The horizontal padding still does, and stays.
+ *
+ * `-unity-text-align` IS INHERITED, which is what puts a CHILD label on the
+ * chip's centre line as well as a label that IS the chip - the same
+ * inheritance TraitChip.uss and GenChip.uss already cancel
+ * `-unity-font-style: bold` through, one level down. `justify-content`
+ * centres the child ELEMENT, because a Label that still measures taller
+ * than the chip has to straddle the middle rather than hang below it. */
 .chip {
     background-color: var(--violet-tint);
     color: var(--violet-text);
     border-radius: var(--radius-chip);
-    padding-top: var(--space-1);
-    padding-bottom: var(--space-1);
+    height: var(--chip-height);
+    justify-content: center;
+    -unity-text-align: middle-center;
     padding-left: var(--space-2);
     padding-right: var(--space-2);
     font-size: var(--text-micro);
@@ -414,13 +508,51 @@ TextField:focus > * {
  * NOT VERIFIED IN THE CORPUS: nothing in client/ carries `.pill` today, so
  * no capture renders it and this number is a forward commitment. If a screen
  * gives it a different font-size or padding, re-measure - the height and
- * this radius are coupled. */
+ * this radius are coupled.
+ *
+ * AND `.chip` SETS A HEIGHT NOW, SO A PILL THAT IS ALSO A CHIP IS 20px
+ * WHATEVER THIS PADDING SAYS - --chip-height is border-box and wins over
+ * four paddings that only move the content box inside it. At 20 the
+ * semicircle is 10, not 12. Compose the two and re-measure; that is the
+ * coupling the paragraph above means, reached from the other side. */
 .pill {
     border-radius: 12px;
     padding-top: var(--space-1);
     padding-bottom: var(--space-1);
     padding-left: var(--space-3);
     padding-right: var(--space-3);
+}
+
+/* THE HANDOFF'S HEADER AFFORDANCE: a white tile at the header's left edge,
+ * lifted off the paper rather than sunk into it. Every pushed screen in the
+ * bundle wears one - the back chevron on Splice Chamber, the pause control on
+ * Wave Defense - at `background: #ffffff; box-shadow: 0 1px 3px
+ * rgba(63,58,82,.1)`.
+ *
+ * THE SHADOW IS A 1px --hairline BORDER, AND THAT IS FORCED. USS has no
+ * box-shadow (this file's header, item 2) and the nine-slice answer does not
+ * reach here: `.elev-1` is a WRAPPER - padding plus the sprite, with the
+ * surface as a child inside it - and a Button draws its own label and glyph
+ * in its own box, so it cannot be the child of a wrapper without ceasing to
+ * be the control. Put `.elev-1` on the Button itself instead and the
+ * nine-slice stretches its centre region across the interior and paints a
+ * grey smudge under the chevron, which this project has shipped twice. A
+ * hairline is the honest substitute for a 3px-blur shadow at this size.
+ *
+ * NOT A PILL, THOUGH THE NAME SAYS SO. The name is fixed by the phase's
+ * component contract; the SHAPE is the handoff's, which is a 34px rounded
+ * SQUARE at radius 12 (`Splice Chamber.dc.html`) or 11 (`Wave Defense`), not
+ * a 17px circle. --radius-tile (11px) sits in the handoff's own 9-14px
+ * icon-tile band and is what the back control already carried.
+ *
+ * Radius, size and padding stay with the element that has them - the
+ * scaffold's back Button keeps its own rule. This class is the FILL, so a
+ * screen that needs the same white tile for its own control (the pause
+ * button, the speed pill) gets it here rather than re-deriving it. */
+.pill-back {
+    background-color: var(--surface);
+    border-width: 1px;
+    border-color: var(--hairline);
 }
 
 /* Selected / unselected option, from the handoff's exact rule. USS has no

@@ -38,15 +38,36 @@ namespace Broodline.UI.Screens
         public const string UssClassName = "wave-defeat-view";
         public const string GrantUssClassName = "wave-defeat-view__grant";
 
+        /// The coral `HeroBand`. Named here rather than typed as a literal at
+        /// the call site so the coupling between this screen and the rules in
+        /// `WaveDefeatView.uss` that reach into `.hero-band__subject` is
+        /// visible from both ends - `HeroBand.ElevationUssClassName`'s own
+        /// convention.
+        public const string BandUssClassName = "wave-defeat-view__band";
+
         readonly ScreenScaffold _scaffold;
+        readonly HeroBand _band;
+        readonly Label _kicker;
         readonly Label _headline;
         readonly Label _diagnosis;
+        readonly VisualElement _diagnosisHeader;
         readonly SectionCard _diagnosisCard;
+        readonly StatCell _leaked;
+        readonly StatCell _integrity;
+        readonly StatCell _kept;
         readonly Label _granted;
         readonly VisualElement _grants;
         readonly VisualElement _resupply;
         readonly Button _retry;
         readonly Button _roster;
+
+        /// The counter's chip, REBUILT PER BIND rather than re-valued.
+        /// `TraitChip` takes its trait, its tier and its species at
+        /// construction and exposes no setter - that is its public shape and
+        /// this task does not move it - so a new breach means a new chip. This
+        /// screen binds once per defeat, so the cost is one element per wave
+        /// lost, and it is the field the old one is removed through.
+        TraitChip _counter;
 
         Action _onRetry;
         Action _onRoster;
@@ -58,6 +79,7 @@ namespace Broodline.UI.Screens
             var tree = Resources.Load<VisualTreeAsset>("WaveDefeatView");
             tree.CloneTree(this);
 
+            _kicker = this.Q<Label>("kicker");
             _headline = this.Q<Label>("headline");
             _diagnosis = this.Q<Label>("diagnosis");
             _granted = this.Q<Label>("granted");
@@ -73,7 +95,61 @@ namespace Broodline.UI.Screens
             // pushed: true, and this one is in the handoff's push table by
             // name: "Wave Defeat | Wave Defense (on loss)". The CHEVRON
             // follows `Bind`'s `onBack` and not this flag; see below.
-            _scaffold = new ScreenScaffold(WaveDefeatScreen.Title, pushed: true);
+            //
+            // `title: null`, WHICH HIDES THE PAGE HEADER, AND THE HANDOFF IS
+            // WHY. `Wave Defeat.dc.html` has no header row at all: `:26` is
+            // the status bar and `:31` is the band. `ScreenScaffold`'s
+            // constructor treats a null title as "no page header", which is
+            // the call `SpliceRevealView` already made on the same evidence in
+            // Task 16b, and it takes the kicker slot with it - so the eyebrow
+            // moves into the band, which is where `:40` draws it anyway.
+            // `WaveDefeatScreen.Title` is kept and its note says why.
+            //
+            // `pushed: true` IS THEREFORE INERT, said plainly, exactly as it
+            // is on Splice Reveal: the chevron lives in the row this hides.
+            // The push relationship is still real and `Bind` still sets
+            // `OnBack`; no caller passes one today.
+            _scaffold = new ScreenScaffold(title: null, pushed: true);
+
+            // ---------------------------------------------------- the band
+
+            // `Wave Defeat.dc.html:31` IS A `HeroBand` IN CORAL, and that is
+            // this task's one component decision. Its ramp
+            // (`linear-gradient(170deg, #fbeee9, #f6e2e4)`), its
+            // `border-radius: 26px` (--radius-band) and its
+            // `box-shadow: 0 4px 16px` (the `.elev-2` half of the handoff's
+            // 2:1 pair) are the band's three defining values, in a tint the
+            // component had no way to draw until now. `HeroBand.Tint`'s
+            // comment has the hook and the two cheaper hooks it rejected.
+            //
+            // `ring: false`, because there is no dashed ring on this screen -
+            // `HeroBand`'s own reading is that the ring is an optional layer
+            // and three of its six instances have none.
+            //
+            // CONTENT-SIZED: no `Fill` and no `Fix`. `:31` states no height
+            // and no `flex`, unlike `Onboarding`'s floor of 300 and
+            // `Splice Reveal`'s fixed 372 - this band is as tall as the four
+            // things in it, which is the third of the three shapes
+            // `HeroBand`'s class comment lists.
+            _band = new HeroBand(ring: false, tint: HeroBand.Tint.Coral) { name = "band" };
+            _band.AddToClassList(BandUssClassName);
+
+            _leaked = new StatCell(WaveDefeatScreen.LeakedStatLabel, null) { name = "leaked" };
+            _integrity = new StatCell(WaveDefeatScreen.IntegrityStatLabel, null) { name = "integrity" };
+            _kept = new StatCell(WaveDefeatScreen.KeptStatLabel, null) { name = "kept" };
+
+            var stats = this.Q<VisualElement>("stats");
+            stats.Add(_leaked);
+            stats.Add(_integrity);
+            stats.Add(_kept);
+
+            var verdict = this.Q<Label>("verdict");
+            verdict.text = WaveDefeatScreen.Verdict;
+
+            _band.Subject.Add(_kicker);
+            _band.Subject.Add(verdict);
+            _band.Subject.Add(_headline);
+            _band.Subject.Add(stats);
 
             // THE TEACHING SENTENCE GETS THE CARD, which is the one place on
             // this screen where a component replaces a hand-built surface
@@ -82,6 +158,21 @@ namespace Broodline.UI.Screens
             // --space-4 of padding - SectionCard's surface, written out
             // again, minus the elevation that lifts it off the paper.
             _diagnosisCard = new SectionCard { name = "diagnosis-card" };
+
+            // THE HANDOFF'S TWO-SIDED CARD HEADER (`:61`), which
+            // `SectionCard`'s own single Baloo heading cannot be - the same
+            // row `DeployView.CardHeader` and `SpliceChamberView.CardHeader`
+            // build, and the fourth instance in this phase. It should be a
+            // component; recorded rather than made one here, because a fourth
+            // caller is not this task's brief.
+            var heading = this.Q<Label>("diagnosis-heading");
+            heading.text = WaveDefeatScreen.DiagnosisHeading;
+
+            _diagnosisHeader = new VisualElement { name = "diagnosis-header" };
+            _diagnosisHeader.AddToClassList("wave-defeat-view__diagnosis-header");
+            _diagnosisHeader.Add(heading);
+
+            _diagnosisCard.Body.Add(_diagnosisHeader);
             _diagnosisCard.Body.Add(_diagnosis);
 
             // The UXML authors this screen's furniture as children of this
@@ -93,7 +184,7 @@ namespace Broodline.UI.Screens
             // `__cta-row` is `flex-direction: column`, so the retry sits over
             // the roster in the handoff's order of weight rather than beside
             // it at half width.
-            _scaffold.Content.Add(_headline);
+            _scaffold.Content.Add(_band);
             _scaffold.Content.Add(_diagnosisCard);
             _scaffold.Content.Add(_resupply);
             _scaffold.CtaRow.Add(_retry);
@@ -119,12 +210,29 @@ namespace Broodline.UI.Screens
         /// `ScreenFlow.PushAsync` has no caller in the client at all - so the
         /// screen renders one CTA, which is what it rendered before this task.
         /// The second appears the moment a caller has somewhere to send it.
+        /// `wave` and `deployed` ARE THE TWO FACTS THIS SCREEN STATES AND
+        /// `WaveReport` DOES NOT CARRY, and both are nullable for
+        /// `DeployScreen.FoesStatValue`'s reason: a caller that does not know
+        /// must not be made to claim wave zero or an empty deployment.
+        /// `Model/WaveReport.cs:48-75` is the whole of what a report holds -
+        /// Result, Ticks, IntegrityRemaining, ReplayBytes and Breaches - and
+        /// widening it for two numbers the caller already has in hand would
+        /// put a screen's chrome into the shared data layer.
+        /// `FtueDirector.FightAsync` has both: `start.WaveId` and the
+        /// deployment it sent.
         public void Bind(WaveReport report, IReadOnlyList<CreatureDto> granted, Action retry,
-                         Action roster = null, Action onBack = null)
+                         Action roster = null, Action onBack = null,
+                         int? wave = null, int? deployed = null)
         {
             if (report == null) throw new ArgumentNullException(nameof(report));
 
             _scaffold.OnBack = onBack;
+
+            // THE KICKER IS IN THE BAND, NOT IN THE SCAFFOLD'S EYEBROW SLOT,
+            // because this screen has no page header for that slot to sit
+            // under - see the constructor. Collapsed when the caller does not
+            // know the wave, on `ScreenScaffold.Eyebrow`'s own contract.
+            Collapsing(_kicker, wave == null ? null : WaveDefeatScreen.Eyebrow(wave.Value));
 
             // THE FIRST breach, not the worst or the last. It is the one that
             // started the defeat, and on the wave this screen was designed
@@ -148,6 +256,45 @@ namespace Broodline.UI.Screens
             // `WaveDefeat_ABreachTheBundleAnswersWithNothing` reads.
             _diagnosis.text = WaveDefeatScreen.Diagnosis(first) ?? string.Empty;
             Collapse(_diagnosisCard, _diagnosis.text);
+
+            // THE THREE CELLS - `Wave Defeat.dc.html:44-55`. The breach LIST's
+            // length rather than a second count, so the number cannot
+            // disagree with the breach the headline names.
+            _leaked.Value = WaveDefeatScreen.LeakedStatValue(report.Breaches);
+            _integrity.Value = WaveDefeatScreen.IntegrityStatValue(report.IntegrityRemaining);
+            _kept.Value = WaveDefeatScreen.KeptStatValue(deployed);
+
+            // THE COUNTER, AS A CHIP, WHICH IS WHAT THE HANDOFF'S TEACHING ROW
+            // (`:88-93`) DOES WITH THE ANSWER IT NAMES. The sentence beside it
+            // says what went wrong; the chip says what to go and get.
+            //
+            // ITS TIER AND ITS SPECIES COME FROM THE CREATURE THAT JUST
+            // ARRIVED, when one of them carries the trait. bible 9.3 is why
+            // that is not a coincidence to be clever about: "the counter trait
+            // is available immediately: a campaign reward, a species in the
+            // next drop, something the player can act on within minutes", and
+            // waves_01_12 section 3 makes wave 6's drop the Pale that carries
+            // Chill. So the chip is tinted by the species the player now owns
+            // and tiered at the coverage they now have, which is the whole
+            // lesson in one element rather than a bare word.
+            //
+            // AND WHEN NOTHING GRANTED CARRIES IT, the chip still names the
+            // trait with no tier - which `TraitChip` renders with its
+            // `aberrant` outline, because a null tier is that component's
+            // marker for "carries no coverage tier at all". That is the one
+            // place this screen says something it does not mean, and it says
+            // the smaller of two wrong things: the alternative is no chip at
+            // all on a defeat whose answer the bundle knows.
+            var counter = WaveDefeatScreen.Counter(first);
+            _counter?.RemoveFromHierarchy();
+            _counter = null;
+            if (!string.IsNullOrEmpty(counter))
+            {
+                var carrier = WaveDefeatScreen.CarrierOf(granted, counter);
+                _counter = new TraitChip(counter, WaveDefeatScreen.TierOf(carrier, counter),
+                                         carrier == null ? null : carrier.Species) { name = "counter" };
+                _diagnosisHeader.Add(_counter);
+            }
 
             _granted.text = WaveDefeatScreen.Resupply(granted) ?? string.Empty;
 

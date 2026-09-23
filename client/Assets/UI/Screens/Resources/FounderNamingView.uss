@@ -1,14 +1,41 @@
-/* Beat 4, composed onto ScreenScaffold. What is left in this file is the
- * three things the frame and the components cannot know: the gap under the
- * prompt, the centring of the one card, and that two of these labels wrap.
+/* Beat 4, against `Onboarding.dc.html` step 1. Composed onto ScreenScaffold
+ * and out of Task 13's components; what is left here is the onboarding STEP
+ * FRAME - the progress pips and the tip note - the card's own type ladder,
+ * and the layout no component can know.
+ *
+ * NO PAGE HEADER. The handoff's step screen starts with the pips (line 33)
+ * and its 26px Baloo heading (line 161) is inside the white card on line 158.
+ * The scaffold is constructed with `title: null` and hides its header row;
+ * FounderNamingView's class comment has what that costs.
+ *
+ * THIS FILE GREW IN PHASE 9 TASK 14 AND SHRANK AGAIN IN TASK 14c. Task 14's
+ * brief expected a shrink, on the general rule that a screen reaching for the
+ * component vocabulary should be deleting what it used to hand-roll. Phase 8
+ * Task 9 had already done that deletion - the four rules it removed are
+ * listed below and none came back - so there was nothing of that kind left to
+ * take out THEN. What arrived instead is the step frame: five pips, a step
+ * counter and a tip note, which exist on this screen because the handoff's
+ * onboarding has them and on no other screen in the app. A component for a
+ * vocabulary of one is the trade Task 13 spent its whole brief declining, and
+ * `HeroSlot`, `SectionCard` and `ScreenScaffold` are what this screen DID
+ * take instead of deriving: the ring, the disc, the species tint, the card,
+ * the elevation wrapper, the header, the CTA row.
+ *
+ * TASK 14c THEN TOOK THREE MORE RULES OUT, because the hero region turned out
+ * to be a vocabulary of SIX rather than of one - the handoff draws that band
+ * on six screens, and `HeroBand` is now what this screen composes for it. The
+ * deleted rules are named where they used to be, below.
  *
  * FOUR RULES LEFT THIS FILE IN PHASE 8 TASK 9 AND NONE OF THEM WERE
  * REPLACED BY A COPY HERE, which is the whole test of whether a screen is
  * composing the layer or re-deriving it:
  *   - the root's `padding: var(--gutter)` is the scaffold's content region.
- *   - `__prompt`'s font-size/colour/weight is `t-section` in the UXML; the
- *     screen TITLE moved to the scaffold's header, so the prompt is no
- *     longer also acting as one.
+ *   - `__prompt`'s colour and weight are Theme's own `Label` rule. Its SIZE
+ *     is set below, because the handoff's body copy is 13px and the default
+ *     Label is 12. It carried `.t-section` (19px Baloo) until Task 14b, on
+ *     the understanding that the screen title had moved to the scaffold's
+ *     header - which the handoff does not do. The title is `__card-title`
+ *     in the same card now and the prompt is the body line under it.
  *   - `__blocker`'s fill, radius and padding are Theme's `.panel-coral` and
  *     its ink is `.t-danger`.
  *   - `__skip`'s whole treatment was a verbatim second copy of Theme's
@@ -18,17 +45,183 @@
  */
 .founder-naming-view { flex-grow: 1; }
 
-.founder-naming-view__prompt {
-    margin-bottom: var(--space-3);
+/* ------------------------------------------------------- the step frame */
+
+/* THE PIPS ARE A FULL-WIDTH ROW ABOVE THE HERO, WHICH IS WHERE THE HANDOFF
+ * DRAWS THEM. `Onboarding.dc.html:34-40` is a row of five `flex: 1` bars with
+ * the step label at the end, `padding: 10px 16px 12px`, with nothing above it
+ * but the status bar.
+ *
+ * TASK 14 PUT THEM IN THE SCAFFOLD'S HEADER SLOT AND SHRANK THEM TO FIT.
+ * That was the right call while this screen still had a page header - a
+ * titles column carrying `flex-grow: 1` was beside them, so five stretching
+ * bars had nothing to stretch into and became five fixed 8px marks. With no
+ * header there is no column to compete with: the row is a child of the
+ * content region and the pips take the handoff's own `flex: 1`.
+ *
+ * `flex-shrink: 0` SO IT KEEPS ITS HEIGHT. This is a child of a column whose
+ * other children grow; a 4px row is the first thing a shrink pass would take.
+ *
+ * --space-2 IS 8px AGAINST THE HANDOFF'S 10px TOP PADDING. On the scale.
+ *
+ * NO `margin-bottom`, AND IT IS A TASK 14c DELETION RATHER THAN AN OMISSION.
+ * It carried --space-1 (4px) while the hero below was a `.elev-1` SectionCard
+ * whose wrapper contributed 6px of its own above the white edge - 4 + 6 = 10
+ * against the handoff's 12, which is what that note recorded. The hero is a
+ * `HeroBand` now and a band is `.elev-2`, so the wrapper contributes 12: the
+ * old 4 would make the measured gap 16. With this margin gone it is the
+ * handoff's 12 exactly, and the 6-vs-12 is the handoff's own difference
+ * between a card's `0 2px 8px` and the band's `0 4px 16px` rather than
+ * anything this screen chose. */
+.founder-naming-view__progress {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    margin-top: var(--space-2);
+}
+
+/* 2px is half of --space-1 (4px), which is this element's own height - the
+ * literal-beside-the-measurement form Tokens.uss's radius block requires,
+ * because there is no --radius-pill and a pill radius is a function of one
+ * element's height. ROUNDED DOWN IS NOT NEEDED HERE: 4 is even, so 2 is
+ * exactly half and the cap is a true semicircle.
+ *
+ * --hairline IS THE UNLIT STATE AND IT IS A DELIBERATE STEP DOWN FROM THE
+ * HANDOFF, which uses #e3dbf3. That colour is not in the token layer and is
+ * 22 in summed channel distance from --hairline (#ece7f6), the token this
+ * project already uses for exactly this job - an inactive outline on paper.
+ * Inventing a second near-identical grey-violet to be faithful to one
+ * gradient stop is the drift verify-uss-tokens.sh exists to stop. */
+/* `flex-grow` AND A ZERO BASIS IS THE HANDOFF'S `flex: 1`, WRITTEN OUT.
+ * USS has no `flex` shorthand's three-value form to lean on here and a bar
+ * with an `auto` basis would size to nothing and then distribute, which
+ * happens to give the same answer only because these five have no content.
+ * Stated so a sixth pip with a label in it cannot quietly change the widths.
+ *
+ * --space-2 IS THE GAP, 8px against the handoff's 9. On the scale. It is on
+ * every pip including the last, which is also the gap to the step counter -
+ * the handoff's own row has one uniform 9px gap the whole way across, so the
+ * counter sets no left margin of its own. */
+.progress-pip {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 0;
+    height: var(--space-1);
+    border-radius: 2px;
+    background-color: var(--hairline);
+    margin-right: var(--space-2);
+}
+
+/* The handoff lights every bar up to and including the current step. Beat 4
+ * is step 1, so exactly one is lit and this modifier is on exactly one pip
+ * in the UXML. --violet is the handoff's own `ON` (#7a6ac0), to the digit. */
+.progress-pip--current { background-color: var(--violet); }
+
+/* "1 / 5". The handoff sets it at 10.5px in #a29bb5, which is --mute
+ * exactly; the size comes from `.t-num` at --text-secondary (11px), because
+ * bible 10.6 puts an 11px floor under any number a decision depends on and
+ * "how much of this is left" is one. The half-pixel is recorded here rather
+ * than argued with, on StatCell.uss's precedent.
+ *
+ * NO LEFT MARGIN, AND THAT IS A DELETION RATHER THAN AN OMISSION. It carried
+ * --space-1 while the last pip carried --space-1 on its right; both together
+ * made 8px in a row whose gaps were 4. The pips now carry --space-2 and the
+ * handoff's row has ONE uniform gap across all six children, so a second
+ * margin here would make the counter's gap twice every other one.
+ *
+ * `flex-shrink: 0` IS REACHABLE NOW IN A WAY IT WAS NOT BEFORE. The pips
+ * carry `flex-basis: 0`, so on a frame narrow enough for the row to overflow
+ * they have nothing left to give and the shrink falls entirely on this label.
+ * With the old fixed-width pips the same overflow was shared. Four glyphs
+ * that say which step this is must not be what gives way. */
+.founder-naming-view__step {
+    color: var(--mute);
+    flex-shrink: 0;
+}
+
+/* ----------------------------------------------------------- the screen */
+
+/* THE HERO REGION HAS NO RULE IN THIS FILE AS OF TASK 14c, AND THAT IS THE
+ * DELETION THIS SCREEN OWED.
+ *
+ * THREE RULES LEFT HERE AND A COMPONENT TOOK ALL THREE. What used to be
+ * `.founder-naming-view__hero { flex-grow: 1 }`, a matching
+ * `.founder-naming-view__hero .section-card__surface { flex-grow: 1;
+ * min-height: 300px; justify-content: center }` and
+ * `.founder-naming-view__founder { align-items: center }` is now
+ * `new HeroBand()` plus `Fill(300)`:
+ *   - the two `flex-grow` halves are `HeroBand.Fill`, written from one C#
+ *     method so they cannot come apart again. Task 14b's whole cost was that
+ *     they COULD - the wrapper grew, the surface did not, and the nine-slice
+ *     drew its drop around 160px of bare --paper. `SectionCard.uss`'s note
+ *     beside `.section-card__surface` is the record.
+ *   - the `min-height` is `Fill`'s argument, and it is still this screen's
+ *     own number (`FounderNamingView.BandFloor`) because the other band in
+ *     the bundle that pins a size pins 372.
+ *   - the centring is `.hero-band__subject`, which is what a band is for.
+ *
+ * AND THE SURFACE ITSELF IS NOW THE HANDOFF'S RATHER THAN A WHITE CARD. The
+ * gradient, the radius-26 corner, the dashed ring and the violet pool are
+ * `HeroBand`'s; this screen asked for none of them and gets all four.
+ * Onboarding.dc.html:43-47 is the instance they are measured from. */
+
+/* ------------------------------------------ the card's own type ladder */
+
+/* THREE LINES IN ONE SURFACE, WHICH IS THE CORRECTION TASK 14b EXISTS FOR.
+ * `Onboarding.dc.html` lines 160-162 are a 9px uppercase `.lbl` kicker, a
+ * 26px Baloo 700 title 3px under it, and 13px 700 body copy 7px under that -
+ * all three inside the white card on line 158. Task 14 put the first two in
+ * the scaffold's page header and left the third here, so a 21px page title
+ * and a 19px card line competed across two containers. One ladder, one card.
+ *
+ * THE KICKER HAS NO RULE IN THIS FILE, AND THAT IS THE POINT. `.t-micro` in
+ * the UXML is the whole of it - 10px against the handoff's 9, --mute is
+ * #a29bb5 to the digit, and the 1px `letter-spacing` is its `.1em`. It is the
+ * card's first child, so it needs no margin either. A `flex-shrink: 0` was
+ * written here and taken out again: this is a column whose height nothing
+ * constrains, so it changed no pixel, which is this project's own test for a
+ * rule that was only ever restating the layout engine.
+ *
+ * TWO CLASSES ON THE CARD TITLE, to beat `.t-section`'s own `font-size`
+ * deterministically
+ * rather than by sheet order - the override form every component sheet in
+ * this project uses. What is taken from `.t-section` is the Baloo 2 face,
+ * --ink and the bold flag; only the SIZE is this screen's.
+ *
+ * --text-card-hero IS 26px AND IS NOT A BIGGER PAGE TITLE. Tokens.uss has
+ * the measurement and the source line. The scaffold's --text-screen-title
+ * stays at 21px, which is what every handoff screen that HAS a header sets
+ * its own title to; this screen has none.
+ *
+ * `white-space: normal` because "Name your Founder" fits on one line at 26px
+ * in a 366px card and a longer title from a later build would not. */
+.founder-naming-view .founder-naming-view__card-title {
+    font-size: var(--text-card-hero);
+    margin-top: var(--space-1);
     white-space: normal;
 }
 
-/* The card holds one CreatureCard, which is a fixed 160px tile - so the
- * centring is the container's job and cannot come from the tile. */
-.founder-naming-view__founder {
-    flex-direction: row;
-    justify-content: center;
-    margin-bottom: var(--space-2);
+/* THE BODY LINE. The handoff sets it at 13px weight 700 in #5d5670;
+ * --text-card-title is 13px to the digit and the face and weight are Theme's
+ * own `Label` rule (Nunito-Bold, which IS the 700 face - that file's note has
+ * why no `-unity-font-style: bold` goes with it).
+ *
+ * --ink RATHER THAN THE HANDOFF'S #5d5670, AND IT IS A REAL DIFFERENCE
+ * RATHER THAN A ROUNDING. #5d5670 is 88 from --ink and 207 from --mute in
+ * summed channel distance - it is a near-neutral step BETWEEN them that the
+ * token layer does not hold. Recorded as a residual rather than closed with a
+ * new colour: the same near-neutral is the handoff's `noteText` (line 245)
+ * and Task 14 already took --violet-text there for the same reason, so
+ * inventing it now would be one token for two call sites that both already
+ * read a token. --ink is one step darker, which on 13px body copy inside a
+ * white card is the safe direction.
+ *
+ * --space-2 is 8px against the handoff's 7px `margin-top`. On the scale. */
+.founder-naming-view__prompt {
+    font-size: var(--text-card-title);
+    margin-top: var(--space-2);
+    margin-bottom: var(--space-3);
+    white-space: normal;
 }
 
 /* A sentence, not a label, so it wraps. Shown only when it says something -
@@ -36,4 +229,82 @@
 .founder-naming-view__blocker {
     white-space: normal;
     margin-top: var(--space-2);
+}
+
+/* THE TIP NOTE, WHICH USED TO BE THE SCAFFOLD'S FOOTER NOTE. Same sentence,
+ * moved: `Onboarding.dc.html` step 1 puts its note INSIDE the card, on
+ * `background: #f1ecfa; border-radius: 14px; padding: 10px 12px; margin-top:
+ * 13px`, behind a 24px white disc holding a check. The fill, radius and
+ * padding are `.panel-violet`'s - --violet-tint is #f1ecfa to the digit and
+ * --radius-row is 14px to the digit - so this rule sets only the row
+ * direction and the gap above.
+ *
+ * IT HAS TO BE ON WHITE, WHICH IS WHY IT IS INSIDE THE SectionCard AND NOT
+ * UNDER IT. Measured in summed channel distance: --violet-tint against
+ * --surface is 38, against --paper it is 15. Fifteen is the neighbourhood
+ * the Pale hero disc was just moved OUT of (1157ed2 - four, and the disc read
+ * as a bare ring on the page it was drawn on). A tip panel that only exists
+ * as a faint wash is a tip panel nobody reads, so it sits on the card like
+ * the handoff's does.
+ *
+ * --space-3 IS 12px AGAINST THE HANDOFF'S 13. On the scale; the 1px is not
+ * worth a one-use token, on this project's standing convention for one-off
+ * geometry. */
+.founder-naming-view__note {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    margin-top: var(--space-3);
+}
+
+/* 12px is half of 24 - a square element, so both axes clamp alike and this
+ * is a true circle (Theme.uss header item 4). The handoff's gap to the copy
+ * is 10px; --space-2 is 8, on the scale.
+ *
+ * THE THIRD COPY OF THIS DISC IN THE PROJECT, after `.mutation-banner__disc`
+ * (24px) and `.resource-pill__disc` (22px). Not unified, deliberately: the
+ * three differ in size, tint and glyph, and the shared part is six
+ * declarations of circle arithmetic that a component wrapping them would
+ * have to parameterise all of. Task 13 drew the line at nine components and
+ * this is on the far side of it. */
+.founder-naming-view__note-disc {
+    width: 24px;
+    height: 24px;
+    border-radius: 12px;
+    background-color: var(--surface);
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-right: var(--space-2);
+}
+
+/* TWO CLASSES, to beat icons.uss's `.icon` (19px, --mute-soft) without
+ * depending on which sheet the panel applies last - the same override form
+ * `.mutation-banner__spark` and `.resource-pill__glyph` are written in. The
+ * handoff draws this mark at 12px in the 24px disc.
+ *
+ * --violet-text IS MEASURED AGAINST THE DISC IT IS ACTUALLY DRAWN ON, which
+ * is --surface and not the --violet-tint panel behind it - the mistake the
+ * retired --amber-bright-deep was built on and that Tokens.uss's --amber-text
+ * note records. On --surface it is 5.49:1, well clear of the 3:1 WCAG floor
+ * a tinted graphic needs. It is also `.t-violet`'s colour on the copy two
+ * words to its right, so the mark and the sentence are one ink. The
+ * handoff's own stroke here is #7a6ac0, one step brighter; --violet-text is
+ * the token this project already reads for violet ink on light. */
+.founder-naming-view .founder-naming-view__note-glyph {
+    width: 12px;
+    height: 12px;
+    -unity-background-image-tint-color: var(--violet-text);
+}
+
+/* --violet-text comes from `.t-violet`; 11.5px in the handoff, and
+ * --text-secondary (11px) is the nearest step on the scale. `white-space:
+ * normal` so the caveat wraps rather than running off the panel - the
+ * mistake `.screen-scaffold__footer-note` records making once, on this very
+ * sentence, in the row this one replaced. */
+.founder-naming-view__note-text {
+    flex-grow: 1;
+    flex-shrink: 1;
+    white-space: normal;
+    font-size: var(--text-secondary);
 }

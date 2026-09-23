@@ -221,6 +221,11 @@ For whoever is briefed.
 
    **What decides it is playtest, not analysis.** The specific question is whether **Bloodscent, Vanguard and Overwatch** are identifiable in a busy wave. Those three have no trigger in bible §1.4 — no animation change, no colour shift — so a trigger state can only ever express the other half of the roster, and targeting behaviour is their only signal. If a wave proves that insufficient, the cheapest answer is a 2D combat icon reusing the card badge, as *Beyond All Reason* does across four hundred unit types, rather than six meshes on a silhouette §10.4 already calls full.
 4. ~~**The proof has no stated duration.**~~ **Resolved — three weeks**, per `broodline_whats_left.md` §2, which already records "the rig proof runs three weeks" as a taken decision. A gate with no deadline is not a gate.
+5. **§4 item 10 has an answer for Loam, and it is a rule without a rig.** §5 asks for "a stated rule, not a beautiful result", and the rule is stated: **the part rides one segment.** Loam is authored with its bone chain rooted at the mass centre — `seg0 – seg1 – root – seg3 – seg4`, `root` in the middle rather than a `seg2`, because `CreatureMotion.Awake` does `transform.Find("root")` and falls back to the creature transform when there is none — and `sk_dorsal` sits directly over that middle segment. The derivation is in `client/Assets/Creatures/Recipes/SpeciesRecipes.cs`'s Loam header.
+
+   **What is not built, and this half must travel with the answer.** `CreatureGenerator` parents **every** socket to the creature root, not to a bone, and `CreatureAssembler.Mount` finds it there. So no socket on any body follows a bone today: Loam's `sk_dorsal` is over the middle segment *by placement*, and would not move if that segment deformed. Making it literally ride the bone is a generator change, and it was correctly declined by a content task rather than smuggled in.
+
+   **Item 10 is therefore answered to the letter of §5 and not to its spirit.** The rule exists and is discoverable where a future recipe author will meet it; the demonstration §4 asks for — a part on a section that actually articulates — has not been made. An artist commission inherits the rule and the gap together.
 
 ---
 

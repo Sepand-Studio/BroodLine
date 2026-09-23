@@ -687,6 +687,23 @@ export async function loadLiveIssuance(
 }
 
 /**
+ * The player's ONE unsettled issuance, expired or not - `wave_issuances_one_live`
+ * allows at most one. `loadLiveIssuance` refuses a past-expiry row because
+ * a submit against one must be refused; abandon is the opposite case, and
+ * exists precisely for the row the client cannot otherwise reach.
+ */
+export async function loadUnsettledIssuance(
+  tx: Tx, serverId: number, playerId: string,
+): Promise<Issuance | undefined> {
+  const [row] = await tx.select().from(waveIssuances)
+    .where(and(
+      eq(waveIssuances.serverId, serverId),
+      eq(waveIssuances.playerId, playerId),
+      isNull(waveIssuances.settledAt)))
+  return row
+}
+
+/**
  * Advances campaign_progress to at least `waveId`. Never regresses it: a
  * replay of an already-cleared wave (design §4.1's replay branch) must not
  * move the high-water mark backwards, and a winning replay of the SAME

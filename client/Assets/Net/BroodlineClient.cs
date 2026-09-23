@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -46,12 +47,35 @@ namespace Broodline.Net
             _api = new BroodlineApiClient(http) { BaseUrl = baseUrl };
         }
 
-        public async Task<PlayerSnapshot> ColdStartAsync(string accessToken, string clientVersion)
+        /// `onRetry` and `wait` are the seams `Retry` needs; production leaves
+        /// both defaulted.
+        ///
+        /// RETRIED BECAUSE THIS IS THE COLD START AND THE BACKEND IS COLD
+        /// TOO. `min_instance_count = 0` on Cloud Run means the first call of
+        /// a session after an idle period waits on a container coming up, and
+        /// a packaged player's first launch was measured timing out here -
+        /// through `HttpWebRequest.RunWithTimeoutWorker` and
+        /// `ServicePointScheduler.WaitAsync`, with a warmed-backend contrast
+        /// run that did not. `GET /v1/sync` is a read: it is naturally
+        /// idempotent and there is nothing to double-commit, so this is the
+        /// least contentious of the retries added for that defect.
+        ///
+        /// A 401 IS NOT RETRIED, and that matters here specifically:
+        /// `Retry.IsTransient` says false for every 4xx, so the exception
+        /// still reaches `Session.ColdStartAsync`'s
+        /// `when (e.StatusCode == 401)` handler and the token refresh runs as
+        /// before. Retrying a 401 would have spent four attempts to arrive
+        /// at the same refusal and only then refreshed.
+        public async Task<PlayerSnapshot> ColdStartAsync(
+            string accessToken, string clientVersion,
+            Action<int, Exception> onRetry = null, Retry.Wait wait = null)
         {
             _http.DefaultRequestHeaders.Remove("Authorization");
             _http.DefaultRequestHeaders.Add("Authorization", "Bearer " + accessToken);
 
-            var res = await _api.SyncAsync(clientVersion).ConfigureAwait(false);
+            var res = await Retry.TransientAsync(
+                () => _api.SyncAsync(clientVersion), onRetry: onRetry, wait: wait)
+                .ConfigureAwait(false);
 
             var balances = new Dictionary<string, int>();
             if (res.Balances != null)

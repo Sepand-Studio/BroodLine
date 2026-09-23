@@ -1,57 +1,328 @@
-/* Beat 5, composed onto ScreenScaffold. The one screen that consumes
- * creatures, so the destruction notice is a coral panel rather than a
- * coloured line - splice_confirm_spec 4 wants the consequence unmissable -
- * and it is the LAST child of the content region, directly above the CTA,
- * which is section 3's own requirement.
+/* Beat 5, composed onto ScreenScaffold and brought to `Splice Chamber
+ * .dc.html` in Phase 9 Task 16.
  *
- * NINE RULES' WORTH OF TREATMENT LEFT THIS FILE IN PHASE 8 TASK 10 AND NONE
- * WAS REPLACED BY A COPY HERE, which is the test of whether a screen composes
- * the layer or re-derives it:
- *   - the root's `padding: var(--gutter)` is the scaffold's content region.
- *   - the destruction notice, the coverage warning and the mutation line each
- *     restated a fill, a radius and --space-2/3 of padding that are exactly
- *     Theme's `.panel-coral`, `.panel-amber` and `.panel-violet`, plus an ink
- *     that is exactly `.t-danger`, `.t-warn` and `.t-violet`. Twelve
- *     declarations, three components, one vocabulary.
- *   - `__forecast`'s surface, card radius, divider border and --space-3
- *     padding were a re-derivation of `SectionCard`, which now draws it - and
- *     which also brings the elevation the hand-rolled version never had.
- *   - `.forecast-row`'s own font-size is `StatCell`'s `t-micro`/`t-num` pair.
- *     That swap is the point of the change rather than a side effect: see
- *     SpliceChamberView.ForecastCellFor.
- *   - `__cta`'s top margin is the CTA row's padding, and its whole treatment
- *     is Theme's `.btn-primary`.
+ * WHAT THIS SHEET IS FOR, STATED AS A TEST RATHER THAN AS A SIZE. Every
+ * declaration below has to be something no component and no Theme class
+ * provides: a geometry the handoff gives THIS screen and not the component
+ * in general, an arrangement of components in a row or a column, or an
+ * override the component's own comment says a screen is expected to make.
+ * Anything that restates `.chip`, `.panel-*`, `.t-*`, `.elev-*` or a
+ * component's internals belongs in the layer that already has it. The file
+ * GREW in this task, and that is the right direction: it is now composing
+ * seven components where it used to style two containers, and the handoff
+ * gives this screen four geometries (74, 112, 40, 22) that are its own.
  *
- * WHAT IS LEFT IS THE FOUR THINGS NEITHER THE FRAME NOR A COMPONENT KNOWS:
- * that the parents sit side by side, that a locked-out one is dimmed, that
- * the forecast cells sit in a row, and that three of these labels wrap.
+ * WHAT LEFT IN PHASE 8 TASK 10 AND STILL HAS NOT COME BACK: the root's
+ * gutter (the scaffold's content region), the three panel fills and inks
+ * (`.panel-coral`/`.panel-amber` and `.t-danger`/`.t-warn`), the forecast
+ * card's own surface and radius (`SectionCard`), and the CTA's whole
+ * treatment (`.btn-primary`, through `CostCtaRow`).
+ *
+ * WHAT LEFT IN THIS TASK: `.splice-chamber-view__mutation`'s wrap and margin
+ * are `MutationBanner`'s, which also owns the collapse; `.forecast-row`'s
+ * row direction is `InheritanceBar`'s own; and the CTA's top margin is the
+ * cost row's.
+ *
+ * AND WHAT LEFT IN TASK 16b: two GAPS this sheet was paying a second time.
+ * The forecast column's `margin-top` and its `> .forecast-row` rule (the
+ * bars' own 9px, restated) and the lineage strip's `margin-top` (the
+ * track's own 8px, restated) are gone; each removal's own note, further
+ * down, has what it double-counted and the handoff line it missed by.
  */
 .splice-chamber-view { flex-grow: 1; }
 
-.splice-chamber-view__parents { flex-direction: row; justify-content: space-between; }
+/* ------------------------------------------------------------- the pair */
+
+/* `Splice Chamber.dc.html:49` - `display: flex; align-items: stretch; gap:
+ * 8px`. `align-items` defaults to stretch in UI Toolkit too, so the two
+ * tiles are the same height whichever name is longer, which is what makes
+ * them read as one control rather than two cards. The `gap` is on the
+ * joiner's own margins below, because USS on 6000.6.0f1 has none. */
+.splice-chamber-view__parents {
+    flex-direction: row;
+    margin-bottom: var(--space-3);
+}
+
+/* BOTH HALVES OF THE STRETCH, AND `SectionCard.uss` SAYS WHY IN FULL.
+ * `.section-card` IS the `.elev-1` wrapper: stretched by the row above and
+ * left alone, the wrapper would take the taller tile's height while the
+ * white surface kept its own, and the nine-slice would draw its drop around
+ * bare paper below the shorter one. That is the defect that cost Task 14b a
+ * capture, arrived at sideways - from a row rather than from a column. The
+ * surface grows too, from here, which is the fix that note prescribes. */
+.splice-chamber-view__parents > .splice-chamber-view__parent {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 0;
+    /* TWO CLASSES FOR THIS ONE DECLARATION. `.section-card` carries
+     * `margin-bottom: var(--space-2)` at the same single-class specificity,
+     * and its sheet is attached deeper than this one - so a one-class rule
+     * here would lose and the 8px would stay. It does no harm in a row, and
+     * that is exactly why it would never have been noticed. */
+    margin-bottom: 0;
+}
+.splice-chamber-view__parent > .section-card__surface {
+    flex-grow: 1;
+    /* The handoff's `border-radius: 18px; padding: 11px 12px 12px` at `:50`.
+     * A literal rather than a token because 18 is not on the radius scale -
+     * --radius-tile is 11 and --radius-card is 20 - and this project's rule
+     * for one-off geometry is a literal beside the measurement it came from
+     * (Tokens.uss's "Component geometry" block states it). The padding is
+     * 12 on three sides against 11/12/12, one pixel over at the top. */
+    border-radius: 18px;
+    padding: var(--space-3);
+}
 
 /* A Founder the player already named is visibly out of reach, not hidden -
- * bible 3.3's rule read from the splice side. */
-.splice-chamber-view__parents > .creature-card.locked-out { opacity: 0.4; }
+ * bible 3.3's rule read from the splice side. Unchanged from Phase 8 except
+ * that the element it lands on is a `SectionCard` now. */
+.splice-chamber-view__parent.locked-out { opacity: 0.4; }
 
-/* THE HANDOFF'S THREE-CELL STAT ROW, AND THREE IS THE ACTUAL CEILING RATHER
- * THAN A HOPE. `combatPool` (services/api/src/splice/distribution.ts) is the
- * two parents' four combat slots; `merged()` drops every entry carrying the
- * locked trait and then collapses duplicate (trait, tier) pairs, so `combat2`
- * can hold at most three distinct outcomes and usually holds two. A row of
- * `flex-basis: 0` cells therefore never gets narrower than a third of the
- * card, which is what makes the row safe where an unbounded list would not
- * be. */
-.splice-chamber-view__forecast { flex-direction: row; }
+/* `Splice Chamber.dc.html:55` - `justify-content: center; padding: 7px 0 6px`
+ * around the creature. The slot itself is `HeroSlot`; this is the row that
+ * centres it. */
+.splice-chamber-view__parent-slot {
+    align-items: center;
+    margin-top: 7px;
+    margin-bottom: 6px;
+}
 
-/* The empty case is one element in a row of cells, so it has to be told to
- * take the whole line - a StatCell grows because StatCell.uss says so, and
- * nothing says it for an EmptyState. */
-.splice-chamber-view__forecast > .empty-state { flex-grow: 1; }
+/* 64px, WHICH IS THE HANDOFF'S DRAWN ORNAMENT AND NOT ITS RESERVED BOX.
+ * `:56` is a 74x74 svg on a `viewBox="0 0 100 100"`, and inside it the
+ * dashed ring is `r 42` and the tinted disc `r 34` - so at the 0.74 scale
+ * that box implies, the ring is 63.6px across and the disc 50.3. `HeroSlot`
+ * draws its ring at the element's full edge (hero-ring.png fills its box)
+ * and its disc at 80 of 96, so sizing the SLOT to the handoff's 74 would put
+ * a 74px ring where the handoff has a 63.6px one - 16% heavier - and a 61px
+ * disc against 50. Sized to the ornament instead, both land within a pixel.
+ * The 10px of reserved box that goes missing is centring space in a row that
+ * is already centred.
+ *
+ * THE DISC IS RESIZED WITH IT, AND IT HAS TO BE. `--hero-slot` is 96 and
+ * `.hero-slot__disc` is a flat 80/40 in the component's own sheet, so a slot
+ * shrunk on its own would have its disc overflow the ring. `HeroBand.uss`
+ * makes the same three-rule move in the other direction for its haloed
+ * subject, and for the same reason: a component's sheet reaches its own
+ * descendants, and a screen's sheet reaches downward into the components it
+ * composed. 25px is half of 50. */
+.splice-chamber-view__parent-slot > .hero-slot {
+    width: 64px;
+    height: 64px;
+}
+.splice-chamber-view__parent-slot > .hero-slot > .hero-slot__disc {
+    width: 50px;
+    height: 50px;
+    border-radius: 25px;
+}
 
-/* Three sentences, not labels, so they wrap. The coverage warning also
+/* `:64` - 17px Baloo over `:65`'s 10.5px muted line, 1px apart. Ours is
+ * `.t-section`'s --text-section (19px) in Baloo, 2 over the handoff's number
+ * in the handoff's own face - `SpliceChamberView.ParentTile` has why that
+ * beats `.t-card-title`'s 13px Nunito. The 1px gap is the handoff's own
+ * `margin-top`. */
+.splice-chamber-view__parent-name { white-space: normal; }
+.splice-chamber-view__parent-role { margin-top: 1px; white-space: normal; }
+
+/* `:66` - `flex-wrap: wrap; gap: 4px; margin-top: 8px`. Two chips on a
+ * ~155px tile wrap on the longer trait names, which is what the handoff's
+ * own `flex-wrap` is there for. */
+.splice-chamber-view__parent-traits {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-top: var(--space-2);
+}
+/* VERTICAL ONLY, AND THE HORIZONTAL GAP IS DELIBERATELY NOT RESTATED.
+ * `TraitChip` already owns the handoff's `gap: 4px` as 2px of margin on each
+ * of its own sides - its sheet says so beside those two declarations. Adding
+ * 4 more on the right made each chip 6px wider than it measures, and the two
+ * chips on a 151px tile came to 154: they wrapped to a second row, 39px
+ * tall, on both parents, for six pixels of restated spacing. Found in the
+ * capture, not in a gate. */
+.splice-chamber-view__parent-traits > .trait-chip { margin-bottom: var(--space-1); }
+
+/* `:72-76` - a 40px column holding a 40px white disc with an 18px violet
+ * glyph in it. `flex: none` so the two tiles divide what is left.
+ *
+ * 20px IS HALF OF 40, so this is a true circle: a square element clamps both
+ * axes to the same number, which is the one shape immune to the lens defect
+ * Theme.uss's header item 4 measured.
+ *
+ * THE 8px ON EACH SIDE IS THE ROW'S `gap: 8px` FROM `:49`, put on this child
+ * because USS here has no `gap` - the same substitution every row in this
+ * project makes. */
+.splice-chamber-view__join {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    align-self: center;
+    align-items: center;
+    justify-content: center;
+    border-radius: 20px;
+    background-color: var(--surface);
+    margin-left: var(--space-2);
+    margin-right: var(--space-2);
+}
+
+/* The handoff strokes this mark `#7a6ac0` at 18px, which is --violet
+ * exactly. It is a Label carrying U+00D7 rather than a tinted PNG -
+ * `SpliceScreen.JoinMark` has the capture that decided it - so the size is a
+ * font-size and the colour is a colour.
+ *
+ * 18px IS A LITERAL AND NOT A TYPE-SCALE STEP, deliberately: this is a
+ * GLYPH at a drawn size, the same way `.cost-cta-row__icon` is 13px and the
+ * pill's sparkle is 12px. Putting it on --text-section would tie an
+ * ornament to the type ladder. */
+.splice-chamber-view .splice-chamber-view__join-glyph {
+    font-size: 18px;
+    color: var(--violet);
+    -unity-text-align: middle-center;
+}
+
+/* -------------------------------------------------- the predicted hybrid */
+
+/* THE BAND IS `HeroBand` AND THIS IS THE ONE PROPERTY IT CANNOT DEFAULT.
+ * `--radius-band` is 26 and serves two of the handoff's six instances;
+ * `Splice Chamber.dc.html:101` is 22, and `HeroBand.uss`'s own note says the
+ * four screens that want something else override `.hero-band__surface` from
+ * their own sheet - "that is expected, not a hack". This is that override.
+ *
+ * `overflow: hidden` IS LEFT ON ALTHOUGH THIS IS THE ONE HANDOFF INSTANCE
+ * WITHOUT IT. The component sets it so a 264px ring cannot draw its dashes
+ * outside a shorter band's corners; this band has `ring: false`, so there is
+ * nothing to clip and the property is inert. Turning it off would be a
+ * declaration whose only effect is to be different from the other five. */
+.splice-chamber-view__predicted > .hero-band__surface {
+    border-radius: 22px;
+    /* `:101` - `padding: 13px 16px 14px`. --space-3/--space-4 are 12 and 16,
+     * so the sides are exact and the top and bottom are a pixel and two
+     * inside the handoff's. */
+    padding-top: var(--space-3);
+    padding-bottom: var(--space-3);
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+}
+
+/* `HeroBand.uss` centres its subject because four of its six instances put
+ * one thing in the middle of a band. This is one of the two that stack a
+ * padded column instead, and that file names this screen as the case: "the
+ * two that stack a padded column (Splice Chamber:101, Hybrid Growth:48)
+ * override `align-items` and `justify-content` from their own sheet, which
+ * is the direction a screen's sheet is allowed to reach." */
+.splice-chamber-view__predicted .hero-band__subject {
+    align-items: stretch;
+    justify-content: flex-start;
+    flex-grow: 0;
+}
+
+/* `:106` - `display: flex; gap: 13px; align-items: center; margin-top: 10px`. */
+.splice-chamber-view__predicted-body {
+    flex-direction: row;
+    align-items: center;
+    margin-top: 10px;
+}
+
+/* `:107` - a 112px square holding the ring, the pool and the art. THE
+ * HANDOFF'S OWN NUMBER AT 1:1: this project's content column is 406px at the
+ * 430 capture frame, which is the handoff's own frame, so nothing is scaled.
+ * (`--hero-slot`'s 96px is the SAME measurement taken at a 390 frame in an
+ * older task; `Tokens.uss` records that and 96 stays correct where a slot is
+ * a list element.)
+ *
+ * THE DISC IS THE POOL AT `:110` - `r 46`, so 92px across, which is 82% of
+ * the ring exactly as `HeroSlot`'s own 80-of-96 is 83%. The ring itself is
+ * `r 54` (108px) against this element's 112, and the 4px is the ring's own
+ * stroke and antialiasing margin in the svg. 46 is half of 92. */
+.splice-chamber-view__predicted-slot { flex-shrink: 0; margin-right: 13px; }
+.splice-chamber-view__predicted-slot > .hero-slot { width: 112px; height: 112px; }
+.splice-chamber-view__predicted-slot > .hero-slot > .hero-slot__disc {
+    width: 92px;
+    height: 92px;
+    border-radius: 46px;
+}
+
+/* `:116` - `flex: 1; min-width: 0`. The min-width has no UI Toolkit
+ * equivalent and needs none: a flex child here shrinks below its content
+ * width by default, which is the behaviour that declaration exists to
+ * restore in CSS. */
+.splice-chamber-view__predicted-text { flex-grow: 1; flex-shrink: 1; flex-basis: 0; }
+
+/* `:117` - 22px Baloo. Ours is `.t-hero`'s --text-hero (28px), the nearest
+ * thing on the scale and 6 over; `--text-card-hero` (26) is nearer but is
+ * Task 14b's founder-card heading and borrowing it here would make one
+ * screen's measurement into two screens' token. Named in the report as a
+ * residual rather than forked here. */
+.splice-chamber-view__predicted-name { white-space: normal; }
+
+/* `:118` - 10.5px muted, 2px under the name. */
+.splice-chamber-view__predicted-lineage { margin-top: 2px; white-space: normal; }
+
+/* ---------------------------------------------------- the two card heads */
+
+/* The handoff's two-sided card header - an uppercase eyebrow on the left and
+ * a muted note on the right (`:102`, `:134`, `:184`). `SectionCard`'s own
+ * heading is one 19px Baloo line and cannot be both, which is why these
+ * cards are built without one; `SpliceChamberView.CardHeader` has the note.
+ *
+ * `align-items: center` RATHER THAN THE HANDOFF'S `baseline`, which UI
+ * Toolkit does not have - it is silently dropped, like `text-transform` and
+ * `calc()`. At 9px against 10px the difference is under a pixel. */
+.splice-chamber-view__card-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* The chip host inside a header, so a GenChip sits at the row's right edge
+ * rather than stretching to the row's height. */
+.splice-chamber-view__gen { flex-direction: row; }
+
+/* `:136` and `:186` - 10px, 700, --mute, and NOT a `.lbl`: these two are
+ * lowercase in the handoff and the eyebrow beside them is not. `.t-secondary`
+ * is 11px in --mute, one over. */
+.splice-chamber-view__note { flex-shrink: 0; }
+
+/* ------------------------------------------------------- the two columns */
+
+/* `:139` onward - the bars stack. A column rather than the Phase 8 row of
+ * `StatCell`s: the handoff's rows are full-width and compared vertically,
+ * which is what the bar inside each one is for.
+ *
+ * NO `margin-top` HERE, AND THE RULE THAT USED TO SIT UNDER THIS ONE IS
+ * GONE - Phase 9 Task 16b. The pair read `margin-top: 10px` on this column
+ * plus `margin-top: 9px` on `> .forecast-row`, and the second was a verbatim
+ * restatement of `InheritanceBar.uss`'s own `.inheritance-bar { margin-top:
+ * 9px }`. Identical value, so deleting it changes nothing - BUT the comment
+ * beside it claimed "none above the first, which the container's own 10px
+ * already provides", and that was wrong in a way the capture shows: the
+ * first bar was taking the container's 10 PLUS the component's 9 = 19,
+ * against `:139`'s 10. With this column's margin at 0 the component pays
+ * every gap, first one included: 9 where the handoff draws 10 (one under,
+ * on the component's own rhythm) and 9 between the rest, which is `:151`
+ * and `:163` exactly. */
+.splice-chamber-view__forecast { flex-direction: column; }
+
+/* The empty case is one element in a column of rows, and unlike the Phase 8
+ * row version it needs no `flex-grow` to fill the line - a column child
+ * stretches across by default. The rule is kept as a NO-OP REMOVED rather
+ * than carried forward: `.splice-chamber-view__forecast > .empty-state
+ * { flex-grow: 1 }` would have grown the message vertically instead, which
+ * is not what the old rule did in a row and not what this card wants. */
+
+/* `:188` - the rail sits 8px under its header, AND `LineageStrip` ALREADY
+ * PAYS IT. The rule that used to be here added --space-2 to `.lineage-strip`
+ * on top of `LineageStrip.uss:29`'s own --space-2 on `.lineage-strip__track`,
+ * so the rail sat 16px under the header against the handoff's 8 - Phase 9
+ * Task 16b removed it. The sentence that justified it ("no component can own
+ * this gap, because neither element is the other's descendant") was the part
+ * that was wrong: the strip's FIRST CHILD is the track, the strip itself has
+ * no padding, and UI Toolkit has no margin collapsing, so the track's own
+ * top margin IS the gap under whatever sits above the strip. Kept as a
+ * comment rather than a rule because the next screen to place a
+ * `LineageStrip` under a header will reach for the same 8px twice. */
+
+/* Two sentences, not labels, so they wrap. The coverage warning also
  * COLLAPSES when the server named nothing - SpliceChamberView.Bind has the
- * measurement. */
-.splice-chamber-view__mutation { white-space: normal; margin-top: var(--space-2); }
+ * measurement. The mutation line is `MutationBanner`'s now and carries its
+ * own wrap, its own margin and its own collapse. */
 .splice-chamber-view__coverage-warning { white-space: normal; margin-top: var(--space-2); }
 .splice-chamber-view__destruction-notice { white-space: normal; margin-top: var(--space-3); }

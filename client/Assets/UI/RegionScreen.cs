@@ -100,8 +100,12 @@ namespace Broodline.UI
 
         /// The header's title, and the handoff's own name for this screen.
         ///
-        /// FROM THE HANDOFF'S SECTION HEADING, the same source
-        /// `RosterScreen.Title` takes "Creature Roster" from.
+        /// FROM THE HANDOFF'S SECTION HEADING, which is the source
+        /// `RosterScreen.Title` USED to take "Creature Roster" from - Phase 9
+        /// Task 16 moved that one to the page title the handoff actually
+        /// draws ("Your hybrids", `Creature Roster.dc.html:30`) and left the
+        /// section heading as the file's name. This screen's heading and its
+        /// drawn title are the same word, so nothing moved here.
         /// specs/Designs/design_handoff_broodline/README.md section 1 is
         /// "World Map - `Splice World Map v2.dc.html`", and its navigation
         /// model's tab table reads "Map -> World Map", which makes this the

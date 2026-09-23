@@ -1,0 +1,4 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="NoticeToast.uss" />
+    <ui:VisualElement name="rows" class="notice-toast__rows" />
+</ui:UXML>

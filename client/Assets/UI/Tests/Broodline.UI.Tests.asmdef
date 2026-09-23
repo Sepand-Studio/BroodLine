@@ -1,7 +1,7 @@
 {
   "name": "Broodline.UI.Tests",
   "rootNamespace": "Broodline.UI.Tests",
-  "references": ["Broodline.UI", "Broodline.Model", "Generated.Api", "UnityEngine.TestRunner", "UnityEditor.TestRunner"],
+  "references": ["Broodline.UI", "Broodline.Model", "Broodline.Net", "Generated.Api", "UnityEngine.TestRunner", "UnityEditor.TestRunner"],
   "includePlatforms": ["Editor"],
   "excludePlatforms": [],
   "overrideReferences": true,

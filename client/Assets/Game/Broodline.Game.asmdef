@@ -8,6 +8,7 @@
     "Broodline.UI",
     "Broodline.Net",
     "Broodline.Model",
+    "Broodline.Creatures",
     "Generated.Api"
   ],
   "includePlatforms": [],

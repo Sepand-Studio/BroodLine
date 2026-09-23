@@ -1,0 +1,86 @@
+/* Quoted from `Wave Defense.dc.html`'s "On the field" card:
+ *
+ *     display: flex; align-items: center; gap: 8px;
+ *     background: #f8f6fc; border-radius: 12px; padding: 8px 10px;
+ *       <span 18x18, radius 6, #ece7f6, 9px/800 #6b5fa8>A</span>
+ *       <span flex:1, 11px/800, #3f3a52>Vetch Wall R2</span>
+ *
+ * THE BADGE IS AN 18px ROUNDED SQUARE, NOT A 22px CIRCLE. Both numbers are
+ * the handoff's own and --field-badge carries the 18; the radius is
+ * --radius-chip (6px), which is the handoff's value to the pixel and gives a
+ * softened square rather than a dot. That matters more than it sounds: the
+ * 7px species marks in `InheritanceBar` are also rounded squares, and a
+ * circle at this size would read as a bullet or a radio button - an
+ * affordance this row does not have.
+ *
+ * THE FILL IS --hairline, WHICH IS THE HANDOFF'S #ece7f6 EXACTLY. Its usual
+ * job is the unselected option outline; here it is a badge, and a token's
+ * value being right is what decides, not the use its table entry names.
+ */
+.field-slot-row {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    background-color: var(--surface-sunk);
+    border-radius: var(--radius-row);
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+    padding-left: 10px;
+    padding-right: 10px;
+
+    /* THE BORDER IS HERE IN BOTH STATES, AT THE SAME WIDTH, and that is the
+     * handoff's own trick on `.option`: USS has no inset box-shadow, so a
+     * selection ring is a real border and a real border costs layout. An
+     * unselected row that carried none would move 2px and resize its
+     * contents the instant it was tapped. Transparent rather than
+     * --surface-sunk so it works over any card fill. */
+    border-width: 2px;
+    border-color: rgba(0, 0, 0, 0);
+
+    margin-bottom: 7px;
+}
+
+/* Half of --field-badge would be 9px and this is 6px, which is NOT a pill -
+ * it is the handoff's radius, and the shape is deliberate. See the header. */
+.field-slot-row__letter {
+    width: var(--field-badge);
+    height: var(--field-badge);
+    border-radius: var(--radius-chip);
+    background-color: var(--hairline);
+    color: var(--violet-text);
+    font-size: var(--text-micro);
+    -unity-text-align: middle-center;
+    flex-shrink: 0;
+    margin-right: var(--space-2);
+}
+
+/* --mute IS THE EMPTY STATE AND --ink IS THE OCCUPIED ONE, which is a
+ * distinction the handoff does not draw - it sets both at #3f3a52. It is
+ * added here because this list is read as a whole ("how many pockets have I
+ * filled?") and four identical-weight rows make that a reading task rather
+ * than a glance. The word still says "Empty", so the information is not in
+ * the colour (bible 10.4). */
+.field-slot-row__label {
+    flex-grow: 1;
+    flex-shrink: 1;
+    color: var(--mute);
+    font-size: var(--text-secondary);
+}
+
+.field-slot-row--filled .field-slot-row__label {
+    color: var(--ink);
+}
+
+/* A filled pocket's badge takes the violet tint, so the letter reads as
+ * something that HAPPENED rather than as a label on an empty space. */
+.field-slot-row--filled .field-slot-row__letter {
+    background-color: var(--violet-tint);
+}
+
+/* The handoff's universal option-select treatment, from the README's
+ * "Interactions & behavior": white fill plus a 2px --ring. The border width
+ * does not change - only its colour - so nothing reflows on selection. */
+.field-slot-row--selected {
+    background-color: var(--surface);
+    border-color: var(--ring);
+}

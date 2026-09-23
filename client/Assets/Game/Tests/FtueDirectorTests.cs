@@ -35,6 +35,21 @@ namespace Broodline.Game.Tests
     /// is the one that resumes this turn" - is read, not executed. A PlayMode
     /// test with a live `UIDocument` is where that join can actually be
     /// proven, and it is owed.
+    ///
+    /// **THE PARAGRAPH ABOVE WAS OVERTAKEN IN PHASE 9 TASK 21g** and is left
+    /// standing because it is still true OF THIS FILE. `WalkRecoveryTests`
+    /// does drive `RunAsync` end to end, past the deploy screen and into
+    /// `FightAsync`'s exits, and the dead end this comment records turned out
+    /// to have been solved next door: `ScaffoldTests.RaiseClicked` reaches
+    /// `Clickable`'s backing `Action` by reflection and needs no `Panel` at
+    /// all. Nothing test-only was added to production code to make that work
+    /// - the director's dependencies were already seams - so the objection
+    /// this comment raises against one ("a seam that exists only for tests to
+    /// reach into") was never the thing standing in the way.
+    ///
+    /// The join itself is still read rather than executed HERE, and the
+    /// PlayMode debt above still stands: a reflected `clicked` proves the
+    /// subscriber list, not that a real `ClickEvent` reaches it.
     public class FtueDirectorTests
     {
         // ---------------------------------------------------------------
@@ -84,6 +99,107 @@ namespace Broodline.Game.Tests
             Assert.AreEqual(DeployScreen.Cap, FtueDirector.WantedFor(6));
             Assert.AreEqual(DeployScreen.Cap, FtueDirector.WantedFor(7));
             Assert.AreNotEqual(FtueDirector.WantedFor(2), FtueDirector.WantedFor(6));
+        }
+
+        // ---------------------------------------------------------------
+        // What a tap on a field row does to the selection
+        //
+        // THE RULE IS ASYMMETRIC, WHICH IS WHY IT IS TESTED AT ALL. A removal
+        // is always allowed and an add past the cap is refused, and those two
+        // halves have different justifications - so "it toggles" is not a
+        // description a reader can check the code against. `DeployView` draws
+        // the second half (every undeployed row dimmed and disabled at the
+        // cap); this is the half that decides it.
+        //
+        // The loop AROUND this - the closure in `FightAsync` that rebuilds
+        // the model and re-binds without ending the turn - is still read
+        // rather than executed, for the reason this file's class comment
+        // gives: it answers a `ClickEvent` that needs an attached Panel.
+        // Named in the task report as owed to the PlayMode pass.
+        // ---------------------------------------------------------------
+
+        [Test]
+        public void Toggle_AddsACreatureThatIsNotSelected_AtTheEnd()
+        {
+            // ORDER IS PART OF THE REQUEST. "Index == deployment order", and
+            // `deploymentMatches` compares the replay's deployment against
+            // the stored one IN ORDER - so an add that inserted anywhere but
+            // the end would silently renumber pockets the player had already
+            // filled.
+            var a = Guid.NewGuid();
+            var b = Guid.NewGuid();
+            var selected = new List<Guid> { a };
+
+            Assert.IsTrue(FtueDirector.Toggle(selected, b), "an add must report that something changed");
+            CollectionAssert.AreEqual(new[] { a, b }, selected);
+        }
+
+        [Test]
+        public void Toggle_RemovesASelectedCreature_EvenWhenItIsTheLastOne()
+        {
+            // THE FLOOR IS THE MODEL'S TO STATE, NOT THIS METHOD'S.
+            // `DeployScreen.Build` answers an empty selection with "Send at
+            // least one creature..." and `DeployView` renders it in coral
+            // above a greyed Start; any tap undoes it. Refusing the tap here
+            // would make the screen silent about a rule it can state, and
+            // `WantedFor`'s own comment already says its number is "A FLOOR,
+            // NOT A PROMISE" that sizes the OPENING selection and nothing
+            // else.
+            var a = Guid.NewGuid();
+            var selected = new List<Guid> { a };
+
+            Assert.IsTrue(FtueDirector.Toggle(selected, a));
+            CollectionAssert.IsEmpty(selected);
+
+            // And the model really does refuse it rather than merely
+            // disliking it - which is what makes the removal safe.
+            var roster = new RosterScreen();
+            roster.ApplyRoster(new RosterResponse { Creatures = { Creature("Vetch", id: a) }, Cap = 20 });
+            var model = DeployScreen.Build(1, roster, selected);
+            Assert.IsFalse(model.CanDeploy);
+            Assert.IsNotEmpty(model.Blocker);
+        }
+
+        [Test]
+        public void Toggle_RefusesAnAddAtTheCap_ButStillLetsOneGo()
+        {
+            // THE ASYMMETRY, ASSERTED AS AN ASYMMETRY. Over the cap the
+            // model's sentence is "A deployment is at most 5 creatures." and,
+            // unlike the floor, no single tap undoes it - the player would
+            // have to work out which of six to remove. So the add is refused
+            // and the removal beside it is not, in the same state.
+            var selected = new List<Guid>();
+            for (var i = 0; i < DeployScreen.Cap; i++) selected.Add(Guid.NewGuid());
+            var atTheCap = new List<Guid>(selected);
+
+            Assert.IsFalse(FtueDirector.Toggle(selected, Guid.NewGuid()),
+                "a sixth creature was added past DeployScreen.Cap");
+            CollectionAssert.AreEqual(atTheCap, selected, "a refused add must not disturb the selection");
+
+            Assert.IsTrue(FtueDirector.Toggle(selected, atTheCap[0]),
+                "at the cap a REMOVAL must still work, or the screen is stuck");
+            Assert.AreEqual(DeployScreen.Cap - 1, selected.Count);
+        }
+
+        [Test]
+        public void Toggle_RoundTripsToWhereItStarted()
+        {
+            // The property the two cases above do not state between them: a
+            // tap and a second tap on the same row leave the deployment - and
+            // therefore every pocket in it - exactly as they were.
+            var ids = new List<Guid> { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+            var selected = new List<Guid>(ids);
+
+            Assert.IsTrue(FtueDirector.Toggle(selected, ids[0]));
+            Assert.IsTrue(FtueDirector.Toggle(selected, ids[0]));
+
+            // NOT the same ORDER - the re-added creature goes to the end,
+            // which is the pocket it now holds and what the lane picture and
+            // the row badges redraw. Asserted as a set plus a count so the
+            // test says what it means rather than pinning the wrong half.
+            CollectionAssert.AreEquivalent(ids, selected);
+            Assert.AreEqual(ids[0], selected[selected.Count - 1],
+                "a re-added creature takes the last pocket, not the one it had");
         }
 
         // ---------------------------------------------------------------
@@ -165,6 +281,49 @@ namespace Broodline.Game.Tests
         {
             Assert.Throws<ArgumentNullException>(() => FtueDirector.SpecsFor(null));
             Assert.Throws<ArgumentException>(() => FtueDirector.SpecsFor(new CreatureSpecDto[] { null }));
+        }
+
+        [Test]
+        public void SpecsFor_AcceptsAnEmptySecondCombatSlot_AsTraitNoneAtTierZero()
+        {
+            // A creature with one combat trait arrives as trait2 "None" with a null
+            // tier, because an absent trait has no coverage. That is an ABSENCE, not
+            // an Aberrant, and it is what stopped the first hour at a fight.
+            var specs = FtueDirector.SpecsFor(new[]
+            {
+                Spec("Vetch", "Taunt", 1, "None", null, "Vanguard", 0),
+            });
+
+            Assert.AreEqual(1, specs.Length);
+            Assert.AreEqual(Trait.Taunt, specs[0].Trait1);
+            Assert.AreEqual(1, specs[0].Tier1);
+            Assert.AreEqual(Trait.None, specs[0].Trait2);
+            Assert.AreEqual(0, specs[0].Tier2, "an empty combat slot is tier zero, not a throw");
+        }
+
+        [Test]
+        public void SpecsFor_StillRefusesARealTraitWithNoCoverageTier()
+        {
+            // The guard's original purpose, kept: a null tier on a REAL trait is an
+            // Aberrant (data_model 2), which this phase's bundle does not author and
+            // the engine cannot represent.
+            var ex = Assert.Throws<ArgumentException>(() => FtueDirector.SpecsFor(new[]
+            {
+                Spec("Vetch", "Taunt", 1, "Carapace", null, "Vanguard", 0),
+            }));
+            StringAssert.Contains("Aberrant", ex.Message);
+        }
+
+        [Test]
+        public void SpecsFor_AcceptsTraitNoneWithAnExplicitTier()
+        {
+            // Don't start rejecting a shape that works today.
+            var specs = FtueDirector.SpecsFor(new[]
+            {
+                Spec("Vetch", "Taunt", 1, "None", 0, "Vanguard", 0),
+            });
+            Assert.AreEqual(Trait.None, specs[0].Trait2);
+            Assert.AreEqual(0, specs[0].Tier2);
         }
 
         // ---------------------------------------------------------------
@@ -375,6 +534,21 @@ namespace Broodline.Game.Tests
         }
 
         // ---------------------------------------------------------------
+        // Whether the roster is locked to a wave nobody will submit
+        // ---------------------------------------------------------------
+
+        [Test]
+        public void NeedsForfeit_IsTrueWhenAnyKnownCreatureIsCommitted()
+        {
+            var live = Guid.NewGuid();
+            Assert.IsFalse(FtueDirector.NeedsForfeit(new[] { Creature("Vetch"), Creature("Ember") }));
+            Assert.IsTrue(FtueDirector.NeedsForfeit(new[] { Creature("Vetch"), Creature("Ember", committedTo: live) }));
+            Assert.IsFalse(FtueDirector.NeedsForfeit(new CreatureDto[0]), "an empty roster has nothing to forfeit");
+            Assert.IsFalse(FtueDirector.NeedsForfeit(new CreatureDto[] { null }), "a null slot is skipped, as FightAsync skips it");
+            Assert.IsFalse(FtueDirector.NeedsForfeit(null), "no roster loaded yet is not treated as locked");
+        }
+
+        // ---------------------------------------------------------------
         // What a blocked beat says
         // ---------------------------------------------------------------
 
@@ -439,6 +613,86 @@ namespace Broodline.Game.Tests
             Assert.AreNotEqual(
                 FtueNotice.For(OutboxOutcome.Unavailable, FtueNotice.SpliceCommit),
                 FtueNotice.For(OutboxOutcome.Unavailable, FtueNotice.NameFounder));
+        }
+
+        // ---------------------------------------------------------------
+        // A wave/start that did not land: what is said, and whether the
+        // walk survives it
+        // ---------------------------------------------------------------
+
+        [Test]
+        public void ATransportFailureOnStart_LeavesTheWalkAliveAndNamesTheRemedy()
+        {
+            // THE DEFECT. One tap on Start against a cold backend, one
+            // notice, and the walk ended - leaving the player on a deploy
+            // screen whose Start button no longer resumed anything. A tester
+            // who taps once concludes the button is broken.
+            var dropped = new System.Net.Http.HttpRequestException(
+                "An error occurred while sending the request.");
+
+            Assert.IsTrue(FtueDirector.StartLeavesTheWalkAlive(dropped),
+                "the deploy screen must come back with a live Start button");
+            Assert.AreEqual(FtueNotice.StartWaveUnreached,
+                FtueDirector.StartFailureNotice(dropped));
+
+            // The sentence names the action, which is the only reason it is
+            // better than the transport exception's own text.
+            StringAssert.Contains("Start", FtueNotice.StartWaveUnreached);
+        }
+
+        [Test]
+        public void TheSameIsTrueOfTheTimeoutAPackagedPlayerActuallyHit()
+        {
+            // Sighting 3's shape: HttpClient's own timeout, which arrives as
+            // a cancellation because nothing here passes a token.
+            var timedOut = new System.Threading.Tasks.TaskCanceledException();
+            Assert.IsTrue(FtueDirector.StartLeavesTheWalkAlive(timedOut));
+            Assert.AreEqual(FtueNotice.StartWaveUnreached, FtueDirector.StartFailureNotice(timedOut));
+
+            // And a 503, which is the server ASKING to be retried -
+            // routes/wave.ts writes "Retry." into the message itself.
+            var unavailable = Refusal(503, "sim_unavailable", "Verification is temporarily unavailable. Retry.");
+            Assert.IsTrue(FtueDirector.StartLeavesTheWalkAlive(unavailable));
+        }
+
+        [Test]
+        public void AVerdictOnStart_StopsTheWalkAndShowsTheSERVERsOwnSentence()
+        {
+            // The other arm, and it must not be smoothed into the first.
+            // Putting the same screen back so the player can produce the same
+            // refusal again is a loop, not a remedy - and "tap Start again"
+            // would be this client inventing a remedy for a refusal that has
+            // none.
+            var locked = Refusal(409, "wave_locked", "That wave is not available to you right now.");
+
+            Assert.IsFalse(FtueDirector.StartLeavesTheWalkAlive(locked));
+            Assert.AreEqual("That wave is not available to you right now.",
+                FtueDirector.StartFailureNotice(locked));
+            Assert.AreNotEqual(FtueNotice.StartWaveUnreached, FtueDirector.StartFailureNotice(locked));
+        }
+
+        [Test]
+        public void TheTwoStartNotices_AreDistinctAndNeitherIsEmpty()
+        {
+            // ServerWakingUp is said while the retries run; StartWaveUnreached
+            // when they are spent. One sentence doing both jobs would tell a
+            // player who can still be helped the same thing as one who
+            // cannot.
+            Assert.IsNotEmpty(FtueNotice.ServerWakingUp);
+            Assert.IsNotEmpty(FtueNotice.StartWaveUnreached);
+            Assert.IsNotEmpty(FtueNotice.ColdStartFailed);
+            Assert.AreNotEqual(FtueNotice.ServerWakingUp, FtueNotice.StartWaveUnreached);
+            Assert.AreNotEqual(FtueNotice.StartWaveUnreached, FtueNotice.ColdStartFailed);
+
+            // The cold-start one promises a RELAUNCH rather than a button,
+            // because nothing in this build re-runs the cold start on demand.
+            StringAssert.Contains("reopen", FtueNotice.ColdStartFailed);
+        }
+
+        static BroodlineApiException Refusal(int status, string code, string message)
+        {
+            return new BroodlineApiException("server", status,
+                "{\"code\":\"" + code + "\",\"message\":\"" + message + "\"}", null, null);
         }
     }
 }

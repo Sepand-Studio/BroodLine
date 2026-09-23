@@ -156,6 +156,7 @@ namespace Broodline.TestHarness
         {
             "Broodline.UI.Tests", "Broodline.Game.Tests", "Broodline.View.Tests",
             "Broodline.Net.Tests", "Broodline.Benchmark.Tests", "Broodline.EditorBuild.Tests",
+            "Broodline.Creatures.Tests",
         };
 
         sealed class CaseResult

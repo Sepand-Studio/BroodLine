@@ -1,0 +1,112 @@
+/* The handoff's lineage rail, from `Splice Chamber.dc.html`: a row of
+ * `display: grid; place-items: center; gap: 4px` stops - a rounded square
+ * over an 8.5px generation label - separated by `flex: 1` rails 2px tall.
+ *
+ * THE NODES ARE ONE SIZE HERE AND THREE IN THE HANDOFF (22px for a past
+ * generation, 26px for a notable one, 30px for the current). Two of those
+ * three distinctions have no data behind them - nothing in
+ * `LineageResponse` says which ancestors are "notable" - so reproducing all
+ * three would mean inventing a rule to decide it. The one that IS in the
+ * data is `current`, and it keeps its larger node.
+ *
+ * `align-items: flex-start`, NOT `center`, AND THAT IS THE RAIL'S
+ * ALIGNMENT. A stop is a node over a label; centred, a row of stops centres
+ * the WHOLE stop, so the rail between them lands below the nodes it
+ * connects - about 7px below on this geometry, which reads as a line
+ * passing under the chain rather than through it. Aligned to the top, every
+ * node's top edge is the same y and the rail's own margin puts it on their
+ * shared centre line. The current node's -2px cancels the 4px it is taller
+ * by, so its centre stays on that line too.
+ */
+.lineage-strip {
+    flex-direction: column;
+    flex-shrink: 0;
+}
+
+.lineage-strip__track {
+    flex-direction: row;
+    align-items: flex-start;
+    margin-top: var(--space-2);
+}
+
+.lineage-strip__stop {
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+/* 11px is half of the 24px node less the rail's own 2px, so the rail's
+ * centre line and the node's centre line are the same y. It is arithmetic
+ * on two numbers in this file and would be `calc()` if USS had one - see
+ * HeroSlot.uss's header for the measurement of what happens when it is
+ * written as one. */
+.lineage-strip__rail {
+    height: 2px;
+    flex-grow: 1;
+    flex-shrink: 1;
+    background-color: var(--hairline);
+    margin-top: 11px;
+}
+
+/* 24px IS THE MIDDLE OF THE HANDOFF'S THREE (22, 26, 30) AND IT IS A
+ * DELIBERATE COMPROMISE. A single size has to serve both a five-node chain
+ * and a two-node one; at 22 the nodes read as dots on a wire and the species
+ * tint has too little area to be a tint, and at 26 five of them plus their
+ * rails overrun the 366px content width. --radius-chip (6px) is the
+ * handoff's own 7px at this size, rounded to the token. */
+.lineage-strip__node {
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-chip);
+    background-color: var(--divider);
+}
+
+/* The same six-species table as TraitChip.uss and HeroSlot.uss, so a teal
+ * node in a lineage and a teal chip on a card are the same claim about the
+ * same animal. */
+.lineage-strip__node--vetch   { background-color: var(--teal-tint); }
+.lineage-strip__node--ember   { background-color: var(--coral-tint); }
+.lineage-strip__node--skitter { background-color: var(--amber-tint); }
+.lineage-strip__node--hollow  { background-color: var(--violet-tint); }
+.lineage-strip__node--loam    { background-color: var(--green-tint); }
+.lineage-strip__node--pale    { background-color: var(--surface-sunk); }
+
+/* THE CURRENT GENERATION, AND IT IS MARKED THREE WAYS. bible 10.4: colour
+ * never carries information alone. It is bigger (28 against 24), it is
+ * ringed, and its label is violet - so the mark survives greyscale, survives
+ * every colour deficiency the palette is measured against, and survives a
+ * node whose species tint is already violet.
+ *
+ * THE -2px TOP MARGIN IS NOT SPACING. It cancels the 4px this node is
+ * taller than its siblings by, so its centre stays on the rail's line rather
+ * than sitting 2px below it. See this sheet's header.
+ *
+ * THIS RULE FOLLOWS THE SIX ABOVE, deliberately: it ties with them on
+ * specificity (one class each) and within one stylesheet the later rule
+ * wins, so a current Vetch keeps its ring rather than having it overwritten
+ * by its own tint. */
+.lineage-strip__node--current {
+    width: 28px;
+    height: 28px;
+    margin-top: -2px;
+    border-width: 2px;
+    border-color: var(--violet);
+}
+
+.lineage-strip__gen {
+    color: var(--mute-soft);
+    margin-top: var(--space-1);
+}
+
+.lineage-strip__gen--current {
+    color: var(--violet-text);
+}
+
+/* The pedigree line. `white-space: normal` because the server writes it and
+ * this component cannot know its length - the mistake
+ * `.screen-scaffold__footer-note` records making once, on a note that was
+ * also authored elsewhere. */
+.lineage-strip__note {
+    white-space: normal;
+    margin-top: var(--space-2);
+}

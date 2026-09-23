@@ -1,0 +1,11 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="InheritanceBar.uss" />
+    <ui:VisualElement name="dot" class="inheritance-bar__dot" />
+    <ui:VisualElement name="stack" class="inheritance-bar__stack">
+        <ui:VisualElement name="line" class="inheritance-bar__line">
+            <ui:Label name="trait" class="inheritance-bar__trait" />
+            <ui:Label name="odds" class="inheritance-bar__odds t-num" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+    <ui:Label name="tag" class="inheritance-bar__tag chip" />
+</ui:UXML>

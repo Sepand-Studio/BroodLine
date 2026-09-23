@@ -1,0 +1,14 @@
+{
+  "name": "Broodline.Creatures.Editor",
+  "rootNamespace": "Broodline.Creatures.Editor",
+  "references": ["Broodline.Creatures"],
+  "includePlatforms": ["Editor"],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

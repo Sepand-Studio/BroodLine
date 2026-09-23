@@ -60,6 +60,20 @@ namespace Broodline.UI.Screens
         public const string MarksUssClassName = "node__marks";
         public const string MarkUssClassName = "node__mark";
 
+        /// The column of trait chips inside a node. Named here rather than
+        /// typed as a literal in the sheet so the coupling between the C#
+        /// that builds the column and the USS that spaces it is visible from
+        /// both ends - `SectionCard.ElevationUssClassName`'s convention, and
+        /// the same one `MarksUssClassName` above already follows.
+        ///
+        /// THE COLUMN IS THE CONTAINER'S JOB AND IT CANNOT BE THE CHIP'S.
+        /// `StatCell.uss`'s closing note is the measurement: a component's
+        /// stylesheet reaches the component and its descendants and never its
+        /// parent, so nothing `TraitChip` carries can space the stack holding
+        /// it. `SpliceChamberView.uss:141` owns the identical rule for the
+        /// identical reason.
+        public const string TraitsUssClassName = "node__traits";
+
         readonly ScreenScaffold _scaffold;
         readonly VisualElement _generations;
         readonly Button _next;
@@ -85,7 +99,13 @@ namespace Broodline.UI.Screens
             // scaffold would draw a chevron on a screen with nowhere to go
             // and a player would tap it to no effect at all. ScreenScaffold's
             // `OnBack` carries the whole argument.
-            _scaffold = new ScreenScaffold(LineageScreen.Title, pushed: true);
+            // THE KICKER IS PASSED AT CONSTRUCTION, NOT AT BIND, because it
+            // never changes: it says where in the app this screen is, and
+            // this screen is always the pedigree. `RosterView` sets its own
+            // in `Bind` because the roster's is a live count; `SpliceChamber
+            // View` passes a constant here, as this does.
+            _scaffold = new ScreenScaffold(
+                LineageScreen.Title, pushed: true, eyebrow: LineageScreen.Eyebrow);
             _scaffold.Content.Add(_generations);
             _scaffold.CtaRow.Add(_next);
             Add(_scaffold);
@@ -243,8 +263,9 @@ namespace Broodline.UI.Screens
             if (marks != null) element.Add(marks);
 
             var traits = new VisualElement { name = "traits" };
-            AddTrait(traits, node.Trait1, node.Tier1);
-            AddTrait(traits, node.Trait2, node.Tier2);
+            traits.AddToClassList(TraitsUssClassName);
+            AddTrait(traits, node.Trait1, node.Tier1, node.Species);
+            AddTrait(traits, node.Trait2, node.Tier2, node.Species);
             element.Add(traits);
 
             return element;
@@ -311,17 +332,64 @@ namespace Broodline.UI.Screens
         }
 
         /// A lineage node's traits are nullable on the wire (a pruned or very
-        /// old record can carry none), so an absent trait adds no pip rather
+        /// old record can carry none), so an absent trait adds no chip rather
         /// than an empty one.
-        static void AddTrait(VisualElement into, string trait, int? tier)
+        ///
+        /// =================================================================
+        /// A `TraitChip`, NOT A `TraitPip`, AS OF PHASE 9 TASK 19 - AND THE
+        /// SENTENCE IN `CreatureCard`'s CLASS COMMENT THAT SAID OTHERWISE IS
+        /// REFUTED BY THE LINE THIS ONE REPLACES.
+        ///
+        /// Task 16 swapped the roster card's marks from pips to chips on a
+        /// measurement - "EVERY `CreatureCard.Bind` IN THE APP PASSES
+        /// `counters: null`, so the pip's dot has never once gone green in a
+        /// shipped screen" - and exempted this screen in the same breath:
+        /// "`TraitPip` SURVIVES AND IS STILL THE RIGHT ANSWER WHERE A COUNTER
+        /// IS ACTUALLY KNOWN - `LineageView` builds one per trait and that is
+        /// untouched" (`CreatureCard.cs:37-40`). A counter is NOT known here.
+        /// The line removed from this method passed `counters: null` too, and
+        /// its own comment said why it always would: "the lineage response
+        /// carries no trait table, and `Broodline.UI` cannot derive one."
+        /// So the exemption rested on a premise this file already contained
+        /// the refutation of, and the swap's own argument applies verbatim:
+        /// nothing is lost, six species tints are gained.
+        ///
+        /// IT LEFT THIS SCREEN THE LAST ONE IN THE APP DRAWING A PIP, which
+        /// is the tell this task exists to remove - `new TraitPip` has no
+        /// other caller outside `ComponentTests`. A player reaching the tree
+        /// from the roster or the chamber has seen the same creature's traits
+        /// as species-tinted chips twice already.
+        ///
+        /// AND IT UNCOVERS THE PIPS ON THE ONE NODE THE SCREEN IS ABOUT.
+        /// `.trait-pip`'s fill is `--violet-tint` (`TraitPip.uss:11`) and so
+        /// is `.node.highlight`'s (`LineageView.uss`), so on the highlighted
+        /// node - the named Founder, the one image bible 9.2 says a player
+        /// carries away - both pills were drawn in the page's own colour and
+        /// had no edge at all. Measured on `LineageView.png` before this
+        /// change: the two pills on `Ash (G1)` are `#f1ecfa` on `#f1ecfa`.
+        /// A species tint collides with the highlight for Hollow alone, one
+        /// species in six instead of six in six.
+        ///
+        /// THE TIER IS REAL HERE, unlike on the Codex sheet - `LineageNode`
+        /// carries `tier1`/`tier2` on the wire - so a null one IS an Aberrant
+        /// in data_model 2's sense and the chip is right to mark it.
+        /// =================================================================
+        static void AddTrait(VisualElement into, string trait, int? tier, string species)
         {
-            if (string.IsNullOrEmpty(trait)) return;
-            var pip = new TraitPip { name = trait };
-            // No `counters` reaches this Bind: the lineage response carries
-            // no trait table, and `Broodline.UI` cannot derive one. The Codex
-            // sheet is where a player reads what a trait answers.
-            pip.Bind(trait, tier, null);
-            into.Add(pip);
+            // `IsAbsentTrait` RATHER THAN `IsNullOrEmpty` - Phase 9 Task 21e.
+            // This screened for a missing STRING and not for the wire's own
+            // word for a missing TRAIT, so a node with one combat trait drew
+            // a chip reading "None" beside it - the same defect the exit
+            // gate's walk found on the post-wave grant card, in a second
+            // place, from a second hand-rolled definition of "absent". There
+            // is one definition now and `CreatureLabel.IsAbsentTrait` holds
+            // it. Null and empty are still absences; that half is unchanged.
+            if (CreatureLabel.IsAbsentTrait(trait)) return;
+            // `species` is the NODE's, which is the question a tree asks:
+            // whose trait is this. `TraitChip`'s class comment draws the line
+            // - "a pip says what a trait COUNTERS ... a chip says whose trait
+            // it is" - and a family tree is nothing but the second question.
+            into.Add(new TraitChip(trait, tier, species) { name = trait });
         }
     }
 }

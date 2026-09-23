@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using Broodline.Game;
 using Broodline.Game.Shell;
@@ -156,13 +157,35 @@ public class WaveCapturePlayTests
         yield return Until(() => BarsIn(root).Count > 5, "the Courser never appeared on the HUD");
 
         // And the readout ADVANCES. `DeviceReplayTests` tells the capturer to
-        // aim a tap by reading the live tick off this line; a line that froze
+        // aim a tap by reading the live tick off the HUD; a readout that froze
         // at its first value is a capture aimed with a stopped clock, and the
         // scheduled per-frame redraw is only reachable with a real panel.
+        //
+        // THE TICK IS ITS OWN ELEMENT AS OF PHASE 9 TASK 21e AND THIS BLOCK
+        // FOLLOWED IT. It was appended to `#integrity`, whose caption is
+        // "ARK INTEGRITY", so the packaged app printed "2 tick 155" as the
+        // value of the loss condition and the exit gate's walk named it a
+        // defect. Watching `#integrity` for a CHANGE would now fail on a
+        // TIMEOUT rather than on a wrong value - integrity is a pool that
+        // moves a handful of times in a wave, and this one holds a constant 2
+        // for roughly 500 of 540 ticks - so the watch is on `#tick`, which is
+        // the element that actually advances and the element the re-capture
+        // message now names.
+        //
+        // ASSERTED TO EXIST BEFORE IT IS WATCHED. A `Q` that missed would
+        // return null and the `Until` below would throw on the first frame
+        // rather than time out, which is a slower and less obvious way to say
+        // the same thing.
         var integrity = root.Q<Label>("integrity");
-        var before = integrity.text;
+        Assert.IsNotNull(integrity, "the HUD has no #integrity readout");
+        var tick = root.Q<Label>("tick");
+        Assert.IsNotNull(tick,
+            "the HUD has no #tick readout - the device re-capture procedure reads the live "
+            + "tick off this element to time a tap (WaveHudScreen.Tick)");
+
+        var before = tick.text;
         Assert.IsNotEmpty(before);
-        yield return Until(() => integrity.text != before, "the HUD's tick readout never advanced");
+        yield return Until(() => tick.text != before, "the HUD's tick readout never advanced");
 
         // WHAT IS *NOT* ASSERTED HERE, deliberately: that the text equals
         // `WaveHudScreen.Integrity(...)` of the runner's current tick. The
@@ -190,8 +213,9 @@ public class WaveCapturePlayTests
         // integrity 2, and nothing touches integrity until that Courser
         // breaches at ~tick 540 - so for ~500 of 540 ticks the value is a
         // constant 2, a stale frame reads the same 2, and the comparison
-        // needs no tolerance. Asserted on the PREFIX for the same reason: the
-        // tick that follows it on the line is the part that is one frame out.
+        // needs no tolerance. It was asserted on the PREFIX while the tick
+        // followed it on the same line; Task 21e moved the tick off this
+        // element, so the assertion below is an equality.
         var live = runner.Runner.Integrity;
         // CONTRASTIVE, and the reason the prefix check above means anything:
         // a transposed Snapshot() prints the TICK where integrity belongs, so
@@ -200,9 +224,39 @@ public class WaveCapturePlayTests
         // here is what stops a future edit moving this block earlier, to a
         // tick of 2, and quietly making it vacuous.
         Assert.AreNotEqual(live, runner.Runner.Tick,
-            "integrity and tick must differ here or the prefix assertion below cannot tell them apart");
-        StringAssert.StartsWith("Integrity " + live, integrity.text,
+            "integrity and tick must differ here or the equality below cannot tell them apart");
+        // THE WORD "Integrity" LEFT THIS LINE IN PHASE 9 TASK 18 and this
+        // assertion did not follow it; THE TICK LEFT IT IN TASK 21e and this
+        // one did. Both were missed the same way and it is worth the sentence:
+        // PlayMode deadlocks in batchmode on this Editor, so no task that
+        // changes the HUD can run this file, and the only thing standing
+        // between a stale assertion here and a wasted device trip is the
+        // author reading it. Task 18's was caught by the human's Editor pass.
+        //
+        // `#integrity` IS NOW EXACTLY THE INTEGRITY, so this is an equality
+        // rather than a prefix. The prefix form existed because the tick used
+        // to follow the number on the same line and is the half that races -
+        // the redraw is scheduled on the panel and the runner steps in
+        // `Update`, so a tick read from this coroutine is one frame out about
+        // half the time. Integrity does not race: wave 6 is one Courser
+        // against integrity 2 and nothing touches it until that Courser
+        // breaches at ~tick 540, so a stale frame reads the same 2 and the
+        // comparison needs no tolerance. The contrastive guard above is what
+        // keeps this honest - a transposed `Snapshot()` would print the tick
+        // here, and the two provably differ at this point in the wave.
+        Assert.AreEqual(live.ToString(CultureInfo.InvariantCulture), integrity.text,
             "the HUD's integrity readout must come from the live runner - WaveRunner.Snapshot()");
+
+        // AND THE TICK IS STILL ON SCREEN, on its own element. Not asserted
+        // against the runner's current tick, for the race named above; what is
+        // asserted is that the readout the re-capture message points a person
+        // at exists, names itself, and carries digits. The `Until` above
+        // already proved it advances.
+        StringAssert.Contains("tick", tick.text,
+            "the tick readout must name itself - the device re-capture procedure tells a person "
+            + "to read the live tick off the HUD to aim a tap");
+        StringAssert.IsMatch(@"\d", tick.text,
+            "the tick readout carries the word but no number, so there is nothing to aim by");
 
         yield return Until(() => runner.Runner.Done, "the wave never terminated");
         yield return null;   // the Update that writes the artifacts
@@ -257,7 +311,15 @@ public class WaveCapturePlayTests
     [UnityTest]
     public IEnumerator AHostedWave_ReportsItsOutcomeAndWritesNoCapture()
     {
-        var host = new WaveHost(() => Bundle);
+        // The bool alone only proves a hide happened, not WHEN - the defect
+        // this test exists to catch (hiding before the additive load) would
+        // record the same `false` here. Pairing it with whether the wave
+        // scene is resident AT THE MOMENT the callback fires is what makes
+        // the mid-wave assertion below a real discriminator.
+        var visibility = new List<(bool Visible, bool SceneLoaded)>();
+        var host = new WaveHost(
+            () => Bundle,
+            visible => visibility.Add((visible, SceneManager.GetSceneByName(SceneName).isLoaded)));
         var run = host.RunAsync(
             WaveRunner.CaptureWaveId, WaveRunner.Deployment(), WaveRunner.Seed, inputEnabled: false);
 
@@ -267,6 +329,13 @@ public class WaveCapturePlayTests
         yield return Until(() => (hosted = UnityEngine.Object.FindAnyObjectByType<WaveRunner>()) != null &&
                                  hosted.Runner != null,
                            "WaveHost never configured a runner");
+
+        // Phase 9 design §2.2: hidden exactly once, and the scene is ALREADY
+        // resident when it happens - `SceneLoaded: true` here is what rules
+        // out the reverted ordering (hide before the load), which would
+        // record `SceneLoaded: false` instead.
+        CollectionAssert.AreEqual(new[] { (false, true) }, visibility,
+            "the shell must be hidden exactly once, after the wave scene is already loaded");
 
         Assert.IsFalse(hosted.StandaloneCapture,
             "a hosted wave must not own the capture artifacts");
@@ -300,6 +369,15 @@ public class WaveCapturePlayTests
         // per-frame budget in the app alive behind every other screen.
         Assert.IsFalse(SceneManager.GetSceneByName(SceneName).isLoaded);
         Assert.IsFalse(WaveRunner.Hosted, "the hosted latch must be cleared when the run ends");
+
+        // The restore is the finally's guarded FIRST statement, ahead of
+        // UnloadAsync - so at the moment it fires the scene is still
+        // resident (`SceneLoaded: true`), and only the later, unrecorded
+        // unload takes it down. This is unchanged from before this fix; it
+        // proves the restore runs, not its ordering relative to the load,
+        // which the mid-wave assertion above already covers.
+        CollectionAssert.AreEqual(new[] { (false, true), (true, true) }, visibility,
+            "the shell must be hidden after the load, then restored before the unload, when the run ends");
     }
 
     /// THE ERROR PATH, which is the one that stranded the player.
@@ -317,7 +395,14 @@ public class WaveCapturePlayTests
     [UnityTest]
     public IEnumerator AHostedWaveThatThrows_StillUnloadsTheBattlefield()
     {
-        var host = new WaveHost(() => Bundle);
+        // Same pairing as the completion-path test above, and for the same
+        // reason: the bool alone cannot tell "hidden after the load" from
+        // "hidden before it", which is the ordering this whole task is
+        // about.
+        var visibility = new List<(bool Visible, bool SceneLoaded)>();
+        var host = new WaveHost(
+            () => Bundle,
+            visible => visibility.Add((visible, SceneManager.GetSceneByName(SceneName).isLoaded)));
         var run = host.RunAsync(999, WaveRunner.Deployment(), WaveRunner.Seed, inputEnabled: false);
 
         yield return Until(() => run.IsCompleted, "WaveHost.RunAsync never completed");
@@ -334,6 +419,15 @@ public class WaveCapturePlayTests
             "a wave that threw must not leave the 3D battlefield loaded over the shell");
         Assert.IsFalse(WaveRunner.Hosted,
             "the hosted latch must be cleared on the error path too");
+
+        // The white screen the reverted fix produced is consistent with
+        // hiding before the load AND with the restore never running on the
+        // throw path. Neither is true here: `SceneLoaded: true` on the first
+        // entry says the hide happened after the scene loaded, and the
+        // second entry says the finally's guarded restore still ran, even
+        // though `Configure` never did.
+        CollectionAssert.AreEqual(new[] { (false, true), (true, true) }, visibility,
+            "hidden after the load with the scene resident, restored by the finally, even when Configure throws");
     }
 
     /// `config.traits` from `/v1/sync`, as the shell would hand it over. The

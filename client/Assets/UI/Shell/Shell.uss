@@ -7,10 +7,20 @@
  * only exposes TryGetValue, verified against UnityEngine.UIElementsModule.dll
  * for this Editor version), so BootController does not actually write through
  * these variables. It computes the safe-area inset from Screen.safeArea via
- * RuntimePanelUtils.ScreenToPanel and applies it as concrete padding on
- * #shell-root directly, which is inline style and wins the cascade over the
- * rule below regardless. These two lines stay as the spec'd fallback and as
- * documentation of the intent.
+ * RuntimePanelUtils.ScreenToPanel and applies it as concrete inline padding,
+ * which wins the cascade over the rule below regardless. These two lines stay
+ * as the spec'd fallback and as documentation of the intent.
+ *
+ * ON THE PANEL ROOT, NOT ON #shell-root - THIS PARAGRAPH SAID #shell-root AND
+ * IT WAS FALSE. BootController.BindSafeAreas pads `document.rootVisualElement`,
+ * which is the PARENT of both #shell-root and #notice-layer. The distinction is
+ * not pedantry: #shell-root is an in-flow child and is pushed down by that
+ * padding, while #notice-layer is `position: absolute` below and UI Toolkit
+ * offsets an absolutely positioned child from its parent's border box rather
+ * than its padding box - so the layer and everything in it sat OUTSIDE the
+ * inset, which is how the notice toast came to draw under an iPhone 17's
+ * Dynamic Island. BindSafeAreas pads the toast itself for that reason and its
+ * header carries the whole account.
  */
 :root {
     --safe-top: 0;
@@ -33,6 +43,56 @@
     flex-grow: 1;
 }
 
+/* `bottom: 0` IS #shell-root's BOTTOM, WHICH IS BELOW THE TAB BAR, AND THAT
+ * IS DELIBERATE - Phase 9 Task 21i. A bottom sheet is flush with the bottom of
+ * the frame; it does not stop at a piece of chrome. What it costs is that the
+ * tab bar and every sheet occupy the same band, and for four tasks this file
+ * declared the layer BEFORE `#tab-bar`, so the bar won that band twice over.
+ *
+ * MEASURED, AT 402x874 WITH THE IPHONE 17'S OWN 62/34 INSETS, by
+ * `probe-shell.sh` against this very .uxml:
+ *
+ *     #shell-root   y=  62.0  h=778.0  bottom=840.0
+ *     #screen-host  y=  78.0  h=706.0  bottom=784.0   clear of the bar
+ *     #tab-bar      y= 784.0  h= 56.0  bottom=840.0
+ *     #sheet-layer  y=  62.0  h=778.0  bottom=840.0   spans the bar entirely
+ *     forfeit       y= 745.0  h= 55.0  bottom=800.0   16.0 under the bar
+ *
+ * and `IPanel.Pick` down the button's own centre column came back inside the tab
+ * bar for 16 of the 54 points it samples, y=784 to y=799, one contiguous band.
+ * NOT ALL TO THE SAME ELEMENT, and the distinction matters because the bar is
+ * made of parts: the topmost dead row resolves to the `TabBar` CONTAINER - the
+ * bar's own 1px `border-top-width` plus its `padding-top`, which no tab's box
+ * covers - and the lowest resolves to a tab BUTTON. Neither has a handler that
+ * does anything: `OnTabSelected` is empty and the container was never wired at
+ * all. So those taps were delivered, swallowed and answered with nothing, which
+ * is what a player met on an iPhone 17 - the lower third of the only button on
+ * `AbandonedWaveSheet` did not work, four times.
+ *
+ * AND IT WAS EVERY SHEET, not that one. `CodexSheet`'s dismiss lost 28 of the 50
+ * points it samples. Both `ConfirmDialog` faces lost the whole band to the bar -
+ * and there the buttons were never in it (they are centred, 259 points clear),
+ * so what was lost was `Standard`'s SCRIM, which splice_confirm_spec section 4
+ * wires to `cancel`: tapping outside the dialog silently failed to dismiss it in
+ * the bottom 56 points.
+ *
+ * THE ORDER IN Shell.uxml IS THE FIX AND THE ONLY FIX, because UI Toolkit has
+ * no z-index: both paint order and hit-test order are sibling order, so the
+ * layer that is meant to be on top has to be declared last. Nothing here moved
+ * and nothing about the tab bar moved - an absolutely positioned child is out
+ * of flow, so its position among its siblings changes no box's geometry.
+ *
+ * WHAT IT CHANGES FOR THE PLAYER, said plainly because it is a behaviour change
+ * and not only a repair: while a sheet is up, its scrim now covers the tab bar
+ * and takes taps there. That is what a modal overlay is for, it is what the
+ * scrim was already claiming visually, and `ScreenHost.ShowSheet`'s "the tab
+ * bar's visibility does not change under it" still holds - the bar is still
+ * displayed, now dimmed under the scrim rather than drawn on top of it.
+ *
+ * `#notice-layer` NEEDED NONE OF THIS and the difference is worth keeping: it
+ * is `PickingMode.Ignore` from its root down (see below, and `NoticeToast.cs`),
+ * so it has always overlapped everything and stolen nothing. A sheet cannot
+ * take that route - it exists to be pressed. */
 .sheet-layer {
     position: absolute;
     top: 0;
@@ -40,6 +100,17 @@
     right: 0;
     bottom: 0;
     display: none;
+}
+
+/* Sibling of #shell-root, not a child: Task 6 hides the shell while a wave
+ * is resident, and a notice must still reach the player then. Picking is
+ * ignored so the layer never swallows a tap; only its rows are visible. */
+.notice-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
 }
 
 .tab-bar-slot {

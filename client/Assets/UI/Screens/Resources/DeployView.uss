@@ -1,32 +1,423 @@
-/* Placement, before a wave, composed onto ScreenScaffold. What is left here
- * is the two things neither the frame nor a component can know: that the stat
- * cells sit in a row, and that the refusal wraps.
+/* Placement, before a wave, composed onto ScreenScaffold and brought to
+ * `Wave Defense.dc.html`'s `phase: 'placing'` in Phase 9 Task 17.
  *
- * FOUR RULES LEFT THIS FILE IN PHASE 8 TASK 10 AND NONE WAS REPLACED BY A
- * COPY HERE, which is the test of whether a screen composes the layer or
- * re-derives it:
- *   - the root's `padding: var(--gutter)` is the scaffold's content region.
- *   - `__slot`'s sunk fill, hairline border, row radius, padding and bottom
- *     margin were a line-by-line re-derivation of `.option-row`, which now
- *     draws the row. Every one of the six declarations matched the
- *     component's exactly.
- *   - `__blocker`'s fill, radius and padding are Theme's `.panel-coral`, and
- *     its ink is `.t-danger`.
- *   - `__start`'s top margin is the CTA row's own padding, and the button's
- *     whole treatment is Theme's `.btn-primary` - which is also what makes it
- *     the violet CTA rather than Unity's default grey.
+ * WHAT THIS SHEET IS FOR, STATED AS A TEST RATHER THAN AS A SIZE. Every
+ * declaration below has to be something no component and no Theme class
+ * provides: a geometry the handoff gives THIS screen and not the component in
+ * general, an arrangement of components in a row or a column, or an override
+ * a component's own comment says a screen is expected to make. Anything that
+ * restates `.chip`, `.panel-*`, `.t-*`, `.elev-*`, `.section-card` or
+ * `.field-slot-row` belongs in the layer that already has it. The file GREW
+ * in this task and that is the right direction - it composes six components
+ * where it used to arrange two containers, and the handoff gives this screen
+ * five geometries of its own (22, 14, 11, 7 and the 15px readout).
  *
- * THE STAT ROW IS THIS FILE'S AND NOT StatCell.uss's. A cell carries half the
- * handoff's 8px gap on each of its own sides; the `flex-direction: row` that
- * puts three of them side by side belongs to whatever holds them, and a
- * component's stylesheet reaches its descendants and never its parent.
- * StatCell.uss's closing note records how that was found out.
+ * WHAT LEFT IN PHASE 8 TASK 10 AND HAS NOT COME BACK: the root's gutter (the
+ * scaffold's content region), the pocket row's whole treatment (`OptionRow`
+ * then, `FieldSlotRow` now), the blocker's fill/radius/padding
+ * (`.panel-coral` plus `.t-danger`) and the CTA's (`.btn-primary`).
+ *
+ * WHAT LEFT IN THIS TASK: `.deploy-view__slots`'s column direction, because
+ * the list is a column of PAIRS now and the pair is what needs a direction;
+ * and the stat row's flush alignment, which is `StatCell.uss`'s own
+ * prescription rather than this file's invention.
+ *
+ * TWO HANDOFF ELEMENTS ARE DELIBERATELY ABSENT AND `DeployView`'s CLASS
+ * COMMENT SAYS WHY: the header's speed pill (`:41`) and the wave-progress bar
+ * above the CTA (`:263`). Both belong to the fight, which is `WaveHudView`.
  */
 .deploy-view { flex-grow: 1; }
 
-.deploy-view__stats { flex-direction: row; }
+/* ------------------------------------------------------------- the title */
 
-.deploy-view__slots { flex-direction: column; }
+/* `Wave Defense.dc.html:40` - "Wave {{ wave }}" on one 20px Baloo line. Two
+ * Labels here, because a numeral never renders in the display face: the word
+ * is `.t-screen-title` (Baloo) and the number is `.t-num` (Nunito's tabular
+ * face). This row is what puts them back on one line inside the scaffold's
+ * title COLUMN. `align-items: center` rather than the baseline the handoff
+ * gets for free from a single text run - UI Toolkit has no
+ * `align-items: baseline`, and the two faces are close enough in cap height
+ * that centring them is within a pixel at these sizes. */
+.deploy-view__title-line {
+    flex-direction: row;
+    align-items: center;
+}
+
+/* 21px, WHICH IS `--text-screen-title` AND THEREFORE THE TITLE'S OWN SIZE.
+ * `.t-num` would otherwise set this to --text-secondary (11px) and the wave
+ * id would render half the height of the word beside it. This is the third
+ * place in the project to raise a `.t-num` label above the 11px floor -
+ * `.resource-pill__value` (15) and `.cost-cta-row__cost` (17) are the others,
+ * and that file's note states the rule: the floor is a MINIMUM, so going up
+ * does not touch bible 10.6; what the floor forbids is --text-micro, which
+ * verify-uss-tokens.sh check 2 reads.
+ *
+ * `--mute-soft` IS THE HANDOFF'S OWN COLOUR FOR THIS NUMBER, AND THAT IS NOT
+ * WHAT IT LOOKS LIKE AT FIRST. `:40` draws `Wave {{ wave }}` in --ink and
+ * then `<span style="color: #b3adc2;">/ 12</span>` after it - the muted part
+ * is the CAMPAIGN LENGTH, not the wave. This project does not draw "/ 12"
+ * (nothing in `config.waves` promises twelve), so the number here stays in
+ * --ink, which is `Label`'s own colour and is not restated. Recorded so the
+ * next reader does not "fix" it to the span's grey.
+ *
+ * 4px, WHICH IS THE SPACE CHARACTER THE HANDOFF HAS AND THIS ROW DOES NOT.
+ * Two Labels have no word gap between them. --space-1 at this size reads as
+ * the one space in "Wave 7". */
+.deploy-view .deploy-view__wave-number {
+    font-size: var(--text-screen-title);
+    margin-left: var(--space-1);
+}
+
+/* ------------------------------------------------------- the two readouts */
+
+/* `Wave Defense.dc.html:51` - `display: flex; gap: 7px; padding: 0 12px 10px`.
+ * The 12px is the scaffold's gutter and is not restated here.
+ *
+ * 4px AND NOT 10, AND THE 6 THAT IS MISSING IS THE SHADOW'S. The next thing
+ * down is the lane card, which is not elevated; these two are `.elev-1`
+ * wrappers, so each already carries --elev-1-spread (6px) of padding BELOW
+ * its white surface - which is where the drop is drawn. 6 + 4 puts the lane's
+ * top edge 10px under the readouts' white edges, which is the handoff's
+ * number measured between the same two things it measures. */
+.deploy-view__pills {
+    flex-direction: row;
+    margin-bottom: var(--space-1);
+}
+
+/* `flex: 1` on each, and the margin CANCELLED rather than left alone.
+ *
+ * TWO CLASSES FOR THE `margin-bottom`, deliberately: `.section-card` carries
+ * `margin-bottom: var(--space-2)` at single-class specificity and its sheet
+ * is attached deeper than this one, so a one-class rule here would lose and
+ * the 8px would stay - `SpliceChamberView.uss` records the same trap on the
+ * same component in a row. In a ROW that margin is trailing space under the
+ * row rather than a gap between cards, and the row's own margin above is what
+ * should decide it. */
+.deploy-view__pills > .deploy-view__pill {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 0;
+    margin-bottom: 0;
+}
+
+/* `:52` - `border-radius: 14px; padding: 8px 11px`.
+ *
+ * --radius-row IS 14px EXACTLY, so this is the scale rather than one-off
+ * geometry. The padding is not on the spacing scale (8 and 12 sit either side
+ * of 11), so the horizontal value is a literal beside the line it came from -
+ * the convention `StatCell.uss` states and `ScreenScaffold.uss` follows. */
+/* AND THE HEIGHT IS THE BOX'S, MEASURED TWICE. Task 16b's rule applied at the
+ * outermost of the three boxes this readout is made of, because the two
+ * inside it (below) closed most of the gap and not all of it:
+ *
+ *   first capture   74px   two nested Labels, each measuring two line boxes
+ *   with those two pinned
+ *                   57px   - 6px still unaccounted for by any declaration here
+ *   pinned          51px   8 + 14 + 1 + 20 + 8, which is what the parts add to
+ *   the handoff      44px   `specs/Designs/shots/wave-defense.png`, measured
+ *                          at x=400 of the 430 frame: y=82..125
+ *
+ * THE LAST 7px ARE THE TYPE AND ARE NOT AVAILABLE. The handoff's label is 9px
+ * on a browser's default line-height and its value 15px at `line-height:
+ * 1.05` - about 28px of content. Ours are --text-micro (10px) and the
+ * handoff's own 15px through Nunito-Bold SDF, whose line box is 1.36em
+ * (Theme.uss's chip block, measured off the asset), so the same two lines
+ * come to 35. Reaching 44 would mean either dropping the label under the
+ * 10px micro step or cutting the padding the handoff states at `:52`. The
+ * 7px is recorded instead.
+ *
+ * `justify-content: center` SO THE OVERFLOW, IF ANY, IS SYMMETRIC. A pinned
+ * height is authoritative and the content is not: if a future label wraps,
+ * it straddles the middle rather than hanging off the bottom edge - which is
+ * the same pairing `.chip` makes with `--chip-height` for the same reason.
+ *
+ * `:52` - `border-radius: 14px; padding: 8px 11px`.
+ *
+ * --radius-row IS 14px EXACTLY, so this is the scale rather than one-off
+ * geometry. The padding is not on the spacing scale (8 and 12 sit either side
+ * of 11), so the horizontal value is a literal beside the line it came from -
+ * the convention `StatCell.uss` states and `ScreenScaffold.uss` follows. */
+.deploy-view__pill > .section-card__surface {
+    height: 51px;
+    justify-content: center;
+    border-radius: var(--radius-row);
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+    padding-left: 11px;
+    padding-right: 11px;
+}
+
+/* THE ROW IS THE BODY'S, NOT THE SURFACE'S, AND THE FIRST CAPTURE IS WHY.
+ * `SectionCard`'s UXML is `surface > [heading, body]` and `Body` - what a
+ * caller adds to - is the INNER element. Written on the surface, the
+ * `flex-direction: row` from `:52` turned the heading and the body into a
+ * row of two and left the body itself a column: the disc stacked above its
+ * label, the label rendered outside the white fill, and the value fell off
+ * the card altogether. Nothing failed; the capture showed it. The same
+ * distinction `SectionCard.uss` draws about `flex-grow` ("GROWTH BELONGS ON
+ * THE SURFACE, NOT ON THE ROOT"), one level further in. */
+.deploy-view__pill .section-card__body {
+    flex-direction: row;
+    align-items: center;
+}
+
+/* The handoff's `gap: 7px` between the two readouts, as an element - see
+ * `DeployView.Pill`'s call site for why neither margin nor padding was
+ * available on an `.elev-1` wrapper. Two adjacent `.elev-1` siblings put
+ * their white surfaces flush (the -6px margin cancels the 6px padding
+ * exactly, which is what verify-uss-tokens.sh check 4 pins), so this 7 IS the
+ * gap between the surfaces and not an addition to some other number. */
+.deploy-view__pill-gap {
+    width: 7px;
+    flex-shrink: 0;
+}
+
+/* `:53` - a 22px circle behind an 11px glyph. 11 is half of 22, so this is a
+ * true circle: a square element clamps both axes alike, which is the one
+ * shape immune to the lens defect Theme.uss's header item 4 measured.
+ * `.resource-pill__disc` is the same ornament at the same size in the
+ * scaffold's header; it is not reused because a component's stylesheet
+ * reaches its own descendants and this disc is not one of them. */
+.deploy-view__pill-disc {
+    width: 22px;
+    height: 22px;
+    border-radius: 11px;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-right: var(--space-2);
+}
+
+/* The handoff's two tints, `#e2f4e8` behind the bolt and `#fbeae7` behind the
+ * hexagon. --coral-tint is #fbeae7 to the digit; --green-tint is #e8f5ec,
+ * which is 6+1+4 = 11 in summed channel distance from the handoff's green -
+ * inside the spread this project already accepts between a handoff value and
+ * its token, and a twelfth pale green is not what the palette needs. */
+.deploy-view__pill-disc--energy { background-color: var(--green-tint); }
+.deploy-view__pill-disc--integrity { background-color: var(--coral-tint); }
+
+/* TWO CLASSES, to beat `icons.uss`'s 19px and --mute-soft without depending
+ * on which sheet the panel applies last - the rule every override of an
+ * icons/Theme class in this phase follows, and the one
+ * `.resource-pill__glyph` states in full. The handoff draws both marks at
+ * 11px inside the 22px disc.
+ *
+ * THE TWO STROKES ARE THE HANDOFF'S OWN, NEAREST TOKEN. `#4c9b74` against
+ * --green-deep (#5aa87a) is 14+13+6 = 33; `#c96555` against --coral-deep
+ * (#d4776a) is 11+18+21 = 50. Both are the "deep" step of their own hue,
+ * which keeps the pair reading as one decision - --green-text/--coral-text
+ * are the text inks and are darker than either mark. */
+.deploy-view .deploy-view__pill-glyph {
+    width: 11px;
+    height: 11px;
+}
+.deploy-view__pill-disc--energy .deploy-view__pill-glyph {
+    -unity-background-image-tint-color: var(--green-deep);
+}
+.deploy-view__pill-disc--integrity .deploy-view__pill-glyph {
+    -unity-background-image-tint-color: var(--coral-deep);
+}
+
+/* `:55` - `flex: 1; min-width: 0`. The min-width has no UI Toolkit equivalent
+ * and needs none: a flex child here shrinks below its content width by
+ * default, which is the behaviour that declaration exists to restore in CSS. */
+.deploy-view__pill-text {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 0;
+}
+
+/* HEIGHT ON THE BOX, NEVER ON THE LABEL'S OWN MEASUREMENT - Phase 9 Task
+ * 16b's rule, and this readout is a THIRD instance of the defect that rule
+ * was written for. Measured on this task's first capture, at the 430 frame:
+ * the pill's white surface came out 74px tall (y=101..174) against the
+ * handoff's ~39 (`Wave Defense.dc.html:52`, and 39 in
+ * `specs/Designs/shots/wave-defense.png`). Its two Labels are CHILDREN of a
+ * column rather than the box itself, which is exactly the shape 16b measured
+ * at 37-38px on a 20px chip: "a nested Label, which measures two line boxes."
+ * `.chip` was the first, the splice chamber's `PARENT A` eyebrow the second,
+ * and these two the third and fourth. Task 20 instruments it; this is the
+ * local correction 16b prescribes - "put the height on the box and centre the
+ * text in it".
+ *
+ * 14 AND 20 ARE THE AUTHORED LINE BOXES, ROUNDED UP. Nunito-Bold SDF is
+ * m_LineHeight 122.76 on m_PointSize 90 = 1.36em (`Nunito-Bold SDF
+ * .asset:149,152`, measured in Theme.uss's chip block): 10px x 1.36 = 13.6
+ * and 15px x 1.36 = 20.4. Up rather than down, because a height UNDER the
+ * line box clips descenders and there are none to spare at 10px.
+ *
+ * `-unity-text-align: middle-left` IS THE OTHER HALF OF THE RULE. A height
+ * on its own pins the box and leaves the glyphs hanging from its top edge;
+ * centring is what puts them on the line the box was measured for.
+ *
+ * THESE TWO TOOK THE SURFACE FROM 74px TO 57 AND THE SURFACE'S OWN PINNED
+ * HEIGHT TOOK IT THE REST OF THE WAY. Both numbers are in the note beside
+ * that height, including the 6px neither of these two explains - which is
+ * the part of the doubling that is still not instrumented anywhere and is
+ * Task 20's to find, not this screen's.
+ *
+ * `:57` - the value is 15px, which is the handoff's own number and six over
+ * `.t-num`'s --text-secondary. The note beside `.deploy-view__wave-number`
+ * above has the rule; the short form is that the 11px floor is a minimum.
+ * The 1px gap under the label is the handoff's `line-height: 1.05` on a 9px
+ * label, which UI Toolkit has no property for - taken as a margin instead. */
+.deploy-view .deploy-view__pill-label {
+    height: 14px;
+    -unity-text-align: middle-left;
+}
+
+.deploy-view .deploy-view__pill-value {
+    font-size: 15px;
+    height: 20px;
+    margin-top: 1px;
+    -unity-text-align: middle-left;
+}
+
+/* -------------------------------------------------------------- the lane */
+
+/* `:69` - `margin: 0 12px` (the gutter, not restated) and 11px to the card
+ * under it. 5 here plus the incoming card's own --elev-1-spread of 6 is that
+ * 11, measured between the lane's bottom edge and the card's white top edge -
+ * the same two things the handoff measures between. The 6px is where the
+ * drop shadow falls, which is what the handoff's own `box-shadow` fills. */
+.deploy-view__lane { margin-bottom: 5px; }
+
+/* --------------------------------------------------------- the two cards */
+
+/* The handoff's two-sided card header - an uppercase eyebrow on the left and
+ * something on the right (`:216`, `:242`). `SectionCard`'s own heading is one
+ * 19px Baloo line and cannot be both, which is why both cards are built
+ * without one; `DeployView.CardHeader` has the note.
+ *
+ * `align-items: center` RATHER THAN THE HANDOFF'S `baseline`, which UI
+ * Toolkit does not have - it is silently dropped, like `text-transform`,
+ * `calc()` and `box-shadow`. */
+.deploy-view__card-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* `:241` - `margin-top: 10px` between the incoming-wave card and the field
+ * card, AND `.section-card`'s OWN 8px IS TEN OVER IT.
+ *
+ * MEASURED, at x=410 of the 430 capture and of `wave-defense.png`, with each
+ * card's corner inset (r=20 at 8px in = 4; the handoff's r=22 = 5) taken off
+ * both ends: ours 23, the handoff's 11.5. The component's own note defends
+ * the 8 as the rhythm "two stacked cards" want - "~20px apart at their white
+ * edges, which is the gap `.card` gives without a shadow" - and that is a
+ * GENERAL answer, measured between two cards on no particular screen. This
+ * screen's handoff states its own number, and where the handoff speaks about
+ * a screen it wins.
+ *
+ * ZERO RATHER THAN A SMALLER NUMBER, because `.elev-1` already pays it. The
+ * wrapper's --elev-1-spread is 6px below this card's surface and 6px above
+ * the next one's, so cancelling the margin outright leaves 12 - which is the
+ * handoff's 10 plus the 2px this project's shadow spread costs everywhere.
+ * Writing 8-6=2 here instead would be the same 12 arrived at by arithmetic
+ * that hid where the 12 comes from.
+ *
+ * TWO CLASSES, for `.deploy-view__pills > .deploy-view__pill`'s reason
+ * fifty lines up: `.section-card` carries the margin at single-class
+ * specificity and its sheet is attached deeper than this one.
+ *
+ * NOT FIXED IN THE COMPONENT, and that is a scope line rather than a
+ * preference: `.section-card`'s 8 reaches ten screens and only two of them
+ * have been measured against a handoff card stack. Named in this task's
+ * report instead. */
+.deploy-view .deploy-view__incoming { margin-bottom: 0; }
+
+/* `:217` - 10.5px, 800, `#b3564a`, which is --coral-text exactly. TWO CLASSES
+ * to beat `.t-micro`'s --mute, which the element keeps for its size and its
+ * letter-spacing. `flex-shrink: 0` so a long tag never wraps under the
+ * eyebrow beside it. */
+.deploy-view .deploy-view__wave-tag {
+    color: var(--coral-text);
+    flex-shrink: 0;
+}
+
+/* `:219` - `line-height: 1.4; margin-top: 6px`. UI Toolkit has no
+ * `line-height`, so the leading is the font's own 1.36em (measured in
+ * Theme.uss's chip block off `Nunito-Bold SDF.asset:149,152`) - four
+ * hundredths under the handoff's, which at 12px is half a pixel a line. A
+ * sentence, so it wraps. */
+.deploy-view__brief {
+    white-space: normal;
+    margin-top: 6px;
+}
+
+/* `:220` - `display: flex; gap: 7px; margin-top: 10px`.
+ *
+ * THE -4px IS `StatCell.uss`'s OWN PRESCRIPTION AND NOT A NUDGE. A cell
+ * carries half the handoff's 8px gap on each of its own sides, because USS
+ * here has no `gap` and no `:last-child`, and that file says what a caller
+ * that wants the row flush does about it: "cancels it with a -4px margin on
+ * the container, which is one line at the call site rather than a rule that
+ * looks like it works and does not." Without it the row is inset 4px from
+ * the card's padding on both sides, which is 4px of the handoff's 16 spent
+ * on nothing. A LITERAL because USS on 6000.6.0f1 has no `calc()` - the same
+ * reason `.elev-1`'s own negative margins are literals, and check 4 of
+ * verify-uss-tokens.sh is what keeps THAT pair in step. The residual is the
+ * inter-cell gap: 4+4 = 8 against the handoff's 7, one pixel over, twice. */
+.deploy-view__stats {
+    flex-direction: row;
+    margin-top: 10px;
+    margin-left: -4px;
+    margin-right: -4px;
+}
+
+/* ---------------------------------------------------------- the field list */
+
+/* `:246` - `display: grid; grid-template-columns: 1fr 1fr; gap: 7px;
+ * margin-top: 9px`. USS here has no grid, so the list is a column of PAIRS
+ * and `.deploy-view__field-pair` is a row of two.
+ *
+ * THE ROW GAP IS `FieldSlotRow`'s OWN AND IS NOT RESTATED HERE. The component
+ * carries `margin-bottom: 7px`, which IS the handoff's `gap` between the two
+ * grid rows - so a `margin-top` on the pairs from this file would double it,
+ * which is the defect Task 16b removed twice from `SpliceChamberView.uss` (the
+ * forecast column's 9 on top of `InheritanceBar`'s own 9, and the lineage
+ * strip's 8 on top of the track's 8). The 9 below is the gap under the
+ * HEADER, which no component can pay: `FieldSlotRow` has a bottom margin and
+ * no top one, so nothing above the first row contributes anything.
+ *
+ * AND THE -7 IS THAT SAME MARGIN CANCELLED AT THE FOOT OF THE LIST, where it
+ * is trailing space rather than a gap. `margin-bottom` is on EVERY row
+ * including the last, so without this the card closes 7px lower than the
+ * handoff's `padding-bottom: 14px` asks - the same one-line cancel
+ * `StatCell.uss` prescribes for its own side margins, twenty lines up. */
+.deploy-view__field-rows {
+    flex-direction: column;
+    margin-top: 9px;
+    margin-bottom: -7px;
+}
+
+.deploy-view__field-pair { flex-direction: row; }
+
+/* `flex-basis: 0` rather than the default `auto`, so "Empty" and
+ * "Cinderplate R1" produce two equal columns instead of one narrow one -
+ * `ScreenFixtures.FieldPair` is the same three declarations on the same two
+ * rows, and the Lane catalogue is where that was checked by eye. */
+.deploy-view__field-pair > .field-slot-row {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 0;
+}
+
+/* The handoff's 7px column gap, on the left cell of each pair. Safe here
+ * where it was not on the readouts above: a `FieldSlotRow` is a plain row and
+ * not an elevation wrapper, so it carries no horizontal margin of its own to
+ * overwrite. */
+.deploy-view__field-pair > .deploy-view__field-cell--left { margin-right: 7px; }
+
+/* A creature that cannot be added because the deployment is at
+ * `DeployScreen.Cap` - visibly out of reach rather than silently inert.
+ * `.locked-out` on the splice chamber's parent tiles is the same treatment at
+ * the same opacity for the same reason (bible 3.3 read from the other side),
+ * and it is a screen-local class there too. */
+.deploy-view__row--full { opacity: 0.4; }
+
+/* ------------------------------------------------------------ the refusal */
 
 /* A sentence, not a label, so it wraps. Shown only when it says something -
  * DeployView.Blocker has the measurement. */

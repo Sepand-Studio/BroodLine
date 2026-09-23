@@ -6,51 +6,67 @@ using UnityEngine;
 
 namespace Broodline.UI.Tests
 {
-    /// bible 10.2 rule 1, asserted before Phase 9 generates anything:
+    /// bible 10.2 rule 1, asserted against the BAKED bodies from Phase 9's
+    /// pipeline; a collision here is a collision in the recipes:
     ///
     ///   "All six species must be distinguishable as flat black shapes at
     ///    40px; if two are confusable, one is wrong."
     ///
-    /// These are interim proxies, not production art - but they are drawn from
-    /// bible 1.2's silhouette column, so if two of THEM collide, the collision
-    /// is in the DESIGN and not in the drawing. rig_proof.md section 6 routes
-    /// that finding back to the bible rather than to the art team, and section
-    /// 5 says item 7 is "the one that decides the art direction". Finding it
-    /// here costs six PNGs; finding it after Phase 9 costs the asset budget.
+    /// Through Task 8 this ran against six interim proxy PNGs, drawn from
+    /// bible 1.2's silhouette column so a collision between them would be a
+    /// collision in the DESIGN rather than in the drawing. `CreatureBaker`
+    /// retires that stand-in: the mask now comes from `CreatureAssembler`'s
+    /// actual mesh, rendered by the one fixed bake camera, so a collision
+    /// here is a collision in a RECIPE (`SpeciesRecipes`) rather than in a
+    /// hand-drawn placeholder. rig_proof.md section 6 still routes a finding
+    /// back to the bible when two recipes genuinely read the same at 40px;
+    /// it is the recipes that would need to change to fix it, not this test.
     ///
     /// The threshold is deliberately low. This is a collision detector, not a
     /// quality bar: two shapes differing on fewer than 8% of a 40x40 field are
     /// the same shape at a glance.
     ///
-    /// IT READS ALPHA, NOT COLOUR, AND THAT IS WHY THE SOURCES ARE WHITE.
-    /// The plan's Step 1 says "flat black on transparent". The card tints
-    /// these through -unity-background-image-tint-color, which MULTIPLIES -
-    /// black times any tint is black, so black sources would have rendered
-    /// all six species as one identical mark with no error anywhere. The
-    /// files fill white and this test is unaffected, because a coverage mask
-    /// is a question about alpha. "Flat black shapes" is what the RULE is
-    /// about and this is the measurement of it. CreatureCard.uss's proxy
-    /// block has the whole account.
+    /// ALL SIX ARE BAKED. Through Task 14 this list was narrowed to
+    /// `{ "vetch" }`, because asserting a pairwise detector against five
+    /// species that did not exist would have been asserting against absent
+    /// art. Task 15 authored the other five, and this is the restoration:
+    /// six species, fifteen pairs, and the collision detector doing the job
+    /// it was written for.
     ///
-    /// MEASURED MARGIN, so a later drift is readable against something. On
-    /// the six as first drawn, the closest pair is hollow/pale and the widest
-    /// is vetch/pale; every pair is comfortably clear of the 8% line and the
-    /// run logs the full ranked matrix. No pair collided on a first faithful
-    /// reading of bible 1.2, which is the finding this task was built to look
-    /// for and did not find.
+    /// THE CLOSEST PAIR IS EMBER/HOLLOW, and it is close for a reason worth
+    /// recording. They are the only two upright bodies in the cast, so their
+    /// masks are both tall, narrow and SPARSE - 236 and 144 of 1600 cells -
+    /// and two sparse masks cannot differ on more of the field than their
+    /// combined fill, however unlike they are. 9.6% against a ceiling of
+    /// 23.8% means they overlap on very little; it is not a near-miss on
+    /// shape. `Broodline.Creatures.Tests.BodyShapeTests` carries the positive
+    /// claims that hold them apart: Ember is 2.06x as tall as it is wide and
+    /// carries a crest, Hollow rides 52% of its height up on stilts behind a
+    /// neck 0.73 long.
     public class SilhouetteTests
     {
         const int Size = 40;
         const double MinDifferingFraction = 0.08;
 
+        // bible 1.2's order.
         static readonly string[] Species = { "vetch", "ember", "skitter", "hollow", "loam", "pale" };
 
-        /// 40x40 coverage mask: true where the silhouette is opaque.
+        /// A second, independent statement of "how many species are baked right
+        /// now", asserted against `Species.Length` at the top of the pairwise
+        /// test below. A pairwise loop over too few species compares too few
+        /// pairs and PASSES on an empty `collisions` list, which is
+        /// indistinguishable from a clean sweep - and the only trace of that
+        /// was a log line this project's own test command never shows. Keep
+        /// this and `Species` in step; leaving one behind fails loudly instead
+        /// of the test staying quiet.
+        const int ExpectedBakedSpecies = 6;
+
+        /// 40x40 coverage mask: true where the baked body is opaque.
         static bool[] Mask(string species)
         {
-            var path = $"Assets/UI/Art/proxies/{species}.png";
+            var path = $"Assets/UI/Resources/Art/creatures/bodies/{species}.png";
             var src = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
-            Assert.IsNotNull(src, $"no proxy at {path}");
+            Assert.IsNotNull(src, $"no baked body at {path} - run generate-creatures.sh with BAKE=1");
 
             var rt = RenderTexture.GetTemporary(Size, Size, 0, RenderTextureFormat.ARGB32);
             Graphics.Blit(src, rt);
@@ -68,19 +84,41 @@ namespace Broodline.UI.Tests
         }
 
         [Test]
-        public void EverySpeciesHasAProxyThatIsNotBlank()
+        public void EveryBakedBody_IsNotBlank()
         {
             foreach (var s in Species)
             {
                 var filled = Mask(s).Count(b => b);
                 Assert.That(filled, Is.GreaterThan(Size * Size / 20),
-                    $"{s}'s proxy is blank or nearly so - a blank mask would pass the pairwise test trivially");
+                    $"{s}'s baked body is blank or nearly so - a blank mask would pass the pairwise test trivially");
+            }
+        }
+
+        [Test]
+        public void EveryBakedBody_HasATransparentBackground()
+        {
+            // A baked body on an opaque background would make every mask a
+            // filled square and pass the pairwise test trivially. The bake
+            // clears to alpha 0; this is the check that it did.
+            foreach (var s in Species)
+            {
+                var mask = Mask(s);
+                Assert.IsFalse(mask[0], s + "'s top-left corner is opaque - the bake did not clear to transparent");
+                Assert.IsFalse(mask[mask.Length - 1], s + "'s bottom-right corner is opaque");
             }
         }
 
         [Test]
         public void NoTwoSpeciesAreConfusableAsFlatBlackShapesAt40px()
         {
+            // The precondition this whole test is meaningless without: with
+            // fewer species baked than `Species` claims (or more), the loop
+            // below compares the wrong number of pairs - most dangerously,
+            // silently compares FEWER, which is how a collision would go
+            // undetected. See `ExpectedBakedSpecies`'s comment.
+            Assert.AreEqual(ExpectedBakedSpecies, Species.Length,
+                "Species and ExpectedBakedSpecies have drifted apart - update both together");
+
             var masks = Species.ToDictionary(s => s, Mask);
             var collisions = new List<string>();
             var measured = new List<string>();
@@ -96,17 +134,34 @@ namespace Broodline.UI.Tests
                         collisions.Add($"  {Species[i]}/{Species[j]}: {differing:P1} of the field differs");
                 }
 
+            // How many pairs `ExpectedBakedSpecies` species implies, asserted
+            // against how many the loop above actually ran - so a detector that
+            // silently compared fewer pairs than the roster implies is caught
+            // rather than reported as a clean sweep. Six species, fifteen pairs.
+            int expectedPairs = ExpectedBakedSpecies * (ExpectedBakedSpecies - 1) / 2;
+            Assert.AreEqual(expectedPairs, measured.Count,
+                $"compared {measured.Count} pairs, not the {expectedPairs} that {ExpectedBakedSpecies} baked " +
+                "species implies - the pairwise loop's bounds have drifted from Species");
+
             // The MARGIN is the interesting number and a pass throws it away.
             // Logged rather than asserted: a floor on the closest pair would
             // be a second, tighter threshold nobody agreed to, and tightening
             // this detector is how it stops detecting. `verify-uss-tokens.sh`
             // makes the same distinction - measure, print, gate on one line.
+            // Fifteen pairs since Task 15. Closest measured: ember/hollow at
+            // 9.6%. THIS LOG IS THE ONLY PLACE THE SHIPPED NUMBER EXISTS, and
+            // the project's test command does not surface it - which is how
+            // three different values for it (9.3, 9.6, 9.9) ended up quoted in
+            // four different comments. 9.3 was a reading taken BEFORE
+            // `CreatureBaker.RestPose` made the bake reproducible; 9.9 came
+            // from an offline approximation of this downsample. Anything that
+            // quotes the margin should quote what this line prints.
             Debug.Log("bible 10.2 rule 1, pairwise at 40px (floor " +
                       $"{MinDifferingFraction:P0}): " + string.Join(", ", measured));
 
             Assert.IsEmpty(collisions,
                 "bible 10.2 rule 1 fails on these pairs - one of each is wrong, and the fix is a " +
-                "DESIGN change to bible 1.2's silhouette column, not a redraw:\n" +
+                "DESIGN change to bible 1.2's silhouette column or to a SpeciesRecipe, not a re-bake:\n" +
                 string.Join("\n", collisions));
         }
     }

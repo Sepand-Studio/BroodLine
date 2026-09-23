@@ -30,7 +30,7 @@
 
 /* The 34px rounded square at the header's left edge, per the handoff's
  * navigation model. Radius is --radius-tile (11px), inside the handoff's
- * 9-14px icon-tile band.
+ * 9-14px icon-tile band and its own value on `Wave Defense.dc.html`.
  *
  * PADDING AND BLOCK MARGINS ARE ZEROED, and that is not tidying. Theme.uss
  * gives every Button 12px of vertical and 16px of horizontal padding plus a
@@ -38,8 +38,16 @@
  * square that leaves a 2x10px content box, and the 19px glyph inside it is an
  * in-flow child laid out in exactly that box - so the chevron would be
  * crushed to a sliver, and the button would sit 4px low against a title that
- * has no such margin. The fill, the border and the radius are overridden for
- * the same reason: a nav affordance is not a CTA and must not read as one. */
+ * has no such margin. The radius is overridden for the same reason: a nav
+ * affordance is not a CTA and must not read as one.
+ *
+ * THE FILL AND THE BORDER ARE NOT HERE ANY MORE, AND THAT IS THE `pill-back`
+ * CHANGE. They were `--surface-sunk` with no border - the affordance sunk
+ * INTO the paper. Every pushed screen in the handoff lifts it off instead:
+ * white, with a `0 1px 3px` shadow that USS answers with a hairline. Both
+ * now come from Theme.uss's `.pill-back`, which this element carries in the
+ * UXML, so a screen wanting the same white tile for a pause control or a
+ * speed pill reads one class rather than re-deriving two values. */
 .screen-scaffold__back {
     width: 34px;
     height: 34px;
@@ -52,23 +60,147 @@
     padding-left: 0;
     padding-right: 0;
     border-radius: var(--radius-tile);
-    border-width: 0;
-    background-color: var(--surface-sunk);
     align-items: center;
     justify-content: center;
 }
 
-/* --mute-soft is icons.uss's default tint, set for a nav glyph sitting on the
- * --surface fill of the tab bar. This chevron sits on --surface-sunk, which
- * is two steps nearer it, so the mark is retinted to the ink the title beside
- * it is already set in - the back affordance is a primary control on a pushed
- * screen, not tertiary chrome. */
-.screen-scaffold__back .icon {
-    -unity-background-image-tint-color: var(--ink);
+/* THE CTA PRESS DOES NOT BELONG ON A NAV CONTROL, and until this rule it was
+ * on one. Theme.uss's `Button:active` is `type + pseudo-class` (0,1,1) and
+ * every rule above is a single class (0,1,0), so a tap on the back chevron
+ * flooded a white 34px tile with --violet-deep and dropped it 2px - the
+ * physical CTA press, on the one control in the header that is not a CTA.
+ * bible 10.6 asks for that press on PRIMARY CTAs specifically. Two classes
+ * and the pseudo-class (0,2,1) is what outranks it deterministically.
+ * The tile still answers a touch: --violet-tint under the chevron is the
+ * handoff's own pressed treatment for a secondary control. */
+.screen-scaffold__back.pill-back:active {
+    translate: 0 0;
+    background-color: var(--violet-tint);
 }
 
-.screen-scaffold__title { flex-grow: 1; }
+/* --mute-soft is icons.uss's default tint, set for a nav glyph sitting on the
+ * --surface fill of the tab bar. This chevron sits on a white tile of its
+ * own, so it takes the handoff's own `stroke="#6b5fa8"` - the back affordance
+ * is a primary control on a pushed screen, not tertiary chrome, and violet is
+ * what says "this one acts" in a header whose title is --ink. */
+.screen-scaffold__back .icon {
+    -unity-background-image-tint-color: var(--violet-text);
+}
+
+/* THE TITLE BLOCK IS A COLUMN NOW, NOT A LABEL, so the eyebrow can sit over
+ * the title in the handoff's header - `Gene Lab` over `Splicing Chamber`,
+ * `Hollow Reach · defense` over `Wave 7`. The column takes the flex-grow the
+ * title used to carry, and the title gives it up: with both growing, a
+ * one-line title stretched to the header's full height and the eyebrow rode
+ * up off the cap line. */
+.screen-scaffold__titles { flex-grow: 1; flex-direction: column; }
+.screen-scaffold__title { flex-grow: 0; }
+
+/* HIDDEN BY DEFAULT, AND REMOVAL IS NOT AVAILABLE HERE. `SectionCard`'s
+ * heading and the back chevron are REMOVED when they have nothing to say,
+ * because a `display: none` node is still a node a screen reader walks. This
+ * one is hidden instead: the eyebrow is re-settable after construction (the
+ * `Eyebrow` property; Task 16's chamber sets it from a model), so removing
+ * it would mean rebuilding and re-inserting a label at a known index inside
+ * the column every time a screen changed its mind. The scaffold already
+ * hides its footer note for the same reason and by the same mechanism.
+ *
+ * `letter-spacing` IS RESTATED although `.t-micro` sets it, because a screen
+ * that swaps the eyebrow's type class must not silently lose the handoff's
+ * `.1em` tracking - it is what makes a 10px uppercase line read as a label
+ * rather than as small text. */
+.screen-scaffold__eyebrow {
+    color: var(--mute);
+    letter-spacing: 1px;
+    display: none;
+}
+
 .screen-scaffold__header-slot { flex-direction: row; align-items: center; }
+
+/* The handoff's resource readout - `Splice Chamber.dc.html` puts the charge
+ * counter here as `background: #ffffff; border-radius: 999px; padding: 6px
+ * 12px 6px 7px`, a tinted glyph disc on the left and a muted cap on the
+ * right ("4" then "/5").
+ *
+ * 17px IS HALF OF THE HANDOFF'S 34px, and the 34 is arithmetic rather than
+ * a guess: 6px padding, a 22px disc, 6px padding. This element measures 36
+ * because UI Toolkit's box is border-box and the hairline standing in for
+ * the handoff's shadow adds 1px top and bottom - so 17 is one UNDER half.
+ * That is the safe direction and the only safe direction: Tokens.uss's
+ * radius block has the 50-bar measurement, and the short form is that below
+ * half the cap flattens slightly and above half it degrades without bound.
+ * If the disc, the padding or the border moves, re-measure and change this
+ * with it.
+ *
+ * THE ASYMMETRIC PADDING IS THE HANDOFF'S AND IS NOT A TYPO. The disc is
+ * round and already carries its own visual inset, so 7px on its side against
+ * 12px on the text's side is what makes the two ends look equally padded. */
+.resource-pill {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    background-color: var(--surface);
+    border-width: 1px;
+    border-color: var(--hairline);
+    border-radius: 17px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+    padding-left: 7px;
+    padding-right: var(--space-3);
+}
+
+/* 11px is half of the 22px disc - a square element, so both axes clamp to
+ * the same number and this is a true circle (Theme.uss header item 4). The
+ * tint is the handoff's #dcf0f8, which is --teal-tint to within 15 in summed
+ * channel distance; the charge counter is the only resource pill the phase
+ * builds and the handoff draws its glyph teal. A pill for a violet or amber
+ * resource needs a modifier here rather than a second component. */
+.resource-pill__disc {
+    width: 22px;
+    height: 22px;
+    border-radius: 11px;
+    background-color: var(--teal-tint);
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-right: 7px;
+}
+
+/* TWO CLASSES, DELIBERATELY. `.icon` in icons.uss sizes every glyph at 19px
+ * and tints it --mute-soft, and a single-class rule here would tie with it
+ * on specificity and be settled by whichever sheet the panel happened to
+ * apply last. The handoff draws this one at 12px in a 22px disc. Every
+ * override of a Theme/icons class in this project's component sheets is
+ * written with two classes for the same reason. */
+.resource-pill .resource-pill__glyph {
+    width: 12px;
+    height: 12px;
+    -unity-background-image-tint-color: var(--teal-text);
+}
+
+/* THE VALUE IS BIGGER THAN THE 11px FLOOR, AND THAT IS THE ONE PLACE THIS
+ * PROJECT OVERRIDES `.t-num`'s SIZE. StatCell.uss declined to, for one pixel
+ * (11 against the handoff's 12) - "the floor wins; the 1px is recorded here
+ * rather than argued with silently". This is six pixels: the handoff sets
+ * this readout at 15px, and it is the only number in the header. Rendering
+ * it at 11 would make the charge count the same size as the "/5" after it.
+ * The floor is a MINIMUM, so going up does not touch bible 10.6 - what the
+ * floor forbids is --text-micro, which verify-uss-tokens.sh check 2 reads.
+ *
+ * 15px IS A LITERAL because the type scale does not hold it: --text-card-title
+ * is 13 and --text-cta is 17, either side. It is inline geometry quoted from
+ * `Splice Chamber.dc.html`, on this file's own convention. */
+.resource-pill .resource-pill__value {
+    font-size: 15px;
+    color: var(--ink);
+}
+
+/* "/5" - the cap, at --text-secondary and --mute-soft, which is the
+ * handoff's #b3adc2 exactly. It stays on `.t-num` because it IS a numeral
+ * and would otherwise fall back to the body face's non-tabular digits. */
+.resource-pill .resource-pill__suffix {
+    color: var(--mute-soft);
+}
 
 /* The one flexible region, and the only one that scrolls. The three rows
  * around it are flex-shrink: 0 so a tall screen scrolls its body rather than
@@ -104,9 +236,43 @@
     flex-grow: 1;
 }
 
+/* `min-height: 100%` IS WHAT MAKES THE CONTENT REGION FILLABLE, AND WITHOUT
+ * IT NO SCREEN'S `flex-grow` DOES ANYTHING.
+ *
+ * A ScrollView's content container is sized BY ITS CONTENT - that is how it
+ * can exceed the viewport and have something to scroll - so a child carrying
+ * `flex-grow: 1` had no free space to take and every short screen ended in a
+ * band of bare --paper below its last card. Measured at about 180px on
+ * founder naming, where the handoff's own hero is `flex: 1; min-height:
+ * 300px` (Onboarding.dc.html:43) and absorbs exactly that slack.
+ *
+ * THE PERCENTAGE RESOLVES AGAINST THE VIEWPORT, NOT THE SCREEN. This
+ * element's parent is Unity's `unity-content-viewport`, which is
+ * `flex-grow: 1` inside a ScrollView that is itself `flex-grow: 1` in the
+ * scaffold's column - so 100% is "as tall as the visible region", which is
+ * the number a screen wanting to fill it actually means.
+ *
+ * IT DOES NOT STOP ANYTHING SCROLLING. A MINIMUM is not a height: content
+ * taller than the viewport still sizes the container past 100% and still
+ * scrolls, which the Scaffold fixture's short frame is the standing check on.
+ *
+ * TEN SCREENS SEE THIS AND ONLY ONE MOVES. A taller container changes no
+ * pixel unless a direct child of `Content` carries `flex-grow`, because the
+ * column is `justify-content: flex-start` and this element has no fill of its
+ * own. The founder screen's hero is the only such child in the project; the
+ * corpus was re-captured in full to say so rather than to assume it. It used
+ * to be a `SectionCard` carrying `.founder-naming-view__hero`; as of Task 14c
+ * it is a `HeroBand` and the `flex-grow` is written by `HeroBand.Fill`, so
+ * the child that grows is now any band a screen calls `Fill` on.
+ *
+ * NOT `height: 100%`. That would CAP the container at the viewport and clip
+ * every screen whose content is taller - the roster, the chamber, the
+ * Scaffold fixture's own short frame - which is the failure this rule is one
+ * character away from. */
 .screen-scaffold__content .unity-scroll-view__content-container {
     padding-left: var(--gutter);
     padding-right: var(--gutter);
+    min-height: 100%;
 }
 
 .screen-scaffold__cta-row {

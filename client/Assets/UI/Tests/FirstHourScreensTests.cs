@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Broodline.Api;
 using Broodline.Model;
 using Broodline.UI.Components;
+using Broodline.UI.Diagnostics;
 using Broodline.UI.Screens;
 using NUnit.Framework;
 using UnityEngine.UIElements;
@@ -202,6 +205,257 @@ namespace Broodline.UI.Tests
             Assert.AreEqual("Hollow", view.Q<TextField>("name").value);
         }
 
+        [Test]
+        public void FounderNaming_WearsTheOnboardingStepFrame()
+        {
+            // `Onboarding.dc.html` step 1: five progress marks with the first
+            // lit, and a counter beside them. Lines 34-40 draw them as a
+            // full-width row above the hero, which is where they are now -
+            // a direct child of the scaffold's CONTENT region. Task 14 had
+            // them in the header slot because a title column was growing
+            // beside them; there is no header on this screen any more.
+            var view = BoundNaming(Creature("Hollow", founder: true), _ => { }, () => { });
+            var progress = view.Q<VisualElement>("progress");
+            Assert.IsNotNull(progress, "the step frame is not on the screen at all");
+
+            var pips = progress.Query<VisualElement>(className: "progress-pip").ToList();
+            Assert.AreEqual(5, pips.Count, "onboarding is five steps");
+
+            var lit = pips.Where(p => p.ClassListContains("progress-pip--current")).ToList();
+            Assert.AreEqual(1, lit.Count, "beat 4 is step 1 of 5, so exactly one pip is lit");
+            Assert.AreSame(pips[0], lit[0], "the lit pip is the first one");
+
+            Assert.AreEqual(FounderNamingScreen.Step, progress.Q<Label>("step").text);
+
+            // THE RE-PARENT ITSELF, which nothing else would notice if the
+            // row were left behind in the screen's own tree or stranded in a
+            // header that no longer renders. Asked of each container rather
+            // than of `progress.parent`, because `Content` is a ScrollView
+            // and the row lands two levels down inside its viewport and
+            // content container rather than directly under it.
+            var scaffold = view.Q<VisualElement>(className: ScreenScaffold.UssClassName);
+            Assert.IsNull(view.Q<VisualElement>("header-slot").Q<VisualElement>("progress"),
+                "the pips are still in the header slot, on a screen whose header is hidden - "
+                + "so the step frame does not render at all");
+            Assert.IsNotNull(scaffold.Q<ScrollView>("content").Q<VisualElement>("progress"),
+                "the pips are not inside the scaffold's content region");
+
+            // The caveat that makes `SkipLabel` a real answer. It was the
+            // scaffold's footer note until Task 14 and is now the violet tip
+            // panel inside the card, which is where the handoff draws its
+            // own - so it is still ON the screen and still the model's
+            // sentence rather than a literal in the markup.
+            Assert.AreEqual(FounderNamingScreen.Note, view.Q<Label>("note-text").text);
+            Assert.IsNotEmpty(FounderNamingScreen.Note);
+        }
+
+        /// THE COMPOSITION TASK 14b CORRECTED, pinned so the four screen
+        /// tasks after it copy the right one.
+        ///
+        /// `Onboarding.dc.html` has no page header: line 33 starts the column
+        /// with the progress row, and lines 158-169 put the kicker, the 26px
+        /// title, the body and the note in ONE white card. Task 14 split that
+        /// across two containers - kicker and title in the scaffold's header,
+        /// body in a card - which is what made a 21px page title and a 19px
+        /// card line read as two competing display lines.
+        ///
+        /// THE HEADER ASSERTION READS THE INLINE STYLE, NOT `resolvedStyle`.
+        /// These trees have no panel, and `Flex` is also the default computed
+        /// value - so a `resolvedStyle` read would pass on a scaffold that had
+        /// never set anything, which is the whole regression. `style.display
+        /// .value` is the property `ScreenScaffold`'s constructor actually
+        /// writes.
+        [Test]
+        public void FounderNaming_HasNoPageHeader_AndCarriesItsKickerAndTitleInTheCard()
+        {
+            var view = BoundNaming(Creature("Hollow", founder: true), _ => { }, () => { });
+
+            Assert.AreEqual(DisplayStyle.None, view.Q<VisualElement>("header").style.display.value,
+                "the founder screen drew a page header; the handoff's onboarding has none, and a "
+                + "21px page title beside a 26px card title is the type ladder this task removed");
+            Assert.AreEqual(string.Empty, view.Q<Label>("title").text,
+                "the scaffold was given a page title as well as a card title");
+
+            var kicker = view.Q<Label>("kicker");
+            var heading = view.Q<Label>("card-title");
+            Assert.AreEqual(FounderNamingScreen.Eyebrow, kicker.text);
+            Assert.AreEqual(FounderNamingScreen.Title, heading.text);
+            Assert.IsTrue(kicker.ClassListContains("t-micro"),
+                "the kicker lost the 10px uppercase treatment the handoff's `.lbl` is");
+
+            // ONE CARD, AND THAT IS THE STRUCTURAL CLAIM. Four elements, one
+            // `SectionCard` body, in the handoff's order.
+            var body = heading.parent;
+            Assert.IsTrue(body.ClassListContains("section-card__body"),
+                "the card's type ladder is not inside a SectionCard body");
+            foreach (var named in new[] { "kicker", "card-title", "prompt", "name", "blocker", "note" })
+            {
+                Assert.AreSame(body, view.Q<VisualElement>(named).parent,
+                    "`" + named + "` is not in the same card as the rest of the step; the handoff "
+                    + "draws all of it in one white surface");
+            }
+            Assert.AreEqual(0, body.IndexOf(kicker), "the kicker is not the card's first line");
+            Assert.AreEqual(1, body.IndexOf(heading), "the title does not follow the kicker");
+            Assert.AreEqual(2, body.IndexOf(view.Q<Label>("prompt")), "the body copy does not follow the title");
+
+            // AND THE HERO IS STILL A SURFACE OF ITS OWN, above that one. The
+            // handoff's hero is a separate surface at `flex: 1`.
+            Assert.AreNotSame(body, view.Q<VisualElement>("founder").parent,
+                "the founder was folded into the words card; the handoff draws it in a band of its own");
+        }
+
+        /// PHASE 9 TASK 14c. Through Task 14b the hero was a flat white
+        /// `SectionCard` at --radius-card - correct in composition and wrong
+        /// in fidelity, because the handoff's step hero is a gradient band at
+        /// radius 26 with a dashed ring and a violet pool behind the subject
+        /// (`Onboarding.dc.html:43-47`). Five other screens in the bundle
+        /// draw the same surface, which is why it is a component.
+        ///
+        /// THE BARE-CARD HALF IS ASSERTED, not just the band half. A screen
+        /// that added a `HeroBand` beside the old card would pass every
+        /// positive line here and still draw the defect.
+        [Test]
+        public void FounderNaming_ComposesTheHeroBand_RatherThanAFlatCard()
+        {
+            var view = BoundNaming(Creature("Vetch", founder: true), _ => { }, () => { });
+
+            var founder = view.Q<VisualElement>("founder");
+            var band = view.Q<HeroBand>();
+            Assert.IsNotNull(band, "the founder screen's hero is not a HeroBand");
+            Assert.AreSame(band.Subject, founder.parent,
+                "the founder sits somewhere other than the band's subject slot");
+            Assert.IsNotNull(band.Q<VisualElement>("ring"),
+                "the band drew no ring; Onboarding.dc.html:45 has one and it is the fullest instance");
+
+            // `flex: 1` ON BOTH HALVES, ON THE SURFACE AND ON THE WRAPPER.
+            // Task 14b's capture is the reason this is asserted from the
+            // screen and not only from ComponentTests: the screen is what
+            // chooses to call `Fill`, and a screen that forgot would render a
+            // band at its content height in a column with 150px of slack
+            // under it.
+            var surface = band.Q<VisualElement>("surface");
+            Assert.AreEqual(1f, band.style.flexGrow.value,
+                "the band does not take the column's slack, so the screen ends in bare paper");
+            Assert.AreEqual(1f, surface.style.flexGrow.value,
+                "the wrapper grew and the surface did not - the nine-sliced shadow is around bare paper");
+
+            // AND NO FLOOR - PHASE 9 TASK 21e, AND THIS ASSERTION IS THE
+            // REVERSE OF THE ONE IT REPLACES. It read
+            // `AreEqual(300f, ..., "the handoff's 300px floor is not on the
+            // band")`. The floor WAS `Onboarding.dc.html:43`'s `min-height:
+            // 300px` and it clipped this screen's card on the iPhone 17 the
+            // exit gate's walk ran on: the scroll viewport is 582 points
+            // there and the column wanted 656, so the tip note and the card's
+            // bottom corners went below the fold.
+            // `FounderNamingView.BandFloor`'s note has the full measurement
+            // and the argument that a floor on a column's only growing child
+            // is either inert or harmful.
+            //
+            // ZERO RATHER THAN UNSET, AND THAT IS THE POINT OF STILL
+            // ASSERTING IT. `Fill` writes whatever it is handed, so a screen
+            // that stopped calling `Fill` altogether would leave `minHeight`
+            // at `StyleKeyword.Null` and the two `flexGrow` lines above would
+            // redden - but a screen that went back to `Fill(300)` would pass
+            // every other assertion in this file. This is the line that
+            // reddens for it.
+            Assert.AreEqual(0f, surface.style.minHeight.value.value,
+                "the band has a height floor again - on this screen's column that can only "
+                + "push the card below the fold, which is the defect Task 21e closed");
+
+            // AND NO SECTION CARD IS LEFT AROUND THE CREATURE. The words card
+            // below is still one, so this walks up from the founder rather
+            // than asking the screen whether it has any SectionCard at all.
+            for (var p = founder.parent; p != null && p != view; p = p.parent)
+            {
+                Assert.IsFalse(p is SectionCard,
+                    "the founder is still inside a SectionCard; the flat white hero was the thing "
+                    + "Task 14c replaced, and a band added beside it is not the same as a band "
+                    + "put in its place");
+            }
+        }
+
+        [Test]
+        public void FounderNaming_TurnsTheFounderWhenItIsGivenOne_AndShowsTheSpriteStackWhenItIsNot()
+        {
+            // `HeroSlot` has two forms and the live one REMOVES its three
+            // sprite layers rather than leaving them empty behind the stage -
+            // that component's own contract, and `Q("body")` is the
+            // discriminator it names. A slot answering to both names is a
+            // slot no test can tell apart, so both halves are asserted.
+            var founder = Creature("Vetch", founder: true);
+
+            var baked = new FounderNamingView();
+            baked.Bind(founder, "Ash", _ => { }, () => { });
+            var bakedSlot = baked.Q<HeroSlot>();
+            Assert.IsNotNull(bakedSlot, "the founder is not in a hero slot at all");
+            Assert.IsNotNull(bakedSlot.Q<VisualElement>("body"),
+                "a slot with no portrait must be the sprite form, which has a body layer");
+            Assert.IsNull(baked.Q<CreatureStage>(),
+                "nothing was passed to turn, so there must be no stage");
+
+            // The contrast. A view that ignored `portrait` entirely would
+            // pass every line above and fail every line below.
+            var live = new FounderNamingView();
+            live.Bind(founder, "Ash", _ => { }, () => { }, new UnityEngine.Texture2D(2, 2));
+            var liveSlot = live.Q<HeroSlot>();
+            Assert.IsNotNull(live.Q<CreatureStage>(),
+                "a portrait was passed and nothing is showing it");
+            Assert.IsNull(liveSlot.Q<VisualElement>("body"),
+                "the live slot kept its sprite layers, so no test can tell the two forms apart");
+        }
+
+        // ---------------------------------------------------------------
+        // The handoff's eyebrow, on both of Task 14's screens
+        // ---------------------------------------------------------------
+
+        [Test]
+        public void TheFirstTwoScreens_SayWhereInTheAppTheyAre_InCasingUssCannotApply()
+        {
+            // The handoff renders every kicker through `.lbl {
+            // text-transform: uppercase }`. UI Toolkit has no
+            // `text-transform` at all, so the casing has to be in the string,
+            // and these two constants are the only place it is written.
+            // Asserted against the CONSTANT and never against a repeated
+            // literal - a test holding "YOUR GENE ARK" would still pass if
+            // the screen stopped reading the model.
+            // TWO SCREENS, TWO DIFFERENT KICKERS, AND THEY ARE NOT IN THE
+            // SAME PLACE ANY MORE. Campaign select has a page header and its
+            // kicker is the scaffold's eyebrow row; founder naming has no
+            // header at all and carries its kicker inside the card, which is
+            // what `Onboarding.dc.html` does. The constants are shared; the
+            // containers are not.
+            var naming = BoundNaming(Creature("Hollow", founder: true), _ => { }, () => { });
+            Assert.AreEqual(FounderNamingScreen.Eyebrow, naming.Q<Label>("kicker").text);
+
+            var campaign = BoundCampaign(highestWaveCleared: 2);
+            var eyebrow = campaign.Q<Label>("eyebrow");
+            Assert.AreEqual(CampaignSelectScreen.Eyebrow, eyebrow.text);
+
+            // `style.display.value`, NOT `resolvedStyle.display`, AND THE
+            // DIFFERENCE IS WHETHER THIS LINE MEANS ANYTHING. These trees
+            // have no panel, and `Flex` is ALSO the default computed value -
+            // so the resolvedStyle form this test used to carry would have
+            // passed on a scaffold whose `Eyebrow` setter never ran, which is
+            // exactly the regression the message claims to catch. The inline
+            // style is the property that setter writes, and
+            // `ScaffoldTests.AScaffoldWithNoEyebrowReservesNoRowForOne` reads
+            // it the same way for the same reason.
+            Assert.AreEqual(DisplayStyle.Flex, eyebrow.style.display.value,
+                "the eyebrow row is hidden, so the screen renders with no kicker at all");
+
+            // And the casing is a property of the constants rather than
+            // something that happened to be typed once. `ToUpperInvariant`
+            // rather than a spelled-out literal, for the reason above.
+            Assert.AreEqual(FounderNamingScreen.Eyebrow.ToUpperInvariant(),
+                FounderNamingScreen.Eyebrow, "the eyebrow must ship uppercase; USS cannot transform it");
+            Assert.AreEqual(CampaignSelectScreen.Eyebrow.ToUpperInvariant(),
+                CampaignSelectScreen.Eyebrow, "the eyebrow must ship uppercase; USS cannot transform it");
+
+            // Two screens, two different places in the app. Equal eyebrows
+            // would mean the header stopped saying anything.
+            Assert.AreNotEqual(FounderNamingScreen.Eyebrow, CampaignSelectScreen.Eyebrow);
+        }
+
         // ---------------------------------------------------------------
         // Splice Reveal - beat 7, splice_confirm_spec 5
         // ---------------------------------------------------------------
@@ -297,6 +551,184 @@ namespace Broodline.UI.Tests
                 "the reveal's hero card sits at the same elevation as an ordinary section card");
             Assert.IsTrue(hero.ClassListContains("reveal-flare"),
                 "Motion.uss's reveal transition is applied to nothing, so the payoff snaps in");
+        }
+
+        /// THE HERO CARD IS A `HeroBand` AS OF PHASE 9 TASK 16, AND THAT IS
+        /// WHY THE TEST ABOVE STILL PASSES WITHOUT A `.elev-2` IN THIS
+        /// SCREEN'S MARKUP. `Splice Reveal.dc.html:43` is the band's
+        /// canonical fixed instance - radius 26 (`--radius-band` exactly),
+        /// `0 4px 16px` (`.elev-2` exactly), `overflow: hidden`, a dashed
+        /// ring and a filled pool, and `height: 372px`, which is the literal
+        /// example in `HeroBand`'s own class comment. This pins the swap so
+        /// that a future edit replacing the band with a plain wrapper loses a
+        /// test rather than losing the gradient, the ring and the pool
+        /// silently.
+        [Test]
+        public void SpliceReveal_TheHeroCardIsAHeroBandFixedAtTheHandoffsOwnHeight()
+        {
+            var view = BoundReveal(mutated: true, Creature("Vetch", id: A), Creature("Ember", id: B));
+
+            var band = view.Q<HeroBand>("child");
+            Assert.IsNotNull(band, "the reveal's hero card is not a HeroBand");
+
+            // `Fix` writes the height to the SURFACE and never to the
+            // elevation wrapper - the distinction that cost Task 14b a
+            // capture. Read off the surface for that reason: a height on the
+            // root would size the shadow and leave the fill at its content
+            // height, which is the defect rather than the fix.
+            var surface = band.Q<VisualElement>("surface");
+            Assert.AreEqual(372f, surface.style.height.value.value,
+                "the band is not fixed at Splice Reveal.dc.html:43's own 372px");
+
+            // `ring: true`, which is what the handoff's `:45` dashed circle
+            // and `:46` pool are. `HeroBand` REMOVES the halo when there is
+            // no ring, so its presence is the discriminator.
+            Assert.IsNotNull(band.Q<VisualElement>("halo"),
+                "the reveal's band has no ring, so its subject sits on bare gradient");
+        }
+
+        /// A PORTRAIT TURNS ON THE SCREEN BUILT TO CELEBRATE IT - design
+        /// section 3.8's third hero moment. The two `HeroSlot` forms are told
+        /// apart by `Q("body")`, which that component documents: a live slot
+        /// REMOVES its three sprite layers rather than leaving them empty
+        /// behind the stage, so a slot answering to both names would be one
+        /// no test could distinguish.
+        [Test]
+        public void SpliceReveal_WithAPortrait_FramesTheLiveStageAndDropsTheSpriteStack()
+        {
+            var child = Creature("Hollow", generation: 2, id: C);
+            var view = new SpliceRevealView();
+            var texture = new UnityEngine.Texture2D(4, 4);
+            try
+            {
+                view.Bind(CommitOf(child), Creature("Vetch", id: A), Creature("Ember", id: B),
+                    mutated: false, next: () => { }, onBack: null, portrait: texture);
+
+                var slot = view.Q<HeroSlot>(C.ToString());
+                Assert.IsNotNull(slot, "the child has no hero slot");
+                Assert.IsNotNull(slot.Q<CreatureStage>(),
+                    "a reveal handed a portrait is still drawing baked sprites");
+                Assert.IsNull(slot.Q<VisualElement>("body"),
+                    "the sprite layers were left behind the live stage");
+                Assert.IsTrue(slot.ClassListContains(HeroSlot.LiveUssClassName));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(texture);
+            }
+        }
+
+        /// AND NO PORTRAIT IS A REAL ANSWER, which is the complement that
+        /// makes the test above mean something: `FtueDirector` may hold no
+        /// studio, the EditMode suite has no camera, and `ScreenFixtures`
+        /// captures this screen in batch mode. All three want the same
+        /// screen with a baked creature in it.
+        [Test]
+        public void SpliceReveal_WithoutAPortrait_FallsBackToTheBakedSpriteStack()
+        {
+            var view = BoundReveal(mutated: false, Creature("Vetch", id: A), Creature("Ember", id: B));
+
+            var slot = view.Q<HeroSlot>(C.ToString());
+            Assert.IsNotNull(slot);
+            Assert.IsNotNull(slot.Q<VisualElement>("body"));
+            Assert.IsNull(slot.Q<CreatureStage>());
+        }
+
+        /// THE PILL IS THE RAREST OUTCOME IN THE GAME AND IT SAYS SO EVEN
+        /// WHEN IT CANNOT NAME THE TRAIT. `MutatedTrait` is a set difference
+        /// over the child and its two parents, and it returns null for a
+        /// reachable state - a `mutated` child whose two traits both appear
+        /// in a parent, because the flag comes from the tree and the tree
+        /// records the ROLL rather than the slot it landed in.
+        [Test]
+        public void SpliceReveal_AMutationShowsItsPill_AndAPlainSpliceDoesNot()
+        {
+            var parentA = Creature("Vetch", id: A);
+            var parentB = Creature("Ember", id: B);
+
+            var mutated = BoundReveal(mutated: true, parentA, parentB);
+            var pill = mutated.Q<VisualElement>("mutation-pill");
+            Assert.IsNotNull(pill, "the mutation pill is not on the screen at all");
+            Assert.AreEqual(DisplayStyle.Flex, pill.style.display.value);
+            StringAssert.StartsWith("MUTATION ROLLED", pill.Q<Label>("pill-text").text);
+
+            var plain = BoundReveal(mutated: false, parentA, parentB);
+            Assert.AreEqual(DisplayStyle.None,
+                plain.Q<VisualElement>("mutation-pill").style.display.value,
+                "a splice with no mutation still celebrates one");
+        }
+
+        /// A TRAIT THE CHILD HAS AND NEITHER PARENT DOES IS A MUTATION, AND
+        /// THE ROW SAYS SO BY NAME. This is the assertion that the reveal
+        /// reads its three creatures rather than the `mutated` flag alone:
+        /// the flag says THAT one happened, the set difference says WHICH.
+        [Test]
+        public void SpliceReveal_NamesWhichParentBroughtEachTrait_AndMarksTheOneNeitherDid()
+        {
+            var parentA = Creature("Vetch", name: "Ash", founder: true, id: A);
+            var parentB = Creature("Ember", id: B);
+
+            // Both fixture parents carry Chill/Taunt, so a child holding
+            // Chill and "Ashveil" has exactly one inherited trait and one
+            // that is in neither - which is what a mutation IS.
+            var child = Creature("Vetch", generation: 2, id: C);
+            child.Trait2 = "Ashveil";
+            child.Tier2 = null;
+
+            var view = new SpliceRevealView();
+            view.Bind(CommitOf(child), parentA, parentB, mutated: true, next: () => { });
+
+            Assert.AreEqual(SpliceRevealScreen.SourceLabel("Chill", parentA, parentB),
+                view.Q<VisualElement>("Chill").Q<Label>("source").text);
+            StringAssert.Contains("Ash", view.Q<VisualElement>("Chill").Q<Label>("source").text);
+
+            Assert.AreEqual(SpliceRevealScreen.MutationLabel,
+                view.Q<VisualElement>("Ashveil").Q<Label>("source").text);
+
+            Assert.AreEqual("Ashveil",
+                SpliceRevealScreen.MutatedTrait(child, parentA, parentB));
+            StringAssert.Contains("ASHVEIL",
+                view.Q<VisualElement>("mutation-pill").Q<Label>("pill-text").text);
+        }
+
+        /// THE EYEBROW SHIPS UPPERCASE AND THE CONSTANT IS WHERE THAT LIVES -
+        /// the user's ruling at the Task 13/14 boundary, asserted the same
+        /// way `FounderNaming_AndCampaign_CarryTheHandoffsKicker` asserts its
+        /// two: by `ToUpperInvariant` round trip rather than by repeating the
+        /// literal a second time in a test.
+        ///
+        /// AND IT IS IN THE CONTENT COLUMN NOW, NOT IN THE HEADER - Phase 9
+        /// Task 16b, which took this screen's page header off because
+        /// `Splice Reveal.dc.html:38-41` draws none. THE TWO HALVES BELOW
+        /// ARE ONE TEST ON PURPOSE: the header going away is exactly what
+        /// would have deleted the kicker (`#header` holds the eyebrow), so
+        /// the screen that has no header has to be the same screen that
+        /// still says SPLICE COMPLETE, asserted in one place.
+        ///
+        /// `Q<Label>("kicker")` AND NOT `"eyebrow"`. The scaffold's own
+        /// eyebrow Label still exists inside the hidden header, and a
+        /// name-based query would answer with whichever the tree reaches
+        /// first - so the relocated line carries the handoff's own word for
+        /// it instead.
+        [Test]
+        public void SpliceReveal_CarriesTheHandoffsKickerAndDrawsNoPageHeader()
+        {
+            var view = BoundReveal(mutated: true, Creature("Vetch", id: A), Creature("Ember", id: B));
+
+            var kicker = view.Q<Label>("kicker");
+            Assert.IsNotNull(kicker, "the handoff's kicker is not on the screen at all");
+            Assert.AreEqual(SpliceRevealScreen.Eyebrow, kicker.text);
+            Assert.AreEqual(SpliceRevealScreen.Eyebrow.ToUpperInvariant(), SpliceRevealScreen.Eyebrow,
+                "the kicker must ship uppercase; USS cannot transform it");
+
+            var header = view.Q<VisualElement>("header");
+            Assert.AreEqual(DisplayStyle.None, header.style.display.value,
+                "the handoff draws no page header on this screen; ScaffoldTests' headerless " +
+                "list says the same thing from the other side");
+
+            Assert.IsFalse(header.Contains(kicker),
+                "the kicker is inside the row the headerless branch hides, so it renders " +
+                "nowhere at all");
         }
 
         // ---------------------------------------------------------------
@@ -504,6 +936,94 @@ namespace Broodline.UI.Tests
             StringAssert.Contains("G2", view.Q(A.ToString()).Q<Label>("label").text);
         }
 
+        /// THE KICKER EVERY OTHER SCREEN HAS AND THIS ONE DID NOT. Phase 9
+        /// Task 19. `ScreenScaffold.Eyebrow` hides its row when empty, which
+        /// is what a screen passing nothing gets - so the omission was
+        /// invisible except as 29px of missing header, measured off
+        /// `LineageView.png` against `RosterView.png` (title glyphs at y=24
+        /// here, y=53 there).
+        ///
+        /// THE CASING IS ASSERTED, NOT SPELLED. USS has no `text-transform`,
+        /// so the handoff's uppercase eyebrows are baked into the named
+        /// constants and nowhere else - never as a literal in markup or in a
+        /// test. The second assertion is what stops the constant being
+        /// quietly lowercased into something that no longer matches the four
+        /// eyebrows beside it.
+        [Test]
+        public void Lineage_WearsThePedigreeKicker_AndTakesItFromTheModel()
+        {
+            var view = BoundLineage(F, Node("Hollow", F, founder: true, name: "Ash"));
+
+            var eyebrow = view.Q<Label>("eyebrow");
+            Assert.IsNotNull(eyebrow, "the scaffold has no eyebrow row at all");
+            Assert.AreEqual(LineageScreen.Eyebrow, eyebrow.text,
+                "the tree draws no kicker, so its title sits where every other screen's eyebrow does");
+            Assert.AreEqual(DisplayStyle.Flex, eyebrow.style.display.value,
+                "the eyebrow row is collapsed, which is what an unset eyebrow looks like");
+
+            Assert.AreEqual(LineageScreen.Eyebrow.ToUpperInvariant(), LineageScreen.Eyebrow,
+                "the handoff's eyebrows are uppercase and USS has no text-transform to make them so, "
+                + "so the casing lives in this constant or nowhere");
+            Assert.IsNotEmpty(LineageScreen.Eyebrow);
+        }
+
+        /// THE TREE WAS THE LAST SCREEN IN THE APP DRAWING A `TraitPip`.
+        /// Phase 9 Task 19. Task 16 moved `CreatureCard` - and with it the
+        /// roster, the chamber, the reveal, post-wave and wave-defeat - onto
+        /// species-tinted `TraitChip`s, and exempted this screen on the
+        /// grounds that a counter is known here. It is not: `LineageView
+        /// .AddTrait` passed `counters: null` and its comment said it always
+        /// would.
+        ///
+        /// THE CONTRAST IS THE POINT OF THE SECOND HALF. A view that stamped
+        /// one tint on every chip in the tree passes the first assertions;
+        /// two species in one tree is what a family tree actually is, and a
+        /// pip - which is violet whatever the creature - passes nothing here.
+        [Test]
+        public void Lineage_DrawsItsTraitsAsSpeciesTintedChips_NotAsCounterPips()
+        {
+            var view = BoundLineage(Guid.Empty,
+                Node("Vetch", F, founder: true, name: "Ash"),
+                Node("Ember", A, generation: 2));
+
+            var ash = view.Q(F.ToString());
+            var ashChips = ash.Query<TraitChip>().ToList();
+            Assert.AreEqual(2, ashChips.Count,
+                "a node draws one mark per trait on the wire, and `LineageNode` carries two");
+            Assert.IsEmpty(ash.Query<TraitPip>().ToList(),
+                "the tree still draws a pip, so the same creature's traits change shape between "
+                + "the roster and the tree");
+
+            Assert.IsTrue(ashChips[0].ClassListContains(TraitChip.UssClassName + "--vetch"),
+                "the chip carries no species modifier, so it renders in `.chip`'s default violet "
+                + "and says nothing about whose trait it is");
+
+            var ember = view.Q(A.ToString()).Query<TraitChip>().ToList()[0];
+            Assert.IsTrue(ember.ClassListContains(TraitChip.UssClassName + "--ember"));
+            Assert.IsFalse(ember.ClassListContains(TraitChip.UssClassName + "--vetch"),
+                "every node in the tree is tinted the same, so the tint is not the node's species");
+
+            // THE TIER IS REAL ON THIS WIRE TYPE, unlike on the Codex sheet:
+            // `LineageNode` carries `tier1`/`tier2`, the fixture sets them,
+            // and a chip that claimed Aberrant for a tier-I trait would be
+            // stating data_model 2's one forbidden conflation.
+            Assert.IsFalse(ashChips[0].ClassListContains(TraitChip.AberrantUssClassName),
+                "a tiered trait is marked Aberrant");
+
+            // AND THE LIVE GUARD THE LINE ABOVE NEEDS, which fix round 1
+            // asked for: `IsFalse(ClassListContains(...))` passes trivially
+            // on a component that stopped setting the class at all, or on a
+            // renamed constant. The marker is demonstrated on a chip built
+            // the same way before its absence is treated as meaningful - the
+            // same guard `CodexSheet_MarksEachTraitWithItsSpeciesTintedChip
+            // _AndClaimsNoAberrant` carries, which this one asserted instead
+            // of building.
+            Assert.IsTrue(new TraitChip("Chill", null, "Vetch")
+                    .ClassListContains(TraitChip.AberrantUssClassName),
+                "a bare null-tier chip no longer marks Aberrant, so the assertion above passes "
+                + "for a reason that has nothing to do with this screen");
+        }
+
         // ---------------------------------------------------------------
         // Campaign Select - design 5.2
         // ---------------------------------------------------------------
@@ -583,6 +1103,42 @@ namespace Broodline.UI.Tests
                 "the next playable wave is wearing a padlock");
         }
 
+        [Test]
+        public void CampaignSelect_PutsItsRowsOnAWhiteCard_AndMarksTheClearedOnes()
+        {
+            // `phase8-visual-review.md`'s one objectively out-of-spec
+            // finding: an `OptionRow`'s --surface-sunk fill on --paper is
+            // 1.0151:1, under WCAG 1.4.11's 3:1 for a non-text boundary. Of
+            // the three fixes it offered, design section 4.1 took the third -
+            // compose the rows inside a `SectionCard` so the fill sits on
+            // white. This is that arrangement, pinned: a later refactor that
+            // lifted the rows back out would restore the defect silently,
+            // because nothing else in this suite can see a fill.
+            var view = BoundCampaign(highestWaveCleared: 2);
+
+            var card = view.Q<SectionCard>();
+            Assert.IsNotNull(card, "the wave list is not on a card at all");
+            Assert.IsNotNull(card.Body.Q(CampaignSelectScreen.RowName(6)),
+                "the rows are somewhere other than inside the card's body");
+
+            // The cleared mark, and the locked one's opposite number: a
+            // beaten wave wears a green chip the way a locked one wears a
+            // padlock. Both are redundant with the detail line by design -
+            // the mark is what makes a row readable at a glance.
+            var cleared = view.Q(CampaignSelectScreen.RowName(1)).Q<Label>("cleared");
+            Assert.IsNotNull(cleared, "a cleared wave carries no chip");
+            Assert.AreEqual(CampaignSelectScreen.ClearedLabel, cleared.text);
+            Assert.AreEqual(CampaignSelectScreen.StateLabel(1, Authored, 2), cleared.text,
+                "the chip and the detail line must be the same word, from the same constant");
+
+            // The contrast. A view that chipped every row would pass every
+            // line above.
+            Assert.IsNull(view.Q(CampaignSelectScreen.RowName(6)).Q<Label>("cleared"),
+                "the next unplayed wave is wearing a Cleared chip");
+            Assert.IsNull(view.Q(CampaignSelectScreen.RowName(7)).Q<Label>("cleared"),
+                "a locked wave is wearing a Cleared chip");
+        }
+
         // ---------------------------------------------------------------
         // Trait Codex - screen_inventory_v2 4
         // ---------------------------------------------------------------
@@ -655,6 +1211,251 @@ namespace Broodline.UI.Tests
 
             Assert.AreEqual(TraitCodexScreen.DismissLabel, view.Q<Button>("dismiss").text);
             Assert.IsNotEmpty(TraitCodexScreen.DismissLabel);
+        }
+
+        /// THE ONE THING ON THIS SHEET THAT CARRIES COLOUR. Phase 9 Task 19.
+        /// A player learns "teal means Vetch" on the roster and on the parent
+        /// tiles; bible 10.5 makes recognition the codex's whole job, and
+        /// before this the codex was the one screen in the app where a trait
+        /// appeared with no tint at all.
+        ///
+        /// AND IT MUST NOT CLAIM ABERRANT. `TraitChip` keeps data_model 2's
+        /// contract - a null tier IS an Aberrant - and `config.traits` has no
+        /// tier column at all, so left alone every chip on this sheet would
+        /// wear the marker. That is the exact defect `CodexSheet.EntryFor`'s
+        /// own comment refuses `TraitPip` for. The marker is removed at the
+        /// call site; both halves are asserted here.
+        ///
+        /// THE LAST ASSERTION IS THE ONE THAT KEEPS THE TWO ABOVE IT HONEST.
+        /// `Assert.IsFalse(ClassListContains(...))` passes trivially on a
+        /// component that stopped setting the class at all, or on a renamed
+        /// constant - so the marker is demonstrated live, on a chip built the
+        /// same way, before its absence is treated as meaningful.
+        [Test]
+        public void CodexSheet_MarksEachTraitWithItsSpeciesTintedChip_AndClaimsNoAberrant()
+        {
+            var view = new CodexSheet();
+            view.Bind(new[] { Trait("Chill", "Pale", "Courser"), Trait("Taunt", "Vetch", "Lash") });
+
+            var chill = view.Q("Chill").Q<TraitChip>();
+            Assert.IsNotNull(chill, "the entry carries no trait chip, so nothing on this sheet is tinted");
+            Assert.IsTrue(chill.ClassListContains(TraitChip.UssClassName + "--pale"));
+
+            var taunt = view.Q("Taunt").Q<TraitChip>();
+            Assert.IsTrue(taunt.ClassListContains(TraitChip.UssClassName + "--vetch"));
+            Assert.IsFalse(taunt.ClassListContains(TraitChip.UssClassName + "--pale"),
+                "every entry is tinted the same, so the tint is not the trait's own species");
+
+            Assert.IsFalse(chill.ClassListContains(TraitChip.AberrantUssClassName),
+                "the codex marks a trait Aberrant because the bundle's trait table carries no tier - "
+                + "a table about what a trait IS has no creature's coverage to be absent");
+            Assert.IsFalse(taunt.ClassListContains(TraitChip.AberrantUssClassName));
+
+            Assert.IsTrue(new TraitChip("Cinder", null, "Ember")
+                    .ClassListContains(TraitChip.AberrantUssClassName),
+                "a bare null-tier chip no longer marks Aberrant, so the two assertions above pass "
+                + "for a reason that has nothing to do with this sheet");
+        }
+
+        /// THE SHEET'S FILL IS ONE LEVEL IN FROM THE ELEMENT THAT POSITIONS
+        /// IT - `AbandonedWaveSheet`'s split, adopted in Phase 9 Task 19 when
+        /// this became the bottom sheet five specs already called it.
+        ///
+        /// WHAT THIS PINS AND WHAT IT DOES NOT. It pins the STRUCTURE: a
+        /// `#surface` child holding the whole sheet, and a root that is not
+        /// itself the surface. It does NOT pin the top-only `--radius-card`
+        /// or the `justify-content: flex-end` that make it a bottom sheet -
+        /// those are stylesheet rules, and this suite builds no panel to
+        /// resolve a cascade against (`ComponentTests
+        /// .TheDefaultFormStaysContentSizedInTheStylesheetItself` is the
+        /// pattern for reaching those, and it reads the file as text). The
+        /// geometry is verified by `CodexSheet.png` and stated as such.
+        ///
+        /// The structure is worth its own test anyway: flattening the two
+        /// levels back into one is what puts a fill on the element the
+        /// positioning lives on, which is the arrangement Theme.uss's header
+        /// note 2 exists for and which `SectionCard.cs` records shipping once
+        /// already this phase.
+        [Test]
+        public void CodexSheet_PutsItsFillOnASurfaceInsideTheElementThatPositionsIt()
+        {
+            var view = new CodexSheet();
+            view.Bind(new[] { Trait("Chill", "Pale", "Courser") });
+
+            var surface = view.Q<VisualElement>("surface");
+            Assert.IsNotNull(surface, "the sheet has no surface layer, so its fill is on its own root");
+            Assert.IsTrue(surface.ClassListContains(CodexSheet.SurfaceUssClassName));
+            Assert.IsFalse(view.ClassListContains(CodexSheet.SurfaceUssClassName),
+                "the root IS the surface, so the fill and the radius sit on the element that "
+                + "positions the sheet against the whole frame");
+
+            // Everything the sheet draws is inside it - a title left behind
+            // on the root would render above the sheet, at the top of the
+            // screen, which is where this whole sheet used to be.
+            foreach (var name in new[] { "title", "entries", "dismiss" })
+            {
+                Assert.IsNotNull(surface.Q<VisualElement>(name),
+                    "`" + name + "` is not inside the sheet's surface");
+            }
+        }
+
+        /// STYLESHEET-LEVEL, AND THAT IS THE WHOLE POINT OF THIS TEST.
+        ///
+        /// The defect Task 19 fixed - a sheet five specs call a BOTTOM sheet
+        /// rendering flush with the TOP of the frame - existed precisely
+        /// because nothing asserted a position. `.sheet-layer` sets no
+        /// `justify-content`, flex defaults to `flex-start`, and no test, no
+        /// gate and no build step had anything to say. The structural test
+        /// above pins the root/surface split and nothing else: with it green,
+        /// deleting `justify-content: flex-end` from `CodexSheet.uss` today
+        /// puts the sheet straight back at the top of the screen.
+        ///
+        /// `resolvedStyle` IS NOT AVAILABLE HERE. This suite builds no panel,
+        /// so a stylesheet rule reaches nothing that can be read back -
+        /// `element.style.X` is the INLINE accessor and these are not inline.
+        /// So the sheet is read as SOURCE TEXT, which is
+        /// `ComponentTests.TheDefaultFormStaysContentSizedInTheStylesheetItself`'s
+        /// pattern and `MainThreadAffinityTests`' before it; that file's
+        /// `StripBlockComments` was made `internal` for this rather than
+        /// copied, so the two passes cannot drift.
+        ///
+        /// COMMENTS ARE STRIPPED FIRST AND THAT IS LOAD-BEARING, not tidiness:
+        /// `CodexSheet.uss`'s header explains this change at length and names
+        /// `justify-content` and `border-radius` in prose. A test that matched
+        /// raw text would pass on a sheet that only DOCUMENTED the rule.
+        [Test]
+        public void CodexSheet_IsAnchoredToTheBottomEdgeInTheStylesheetItself()
+        {
+            var uss = ReadStrippedUss("UI/Screens/Resources/CodexSheet.uss");
+
+            var root = RuleBody(uss, ".codex-sheet");
+            StringAssert.Contains("position: absolute", root,
+                "the sheet no longer positions itself, so `.sheet-layer` lays it out as a plain "
+                + "flex child and it reverts to the top of the frame");
+            StringAssert.Contains("justify-content: flex-end", root,
+                "the sheet is not anchored to the bottom edge. This is the exact defect Task 19 "
+                + "fixed and it shipped because nothing asserted a position: five specs call this "
+                + "a BOTTOM sheet (client_architecture section 9, trait_codex.md:148, "
+                + "build_order.md:55) and it rendered flush with the top.");
+
+            var surface = RuleBody(uss, ".codex-sheet__surface");
+            StringAssert.Contains("border-top-left-radius: var(--radius-card)", surface);
+            StringAssert.Contains("border-top-right-radius: var(--radius-card)", surface);
+
+            // A BARE `border-radius` WOULD ROUND ALL FOUR CORNERS, which on a
+            // sheet flush with the bottom edge draws two corners against an
+            // edge that has none - the shape that made the old top-anchored
+            // sheet read as a card that had slid off the screen. The regex is
+            // anchored so `border-top-left-radius` does not match it.
+            Assert.IsFalse(Regex.IsMatch(surface, @"(^|[{;\s])border-radius\s*:"),
+                "the surface rounds all four corners; a bottom sheet has no bottom corners");
+        }
+
+        /// THE COLLISION A CLASS LIST CANNOT SEE - two USS classes resolving
+        /// to one colour. Phase 9 Task 19 fix round 1.
+        ///
+        /// `.node.highlight` is the ground under the one creature bible 9.2
+        /// says a player carries away, and the chips on that node are tinted
+        /// by its species. Through Phase 8 the ground was --violet-tint,
+        /// which IS Hollow's chip fill (dE76 0.00) and is 1.81 from Pale's
+        /// --hairline - against a `SectionCard` drop shadow measuring 1.73
+        /// against its own surface. Both were invisible on the highlighted
+        /// node and every existing test passed throughout, because a class
+        /// list cannot tell you what two classes resolve to.
+        ///
+        /// THE FLOOR IS 4.0 AND IT IS NOT THE SHIPPED NUMBER. --violet-glow
+        /// clears it at 6.69 (Pale, the worst of the six), so this has
+        /// headroom and does not pin one token - a later repaint may move
+        /// either end as long as the marks stay visible. 4.0 is a little
+        /// over twice the drop-shadow reference, which is the scale this
+        /// project has for "a difference a reader can find".
+        [Test]
+        public void Lineage_HighlightGroundSeparatesFromEverySpeciesChipTint()
+        {
+            var ground = TokenIn(ReadStrippedUss("UI/Screens/Resources/LineageView.uss"),
+                ".node.highlight", "background-color");
+
+            var chipUss = ReadStrippedUss("UI/Components/Resources/TraitChip.uss");
+            var species = new[] { "vetch", "ember", "skitter", "hollow", "loam", "pale" };
+
+            var worst = double.MaxValue;
+            var worstName = string.Empty;
+            foreach (var s in species)
+            {
+                var fill = TokenIn(chipUss,
+                    "." + TraitChip.UssClassName + "." + TraitChip.UssClassName + "--" + s,
+                    "background-color");
+                var d = DeltaE76(Token(ground), Token(fill));
+                if (d >= worst) continue;
+                worst = d;
+                worstName = s + " (" + fill + ")";
+            }
+
+            Assert.That(worst, Is.GreaterThanOrEqualTo(4.0),
+                $"the highlighted node's ground ({ground}) is dE76 {worst:F2} from {worstName}, so "
+                + "that species' trait chips are drawn in the colour behind them on the one node "
+                + "this screen exists to point at. A SectionCard's drop shadow measures 1.73 "
+                + "against its own surface, for scale. Move the ground or the tint - do not add a "
+                + "seventh tint - and re-measure all six.");
+        }
+
+        // ---------------------------------------------------------------
+        // Reading a stylesheet as source
+        // ---------------------------------------------------------------
+
+        static string ReadStrippedUss(string relative)
+        {
+            var path = Path.GetFullPath(Path.Combine(UnityEngine.Application.dataPath, relative));
+            Assert.IsTrue(File.Exists(path), $"no stylesheet at {path}");
+            return ComponentTests.StripBlockComments(File.ReadAllText(path));
+        }
+
+        /// The declarations of one rule, by exact selector. THROWS RATHER
+        /// THAN RETURNING EMPTY when the selector is gone: a helper that
+        /// quietly answered "" would leave every `StringAssert.Contains`
+        /// above failing for the wrong reason and every `IsFalse` passing
+        /// vacuously.
+        static string RuleBody(string strippedUss, string selector)
+        {
+            var m = Regex.Match(strippedUss,
+                @"(?<![\w-])" + Regex.Escape(selector) + @"(?![\w-])\s*\{([^}]*)\}");
+            Assert.IsTrue(m.Success, $"selector `{selector}` is not in the stylesheet at all");
+            return m.Groups[1].Value;
+        }
+
+        /// The `var(--token)` a rule sets for one property.
+        static string TokenIn(string strippedUss, string selector, string property)
+        {
+            var m = Regex.Match(RuleBody(strippedUss, selector),
+                Regex.Escape(property) + @"\s*:\s*var\((--[a-z0-9-]+)\)");
+            Assert.IsTrue(m.Success,
+                $"`{selector}` does not set `{property}` to a var(--token); a raw value here would "
+                + "also be outside the token layer, which verify-uss-tokens.sh check 1 forbids");
+            return m.Groups[1].Value;
+        }
+
+        /// A token's hex, from Tokens.uss - the one file that holds values.
+        static string Token(string name)
+        {
+            var path = Path.GetFullPath(Path.Combine(
+                UnityEngine.Application.dataPath, "UI/Shell/Tokens.uss"));
+            var m = Regex.Match(File.ReadAllText(path),
+                Regex.Escape(name) + @"\s*:\s*(#[0-9a-fA-F]{6})\s*;");
+            Assert.IsTrue(m.Success, $"{name} is not defined in Tokens.uss");
+            return m.Groups[1].Value;
+        }
+
+        /// CIE L*a*b* distance, through the same conversion
+        /// `PaletteContrastTests` measures the species palette with -
+        /// `PaletteContrast.SeenAs(hex, "normal")` is that file's own "no
+        /// deficiency" path, verified there against published values.
+        static double DeltaE76(string a, string b)
+        {
+            var x = PaletteContrast.SeenAs(a, "normal");
+            var y = PaletteContrast.SeenAs(b, "normal");
+            return Math.Sqrt((x[0] - y[0]) * (x[0] - y[0])
+                           + (x[1] - y[1]) * (x[1] - y[1])
+                           + (x[2] - y[2]) * (x[2] - y[2]));
         }
     }
 }

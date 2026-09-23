@@ -535,6 +535,17 @@
           "replay"
         ]
       },
+      "WaveAbandonResponse": {
+        "type": "object",
+        "properties": {
+          "settled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "settled"
+        ]
+      },
       "RefreshResponse": {
         "type": "object",
         "properties": {
@@ -1328,6 +1339,48 @@
             }
           },
           "503": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/wave/abandon": {
+      "post": {
+        "operationId": "abandonWave",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Whether a live issuance was settled and its creatures released",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaveAbandonResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
             "description": "Error",
             "content": {
               "application/json": {

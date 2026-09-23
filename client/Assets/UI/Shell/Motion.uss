@@ -80,6 +80,59 @@
  * OptionRow.Selected and by its own :active rule; t-num is a live class in
  * Theme.uss; reveal-flare--hidden is added and removed by SpliceRevealView.
  * Those three bite.
+ *
+ * ================================================================
+ * TEN OF THE HANDOFF'S TWELVE NAMED ANIMATIONS ARE NOT HERE AND CANNOT BE,
+ * AND THIS BLOCK IS SO THAT IS A RECORDED ABSENCE RATHER THAN A SILENT ONE.
+ * Added by Phase 9 Task 14c, which was the first task to draw something the
+ * handoff plainly spins. CORRECTED IN FIX ROUND 1: the first version of this
+ * note said "lists ten, eight infinite, riseIn ninth, the CTA press tenth" -
+ * that count was wrong. See task-14c-report.md, Fix round 1, Important 1.
+ *
+ * README.md's "Named animations" table (`README.md:445-458`) lists TWELVE
+ * rows. TEN are `infinite`: glow, dash, bob, orbit, ripple, tapPing, quake,
+ * sweep, shine, pop. USS on 6000.6.0f1 has `transition-*` and NO
+ * `@keyframes` and NO `animation` property at all - a transition runs once
+ * between two states a class change moves you across, which is not what any
+ * of the ten is. There is no property for them to land in, so they are the
+ * same class of absence as `align-items: baseline`, `text-transform` and
+ * `calc()`: things that look authorable and are not.
+ *
+ * TWO ARE FINITE AND EXPRESSIBLE, AND NEITHER IS APPLIED YET: `riseIn`
+ * (translateY + opacity, .3-.4s ease-out) and `fill` (`width: 0 -> target`,
+ * 1.2s ease-out once). `fill` IS A DIFFERENT CLAIM FROM THE OTHER ELEVEN -
+ * it is a plain width transition, which `transition-property: width` could
+ * express today, on a progress bar this project does not have yet. It was
+ * never inexpressible; it is simply unused. There is no CTA-press row in
+ * this table - that motion is real, and it is handled separately, at the
+ * top of this file, in Theme.uss.
+ *
+ * THE TABLE UNDERSTATES ITSELF, TOO. It is captioned "all CSS keyframes in
+ * the prototypes"; grepping `specs/Designs/design_handoff_broodline/screens/`
+ * for `@keyframes` finds roughly thirty distinct names, not twelve - about
+ * twenty-one beyond this table's own rows, including `twinkle`, `sparkle`,
+ * `shimmer`, `shake`, `rush`, `helix`, `burst` and `apexPulse`. This block is
+ * the phase's record of what motion is reachable in USS; read it against the
+ * full set, not just the table's subset of it.
+ *
+ * WHAT WOULD BE NEEDED, so the cost is on the record rather than rediscovered
+ * by whoever wants one: a C# `schedule.Execute(...).Every(n)` writing
+ * `style.rotate` / `style.opacity` / `style.translate` per frame. That is a
+ * real mechanism and it works. It was declined for `orbit` in Task 14c on two
+ * grounds. The first is that it spends a layout-or-repaint per frame,
+ * forever, on decoration, on a mobile target. The second matters more here:
+ * the screenshot corpus is the only evidence this project has that anything
+ * renders, and a fixture that animates itself lands on a different frame
+ * every run - so every capture containing one stops being comparable, which
+ * is the property `capture-screens.sh`'s whole header is about protecting.
+ *
+ * SO THE RINGS ARE STILL. `HeroSlot` made that call in Task 13 (its own note:
+ * "the rotation is not reproduced here and is not missed on a still
+ * surface") and `HeroBand` makes it again at 264px in Task 14c. The
+ * difference between a decision and a drop is that this is written down, and
+ * a reviewer who disagrees now has the mechanism and the two objections in
+ * one place to disagree with.
+ * ================================================================
  */
 .option-row {
     transition-property: border-color, background-color;

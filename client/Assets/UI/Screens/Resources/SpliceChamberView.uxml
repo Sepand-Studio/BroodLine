@@ -2,8 +2,6 @@
     <ui:Style src="SpliceChamberView.uss" />
     <ui:VisualElement name="parents" class="splice-chamber-view__parents" />
     <ui:VisualElement name="forecast" class="splice-chamber-view__forecast" />
-    <ui:Label name="mutation" class="splice-chamber-view__mutation panel-violet t-num t-violet" />
     <ui:Label name="coverage-warning" class="splice-chamber-view__coverage-warning panel-amber t-warn" />
     <ui:Label name="destruction-notice" class="splice-chamber-view__destruction-notice panel-coral t-danger" />
-    <ui:Button name="cta" class="splice-chamber-view__cta btn-primary" />
 </ui:UXML>

@@ -48,6 +48,18 @@
     --violet-light: #8878cf;      /* CTA gradient start, selection ring */
     --violet-pressed: #e7e0f6;    /* secondary button :active, under --violet-tint */
 
+    /* IN the handoff, at distance 0: `Onboarding.dc.html:46`'s pool circle is
+     * `fill="#e9e0fb"`. Added in Phase 9 Task 14c fix round 2 - the palette
+     * owner's ruling on that task's flagged concern (HeroBand.uss's pool
+     * originally borrowed --violet-pressed, 7 away, for lack of a token of
+     * its own). THE REASON IS THE GENERAL RULE, NOT THIS ONE CASE:
+     * --violet-pressed is `.btn-secondary:active`'s fill (Theme.uss), and a
+     * routine interaction re-tune would otherwise silently move the hero
+     * pool on every band screen that reads it. Decoration must not borrow an
+     * interaction state's token when the handoff's own value is sitting
+     * right there. */
+    --violet-glow: #e9e0fb;       /* HeroBand's pool fill - Onboarding.dc.html:46 */
+
     /* Not in the handoff. The secondary button's drop edge - the 3px bottom
      * border that stands in for the press state USS cannot express (see
      * Theme.uss header item 3). It is NOT --hairline: against the
@@ -65,9 +77,77 @@
      * existing one. Task 2's own step list omitted this colour entirely. */
     --violet-pale: #d9cdf5;       /* not in the handoff - aberrant pip icon */
 
+    /* Not in the handoff's table; it is the deep end of the predicted-hybrid
+     * panel's ramp (Art/hybrid-ramp.png) and the fill that ramp composites
+     * over, so a texture that fails to import degrades to the panel's own
+     * deepest tint rather than to white. The handoff's Splice Chamber draws
+     * that panel `linear-gradient(170deg, #ffffff, #f4f0fb)` - white to one
+     * step off --paper - which is a sheen on the #f7f4fb page it sits on and
+     * is invisible on the --surface SectionCard this project puts it on. One
+     * step deeper is what makes the panel read as its own surface. It sits
+     * one step BELOW --violet-tint (#f1ecfa, 17 away in summed channel
+     * distance) rather than above it, so the ramp's far end still reads as
+     * the same violet family as the panels beside it and not as a new hue. */
+    --hybrid-tint-deep: #ebe4f7;  /* not in the handoff - predicted-hybrid ramp end */
+
     /* ---- Species / semantic ---- */
     --teal: #6ba7c0;              /* Vetch, info */
     --teal-tint: #e7f3f9;
+
+    /* Not in the handoff's TABLE, and the one gap in it that the handoff's
+     * own markup fills six times over. Five of the six families carry a
+     * `-text` token for the darker ink a chip or a tag sets its label in -
+     * --green-text, --amber-text, --coral-text, --violet-text - and teal,
+     * which is Vetch AND the "info" role, carries none. So every teal chip
+     * in `Creature Roster.dc.html` (#3c7f98) and every one in
+     * `Splice Chamber.dc.html` (#4b8ba6, plus the charge glyph and the DOM
+     * tag) had nothing to reference.
+     *
+     * #336b81 IS A RULING, NOT AN AUTHORED VALUE, AND THAT IS THE POINT.
+     * Both teals the handoff draws fail WCAG AA on the tint they are drawn
+     * on: #3c7f98 measures 3.97:1 against --teal-tint and #4b8ba6 measures
+     * 3.35:1, where the floor for small text is 4.5:1. This token shipped at
+     * #3c7f98 - the darker of the two - with the shortfall recorded as an
+     * open question for whoever owns the palette. Phase 9 Task 14 closed it:
+     * the user ruled that teal joins its family rather than staying faithful
+     * to a value that fails. #336b81 measures 5.22:1 on --teal-tint, which
+     * is the precedent exactly - --green-text is 5.10:1 on --green-tint and
+     * --violet-text is 4.73:1 on --violet-tint.
+     *
+     * THE FAITHFULNESS ARGUMENT IS THE ONE THAT LOST, and it is written down
+     * because it is not a bad argument: inventing a colour the handoff never
+     * drew is the drift verify-uss-tokens.sh exists to stop, and bible 10.4
+     * ("colour never carries information alone") means the chip states its
+     * trait in words whatever the ink is. What outweighed it is that this is
+     * INK ON A TINT rather than a decorative fill - the one job where the
+     * handoff's own number is measurably unreadable - and that the same
+     * ruling settles #4b8ba6's 3.35:1, which appears seven times in
+     * `Splice Chamber.dc.html`. Task 16 inherits that rather than ruling on
+     * it again.
+     *
+     * NOT HYPOTHETICAL - THIS IS ALREADY SHIPPING AS 10px TEXT, TWICE, and
+     * that is what made the shortfall concrete rather than theoretical. Both
+     * live TEXT call sites are `--text-micro` (10px), which is under AA's
+     * floor for small text regardless of the ratio:
+     *   - TraitChip.uss:80, `.trait-chip--vetch .trait-chip__label`, on the
+     *     `--teal-tint` fill TraitChip.uss:73 sets
+     *   - InheritanceBar.uss:123, `.inheritance-bar__tag--teal`, fill and
+     *     ink on one line
+     * NEITHER FILE CHANGES FOR THIS. Both read var(--teal-text) and inherit
+     * the fix, which is the whole reason the gap was a token's to close.
+     *
+     * THREE MORE READERS ARE GRAPHICS, NOT TEXT, AND THEY MOVE TOO - listed
+     * so "two call sites" is not read as "two readers". The floor for a
+     * tinted graphic is WCAG's 3:1, which the old value already cleared, so
+     * none of them was the reason for the ruling and all three improve:
+     *   - ScreenScaffold.uss:178, the resource pill's 12px charge glyph, on
+     *     a --teal-tint disc: 3.97:1 -> 5.22:1
+     *   - CostCtaRow.uss:41, the cost row's 13px glyph, on --surface:
+     *     4.49:1 -> 5.90:1
+     *   - InheritanceBar.uss:116, `.inheritance-bar__dot--teal`, a 6px fill
+     *     whose own note records that it is not held to a text floor */
+    --teal-text: #336b81;         /* not in the handoff's table - teal-on-light text, 5.22:1 on --teal-tint */
+
     --green: #7cc492;             /* Loam, success */
     --green-deep: #5aa87a;
     --green-tint: #e8f5ec;
@@ -75,12 +155,62 @@
     --amber: #e8b34a;             /* Apex / gold, warnings */
     --amber-bright: #ffb703;
     --amber-tint: #fdf1d8;
+
+    /* --amber-text ALSO CARRIES THE MutationBanner SPARKLE - fix round 1,
+     * Important 1. It did not always: this file used to add a seventh
+     * amber, --amber-bright-deep (#e7a324), reasoned from a measurement
+     * against the RAMP's own #f9e0a8 (1.4:1, disappears) and rejected
+     * --amber-text as "a brown at 8.0:1 [that] looks like a caution label".
+     * Both numbers were wrong for the same reason: the sparkle
+     * (MutationBanner.uss's `.mutation-banner__spark`) is not drawn on the
+     * ramp at all - it sits inside `.mutation-banner__disc`, a 24px
+     * `--surface` circle, inset from `.panel-amber`'s own --space-3 padding.
+     * Measured against the surface it is actually composited on, the two
+     * candidates are
+     *   --amber-bright-deep (#e7a324) on --surface = 2.17:1
+     *   --amber-text        (#7a5b12) on --surface = 6.30:1
+     * The sparkle is a tinted graphic (`-unity-background-image-tint-color`
+     * on a background image), not text, so its floor is WCAG's 3:1 for
+     * non-text UI components - and 2.17:1 fails it outright, by close to a
+     * third, rather than the near miss --teal-text used to be at 3.97:1 -
+     * that comparison is historical now, since Task 14's ruling took
+     * --teal-text to 5.22:1 and it no longer misses at all. --amber-text
+     * clears BOTH the 3:1 graphic floor and the 4.5:1 text floor with room
+     * to spare, and is already the ink `.mutation-banner__text` sets via
+     * `.t-warn` two words to the sparkle's right, so the fix also makes the
+     * banner's icon and its copy one ink instead of two. "Reads as a
+     * caution label" is a weaker argument than it first sounds, too:
+     * --amber-text is not a warning-only colour in this file - it is
+     * already the Skitter trait chip's ink and the InheritanceBar's amber
+     * dot and tag, i.e. the project's general amber ink, not a triangle's.
+     * --amber-bright-deep had no remaining reader once the sparkle moved
+     * off it, so it is deleted rather than left in the file unread -
+     * Tokens.uss's own note about --elev-2-spread spending a task unreferenced
+     * is the reason that was checked before deleting it. */
     --amber-text: #7a5b12;
     --coral: #e5867a;             /* Ember, danger */
     --coral-deep: #d4776a;
     --coral-tint: #fbeae7;
     --coral-text: #b3564a;
     --coral-alert: #ff6b5c;       /* breach state - hotter than --coral, HUD only */
+
+    /* THE CORAL BAND'S DEEP END, AND THE ONE VALUE `--coral-tint` CANNOT
+     * STAND IN FOR. Phase 9 Task 18. `Wave Defeat.dc.html:31` is the hero
+     * band in coral, `linear-gradient(170deg, #fbeee9, #f6e2e4)`, and this is
+     * its second stop - the colour `.hero-band--coral .hero-band__surface`
+     * fills with under `band-ramp-coral.png`, on `--violet-tint`'s own
+     * precedent in `HeroBand.uss` ("the colour under the image IS the ramp's
+     * own deep end ... what the band degrades to if the texture ever fails to
+     * import"). --coral-tint (#fbeae7) is 5+8+3 = 16 away from it in summed
+     * channel distance and is the handoff's own value for something else -
+     * the 22px disc behind the hull glyph (`Wave Defense.dc.html:34`,
+     * `Wave Defeat.dc.html:122`), which `DeployView` already reads. A ramp
+     * that ended on the disc's tint would span 6 from its own start and draw
+     * flat; this one spans 16, which is the gradient the handoff drew.
+     * The four blue-grey bands `HeroBand.cs` records need the same pair
+     * (#eef4f7 -> #e4eef4) and no screen in this phase draws one, so their
+     * tokens are not invented here. */
+    --coral-tint-deep: #f6e2e4;   /* HeroBand's coral ramp end - Wave Defeat.dc.html:31 */
     /* MOVED from the handoff's #a9b0c4 by Phase 8 Task 6, which is the only
      * value on this page that does not match the handoff table. Measured,
      * Vetch and Pale were the palette's worst pair under every viewer -
@@ -161,6 +291,88 @@
     --radius-card: 20px;
     --radius-cta: 15px;
 
+    /* THE HERO BAND'S OWN RADIUS, AND IT IS NOT --radius-card. Measured, at
+     * the line: `Onboarding.dc.html:43` and `Splice Reveal.dc.html:43` both
+     * set the band `border-radius: 26px`, six above the 20px every card in
+     * the bundle carries. That is the handoff saying the band is not a card -
+     * it is the one surface on a step screen that the subject is looked at
+     * inside, and a softer corner is how it says so.
+     *
+     * COUNTED ACROSS THE SIX INSTANCES RATHER THAN TAKEN FROM ONE. The
+     * `linear-gradient(170deg, #ffffff, ...)` band appears at 26px
+     * (`Onboarding:43`, `Splice Reveal:43`), 24px (`Gene Ark:47`,
+     * `Gene Lab:51`, `Hybrid Growth:48`) and 22px (`Splice Chamber:101`).
+     * 26 is taken because the two screens at 26 are the two that draw the
+     * band at FULL height with a subject centred in it, which is what this
+     * component is for; the four at 22-24 wrap a graphic or a padded column
+     * and are a shorter, denser surface. A screen that needs 24 or 22 writes
+     * it beside its own measurement, which is this file's standing rule for
+     * one-off geometry. */
+    --radius-band: 26px;
+
+    /* ---- Component geometry ----
+     *
+     * FOUR SIZES, AND THEY ARE HERE RATHER THAN IN A STYLESHEET BECAUSE TWO
+     * FILES EACH NEED THEM - plus --chip-height below them, which is here on
+     * a different test and says so in its own note. Everything else quoted
+     * from the handoff stays a literal beside the sentence it came from
+     * (ScreenScaffold.uss's header settled that convention and StatCell.uss
+     * restates it): the token layer holds the SCALE, and one-off geometry is
+     * written where it is read.
+     * These four are not one-off - a hero slot is sized in HeroSlot.uss and
+     * framed in the two screens that put a live portrait in one, a lane card
+     * is sized here and measured by the stage that renders into it, and a
+     * badge size decides its own radius. A number two files must agree on is
+     * a token. */
+    --hero-slot: 96px;            /* HeroSlot outer size - the handoff's 112px predicted-hybrid art circle at the 390 frame's 0.86 */
+    --hero-ring: 2px;             /* HeroSlot dotted ring width - the handoff's 1.6-2px ring stroke */
+    --lane-card-height: 274px;    /* LanePreviewCard - 4:3 at the 366px content width, the handoff's own 406x300 lane */
+    --field-badge: 18px;          /* FieldSlotRow letter badge - the handoff's 18px square */
+
+    /* THE CHIP'S BOX, AND IT IS A TOKEN THOUGH ONE FILE READS IT. Phase 9
+     * Task 16b. The paragraph above says one-off geometry is written where
+     * it is read, and by that rule this would be a literal in Theme.uss
+     * beside `.chip` - which is where `.pill`'s radius is. It is here
+     * instead because it is the opposite of one-off: `.chip` is worn by
+     * `TraitChip`, `GenChip`, `InheritanceBar`'s DOM/REC tag and
+     * `CampaignSelectView`'s Cleared chip today, on four captured screens,
+     * and Tasks 17-19 compose more. A number that decides whether four
+     * components match the handoff is the token layer's business, and
+     * naming it is what stops the next screen re-deriving its own.
+     *
+     * 20px IS MEASURED, NOT PICKED. `Splice Chamber.dc.html:67` is
+     * `padding: 3px 6px` on a 9.5px label, which is 3 + 12.9 + 3 = 19;
+     * `Creature Roster.dc.html:56` is `2px 6px` on 9px = 15. Our micro type
+     * is 10px and the gen chip's numeral is 11 (bible 10.6's floor), and
+     * Nunito-Bold SDF's line box is 1.36em - m_LineHeight 122.76 on
+     * m_PointSize 90 - so the handoff's own 3px padding on our 13.6px line
+     * box is 19.6. Theme.uss's `.chip` note has what it replaced and why the
+     * height has to be on the chip rather than on the label inside it. */
+    --chip-height: 20px;          /* Theme.uss `.chip` - Splice Chamber.dc.html:67's 3px padding on our 13.6px line box */
+
+    /* HeroBand's dashed ring, and a token on the same test as --hero-slot:
+     * two files have to agree on it. `generate-textures.py` DRAWS band-ring
+     * .png at 3x of this number, and `HeroBand.uss` sizes the element it is
+     * stretched into. Move one without the other and the ring's ink stops
+     * being 2px wide, which nothing in USS or the gates can see.
+     *
+     * 264 IS THE HANDOFF'S OWN NUMBER, NOT A RESCALE OF IT.
+     * `Onboarding.dc.html:45` draws `<circle cx="203" cy="168" r="132">` in a
+     * `viewBox="0 0 406 336"` with no `preserveAspectRatio`, so it meets the
+     * band's box and the ring is 264px across a 406px band. This project's
+     * content column IS 406px at the 430 capture frame - the scaffold's
+     * --gutter on each side of 430 - so the proportion carries over at 1:1
+     * and there is nothing to scale. (--hero-slot's 0.86 is a separate and
+     * older decision about the SUBJECT inside the ring, not about the band.)
+     *
+     * THE OTHER TWO BAND RINGS ARE 280 AND 208 and are not this token.
+     * `Splice Reveal.dc.html:45` is r 140 and `Hybrid Growth.dc.html:50` is
+     * r 104; because the texture is stretched, a screen that wants either
+     * writes its own width beside its own measurement and gets the same 52
+     * dashes at a different scale. generate-textures.py's band-ring block has
+     * why one texture serves all three. */
+    --band-ring: 264px;           /* HeroBand dotted ring - Onboarding.dc.html:45, circle r 132 in a 406 viewBox */
+
     /* ---- Elevation. USS has no box-shadow; these tint a nine-slice. ---- */
     --elev-1-tint: rgba(63, 58, 82, 0.06);   /* handoff: 0 2px 8px  */
     --elev-2-tint: rgba(63, 58, 82, 0.09);   /* handoff: 0 4px 16px */
@@ -185,8 +397,41 @@
     --motion-screen: 220ms;    /* Motion.uss: push, pop, sheet, reveal */
 
     /* ---- Type scale (bible 10.6: 11px floor on decision-bearing numbers) ---- */
+    /* --text-card-hero IS THE HEADING OF A CARD THAT IS CARRYING THE SCREEN,
+     * on a screen that has no page header of its own to carry it.
+     *
+     * MEASURED, AND AT THE LINE: `Onboarding.dc.html:161` sets the step
+     * card's title `font-family: 'Baloo 2'; font-weight: 700; font-size:
+     * 26px; line-height: 1.1; letter-spacing: -.01em`, directly under the
+     * `.lbl` kicker on line 160 and directly over the 13px body on line 162.
+     * That screen draws no header at all - its first row is the progress
+     * pips - so the 26 is NOT a page title and must not be confused with one.
+     *
+     * NOT A ONE-OFF, WHICH IS WHY IT IS A SCALE STEP RATHER THAN A LITERAL.
+     * `Splice Reveal.dc.html:40` sets its headline at the same 26px Baloo
+     * 700 with the same `line-height: 1.1; letter-spacing: -.01em`, and
+     * `Splice World Map v2.dc.html:240` sets a region name at 26/1.12. The
+     * steps either side are --text-hero (28) and --text-screen-title (21),
+     * so rounding to one of them would move the handoff's own number by 2
+     * or 5.
+     *
+     * COUNTED HONESTLY: the bundle holds four more 26px Baloo lines and they
+     * are NOT headings - `Alliance Hub.dc.html:239` is the stat "18",
+     * `Gene Lab Event.dc.html:195` is "$6.99",
+     * `Splice World Map v2.dc.html:244` is a multiplier, and
+     * `Broodline Index.dc.html:61/78` are the doc index's own cards rather
+     * than a game screen. Numerals in this project take Nunito and `.t-num`,
+     * never the display face, so none of those four is a reader of this
+     * token.
+     *
+     * IT IS NOT --text-screen-title AND DOES NOT REPLACE IT. Every handoff
+     * screen that HAS a page header titles it at 20-21px -
+     * `Creature Roster.dc.html:31` is 21px, and `Gene Ark`, `Splice Chamber`
+     * and `Wave Defense` agree - which is exactly --text-screen-title. Four
+     * of this project's screens already match it. */
     --text-screen-title: 21px;
     --text-hero: 28px;
+    --text-card-hero: 26px;
     --text-section: 19px;
     --text-card-title: 13px;
     --text-body: 12px;

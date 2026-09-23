@@ -48,7 +48,13 @@ namespace Broodline.Game.Shell
             _http.DefaultRequestHeaders.Add("Authorization", "Bearer " + token);
         }
 
-        public async Task<PlayerSnapshot> ColdStartAsync()
+        /// `onRetry` is handed straight to `BroodlineClient.ColdStartAsync`,
+        /// which retries `GET /v1/sync` past a cold backend. `BootController`
+        /// passes one so the first launch of the day says something while it
+        /// waits; `FtueDirector`'s re-sync leaves it null, because the
+        /// director already has its own sentence for a beat that did not
+        /// land.
+        public async Task<PlayerSnapshot> ColdStartAsync(Action<int, Exception> onRetry = null)
         {
             var cached = _snapshots.Load();
             if (cached != null)
@@ -66,13 +72,17 @@ namespace Broodline.Game.Shell
             var client = new BroodlineClient(Api.BaseUrl, _http);
             try
             {
-                Snapshot = await client.ColdStartAsync(tokens.AccessToken, Application.version);
+                Snapshot = await client.ColdStartAsync(tokens.AccessToken, Application.version, onRetry);
             }
             catch (BroodlineApiException e) when (e.StatusCode == 401)
             {
+                // STILL REACHED WITH THE RETRY IN PLACE. `Retry.IsTransient`
+                // is false for every 4xx, so a 401 comes straight out of the
+                // call above on the first attempt rather than being retried
+                // four times into the same refusal.
                 tokens = await RefreshAsync(tokens);
                 SetBearer(tokens.AccessToken);
-                Snapshot = await client.ColdStartAsync(tokens.AccessToken, Application.version);
+                Snapshot = await client.ColdStartAsync(tokens.AccessToken, Application.version, onRetry);
             }
 
             _snapshots.Save(Snapshot);

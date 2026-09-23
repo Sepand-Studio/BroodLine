@@ -1,7 +1,41 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
     <ui:Style src="WaveDefeatView.uss" />
-    <ui:Label name="headline" class="wave-defeat-view__headline t-hero t-danger" />
+    <!-- THE BAND'S FOUR PIECES, IN THE HANDOFF'S ORDER (`Wave Defeat.dc.html
+         :40-56`): the kicker, the verdict, the sentence that explains it, and
+         three cells. They are authored here and re-parented into the HeroBand
+         the view composes, which is the arrangement every screen in this phase
+         uses - one tree, one place each element is written down. -->
+    <!-- NAMED `kicker` AND NOT `eyebrow`, WHICH IS A COLLISION THIS SCREEN
+         WOULD OTHERWISE HAVE. `ScreenScaffold` owns a Label named
+         `eyebrow` inside `#header`, and the header is HIDDEN on this
+         screen rather than removed - so both would answer `Q("eyebrow")`
+         and the hidden one, being earlier in the traversal, would win.
+         `SpliceRevealView` hit the same pair first and calls its own
+         `kicker`; `DeployView`'s `lane-card` note has the general rule. -->
+    <ui:Label name="kicker" class="wave-defeat-view__kicker t-micro t-danger" />
+    <ui:Label name="verdict" class="wave-defeat-view__verdict t-hero t-danger" />
+    <ui:Label name="headline" class="wave-defeat-view__headline t-card-title t-danger" />
+    <ui:VisualElement name="stats" class="wave-defeat-view__stats" />
+
+    <!-- `t-micro` ALONE: the handoff's `.lbl` carries all four of this
+         heading's values (10px, the mute ink, bold, the uppercase tracking)
+         and nothing else about it is this screen's, so it wears no BEM class.
+         It had one until fix round 1 and no rule ever matched it.
+
+         NO DOUBLE HYPHEN IN A UXML COMMENT, WHICH COST A TEST RUN. XML
+         forbids a double hyphen inside a comment, so naming a custom property
+         here the way every .uss comment in this project names one makes the
+         document malformed. Unity does not fail the build or redden any gate
+         for it. The importer RECOVERS PARTIALLY: the asset still loads,
+         `CloneTree` still runs, and some elements simply are not there, so
+         the defect surfaces as a NullReferenceException in whichever test
+         happens to query one of the missing ones (here: `verdict` and
+         `counter`, while every other element resolved).
+         `check-stylesheets.sh` cannot see it, because it reads .uss. Name
+         custom properties in prose inside a .uxml. -->
+    <ui:Label name="diagnosis-heading" class="t-micro" />
     <ui:Label name="diagnosis" class="wave-defeat-view__diagnosis t-card-title" />
+
     <ui:VisualElement name="resupply" class="wave-defeat-view__resupply">
         <ui:Label name="granted" class="wave-defeat-view__granted t-secondary t-success" />
         <ui:VisualElement name="grants" class="wave-defeat-view__grants" />

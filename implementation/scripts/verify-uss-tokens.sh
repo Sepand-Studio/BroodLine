@@ -75,12 +75,47 @@ fi
 
 # --- 2. The 11px numeral floor. bible 10.6. --------------------------------
 # --text-micro is 10px. Any rule that sets .t-num must not use it.
+#
+# THROUGH strip_comments, FOR THE THIRD TIME IN THIS FILE AND THE SAME
+# REASON. Check 1 was written with the comment-stripping pass inline because
+# Theme.uss QUOTES the handoff's `#5b4d9e` in its header; check 3 gained it
+# after reddening on a stylesheet documenting a token that had just been
+# retired. This check was the last one still reading raw lines, and it went
+# the same way the moment two component sheets explained, in prose, why they
+# set a `.t-num` label ABOVE the floor and which token the floor actually
+# forbids. Naming --text-micro in a sentence beside the words `.t-num` is a
+# file being honest about the rule; a lint that fails on that makes the
+# honesty the defect.
+#
+# THE STRIPPED PASS IS ALSO STRICTLY MORE CORRECT, not merely quieter. This
+# awk arms `inrule` on ANY line containing `.t-num` and disarms it only on a
+# `}`, so a comment mentioning the class used to arm it and then flag a
+# --text-micro in a rule several declarations later that has nothing to do
+# with a numeral. Stripped, only a real selector arms it.
+#
+# VERIFIED BY BREAKING IT, not by trusting the reasoning: appending
+# `.gen-chip .t-num { font-size: var(--text-micro); }` to a real component
+# sheet still reddens this check, at the right file and the right line, and
+# removing it returns it to green.
+#
+# WHAT IT DOES NOT SEE, WHICH THAT EXPERIMENT ALSO ESTABLISHED AND WHICH WAS
+# TRUE BEFORE THIS CHANGE TOO. This check only arms on a SELECTOR that names
+# `.t-num`. A component that carries the class in its UXML and then sizes the
+# same Label through its OWN class - `.gen-chip .gen-chip__label { font-size:
+# var(--text-micro); }` - sets a numeral to 10px and passes silently, because
+# nothing in the stylesheet ever says `.t-num`. Phase 9 Task 13 added three
+# such overrides (the resource pill's value, the inheritance bar's odds, the
+# cost row's cost) and all three go UP, to 15, 13 and 17. A future one going
+# down is outside this check's reach; closing that would mean reading the
+# UXML to learn which elements carry the class, which this script cannot do.
+# Stated so the gate is not trusted for more than it checks.
 micro=$(printf '%s\n' "$sheets" | while read -r f; do
-  awk -v F="$f" '
-    /\.t-num/            { inrule=1 }
-    inrule && /--text-micro/ { printf "%s:%d: %s\n", F, NR, $0 }
-    /}/                  { inrule=0 }
-  ' "$f"
+  strip_comments "$f" | awk -v F="$f" '
+    { n = $0; sub(/^[0-9]+:/, "", n) }
+    n ~ /\.t-num/            { inrule=1 }
+    inrule && n ~ /--text-micro/ { split($0, p, ":"); printf "%s:%s: %s\n", F, p[1], n }
+    n ~ /}/                  { inrule=0 }
+  '
 done)
 if [ -z "$micro" ]; then
   ok "no .t-num rule uses --text-micro (the 10px token)"

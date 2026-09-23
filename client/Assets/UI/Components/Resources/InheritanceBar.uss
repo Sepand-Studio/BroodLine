@@ -1,0 +1,136 @@
+/* One forecast row, quoted from `Splice Chamber.dc.html`:
+ *
+ *     display: flex; align-items: center; gap: 9px;
+ *       <span 7x7, border-radius 2, background #4b8ba6>
+ *       <div flex:1>  trait 12px/800  ...  78% Baloo 13px
+ *                     <track 6px 999px #f0ecf7><fill 78% #6ba7c0>
+ *       <span DOM 9px/800, .06em, #4b8ba6 on #e7f3f9, radius 5, pad 2 5>
+ *
+ * THE DOT IS 7px AND ROUNDED BY 2, NOT A 10px CIRCLE. Both numbers are the
+ * handoff's. A 2px radius on a 7px square is a rounded square rather than a
+ * dot, which is the shape it uses for a species MARK everywhere - the
+ * defender tray's energy dots, the field row badges - and a circle at that
+ * size reads as a bullet point instead.
+ *
+ * THE BAR IS A `ProgressBar`, ADDED IN C# RATHER THAN DECLARED HERE, because
+ * a UXML `<ui:ProgressBar>` would instantiate UnityEngine.UIElements' type
+ * rather than this project's - the same collision ProgressBar.cs's class
+ * comment documents, in the one place where it would not even produce a
+ * compile error.
+ */
+.inheritance-bar {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    margin-top: 9px;
+}
+
+/* 2px is the handoff's own radius on this mark, not half of anything - a
+ * softened square rather than a circle. */
+.inheritance-bar__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 2px;
+    flex-shrink: 0;
+    background-color: var(--mute-soft);
+    margin-right: 9px;
+}
+
+.inheritance-bar__stack {
+    flex-direction: column;
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 0;
+    margin-right: 9px;
+}
+
+/* `space-between` puts the trait at the left and the odds at the right, so
+ * three stacked rows put their percentages in a column that can be read
+ * down. That column is why the odds carry `t-num`.
+ *
+ * `flex-end`, AND THE HANDOFF ASKS FOR `baseline`. UI Toolkit has no
+ * baseline alignment - `align-items: baseline` imports as
+ *
+ *     warning: Expected (flex-start | flex-end | center | stretch | auto)
+ *              but found 'baseline'
+ *
+ * and the declaration is DROPPED, leaving the row at the default `stretch`.
+ * Nothing fails: the sheet compiles, check-stylesheets.sh stays green
+ * (it greps for "USS parsing error", and this is a warning), every test
+ * passes and the capture renders. This was caught by READING THE IMPORT LOG,
+ * which is the same way Theme.uss's calc() note was written and the same
+ * class of defect Tokens.uss's four unread LineBreakUnexpected warnings
+ * were - a phase exists partly because one of those went unread for seven
+ * phases.
+ *
+ * flex-end is the closest of the five: the trait sits at --text-body (12px)
+ * and the odds at --text-card-title (13px), so bottom-aligning them puts the
+ * two baselines within about half a pixel, where `center` would put the
+ * smaller one half a pixel low instead. Either is a rounding error at this
+ * size; what matters is that a value USS actually has is written here rather
+ * than one it silently discards. */
+.inheritance-bar__line {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: var(--space-1);
+}
+
+.inheritance-bar__trait {
+    color: var(--ink);
+    flex-shrink: 1;
+}
+
+/* TWO CLASSES, to beat `.t-num`'s own --text-secondary deterministically
+ * rather than by sheet order. 13px is the handoff's size for this readout
+ * and it is above the 11px floor, which is a floor and not a ceiling -
+ * ScreenScaffold.uss's resource-pill note has the full argument and the one
+ * place StatCell declined to make it. */
+.inheritance-bar .inheritance-bar__odds {
+    font-size: var(--text-card-title);
+    color: var(--ink);
+}
+
+/* The DOM/REC tag. `.chip` from Theme.uss gives it the shape; these give it
+ * the family, and both halves are set on the Label itself because the tag IS
+ * a Label - the child-inherits-ink problem GenChip.uss describes does not
+ * arise when the class is on the text element. */
+.inheritance-bar .inheritance-bar__tag {
+    flex-shrink: 0;
+    font-size: var(--text-micro);
+    /* `.06em` in the handoff, against `.t-micro`'s `.1em` - the same half
+     * step TraitChip.uss takes and for the same reason. DOM and REC are
+     * three-letter words and a wide track makes them read as three
+     * initials. */
+    letter-spacing: 0.5px;
+    /* Cancels `.chip`'s bold; the face is already Nunito-Bold and asking for
+     * bold on top of it is a synthetic dilation. See GenChip.uss. */
+    -unity-font-style: normal;
+}
+
+/* The six families, dot and tag together, in the same order and from the
+ * same table as TraitChip.uss and HeroSlot.uss. The DOT takes the darker
+ * `-text` ink and the BAR takes the lighter species colour, which is the
+ * handoff's own pairing (#4b8ba6 dot over a #6ba7c0 fill): the mark is 7px
+ * and needs the contrast, the bar is 6px x 300 and does not. */
+.inheritance-bar__dot--teal   { background-color: var(--teal-text); }
+.inheritance-bar__dot--coral  { background-color: var(--coral-text); }
+.inheritance-bar__dot--amber  { background-color: var(--amber-text); }
+.inheritance-bar__dot--violet { background-color: var(--violet-text); }
+.inheritance-bar__dot--green  { background-color: var(--green-text); }
+.inheritance-bar__dot--mute   { background-color: var(--mute); }
+
+.inheritance-bar .inheritance-bar__tag--teal   { background-color: var(--teal-tint);   color: var(--teal-text); }
+.inheritance-bar .inheritance-bar__tag--coral  { background-color: var(--coral-tint);  color: var(--coral-text); }
+.inheritance-bar .inheritance-bar__tag--amber  { background-color: var(--amber-tint);  color: var(--amber-text); }
+.inheritance-bar .inheritance-bar__tag--violet { background-color: var(--violet-tint); color: var(--violet-text); }
+.inheritance-bar .inheritance-bar__tag--green  { background-color: var(--green-tint);  color: var(--green-text); }
+/* --hairline rather than --divider for the neutral tag, which is one step
+ * further from the handoff's own #f2eff8 (16 in summed channel distance
+ * against 6) and was chosen against it deliberately. Measured on the first
+ * Vocabulary capture: at --divider the REC tag read as a label with no chip
+ * behind it at all on --paper, where its two DOM siblings above it clearly
+ * had one - so the row that is supposed to say "this trait is recessive"
+ * instead said "this row is unfinished". --hairline is the token whose job
+ * is exactly an edge that has to be visible on white. */
+.inheritance-bar .inheritance-bar__tag--mute   { background-color: var(--hairline);    color: var(--ink); }

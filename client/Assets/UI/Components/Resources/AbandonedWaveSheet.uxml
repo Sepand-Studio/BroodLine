@@ -1,0 +1,12 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="AbandonedWaveSheet.uss" />
+    <ui:VisualElement name="scrim" class="abandoned-wave-sheet__scrim" />
+    <ui:VisualElement name="card" class="abandoned-wave-sheet__card elev-2">
+        <ui:VisualElement name="surface" class="abandoned-wave-sheet__surface">
+            <ui:Label name="eyebrow" class="abandoned-wave-sheet__eyebrow t-micro" />
+            <ui:Label name="headline" class="abandoned-wave-sheet__headline t-section" />
+            <ui:Label name="body" class="abandoned-wave-sheet__body t-body" />
+            <ui:Button name="forfeit" class="btn-primary" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

@@ -48,14 +48,119 @@
     margin-right: var(--space-1);
 }
 
-/* No rule for `.stat-cell__label`: `t-micro` already carries all four of the
- * handoff's values for it - 10px, --mute, bold, and the uppercase tracking.
+/* HEIGHT ON THE BOX, NEVER ON THE LABEL'S OWN MEASUREMENT - Phase 9 Task
+ * 16b's rule, and this cell is the FIFTH instance of the defect it was written
+ * for. `.chip` was the first, the splice chamber's `PARENT A` eyebrow the
+ * second, and `.deploy-view__pill-label`/`-value` the third and fourth.
+ *
+ * MEASURED, NOT REASONED. On the first Task 18 capture of
+ * `WaveDefeatView.png` at the 430 frame, a cell's white surface ran
+ * y=171..248 - 78px - against the handoff's 50 (`Wave Defeat.dc.html:44-46`:
+ * `padding: 9px 11px`, a 9px `.lbl` and a 19px value at `line-height: 1.05`).
+ * 78 is 9 + 9 of padding, 3 of `__value-line`'s own margin, and FIFTY-SEVEN
+ * for two Labels that measure 28.6 between them: exactly 16b's shape, a Label
+ * that is a CHILD of a column rather than the box itself, measuring 28.6
+ * where its own line box is 14.
+ *
+ * *** "TWO LINE BOXES" WAS THE WRONG MODEL, AND TASK 20 MEASURED IT. ***
+ * `LabelBoxProbe` (implementation/scripts/probe-label-box.sh) reports, on a
+ * real panel: a bare Label at 10px carries resolvedStyle padding 4/4 and
+ * margin 4/2 FROM UNITY'S OWN DEFAULT RUNTIME THEME, around a 13.6 -> 14
+ * line box. Its border box is 4 + 14 + 4 = 22; its MARGIN box is
+ * 4 + 22 + 2 = 28. So 28 is not two line boxes - it is 14px of fixed theme
+ * chrome around ONE. The two readings agree to within 0.8px (2 x 13.6 =
+ * 27.2), which is exactly why the wrong model survived six sightings.
+ *
+ * THAT IS ALSO WHY THE OVERHEAD IS NOT LINEAR: the chrome is a CONSTANT
+ * 14px, independent of font-size, so it cannot scale with the line box. The
+ * parent is irrelevant - the probe measured the identical Label at 22px in a
+ * row parent, a column parent, stretched, unstretched, and with
+ * `white-space: nowrap`. Zeroing the Label's own padding and margin yields
+ * 14, the bare line box; that turns `TraitPip` from 34px into 20px, which is
+ * `TraitChip`'s height exactly.
+ *
+ * 14 AND 15 ARE THE AUTHORED LINE BOXES, ROUNDED UP. Nunito-Bold SDF is
+ * m_LineHeight 122.76 on m_PointSize 90 = 1.36em (`Nunito-Bold SDF
+ * .asset:149,152`, measured in Theme.uss's chip block): --text-micro (10px) x
+ * 1.36 = 13.6 -> 14, and `t-num`'s --text-secondary (11px) x 1.36 = 15.0.
+ * Up rather than down, because a height UNDER the line box clips descenders.
+ * 9 + 14 + 3 + 15 + 9 = 50, which is the handoff's number for this cell.
+ *
+ * `-unity-text-align: middle-left` IS THE OTHER HALF OF THE RULE. A height on
+ * its own pins the box and leaves the glyphs hanging from its top edge.
+ *
+ * THE VALUE'S HEIGHT IS ON THE ROW AS WELL AS ON THE LABEL, and the row is the
+ * one that moved the number. Measured across three captures of the same
+ * fixture: 78 with neither, 62 with the Label's height alone, 56 with both.
+ * `__value-line` is the BOX the value Label is a child of, which is exactly
+ * what 16b's rule names; the Label's own height stays because the row holds a
+ * trend arrow too and a bare row height would let a taller Label push out of
+ * it.
+ *
+ * AND 56 IS NOT 50. The residual is 6px per cell and it is the SAME 6px Task
+ * 17 measured and could not account for either ("the last 6px to 51 came from
+ * pinning the surface, and no declaration in the sheet accounts for it" -
+ * `DeployView.uss`'s pill note, report §6.6). Probed here rather than left as
+ * a shrug: with both heights set to 0 the cell measures 13px where 9 + 3 + 9
+ * of padding and margin predict 21, so the overhead is NOT a constant added
+ * to each box and the relationship is not linear. The block above has the
+ * mechanism; this cell's own 13-vs-21 figure was NOT re-measured by Task 20's
+ * probe and is left as the capture recorded it.
+ *
+ * IT REACHES FOUR SCREENS AND THAT IS THE POINT. `RegionView`, `DeployView`,
+ * `PostWaveView` and `WaveDefeatView` all draw this cell, and all four were
+ * 28px over per cell. Fixing it on one screen's sheet would have left the
+ * other three wrong and the component still carrying the defect - which is
+ * `--chip-height`'s own argument, one component over.
+ *
+ * NO FONT-SIZE HERE, WHICH IS UNCHANGED. `t-micro` still carries all four of
+ * the handoff's values for the label - 10px, --mute, bold, the uppercase
+ * tracking - and the value's size and tabular face still come from `t-num`.
+ * This rule sets a box, not type.
  *
  * The value's own rule is layout plus the handoff's ink; its size and its
  * tabular face come from `t-num`, per the note at the head of this file. */
-.stat-cell__value {
+/* THE VALUE IS A ROW NOW, NOT A LABEL, so a trend arrow can sit beside the
+ * number instead of under it - the handoff's `B+ ▲` and `C ▼`. The 3px that
+ * used to be the value's own top margin moves here, because the row is what
+ * follows the label.
+ *
+ * `align-items: center` rather than `baseline`: the arrow is a background
+ * image with no baseline of its own, and a flex item without one is aligned
+ * by its bottom edge, which drops a triangle below the digits it belongs to. */
+.stat-cell__value-line {
+    flex-direction: row;
+    align-items: center;
     margin-top: 3px;
+    height: 15px;
+}
+
+.stat-cell__label {
+    height: 14px;
+    -unity-text-align: middle-left;
+}
+
+.stat-cell__value {
     color: var(--ink);
+    height: 15px;
+    -unity-text-align: middle-left;
+}
+
+/* TWO CLASSES, to beat icons.uss's 19px without depending on which sheet the
+ * panel applies last - the rule every override of a Theme/icons class in
+ * this phase follows. 11px is the handoff's own 10px arrow rounded to the
+ * nearest whole pixel a 57px raster halves cleanly into, and it sits beside
+ * an 11px value.
+ *
+ * NO TINT HERE. `icon--trend-up` and `icon--trend-down` carry their own
+ * green and coral in icons.uss, so a cell that forgot one would get
+ * `.icon`'s --mute-soft and read as a disabled arrow rather than as no
+ * arrow. Setting a colour here as well would mean two files deciding it. */
+.stat-cell .stat-cell__trend {
+    width: 11px;
+    height: 11px;
+    margin-left: var(--space-1);
+    flex-shrink: 0;
 }
 
 /* THERE IS NO `.stat-cell-row` RULE IN THIS FILE, AND THERE CANNOT BE ONE.

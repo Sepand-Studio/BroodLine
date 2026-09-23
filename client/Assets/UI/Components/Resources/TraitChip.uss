@@ -1,0 +1,97 @@
+/* Six species, six tints, and the table is bible 1.2's colour column read
+ * straight across: Vetch teal, Ember coral, Skitter amber, Hollow violet,
+ * Loam green, Pale neutral.
+ *
+ * TWO CLASSES ON EVERY RULE BELOW, AND IT IS NOT STYLE. A single
+ * `.trait-chip--vetch` would tie with Theme.uss's `.chip` on specificity -
+ * both are one class - and which one won would come down to the order the
+ * panel happened to apply the two sheets in, which nothing in UI Toolkit
+ * states and nothing in this project tests. Two classes (0,2,0) beats one
+ * (0,1,0) under any order. Every override of a Theme.uss or icons.uss class
+ * from a component sheet in this task is written this way.
+ *
+ * THE FILL IS ON THE CHIP AND THE INK IS ON THE LABEL, which is not
+ * symmetry for its own sake: colour inherited from the chip loses to
+ * Theme.uss's `Label { color: var(--ink); }`, because a direct rule beats an
+ * inherited value whatever the ancestor's specificity was. GenChip.uss's
+ * header has the long form. `TraitPip` found this out first.
+ *
+ * PALE IS THE ONE THAT IS NOT ITS SPECIES COLOUR. --slate (#c6cede) is a
+ * mid grey-blue with no tint token and no text token, and the handoff's own
+ * neutral chip is #f2eff8 on #8d86a0 - a 3.0:1 grey on grey. This uses
+ * --hairline and --ink instead, at 9.2:1. The trait NAME is the information
+ * in a chip and it is the only copy of it on the card; bible 10.4's "colour
+ * never carries information alone" cuts the other way here - the chip is
+ * readable without its tint, so the tint is free to be the one that keeps it
+ * readable.
+ *
+ * --hairline RATHER THAN --surface-sunk, AND THE CAPTURE DECIDED IT. The two
+ * are equally far from the handoff's own #f2eff8 (16 and 17 in summed channel
+ * distance), so the tie went to the first Vocabulary capture: on --paper,
+ * --surface-sunk (#f8f6fc) is 4 away from the page and the Pale chip read as
+ * a bare label with no chip behind it while its five siblings clearly had
+ * one. A chip whose tint says "neutral" still has to say "chip".
+ */
+.trait-chip {
+    align-self: flex-start;
+    flex-shrink: 0;
+    /* The handoff's `gap: 4px` between chips, owned by the chip because USS
+     * has no gap and no :last-child. Half on each side, as StatCell does,
+     * so a row of them does not leak a trailing margin. */
+    margin-left: 2px;
+    margin-right: 2px;
+
+    /* THE BORDER IS HERE IN BOTH STATES, AT THE SAME WIDTH - fix round 1,
+     * Minor 3, and FieldSlotRow.uss's border note already found this exact
+     * problem and said why: a base rule with no border and an `.aberrant`
+     * rule that adds one makes an aberrant chip 2px taller than every other
+     * chip in the same row, the instant tier goes null. Transparent so it
+     * costs nothing on the five chips that never turn it on. */
+    border-width: 1px;
+    border-color: rgba(0, 0, 0, 0);
+}
+
+.trait-chip__label {
+    color: var(--violet-text);
+    font-size: var(--text-micro);
+
+    /* HALF `.t-micro`'s TRACKING, and the handoff draws the difference: its
+     * uppercase `.lbl` labels are `.1em` while its chips are `.06em` to
+     * `.08em`. A chip is mixed-case running text ("Carapace III"), not a
+     * label, and 1px of tracking at 10px pulls its letters apart into
+     * something that reads as a caption. 0.5px is `.05em` here, at the
+     * bottom of the handoff's own chip range. */
+    letter-spacing: 0.5px;
+
+    /* Cancels `.chip`'s inherited bold. The face is already Nunito-Bold, so
+     * `bold` on top of it is a synthetic 0.75 dilation that closes counters
+     * at 10px - GenChip.uss's label rule has the full account, and
+     * Theme.uss's note under `Label` is where it was first written down. */
+    -unity-font-style: normal;
+}
+
+.trait-chip.trait-chip--vetch   { background-color: var(--teal-tint); }
+.trait-chip.trait-chip--ember   { background-color: var(--coral-tint); }
+.trait-chip.trait-chip--skitter { background-color: var(--amber-tint); }
+.trait-chip.trait-chip--hollow  { background-color: var(--violet-tint); }
+.trait-chip.trait-chip--loam    { background-color: var(--green-tint); }
+.trait-chip.trait-chip--pale    { background-color: var(--hairline); }
+
+.trait-chip--vetch   .trait-chip__label { color: var(--teal-text); }
+.trait-chip--ember   .trait-chip__label { color: var(--coral-text); }
+.trait-chip--skitter .trait-chip__label { color: var(--amber-text); }
+.trait-chip--hollow  .trait-chip__label { color: var(--violet-text); }
+.trait-chip--loam    .trait-chip__label { color: var(--green-text); }
+.trait-chip--pale    .trait-chip__label { color: var(--ink); }
+
+/* An Aberrant carries no coverage tier at all (data_model 2), so the chip
+ * that shows one has no roman numeral to distinguish it from a tier-less
+ * Instinct. The outline is what says "this is different" without spending
+ * the species tint that says whose it is - the same treatment
+ * `.trait-pip.aberrant` already uses, in the same --violet-pale, so the two
+ * marks read as one idea across the two components. */
+.trait-chip.aberrant {
+    /* Width is set once, on the base rule above, so turning this on never
+     * changes the chip's height - only the border's colour moves. */
+    border-color: var(--violet-pale);
+}

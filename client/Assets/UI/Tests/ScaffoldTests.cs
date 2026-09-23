@@ -142,6 +142,132 @@ namespace Broodline.UI.Tests
             Assert.AreEqual(DisplayStyle.Flex, s.Q<Label>("footer-note").resolvedStyle.display);
         }
 
+        /// THE HANDOFF'S HEADER IS THREE THINGS AND THE SCAFFOLD CARRIED
+        /// ONE. Every screen in the bundle puts an eyebrow over its title
+        /// ("Gene Lab" over "Splicing Chamber", "Hollow Reach · defense" over
+        /// "Wave 7") and most put a resource readout at the right edge. Both
+        /// were missing, and ten screens were composing a header that said
+        /// less than the design's.
+        ///
+        /// THE TEN EXISTING SCREENS MUST NOT MOVE, which is what the rest of
+        /// this file asserts and why both additions are opt-in: a scaffold
+        /// built the old way gets a hidden eyebrow and no pill at all.
+        [Test]
+        public void Scaffold_ShowsAnEyebrow_AndAResourcePill_WhenGiven()
+        {
+            var s = new ScreenScaffold("Splicing Chamber", eyebrow: "Gene Lab");
+            Assert.AreEqual("Gene Lab", s.Q<Label>("eyebrow").text);
+            Assert.AreEqual(DisplayStyle.Flex, s.Q<Label>("eyebrow").style.display.value);
+
+            s.SetResourcePill("icon--charge", "4", "/5");
+            Assert.AreEqual("4", s.Q<Label>("pill-value").text);
+            Assert.IsTrue(s.Q<Label>("pill-value").ClassListContains("t-num"),
+                "the charge count is a number a decision depends on - bible 10.6's floor and tabular face "
+                + "are enforced through this marker and nothing else");
+            Assert.AreEqual("/5", s.Q<Label>("pill-suffix").text);
+            Assert.IsNotNull(s.Q<VisualElement>(className: "icon--charge"), "the pill has no glyph");
+            Assert.IsNotNull(s.HeaderSlot.Q<VisualElement>("resource-pill"),
+                "the pill belongs to the header slot, so a screen that wants something else there can "
+                + "still have it");
+
+            // A RE-BOUND SCREEN MUST NOT GROW A SECOND PILL. The charge count
+            // changes every splice, so this is called again and again on one
+            // scaffold.
+            s.SetResourcePill("icon--charge", "3", "/5");
+            Assert.AreEqual(1, s.Query<VisualElement>("resource-pill").ToList().Count);
+            Assert.AreEqual("3", s.Q<Label>("pill-value").text);
+
+            s.SetResourcePill(null, null);
+            Assert.IsNull(s.Q<VisualElement>("resource-pill"),
+                "a screen with no resource to state kept an empty white pill in its header");
+        }
+
+        /// The state every screen written before this task is in, asserted
+        /// rather than assumed: ten of them pass no eyebrow and no pill, and
+        /// this change has to be invisible to all ten.
+        [Test]
+        public void AScaffoldWithNoEyebrowReservesNoRowForOne()
+        {
+            var s = new ScreenScaffold("Roster");
+            Assert.AreEqual(DisplayStyle.None, s.Q<Label>("eyebrow").style.display.value);
+            Assert.IsNull(s.Q<VisualElement>("resource-pill"));
+
+            s.Eyebrow = "Hatchery";
+            Assert.AreEqual(DisplayStyle.Flex, s.Q<Label>("eyebrow").style.display.value);
+            s.Eyebrow = null;
+            Assert.AreEqual(DisplayStyle.None, s.Q<Label>("eyebrow").style.display.value,
+                "clearing the eyebrow left its row behind");
+        }
+
+        /// A SCREEN WITH NO TITLE HAS NO PAGE HEADER, which is two handoff
+        /// screens and two only.
+        ///
+        /// `Onboarding.dc.html` starts its column with the progress row (line
+        /// 33) and puts its 26px Baloo heading inside the white card (line
+        /// 161). `Splice Reveal.dc.html:38-41` is the same shape and joined
+        /// it in Phase 9 Task 16b - a centred kicker over a 26px headline
+        /// with nothing above it. Every other screen in the bundle has a
+        /// header and titles it at 20-21px - `Creature Roster.dc.html:31` is
+        /// 21 - which is what `--text-screen-title` already is. So this is
+        /// about the presence of a header, never about the size of a title.
+        ///
+        /// THE SECOND HALF IS WHAT KEEPS IT FREE FOR THE TITLED SCREENS.
+        /// All six pass a non-empty literal, so none can reach the hidden
+        /// branch; asserted rather than reasoned about. (This said EIGHT
+        /// while the sweep below asserted seven - a number written twice and
+        /// maintained once. It reads off the sweep now.)
+        ///
+        /// `style.display.value` RATHER THAN `resolvedStyle`: no panel here,
+        /// and `Flex` is also the default computed value, so a resolvedStyle
+        /// read would pass on a scaffold that had never set anything.
+        [Test]
+        public void AScaffoldWithNoTitleDrawsNoPageHeaderAtAll()
+        {
+            var bare = new ScreenScaffold(title: null);
+            Assert.AreEqual(DisplayStyle.None, bare.Q<VisualElement>("header").style.display.value,
+                "a titleless scaffold still drew the header row, so a screen composing the handoff's "
+                + "headerless onboarding gets a band of empty chrome above its first card");
+            Assert.AreEqual(string.Empty, bare.Q<Label>("title").text);
+
+            // Empty reads the same as null. A screen saying `""` means the
+            // same thing and must not get a different frame for it.
+            Assert.AreEqual(DisplayStyle.None,
+                new ScreenScaffold(string.Empty).Q<VisualElement>("header").style.display.value);
+
+            var titled = new ScreenScaffold("Gene Ark");
+            Assert.AreEqual(DisplayStyle.Flex, titled.Q<VisualElement>("header").style.display.value,
+                "a titled scaffold lost its header; nine screens draw their whole chrome there");
+            Assert.AreEqual("Gene Ark", titled.Q<Label>("title").text);
+        }
+
+        /// Step 4 took `flex-grow` off `.screen-scaffold__title` and gave it
+        /// to a new `.screen-scaffold__titles` column so the eyebrow could
+        /// sit above the title (ScreenScaffold.uss's header comment) -
+        /// nothing before this test proved the REPARENTING itself, only that
+        /// the eyebrow row collapses when empty. A mistake that left `title`
+        /// a direct child of `header` again, or that put the grow back on
+        /// the wrong element, would have passed every other test here and
+        /// only shown up as a capture that looked subtly different for the
+        /// ten screens that already compose the scaffold. Fix round 1,
+        /// Minor 6 - the sheets are already checked by eye against
+        /// RosterView.png et al.; this is what pins it in code.
+        [Test]
+        public void TheTitleLivesInsideTheTitlesColumn_WhichCarriesTheGrowTheTitleGaveUp()
+        {
+            var s = new ScreenScaffold("Roster");
+            var header = s.Q<VisualElement>("header");
+            var titles = s.Q<VisualElement>("titles");
+            var title = s.Q<Label>("title");
+
+            Assert.IsNotNull(titles, "no titles column");
+            Assert.AreSame(titles, title.parent, "the title is no longer inside the titles column");
+            Assert.AreSame(header, titles.parent, "the titles column is no longer a direct child of the header");
+            Assert.IsTrue(titles.ClassListContains("screen-scaffold__titles"),
+                "the titles column lost the class that carries flex-grow: 1");
+            Assert.IsTrue(title.ClassListContains("screen-scaffold__title"),
+                "the title lost the class that carries flex-grow: 0");
+        }
+
         [Test]
         public void EveryScreenComposesTheScaffold()
         {
@@ -167,12 +293,17 @@ namespace Broodline.UI.Tests
                             && t.GetConstructor(Type.EmptyTypes) != null)
                 .ToList();
 
-            Assert.That(all.Count, Is.EqualTo(12),
-                "the namespace holds 12 constructible VisualElements; if this moved, the " +
+            // THE THIRTEENTH IS `InterruptedView` - Phase 9 Task 21g. It is a
+            // screen and not an overlay, deliberately: it replaces the
+            // stranded screen the walk left behind rather than sitting on top
+            // of one whose control is dead. So it takes the frame like the
+            // other ten and is NOT added to the exemption list above.
+            Assert.That(all.Count, Is.EqualTo(13),
+                "the namespace holds 13 constructible VisualElements; if this moved, the " +
                 "sweep's exemption list below needs re-deciding rather than silently widening");
 
             var screens = all.Where(t => !exempt.Contains(t.Name)).ToList();
-            Assert.That(screens.Count, Is.EqualTo(10), "10 screens must carry the frame");
+            Assert.That(screens.Count, Is.EqualTo(11), "11 screens must carry the frame");
 
             var bare = screens
                 .Where(t => ((VisualElement)Activator.CreateInstance(t))
@@ -183,6 +314,93 @@ namespace Broodline.UI.Tests
             Assert.IsEmpty(bare,
                 "these screens do not compose ScreenScaffold, so they carry no header, no CTA row " +
                 "and no scrolling content region:\n  " + string.Join("\n  ", bare));
+        }
+
+        [Test]
+        public void EveryTitledScreenStillDrawsItsPageHeader()
+        {
+            // Task 14b gave `ScreenScaffold` a headerless mode: a null or
+            // empty title hides `#header` outright, because
+            // `Onboarding.dc.html` has no page header and draws its progress
+            // row straight into the content column.
+            //
+            // THREE SCREENS WANT THAT, AND THE THIRD ARRIVED IN PHASE 9 TASK
+            // 18. `Splice Reveal.dc.html:38-41` is the same shape as
+            // `Onboarding.dc.html`'s - a centred kicker over a big headline
+            // with nothing above it - so `SpliceRevealView` passes
+            // `title: null` too, and its kicker moved into the content
+            // column because `#header` is also where the eyebrow lives.
+            // `Wave Defeat.dc.html` is the third: `:26` is the status bar and
+            // `:31` is the hero band, with no header row between them, and its
+            // kicker moved into the band for the same reason.
+            //
+            // `PostWaveView` IS THE FOURTH AND ARRIVED IN PHASE 9 TASK 21e,
+            // and it is the one that came from a WALK rather than from a
+            // handoff file - the handoff has no post-wave screen to read. Its
+            // header carried the title "Post-Wave", design section 5.1's own
+            // section name, and a person walking the packaged app read it as
+            // a screen name printed at a player. The note where
+            // `PostWaveScreen.Title` used to be has the ruling; the shape that
+            // matters here is that it is the other arm of Wave Defeat's own
+            // branch, and one arm with a page header and one without was the
+            // inconsistency. Its kicker moved into the content column, the way
+            // `SpliceRevealView`'s did.
+            //
+            // THE OTHER SIX pass a non-empty `const string Title` and must
+            // still get a header - and with it the back chevron, the eyebrow
+            // and the resource pill, all of which live inside the row the
+            // headerless branch hides.
+            //
+            // Until this test, that rested on a report claim and a capture
+            // corpus that is gitignored. A screen that lost its header would
+            // look exactly like a screen that never had one, and the loss
+            // would be one empty string away.
+            //
+            // THE TWO LISTS STAY SEPARATE AND A SCREEN IS PLACED IN ONE ON
+            // PURPOSE. `noScaffold` means "composes no ScreenScaffold at
+            // all"; `headerless` means "composes one and asks it for no page
+            // header". They are not interchangeable and appending a name to
+            // whichever is nearest would lose the distinction that makes
+            // this sweep worth running.
+            var noScaffold = new[] { "CodexSheet", "WaveHudView" };
+            var headerless = new[]
+                { "FounderNamingView", "SpliceRevealView", "WaveDefeatView", "PostWaveView" };
+
+            var titled = typeof(Broodline.UI.Screens.RosterView).Assembly
+                .GetTypes()
+                .Where(t => t.Namespace == "Broodline.UI.Screens"
+                            && typeof(VisualElement).IsAssignableFrom(t)
+                            && !t.IsAbstract
+                            && t.GetConstructor(Type.EmptyTypes) != null
+                            && !noScaffold.Contains(t.Name)
+                            && !headerless.Contains(t.Name))
+                .ToList();
+
+            // `InterruptedView` IS THE SEVENTH AND IT IS IN THE TITLED LIST ON
+            // PURPOSE - Phase 9 Task 21g. The four headerless screens are
+            // headerless because the handoff draws them that way, over a hero
+            // band; this one has no handoff source at all and no hero, so it
+            // gets the page header every other headerless-less screen gets.
+            // Putting it in `headerless` would have been the cheaper edit and
+            // would have made that list mean two different things.
+            Assert.That(titled.Count, Is.EqualTo(7),
+                "seven screens pass a non-empty title; if this moved, decide which list the " +
+                "new screen belongs in rather than widening one silently");
+
+            var lost = titled
+                .Where(t =>
+                {
+                    var header = ((VisualElement)Activator.CreateInstance(t)).Q<VisualElement>("header");
+                    return header == null
+                        || header.style.display.value == DisplayStyle.None;
+                })
+                .Select(t => t.Name)
+                .ToList();
+
+            Assert.IsEmpty(lost,
+                "these screens compose ScreenScaffold but draw no page header, so they have " +
+                "silently lost their back chevron, eyebrow and resource pill:\n  " +
+                string.Join("\n  ", lost));
         }
 
         /// Raises a `Button`'s `clicked` with no `Panel` attached.

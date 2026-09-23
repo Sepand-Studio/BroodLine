@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading.Tasks;
 using Broodline.Api;
 
@@ -40,18 +41,57 @@ namespace Broodline.UI
     /// a different thing from deciding liveness locally.
     public sealed class RosterScreen
     {
-        /// The scaffold's header. The handoff's own name for this screen
-        /// (README section 9, "Creature Roster"), not "Roster": the tab
-        /// vocabulary is Map/Ark/Splice/Lab/Allies and none of them is this
-        /// screen, which the handoff's push table reaches from the Splice
-        /// Chamber instead.
+        /// The page title, and it is NOT the screen's name.
+        ///
+        /// "YOUR HYBRIDS" IS WHAT THE HANDOFF DRAWS; "Creature Roster" IS
+        /// WHAT IT FILES THE SCREEN UNDER, and Phase 9 Task 16 found the two
+        /// had been conflated. README section 9's index entry is the file
+        /// name - `Creature Roster.dc.html` - while line 30 of that file puts
+        /// `Your hybrids` in the 21px Baloo title slot with
+        /// `Hatchery · 14 of 20 slots` as its eyebrow above it. A player
+        /// never reads an index; they read the header.
+        ///
+        /// The tab argument the old comment made is untouched and still
+        /// right: the tab vocabulary is Map/Ark/Splice/Lab/Allies and none of
+        /// them is this screen, which the handoff's push table reaches from
+        /// the Splice Chamber - so `RosterView` is still `pushed: true`.
         ///
         /// HERE RATHER THAN IN `RosterView` for the reason `WaveScreens.cs`
         /// states and the Task 15 review paid for: "a test that asserts a
         /// view renders 'Start' cannot tell a view reading its model from a
         /// view holding a literal." This class already authors
         /// `IncompleteNotice`, so it is where the screen's words live.
-        public const string Title = "Creature Roster";
+        public const string Title = "Your hybrids";
+
+        /// The eyebrow over the title - `Creature Roster.dc.html:29`'s
+        /// `Hatchery · 14 of 20 slots`, verbatim in shape.
+        ///
+        /// UPPERCASE IN THE STRING, WHICH IS NOT A STYLE CHOICE MADE HERE.
+        /// The handoff renders every eyebrow through `.lbl { text-transform:
+        /// uppercase }` and UI Toolkit has no `text-transform` at all, so the
+        /// casing is baked into what this returns - the user's ruling at the
+        /// Task 13/14 boundary, and the same one `FounderNamingScreen
+        /// .Eyebrow` and `CostCtaRow.CostEyebrow` already carry. Anything
+        /// asserting this reads the method, never a repeated literal.
+        ///
+        /// A METHOD RATHER THAN A CONSTANT BECAUSE IT CARRIES TWO NUMBERS,
+        /// and `RosterView` marks the whole line `t-num` for them: how full
+        /// the Hatchery is decides whether a claim can be taken at all
+        /// (`IsFull`), which is bible 10.6's test for a figure that needs the
+        /// tabular face. The floor that goes with the face costs this line
+        /// 10px -> 11px against the handoff's 9, recorded in
+        /// `RosterView.uss` beside the rule that does it.
+        ///
+        /// BOTH NUMBERS ARE THE SERVER'S. `ServerCount` is authoritative and
+        /// `ServerCap` comes from `rosterCap()`; neither is `Known.Count`,
+        /// which is only what this session happens to hold. A roster that has
+        /// not loaded says so in `IncompleteNotice` - this line is not where
+        /// that is hidden.
+        public static string Eyebrow(int count, int cap)
+        {
+            return "HATCHERY · " + count.ToString(CultureInfo.InvariantCulture)
+                + " OF " + cap.ToString(CultureInfo.InvariantCulture) + " SLOTS";
+        }
 
         /// What the grid says when it holds nothing AND the cache knows that
         /// is the whole truth.

@@ -54,6 +54,19 @@ namespace Broodline.UI.Screens
             _scaffold = new ScreenScaffold(RosterScreen.Title, pushed: true);
             _scaffold.Content.Add(_cards);
             Add(_scaffold);
+
+            // THE EYEBROW IS THE ONE IN THE APP THAT IS A NUMBER, so it takes
+            // the numeral marker here rather than in the scaffold - every
+            // other screen's kicker is a place name. `RosterScreen.Eyebrow`'s
+            // own comment has why the Hatchery count qualifies under bible
+            // 10.6, and `RosterView.uss` carries the 10px -> 11px the marker
+            // costs against the handoff's 9.
+            //
+            // IN THE CONSTRUCTOR, NOT IN `Bind`, because a class list is not
+            // content: adding it per bind would append a duplicate on every
+            // re-bind, which is the same hazard the handler subscriptions on
+            // this branch are all written to avoid.
+            _scaffold.Q<Label>("eyebrow").AddToClassList("t-num");
         }
 
         /// `onBack` is what the chevron does, and null means there is no
@@ -75,6 +88,18 @@ namespace Broodline.UI.Screens
             if (r == null) throw new ArgumentNullException(nameof(r));
 
             _scaffold.OnBack = onBack;
+
+            // THE HATCHERY COUNT, AND ONLY WHEN THE SERVER HAS SAID ONE.
+            // `HasCounts` is false on a cache nothing has written to, where
+            // `ServerCount` and `ServerCap` are both 0 because they are UNSET
+            // rather than because the player owns nothing - and
+            // `RosterScreen`'s own comment is explicit that a cap of zero is
+            // one `rosterCap()` cannot send. "HATCHERY · 0 OF 0 SLOTS" over a
+            // roster that has not loaded is the exact lie `RosterLoadState`
+            // exists to prevent, so the row collapses instead and
+            // `IncompleteNotice` in the footer says what is actually known.
+            _scaffold.Eyebrow = r.HasCounts
+                ? RosterScreen.Eyebrow(r.ServerCount, r.ServerCap) : null;
 
             // The model's own sentence, verbatim - empty only when `Known`
             // is genuinely the whole live roster, and an empty one hides the

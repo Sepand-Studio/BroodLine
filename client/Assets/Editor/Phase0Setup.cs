@@ -27,9 +27,21 @@ public static class Phase0Setup
         // obsolete, so it is asserted by the presence of .meta files rather
         // than set here.
 
-        // --- URP/Lit must survive shader stripping. Shader.Find returns null in
-        //     a player otherwise, and every device run renders magenta.
-        AddAlwaysIncludedShader("Universal Render Pipeline/Lit");
+        // --- EVERY shader the runtime looks up BY NAME must survive into the
+        //     player. Shader.Find returns null in a player for a shader no
+        //     asset references and this list does not carry, and the caller
+        //     then gets a null Shader.
+        //
+        //     THIS USED TO NAME URP/Lit ALONE, AND THAT COST THE PACKAGED APP
+        //     ITS LAUNCH - Phase 9 Task 21c. `LaneDressing` began asking for
+        //     URP/Unlit and nothing here knew; `new Material(null)` threw
+        //     `ArgumentNullException` out of Unity's bindings inside
+        //     `BootController.Start`, on a build the Editor can never
+        //     reproduce. The list of names now lives in one place that the
+        //     call sites, this registrar and `RuntimeShaderInclusionTests` all
+        //     read, so a third shader cannot arrive unprotected in silence.
+        foreach (var shaderName in Broodline.View.RuntimeShaders.All)
+            AddAlwaysIncludedShader(shaderName);
 
         // --- FrameTimingManager returns nothing without this enabled.
         PlayerSettings.enableFrameTimingStats = true;
