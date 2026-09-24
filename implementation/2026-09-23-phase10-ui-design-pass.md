@@ -20,6 +20,10 @@ The twelve authored traits now each have a distinct 24-unit silhouette. `client/
 
 Review the contact sheet at `implementation/reviews/phase10-trait-icons.png`; it shows the large mark and a small chip-size sample for every trait. This is a source/design review. Unity rendering remains in the final validation batch.
 
+## Primary navigation icon language
+
+Map, Ark, Splice, Lab and Allies now have five authored marks in the same 24-unit, white-and-tint system as traits and facilities. The old generic tab PNGs were replaced in place, so tab bindings and state tinting stay unchanged. The generator and editable masters are `client/Assets/UI/Art/generate-nav-icons.py` and `implementation/art-source/nav/`; the large and actual 19px comparisons are in `implementation/reviews/phase10-nav-icons.png`. The old standalone Splice SVG was removed because it no longer matched the PNG. Unity tab rendering remains in the final validation pass.
+
 ## Portrait and atlas interaction follow-up
 
 The roster card and sprite-form hero slot now request a Frontier portrait through a UI-facing source. One 256px offscreen camera paints at most one queued portrait each frame; duplicate requests share the job. The cache keeps 64 textures (about 16 MiB of RGBA pixel data), keyed by species, ordered traits, growth stage and art revision. The old baked layers remain visible while a request is queued or if a portrait is evicted; cards clear stale images on rebind, detachment and eviction. The Boot composition root owns the cache. Unity still needs to confirm appearance, capture memory and run the new eviction/rebind tests before the old baked art can be retired.

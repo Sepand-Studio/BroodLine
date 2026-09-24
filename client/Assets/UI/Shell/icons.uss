@@ -1,5 +1,7 @@
-/* Glyphs. Lucide's 24px set, rescaled to the handoff's 19px / 1.9 / no fill;
- * `splice` is drawn to match because no general set carries it.
+/* The utility glyphs began with Lucide's 24px set, rescaled to the handoff's
+ * 19px / 1.9 / no fill. The five primary tabs now use authored Broodline
+ * shapes from Art/generate-nav-icons.py; trait and facility marks have their
+ * own generators. All three families keep the same white/tint rule.
  *
  * THE STROKE IS RE-CUT, NOT JUST RESCALED, AND THAT IS ARITHMETIC. The plan
  * said Lucide's 24/2.0 "rescales to the handoff's 19px / 1.9 without
@@ -10,11 +12,11 @@
  * 2.0 the marks read thin beside their bold 10px nav labels, and at 2.4
  * nothing muddies - the gem's facets and the stopwatch's dial, the two
  * densest here, keep their interior white at 19px. The SOURCES stay at
- * Lucide's 2.0 so all thirteen are one homogeneous set; the re-cut is a
+ * Lucide's 2.0 across the original set; the re-cut is a
  * rasteriser transform, applied uniformly, like the colour below.
  *
  * LICENCE IS ISC, NOT MIT - the plan said MIT and the file it tells you to
- * fetch says "ISC License" on line 1. Three of these thirteen (`check`,
+ * fetch says "ISC License" on line 1. Three of the original thirteen (`check`,
  * `back`, `lock`) are Lucide's Feather-derived set and carry Feather's MIT
  * on top. Both texts are in LICENSE-lucide.txt beside the rasters.
  *
@@ -37,6 +39,8 @@
     -unity-background-scale-mode: scale-to-fit;
     -unity-background-image-tint-color: var(--mute-soft);
 }
+/* Bespoke tab marks; editable SVGs and a 19px sheet live in art-source/nav
+ * and reviews. Existing class names keep every tab binding intact. */
 .icon--map     { background-image: url("project:///Assets/UI/Art/icons/map.png"); }
 .icon--ark     { background-image: url("project:///Assets/UI/Art/icons/ark.png"); }
 .icon--splice  { background-image: url("project:///Assets/UI/Art/icons/splice.png"); }
