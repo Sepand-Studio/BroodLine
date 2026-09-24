@@ -91,6 +91,14 @@ namespace Broodline.Model.Catalogs
             return false;
         }
 
+        /// A region with a crossing to another reach. This is authored
+        /// geography, not a claim or deposit state.
+        public static bool HasGate(string id)
+        {
+            foreach (var g in Gates) if (g.A == id || g.B == id) return true;
+            return false;
+        }
+
         public static bool AreAdjacent(string a, string b)
         {
             var r = Find(a);

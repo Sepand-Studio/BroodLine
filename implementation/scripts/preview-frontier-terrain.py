@@ -5,11 +5,13 @@ import json
 import importlib.util
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 
 from PIL import Image, ImageDraw, ImageFont
 
 RAIDER_PREVIEW = Path(__file__).with_name("preview-frontier-raiders.py")
+sys.dont_write_bytecode = True
 spec = importlib.util.spec_from_file_location("frontier_raider_preview", RAIDER_PREVIEW)
 raider_preview = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(raider_preview)

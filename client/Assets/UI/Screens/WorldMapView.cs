@@ -51,6 +51,9 @@ namespace Broodline.UI.Screens
             MapControl(mapControls, "zoom-reset", "Reset", ResetView);
             MapControl(mapControls, "zoom-in", "+", () => SetZoom(_zoom + .25f));
             atlasCard.Body.Add(mapControls);
+            var legend = new Label("A  ARK     □  REACH GATE     1–N  ROUTE STOPS") { name = "map-legend" };
+            legend.AddToClassList("world-map__legend");
+            atlasCard.Body.Add(legend);
             _viewport.RegisterCallback<PointerDownEvent>(OnMapDown);
             _viewport.RegisterCallback<PointerMoveEvent>(OnMapMove);
             _viewport.RegisterCallback<PointerUpEvent>(OnMapUp);
@@ -191,6 +194,7 @@ namespace Broodline.UI.Screens
                     };
                     marker.AddToClassList("world-map__marker");
                     if (region.Here) marker.AddToClassList("world-map__marker--here");
+                    if (region.Gate) marker.AddToClassList("world-map__marker--gate");
                     marker.style.left = 140f + Mathf.Cos(angle) * radius - 16f;
                     marker.style.top = 140f + Mathf.Sin(angle) * radius - 16f;
                     _atlas.Add(marker);

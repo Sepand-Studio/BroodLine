@@ -22,6 +22,9 @@ namespace Broodline.UI.Tests
             Assert.IsNotNull(view.Q<Button>("zoom-in"));
             Assert.AreEqual(30, atlas.Query<Button>(className: "world-map__marker").ToList().Count);
             Assert.IsTrue(atlas.Q<Button>("marker-holdfast").ClassListContains("world-map__marker--here"));
+            Assert.IsTrue(atlas.Q<Button>("marker-tellin").ClassListContains("world-map__marker--gate"));
+            Assert.IsFalse(atlas.Q<Button>("marker-holdfast").ClassListContains("world-map__marker--gate"));
+            Assert.IsTrue(view.Q<Label>("map-legend").text.Contains("REACH GATE"));
             Assert.AreEqual(30, view.Query(className: WorldMapView.RowUssClassName).ToList().Count);
         }
 

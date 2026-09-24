@@ -25,7 +25,10 @@ namespace Broodline.UI.Tests
             {
                 Assert.IsTrue(RegionCatalog.AreAdjacent(a, b), a + "-" + b);
                 Assert.AreNotEqual(RegionCatalog.Find(a).Band, RegionCatalog.Find(b).Band, "a gate crosses bands");
+                Assert.IsTrue(RegionCatalog.HasGate(a));
+                Assert.IsTrue(RegionCatalog.HasGate(b));
             }
+            Assert.IsFalse(RegionCatalog.HasGate("holdfast"));
         }
 
         [Test]
@@ -137,6 +140,9 @@ namespace Broodline.UI.Tests
             Assert.AreEqual(12, m.Bands[1].Rows.Count);
             Assert.AreEqual(10, m.Bands[2].Rows.Count);
             Assert.IsTrue(m.Bands[0].Rows[0].Here);
+            Assert.IsFalse(m.Bands[0].Rows[0].Gate);
+            Assert.IsTrue(m.Bands[0].Rows[1].Gate);
+            StringAssert.Contains("Reach gate", m.Bands[0].Rows[1].Detail);
             StringAssert.Contains(MapScreen.HereDetail, m.Bands[0].Rows[0].Detail);
             StringAssert.Contains("3 h 45 min away", m.Bands[2].Rows[8].Detail);
         }

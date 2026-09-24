@@ -6,7 +6,7 @@ namespace Broodline.UI
     public sealed class MapRegionRow
     {
         public string Id, Name, Detail;
-        public bool Here;
+        public bool Here, Gate;
         public int Lanes;
     }
 
@@ -48,11 +48,14 @@ namespace Broodline.UI
                 {
                     if (r.Band != band) continue;
                     var isHere = r.Id == here.Id;
+                    var gate = RegionCatalog.HasGate(r.Id);
                     var minutes = isHere ? 0 : RegionCatalog.TravelMinutes(here.Id, r.Id, out _);
                     rows.Add(new MapRegionRow
                     {
                         Id = r.Id, Name = r.Name, Lanes = r.Lanes, Here = isHere,
-                        Detail = isHere ? HereDetail + " · " + Lanes(r.Lanes) : Lanes(r.Lanes) + " · " + Travel(minutes),
+                        Gate = gate,
+                        Detail = (isHere ? HereDetail + " · " + Lanes(r.Lanes) : Lanes(r.Lanes) + " · " + Travel(minutes))
+                            + (gate ? " · Reach gate" : string.Empty),
                     });
                 }
                 bands.Add((BandHeadings[(int)band], rows));

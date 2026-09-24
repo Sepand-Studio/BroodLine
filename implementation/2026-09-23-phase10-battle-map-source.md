@@ -4,6 +4,10 @@ The live `WaveView` now assembles all six companions and the three implemented r
 
 `BattleCameraFrame` fits the lane, pocket bodies, Ark and terrain to the narrowest supported portrait aspect in perspective. `WaveRunner` applies it to the Wave scene's own camera at run time, so an older saved scene also receives the composition; `WaveSceneBuilder.Build` writes it into a rebuilt scene. The HUD receives that same scene camera when the wave is loaded additively.
 
+The shared `FrontierArt.Environment` now calls `FrontierTerrain.AddDetail` for both deploy and live wave lanes: low rock shelves outside the tree belt, shoulder brush, stones outside each pocket rim and a threshold at the Ark. The offline geometry preview is `implementation/reviews/phase10-terrain-detail.png`; it tests the detail fixture's winding, finite channels and 6,972 triangles. It is not a complete Unity scene capture or a full scene triangle count. Habitat composition is unchanged.
+
+Map markers now use a square outline for authored reach gates and the list labels those crossings. The legend distinguishes Ark, gates and the numbered route stops. Deposit richness, controller and contested state are not inferred from the static graph because the current map model has no live fields for them.
+
 The World Map now has a tappable three-ring atlas of the 30 catalog regions, with the Ark region highlighted. Its existing labeled list stays underneath as the readable and larger-target way to choose a region. The atlas uses the existing region model and navigation callback; relocation and nonlocal region detail remain future work.
 
 The Store daily-gift action now refreshes its presented page in place, leaving a single Store on the navigation stack. Lab upgrade chips count down while the Lab is visible and rebind the screen when the local timer completes. Facility key registration and timer settlement now go through the stub ledger's logged write path, including the timer clear. No real balance is changed.
