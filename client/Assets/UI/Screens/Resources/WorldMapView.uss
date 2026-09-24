@@ -52,6 +52,12 @@
     font-size: var(--text-card-title);
     -unity-text-align: middle-center;
 }
+.world-map__marker--route {
+    background-color: var(--brass-light);
+    border-color: var(--brass);
+    color: var(--ink-primary);
+}
+.world-map__marker--muted { opacity: 0.75; }
 .world-map__marker--here {
     background-color: var(--action);
     border-color: var(--action-shadow);
@@ -77,6 +83,18 @@
 .world-map__selected-detail {
     color: var(--surface-paper);
     font-size: var(--text-body);
+    white-space: normal;
+    margin-top: var(--space-1);
+}
+.world-map__route-summary {
+    color: var(--brass-light);
+    font-size: var(--text-secondary);
+    -unity-font-style: bold;
+    margin-top: var(--space-3);
+}
+.world-map__route-names {
+    color: var(--surface-paper);
+    font-size: var(--text-secondary);
     white-space: normal;
     margin-top: var(--space-1);
 }

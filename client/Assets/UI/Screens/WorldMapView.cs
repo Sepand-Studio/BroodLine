@@ -16,10 +16,11 @@ namespace Broodline.UI.Screens
         readonly VisualElement _viewport;
         readonly VisualElement _atlas;
         readonly Label _arkLabel;
-        readonly Label _selectedName, _selectedDetail;
+        readonly Label _selectedName, _selectedDetail, _routeSummary, _routeNames;
         readonly Button _selectedAction;
         readonly List<Button> _markers = new List<Button>();
         Action<string> _onPick;
+        MapScreenModel _model;
         string _selectedId;
         float _zoom = 1f;
         Vector2 _pan, _lastPointer;
@@ -61,11 +62,17 @@ namespace Broodline.UI.Screens
             _selectedName.AddToClassList("world-map__selected-name");
             _selectedDetail = new Label { name = "selected-detail" };
             _selectedDetail.AddToClassList("world-map__selected-detail");
+            _routeSummary = new Label { name = "route-summary" };
+            _routeSummary.AddToClassList("world-map__route-summary");
+            _routeNames = new Label { name = "route-names" };
+            _routeNames.AddToClassList("world-map__route-names");
             _selectedAction = new Button(() => _onPick?.Invoke(_selectedId)) { name = "selected-action" };
             _selectedAction.AddToClassList("btn-secondary");
             _selectedAction.AddToClassList("world-map__selected-action");
             selection.Add(_selectedName);
             selection.Add(_selectedDetail);
+            selection.Add(_routeSummary);
+            selection.Add(_routeNames);
             selection.Add(_selectedAction);
             atlasCard.Body.Add(selection);
             scaffold.Content.Add(atlasCard);
@@ -130,6 +137,7 @@ namespace Broodline.UI.Screens
         public void Bind(MapScreenModel m, Action<string> onPick)
         {
             if (m == null) throw new ArgumentNullException(nameof(m));
+            _model = m;
             _onPick = onPick;
             BuildAtlas(m);
             _bands.Clear();
@@ -175,7 +183,7 @@ namespace Broodline.UI.Screens
                     var region = rows[i];
                     float angle = (i / (float)rows.Count) * Mathf.PI * 2f - Mathf.PI * .5f;
                     string id = region.Id;
-                    var marker = new Button(() => SelectRegion(region))
+                    var marker = new Button(() => Select(id))
                     {
                         name = "marker-" + id,
                         text = region.Here ? "A" : "•",
@@ -191,7 +199,17 @@ namespace Broodline.UI.Screens
             }
             foreach (var band in model.Bands)
                 foreach (var row in band.Rows)
-                    if (row.Here) { SelectRegion(row); return; }
+                    if (row.Here) { Select(row.Id); return; }
+        }
+
+        /// Select through the same path as a marker tap, also useful for returning from detail.
+        public bool Select(string id)
+        {
+            if (_model == null || string.IsNullOrEmpty(id)) return false;
+            foreach (var band in _model.Bands)
+                foreach (var row in band.Rows)
+                    if (row.Id == id) { SelectRegion(row); return true; }
+            return false;
         }
 
         void SelectRegion(MapRegionRow region)
@@ -200,8 +218,34 @@ namespace Broodline.UI.Screens
             _selectedName.text = region.Name;
             _selectedDetail.text = region.Detail;
             _selectedAction.text = region.Here ? "Open region" : "View region";
+            int minutes = RegionCatalog.TravelMinutes(_model.CurrentRegionId, region.Id, out var route);
+            if (route == null)
+            {
+                _routeSummary.text = "NO ROUTE FROM THE ARK";
+                _routeNames.text = "This region is beyond the known lanes.";
+            }
+            else if (region.Here)
+            {
+                _routeSummary.text = "ARK POSITION";
+                _routeNames.text = "Your journey begins here.";
+            }
+            else
+            {
+                int hops = route.Count - 1;
+                _routeSummary.text = "ROUTE  ·  " + hops + (hops == 1 ? " HOP  ·  " : " HOPS  ·  ") + MapScreen.Travel(minutes).ToUpperInvariant();
+                var names = new string[route.Count];
+                for (int i = 0; i < route.Count; i++) names[i] = RegionCatalog.Find(route[i]).Name;
+                _routeNames.text = string.Join("  ›  ", names);
+            }
             foreach (var marker in _markers)
+            {
+                string id = marker.name.Substring("marker-".Length);
+                int step = route == null ? -1 : route.IndexOf(id);
+                marker.text = id == _model.CurrentRegionId ? "A" : step >= 0 ? step.ToString() : "•";
+                marker.EnableInClassList("world-map__marker--route", step >= 0 && id != _model.CurrentRegionId);
+                marker.EnableInClassList("world-map__marker--muted", step < 0);
                 marker.EnableInClassList("world-map__marker--selected", marker.name == "marker-" + region.Id);
+            }
         }
     }
 }

@@ -1,4 +1,5 @@
 using System.Linq;
+using Broodline.Model.Catalogs;
 using Broodline.UI.Screens;
 using NUnit.Framework;
 using UnityEngine.UIElements;
@@ -22,6 +23,27 @@ namespace Broodline.UI.Tests
             Assert.AreEqual(30, atlas.Query<Button>(className: "world-map__marker").ToList().Count);
             Assert.IsTrue(atlas.Q<Button>("marker-holdfast").ClassListContains("world-map__marker--here"));
             Assert.AreEqual(30, view.Query(className: WorldMapView.RowUssClassName).ToList().Count);
+        }
+
+        [Test]
+        public void SelectingDistantRegionNumbersTheShortestRouteWithoutMovingTheArk()
+        {
+            var view = new WorldMapView();
+            view.Bind(MapScreen.Build("holdfast"), _ => { });
+            Assert.IsTrue(view.Select("sheerdown"));
+            int minutes = RegionCatalog.TravelMinutes("holdfast", "sheerdown", out var route);
+
+            Assert.AreEqual("A", view.Q<Button>("marker-holdfast").text);
+            Assert.IsTrue(view.Q<Label>("route-summary").text.Contains(MapScreen.Travel(minutes).ToUpperInvariant()));
+            Assert.IsTrue(view.Q<Label>("route-names").text.Contains("Sheerdown"));
+            for (int step = 1; step < route.Count; step++)
+            {
+                var marker = view.Q<Button>("marker-" + route[step]);
+                Assert.AreEqual(step.ToString(), marker.text);
+                Assert.IsTrue(marker.ClassListContains("world-map__marker--route"));
+            }
+            Assert.IsFalse(view.Select("unknown"));
+            Assert.AreEqual("Sheerdown", view.Q<Label>("selected-region").text);
         }
     }
 }

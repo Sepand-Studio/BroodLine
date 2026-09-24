@@ -26,6 +26,8 @@ The roster card and sprite-form hero slot now request a Frontier portrait throug
 
 The atlas now has a clipped pan/zoom surface and 44px zoom controls. Rings, markers and the painted terrain move as one. Zoom stays between 1× and 2.25×, and panning clamps to the enlarged image. The labelled region list remains the larger-target alternate path. Unity touch input and narrow-screen composition remain part of final validation.
 
+Selecting a remote region now reveals the catalog's shortest route on the atlas before opening Region Detail. Its stops are numbered from the Ark, non-route markers recede, and the selection card spells out the hop count, travel time and ordered region names. The Ark keeps its `A` marker. This uses `RegionCatalog.TravelMinutes`, the same source as Region Detail, so the two screens do not invent separate journeys. The new map test checks a distant selection and preserves the selected state on an invalid id; Unity visual and touch checks are still deferred.
+
 ## Ark facility identity follow-up
 
 The five outer plots now have different procedural structures: joined incubation columns for Splicing, a low egg nest for the Hatchery, a sealed archive monolith for the Vault, a raised extraction head for Harvest, and a radial propulsion drum for the Drive. They replace the identical temporary signposts and remain inside the existing plot pads. The Lab uses six matching, individually authored facility glyphs, including the Core. Editable SVGs and the generator are under `implementation/art-source/facilities/` and `client/Assets/UI/Art/`; the contact sheet is `implementation/reviews/phase10-facility-icons.png`. Source style checks pass, while Unity framing, lighting and triangle-budget checks remain pending until final validation.
