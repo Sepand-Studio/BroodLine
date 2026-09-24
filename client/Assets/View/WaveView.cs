@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using Broodline.Sim.Combat;
 using Broodline.Frontier;
@@ -28,7 +29,15 @@ namespace Broodline.View
         private float[] _raiderLastTile;
         private int[] _creatureLastTile;
         private FrontierArt _art;
-        private int _lastRenderedTick = -1;
+        private BattleVfx _vfx;
+        private bool _paused;
+        private float _effectSpeed = 1f;
+        private static readonly Color HitColor = new Color32(229, 134, 122, 255); // --species-ember
+        private static readonly Color StrikeColor = new Color32(226, 192, 122, 255); // --brass-light
+        private static readonly Color ChillColor = new Color32(107, 167, 192, 255); // --teal
+        private static readonly Color RallyColor = new Color32(124, 196, 146, 255); // --species-loam
+        private static readonly Color BreachColor = new Color32(255, 107, 92, 255); // --coral-alert
+        public Action<string, Vector3, bool> OnFloatingCue;
 
         public void Build(SimRunner r) => Build(r, null, null);
 
@@ -37,6 +46,7 @@ namespace Broodline.View
         public void Build(SimRunner r, CreatureSpec[] deployment, WaveDef wave)
         {
             _art = new FrontierArt(RuntimeShaders.Require(RuntimeShaders.Frontier));
+            _vfx = new BattleVfx(transform);
             var pocketTiles = new int[r.Lane.PocketCount];
             for (int i = 0; i < pocketTiles.Length; i++) pocketTiles[i] = r.Lane.PocketTiles[i];
             var terrain = _art.Environment(transform, r.LaneTiles, pocketTiles, false);
@@ -81,6 +91,7 @@ namespace Broodline.View
                 body.transform.rotation = Quaternion.LookRotation(Vector3.back, Vector3.up) * Quaternion.Euler(0f, 90f, 0f);
                 _creatures[c] = body.transform;
                 _creatureMotion[c] = creature;
+                _creatureMaxHp[c] = Stats.CreatureHp(r.CreatureSpecies[c]);
                 _creatureLastTile[c] = tile;
             }
 
@@ -116,6 +127,8 @@ namespace Broodline.View
                 body.SetActive(false);
                 _raiders[i] = body.transform;
                 _raiderMotion[i] = raider;
+                if (wave != null && i < wave.Spawns.Length)
+                    _raiderMaxHp[i] = Stats.RaiderHp(wave.Spawns[i].Type);
             }
         }
 
@@ -133,7 +146,6 @@ namespace Broodline.View
         {
             float a = (float)alpha;
             var current = pair.Current;
-            bool newTick = current.Tick != _lastRenderedTick;
 
             for (int i = 0; i < _raiders.Length; i++)
             {
@@ -151,11 +163,9 @@ namespace Broodline.View
                 if (_raiderMotion[i] != null)
                 {
                     int hp = current.RaiderHp(i);
-                    if (_raiderMaxHp[i] == 0) _raiderMaxHp[i] = hp;
                     _raiderMotion[i].Moving = !Mathf.Approximately(tile, _raiderLastTile[i]);
                     _raiderMotion[i].Hurt = _raiderMaxHp[i] > 0 ? 1f - (float)hp / _raiderMaxHp[i] : 0f;
                     _raiderMotion[i].Chilled = current.RaiderChilled(i);
-                    if (newTick && hp < pair.Previous.RaiderHp(i)) _raiderMotion[i].Hit();
                     _raiderLastTile[i] = tile;
                 }
             }
@@ -173,19 +183,57 @@ namespace Broodline.View
                 if (_creatureMotion[c] != null)
                 {
                     int hp = current.CreatureHp(c);
-                    if (_creatureMaxHp[c] == 0) _creatureMaxHp[c] = hp;
                     _creatureMotion[c].Hurt = _creatureMaxHp[c] > 0 ? 1f - (float)hp / _creatureMaxHp[c] : 0f;
                     var tile = current.CreatureTile(c);
                     _creatureMotion[c].Moving = tile != _creatureLastTile[c];
-                    if (newTick && hp < pair.Previous.CreatureHp(c)) _creatureMotion[c].Hit();
                     _creatureLastTile[c] = tile;
                 }
             }
-            _lastRenderedTick = current.Tick;
         }
+
+        /// Consume a completed tick's read-only cue while its snapshot is still current.
+        public void Present(FrontierCue cue, WaveSnapshot snapshot)
+        {
+            if (_vfx == null || snapshot == null) return;
+            Vector3 at = cue.Defender
+                ? new Vector3(snapshot.CreatureTile(cue.Entity) * TileSize, 0, PocketOffset)
+                : new Vector3(snapshot.RaiderTile(cue.Entity) * TileSize, 0, 0);
+            switch (cue.Kind)
+            {
+                case FrontierCueKind.Attack:
+                    _creatureMotion[cue.Entity]?.Attack();
+                    if (cue.Target >= 0 && cue.Target < snapshot.RaiderCount)
+                        _vfx.Show(new Vector3(snapshot.RaiderTile(cue.Target) * TileSize, 0, 0), StrikeColor, .8f);
+                    break;
+                case FrontierCueKind.Damage:
+                    (cue.Defender ? _creatureMotion[cue.Entity] : _raiderMotion[cue.Entity])?.Hit();
+                    _vfx.Show(at, cue.Defender ? HitColor : StrikeColor, .85f);
+                    OnFloatingCue?.Invoke("−" + cue.Amount, at + Vector3.up, cue.Defender);
+                    break;
+                case FrontierCueKind.Chilled:
+                    _vfx.Show(at, ChillColor, 1.15f);
+                    OnFloatingCue?.Invoke("CHILLED", at + Vector3.up, false);
+                    break;
+                case FrontierCueKind.Defeated:
+                    _vfx.Show(at, cue.Defender ? ChillColor : HitColor, 1.3f);
+                    OnFloatingCue?.Invoke(cue.Defender ? "RESTING" : "DEFEATED", at + Vector3.up, cue.Defender);
+                    break;
+                case FrontierCueKind.Breach:
+                    _vfx.Show(at, BreachColor, 2f);
+                    OnFloatingCue?.Invoke("BREACH", at + Vector3.up, true);
+                    break;
+                case FrontierCueKind.Rally:
+                    _vfx.Show(at, RallyColor, 1.5f);
+                    OnFloatingCue?.Invoke("RALLY!", at + Vector3.up, false);
+                    break;
+            }
+        }
+
+        void Update() => _vfx?.Advance(_paused ? 0f : Time.deltaTime * _effectSpeed, false);
 
         public void SetPaused(bool paused)
         {
+            _paused = paused;
             if (_creatureMotion != null)
                 foreach (var creature in _creatureMotion) if (creature != null) creature.Paused = paused;
             if (_raiderMotion != null)
@@ -194,12 +242,17 @@ namespace Broodline.View
 
         public void SetSpeed(float scale)
         {
+            _effectSpeed = scale;
             if (_creatureMotion != null)
                 foreach (var creature in _creatureMotion) if (creature != null) creature.TimeScale = scale;
             if (_raiderMotion != null)
                 foreach (var raider in _raiderMotion) if (raider != null) raider.TimeScale = scale;
         }
 
-        void OnDestroy() => _art?.Dispose();
+        void OnDestroy()
+        {
+            _vfx?.Dispose();
+            _art?.Dispose();
+        }
     }
 }

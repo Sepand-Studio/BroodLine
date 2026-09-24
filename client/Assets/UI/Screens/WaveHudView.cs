@@ -108,6 +108,7 @@ namespace Broodline.UI.Screens
         readonly Label _waveNumber;
         readonly VisualElement _waveLine;
         readonly VisualElement _bars;
+        readonly FloatingCuePool _floatingCues;
 
         /// The whole top-left block of chrome - the band and the readout - as
         /// ONE direct child of this root. `Place` measures it; see the note
@@ -278,6 +279,7 @@ namespace Broodline.UI.Screens
             _waveNumber = this.Q<Label>("wave-number");
             _waveLine = this.Q<VisualElement>("wave-line");
             _bars = this.Q<VisualElement>("bars");
+            _floatingCues = new FloatingCuePool(this.Q<VisualElement>("cues"));
 
             // THE THREE FIXED STRINGS, SET ONCE. Every one of them is
             // `WaveHudScreen`'s rather than a literal here - the convention
@@ -298,6 +300,9 @@ namespace Broodline.UI.Screens
         /// clock disagreeing with `WaveClock`'s interpolation.
         public void SetPaused(bool paused) => _pause.text = paused ? WaveHudScreen.ResumeLabel : WaveHudScreen.PauseLabel;
         public void SetSpeed(double scale) => _speed.text = WaveHudScreen.SpeedLabel(scale);
+
+        public void ShowCue(string text, Vector3 world, bool danger) => _floatingCues.Show(text, world, danger);
+        public void AdvanceCues(float delta, bool reducedMotion = false) => _floatingCues.Advance(Camera, delta, reducedMotion);
 
         /// WHETHER A TAP AT THIS SCREEN POSITION LANDS ON A CONTROL. Everything
         /// else in the view ignores picking, so the panel's pick is null over

@@ -1,7 +1,7 @@
 using System;
 using Broodline.Sim.Combat;
 
-namespace Broodline.Frontier
+namespace Broodline.View
 {
     public enum FrontierCueKind { Attack, Damage, Chilled, Defeated, Breach, Rally }
 

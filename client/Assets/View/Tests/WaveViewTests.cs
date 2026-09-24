@@ -76,5 +76,32 @@ namespace Broodline.View.Tests
             }
             finally { Object.DestroyImmediate(go); }
         }
+
+        [Test]
+        public void CompletedTickCueProducesBoundedVisualsAndReadableText()
+        {
+            var wave = WaveDef.ForId(1);
+            var deployment = new[] { new CreatureSpec { Species = Species.Vetch, Instinct = Instinct.Vanguard, Pocket = 0 } };
+            var runner = new SimRunner(wave, wave.Lane, deployment, 6UL);
+            var go = new GameObject("view");
+            try
+            {
+                var view = go.AddComponent<WaveView>();
+                view.Build(runner, deployment, wave);
+                var snapshot = new WavePair(runner).Current;
+                string shown = null;
+                view.OnFloatingCue = (message, _, __) => shown = message;
+                for (int i = 0; i < BattleVfx.Capacity * 3; i++)
+                    view.Present(new FrontierCue(FrontierCueKind.Damage, true, 0, 7), snapshot);
+
+                Assert.AreEqual("−7", shown);
+                int pulses = 0;
+                foreach (Transform child in go.transform)
+                    if (child.name.StartsWith("battle-pulse-")) pulses++;
+                Assert.AreEqual(BattleVfx.Capacity, pulses,
+                    "combat pulses must reuse a fixed pool during catch-up ticks");
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
     }
 }

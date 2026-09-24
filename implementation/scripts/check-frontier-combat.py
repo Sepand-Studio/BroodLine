@@ -20,7 +20,7 @@ sources += [root / name for name in (
     'client/Assets/View/WaveClock.cs',
     'client/Assets/View/WaveSnapshot.cs',
     'client/Assets/Frontier/FrontierFormation.cs',
-    'client/Assets/Frontier/FrontierBattleFeedback.cs',
+    'client/Assets/View/PresentationCues.cs',
     'implementation/tools/FrontierCombatCheck.cs',
 )]
 with tempfile.TemporaryDirectory(prefix='broodline-frontier-') as temp:

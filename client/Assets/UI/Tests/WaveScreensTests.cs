@@ -907,6 +907,21 @@ namespace Broodline.UI.Tests
         }
 
         [Test]
+        public void WaveHud_CatchUpCuesReuseNonPickableLabels()
+        {
+            var view = new WaveHudView();
+            var layer = view.Q<VisualElement>("cues");
+            Assert.IsNotNull(layer);
+            for (int i = 0; i < FloatingCuePool.Capacity * 3; i++)
+                view.ShowCue("−" + i, Vector3.zero, i % 2 == 0);
+            Assert.AreEqual(FloatingCuePool.Capacity, layer.childCount);
+            foreach (var element in layer.Children())
+                Assert.AreEqual(PickingMode.Ignore, element.pickingMode);
+            Assert.AreEqual("−" + (FloatingCuePool.Capacity * 3 - 1),
+                layer.ElementAt((FloatingCuePool.Capacity * 3 - 1) % FloatingCuePool.Capacity).Q<Label>().text);
+        }
+
+        [Test]
         public void WaveHud_TagsABodyByItsState_AndABreachOutranksAChill()
         {
             // `WaveHud`'s rule, which lived only in prose: "Chill is the

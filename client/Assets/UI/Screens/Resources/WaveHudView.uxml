@@ -77,4 +77,5 @@
     </ui:VisualElement>
 
     <ui:VisualElement name="bars" class="wave-hud-view__bars" />
+    <ui:VisualElement name="cues" class="wave-hud-view__cues" />
 </ui:UXML>

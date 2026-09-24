@@ -101,6 +101,7 @@ namespace Broodline.Game
         SimRunner _runner;
         WaveClock _clock;
         WavePair _pair;
+        FrontierBattleFeedback _feedback;
         WaveView _view;
         WaveHudView _hud;
         Camera _waveCamera;
@@ -115,6 +116,7 @@ namespace Broodline.Game
         /// about 115 KB a minute at 60fps, handed to the collector for
         /// nothing, on the path whose entire job is not to hitch.
         Action _onTick;
+        Action<FrontierCue> _onCue;
 
         /// The HUD's per-frame snapshot, reused. Same reason: this is rebuilt
         /// every frame and a fresh list per frame is the same garbage by
@@ -180,7 +182,9 @@ namespace Broodline.Game
             _runner = new SimRunner(wave, wave.Lane, deployment, seed);
             _clock = new WaveClock();
             _pair = new WavePair(_runner);
-            _onTick = () => _pair.Advance(_runner);
+            _feedback = new FrontierBattleFeedback(_runner);
+            _onTick = OnTick;
+            _onCue = OnCue;
             _inputEnabled = inputEnabled;
             _completed = new TaskCompletionSource<bool>();
 
@@ -256,6 +260,7 @@ namespace Broodline.Game
 
             _hud = new WaveHudView { Camera = _waveCamera != null ? _waveCamera : Camera.main, Wave = waveId };
             root.Add(_hud);
+            _view.OnFloatingCue = _hud.ShowCue;
             _hud.Bind(Snapshot);
             _hud.OnPause += () => { _clock.Paused = !_clock.Paused; _view.SetPaused(_clock.Paused); _hud.SetPaused(_clock.Paused); };
             _hud.OnSpeed += () => { _clock.Scale = _clock.Scale >= 2.0 ? 1.0 : 2.0; _view.SetSpeed((float)_clock.Scale); _hud.SetSpeed(_clock.Scale); };
@@ -293,6 +298,14 @@ namespace Broodline.Game
             return false;
         }
 
+        void OnTick()
+        {
+            _pair.Advance(_runner);
+            _feedback.Observe(_runner, _onCue);
+        }
+
+        void OnCue(FrontierCue cue) => _view.Present(cue, _pair.Current);
+
         void Update()
         {
             if (_runner == null)
@@ -317,6 +330,7 @@ namespace Broodline.Game
             // wave.
             _clock.Advance(_runner, Time.deltaTime, _onTick);
             _view.Render(_pair, _clock.Alpha);
+            _hud?.AdvanceCues(_clock.Paused ? 0f : Time.deltaTime * (float)_clock.Scale);
 
             if (!_runner.Done) return;
 
