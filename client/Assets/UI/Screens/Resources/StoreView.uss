@@ -41,27 +41,34 @@
 .store__gift .btn-reward { align-self: flex-start; }
 
 .store__pack {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    padding-top: var(--space-2); padding-bottom: var(--space-2);
-    border-bottom-width: 1px;
-    border-bottom-color: var(--divider);
+    flex-direction: column;
+    background-color: var(--surface-sunk);
+    border-width: 1px;
+    border-color: var(--divider);
+    border-radius: var(--radius-row);
+    padding: var(--space-3);
+    margin-bottom: var(--space-2);
 }
+.store__pack-main { flex-direction: row; align-items: center; }
 .store__pack-icon {
-    width: 28px; height: 28px;
+    width: 32px; height: 32px;
     flex-shrink: 0;
-    margin-right: var(--space-2);
+    margin-right: var(--space-3);
     -unity-background-image-tint-color: var(--brass);
 }
 .store__pack-text { flex-direction: column; flex-shrink: 1; flex-grow: 1; }
 .store__pack-text Label { white-space: normal; }
-.store__purchase { align-items: flex-end; flex-shrink: 0; margin-left: var(--space-1); }
+.store__purchase {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: var(--space-2);
+}
 .store__price { color: var(--ink-primary); font-size: var(--text-card-title); -unity-font-style: bold; }
 .store__pack .store__buy {
     flex-shrink: 0;
     margin: 0;
-    padding-top: 6px; padding-bottom: 6px;
+    min-height: 44px;
     padding-left: var(--space-2); padding-right: var(--space-2);
     font-size: var(--text-secondary);
 }
@@ -83,5 +90,10 @@
     white-space: normal;
     padding: var(--space-2);
     margin-bottom: var(--space-2);
+}
+.store .store__chest-progress {
+    color: var(--violet-text);
+    margin-top: var(--space-3);
+    margin-bottom: var(--space-1);
 }
 .store__pass-card .section-card__surface { border-color: var(--brass); }

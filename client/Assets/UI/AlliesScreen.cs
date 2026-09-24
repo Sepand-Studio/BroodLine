@@ -8,6 +8,7 @@ namespace Broodline.UI
     {
         public const string Title = "Allies";
         public const string Eyebrow = "ALLIANCE";
+        public const string BannerKicker = "TOGETHER, WE HOLD";
         public const string NoAlliance = "No alliance yet. Forty geneticists hold ground together: claim stakes, run convoys, and share what a Rally learns.";
         public const string Create = "Create alliance (preview)";
         public static string Member(string name) => "You fly the banner of " + name + ".";

@@ -1,8 +1,25 @@
 .allies { flex-grow: 1; }
-.allies .allies__pennant {
-    width: 64px; height: 64px;
-    -unity-background-image-tint-color: var(--brass-light);
+.allies__seal {
+    width: 84px; height: 84px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--hud-frame);
+    border-width: 2px;
+    border-color: var(--brass);
+    border-radius: 42px;
     margin-bottom: var(--space-2);
+}
+.allies .allies__pennant {
+    width: 50px; height: 50px;
+    -unity-background-image-tint-color: var(--brass-light);
+}
+.allies .allies__banner-kicker {
+    color: var(--brass-light);
+    font-size: var(--text-micro);
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    margin-bottom: var(--space-1);
 }
 .allies__banner-title {
     color: var(--surface-paper);

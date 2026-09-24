@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Broodline.Model.Catalogs;
 using Broodline.Model.Stub;
 using NUnit.Framework;
@@ -75,6 +76,11 @@ namespace Broodline.UI.Tests
                 last = perDollar;
             }
             Assert.AreEqual(6, StoreCatalog.ChestOptions.Count);
+            var pulls = StoreCatalog.ChestOptions.Single(option => option.Id == "pulls");
+            StringAssert.Contains("sample pulls", pulls.Title);
+            StringAssert.DoesNotContain("trait pulls", pulls.Title,
+                "buying counter access contradicts the bible's store rule");
+            Assert.AreEqual("$9.99", StoreCatalog.SeasonPassPrice);
         }
 
         [Test]

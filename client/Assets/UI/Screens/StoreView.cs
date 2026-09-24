@@ -19,7 +19,7 @@ namespace Broodline.UI.Screens
         readonly ScreenScaffold _scaffold;
         readonly HashSet<string> _picked = new HashSet<string>();
         Button _chestCta;
-        Label _chestSummary;
+        Label _chestSummary, _chestProgress;
 
         public StoreView()
         {
@@ -86,17 +86,19 @@ namespace Broodline.UI.Screens
                 var id = pack.Id;
                 var row = new VisualElement { name = "pack-" + pack.Id };
                 row.AddToClassList(PackRowUssClassName);
-                var crest = new VisualElement(); crest.AddToClassList("icon"); crest.AddToClassList("icon--shard"); crest.AddToClassList("store__pack-icon");
+                var main = new VisualElement(); main.AddToClassList("store__pack-main");
+                var crest = new VisualElement(); crest.AddToClassList("icon"); crest.AddToClassList("icon--" + pack.Id); crest.AddToClassList("store__pack-icon");
                 var text = new VisualElement(); text.AddToClassList("store__pack-text");
                 var title = new Label(pack.Name); title.AddToClassList("t-card-title");
                 var detail = new Label(StoreScreen.Shards(pack.Shards) + " · " + pack.Note); detail.AddToClassList("t-secondary");
                 text.Add(title); text.Add(detail);
+                main.Add(crest); main.Add(text);
                 var purchase = new VisualElement(); purchase.AddToClassList("store__purchase");
                 var price = new Label(pack.Price); price.AddToClassList("store__price");
                 var buy = new Button(() => onBuy?.Invoke(id)) { name = "buy", text = StoreScreen.Buy };
                 buy.AddToClassList("btn-secondary"); buy.AddToClassList("store__buy");
                 purchase.Add(price); purchase.Add(buy);
-                row.Add(crest); row.Add(text); row.Add(purchase);
+                row.Add(main); row.Add(purchase);
                 ladder.Body.Add(row);
             }
             _packs.Add(ladder);
@@ -124,6 +126,10 @@ namespace Broodline.UI.Screens
                 grid.Add(row);
             }
             chest.Body.Add(grid);
+            _chestProgress = new Label { name = "chest-progress" };
+            _chestProgress.AddToClassList("store__chest-progress");
+            _chestProgress.AddToClassList("t-num");
+            chest.Body.Add(_chestProgress);
             _chestSummary = new Label { name = "chest-selection" };
             _chestSummary.AddToClassList("store__chest-summary");
             chest.Body.Add(_chestSummary);
@@ -156,6 +162,7 @@ namespace Broodline.UI.Screens
         void RefreshChestSummary()
         {
             if (_chestSummary == null) return;
+            _chestProgress.text = StoreScreen.ChestProgress(_picked.Count);
             var titles = new List<string>();
             foreach (var option in StoreCatalog.ChestOptions)
                 if (_picked.Contains(option.Id)) titles.Add(option.Title);

@@ -28,9 +28,15 @@ namespace Broodline.UI.Screens
         {
             _body.Clear();
             var band = new HeroBand(ring: false);
+            var seal = new VisualElement { name = "alliance-seal" };
+            seal.AddToClassList("allies__seal");
             var pennant = new VisualElement { name = "pennant" };
             pennant.AddToClassList("icon"); pennant.AddToClassList("icon--allies"); pennant.AddToClassList("allies__pennant");
-            band.Subject.Add(pennant);
+            seal.Add(pennant);
+            band.Subject.Add(seal);
+            var kicker = new Label(AlliesScreen.BannerKicker) { name = "banner-kicker" };
+            kicker.AddToClassList("allies__banner-kicker");
+            band.Subject.Add(kicker);
             var motto = new Label(string.IsNullOrEmpty(allianceName) ? "A banner worth raising" : allianceName)
                 { name = "banner-title" };
             motto.AddToClassList("allies__banner-title");

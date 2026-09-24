@@ -24,11 +24,12 @@ namespace Broodline.UI
         public const string Buy = "Buy (preview)";
         public static string Shards(int n) => n.ToString("N0", System.Globalization.CultureInfo.InvariantCulture) + " shards";
         public const string ChestHeading = "Build your chest";
+        public static string ChestProgress(int picked) => picked + " / " + StoreCatalog.ChestPicks + " REWARDS CHOSEN";
         public static string ChestPick(int picked) => picked >= StoreCatalog.ChestPicks
             ? "Buy chest (preview)" : "Pick " + (StoreCatalog.ChestPicks - picked) + " more";
         public const string ChestNote = "Pick any three of the six. Nothing you did not choose ends up in the chest.";
         public const string PassTitle = "Season pass";
-        public const string PassDetail = "A chapter of rewards on two tracks. Does not renew by itself.";
+        public const string PassDetail = "Four-week season. Free and paid tracks. Does not renew by itself.";
         public const string RegenTitle = "Double regeneration";
         public const string RegenDetail = "Splice Charges return twice as fast, permanently.";
         public const string Preview = "Purchases are previews in this build - nothing is charged.";

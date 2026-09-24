@@ -46,7 +46,7 @@ namespace Broodline.Model.Catalogs
             new ChestOption { Id = "charges",  Title = "15 charges",    Detail = "Splice all day",     Icon = "charge" },
             new ChestOption { Id = "shards",   Title = "600 shards",    Detail = "Hard currency",      Icon = "shard" },
             new ChestOption { Id = "xp",       Title = "2,500 XP",      Detail = "Geneticist tier",    Icon = "tier" },
-            new ChestOption { Id = "pulls",    Title = "2 trait pulls", Detail = "Rare trait roll",    Icon = "sparkle" },
+            new ChestOption { Id = "pulls",    Title = "2 sample pulls", Detail = "Coverage for held traits", Icon = "sparkle" },
             new ChestOption { Id = "aura",     Title = "Hybrid aura",   Detail = "Cosmetic only",      Icon = "splice" },
             new ChestOption { Id = "speedups", Title = "6h speed-ups",  Detail = "Facility timers",    Icon = "timer" },
         };
@@ -57,7 +57,7 @@ namespace Broodline.Model.Catalogs
         };
 
         public const string SeasonPassId = "season-pass";
-        public const string SeasonPassPrice = "$4.99";
+        public const string SeasonPassPrice = "$9.99";
         public const string DoubleRegenId = "double-regen";
         public const string DoubleRegenPrice = "$9.99";
     }

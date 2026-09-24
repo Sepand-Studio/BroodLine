@@ -64,6 +64,15 @@
 .icon--facility-harvest  { background-image: url("project:///Assets/UI/Art/icons/facilities/harvest.png"); }
 .icon--facility-drive    { background-image: url("project:///Assets/UI/Art/icons/facilities/drive.png"); }
 
+/* The pack ladder grows from loose shards to a sealed reserve. Each mark is
+ * authored at 24 units with the same white master/tint pipeline as traits. */
+.icon--pack-1   { background-image: url("project:///Assets/UI/Art/icons/store/pack-1.png"); }
+.icon--pack-5   { background-image: url("project:///Assets/UI/Art/icons/store/pack-5.png"); }
+.icon--pack-10  { background-image: url("project:///Assets/UI/Art/icons/store/pack-10.png"); }
+.icon--pack-20  { background-image: url("project:///Assets/UI/Art/icons/store/pack-20.png"); }
+.icon--pack-50  { background-image: url("project:///Assets/UI/Art/icons/store/pack-50.png"); }
+.icon--pack-100 { background-image: url("project:///Assets/UI/Art/icons/store/pack-100.png"); }
+
 /* Bespoke trait silhouettes, generated together from the 24-unit geometry in
  * Art/generate-trait-icons.py. The PNG masters are white so each carrier's
  * TraitChip can tint the same mark without a second asset. */
