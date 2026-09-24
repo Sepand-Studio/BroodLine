@@ -152,6 +152,7 @@ namespace Broodline.Frontier
                     Foliage(b,new Vector3(Mathf.Cos(angle)*1.17f,0,Mathf.Sin(angle)*1.17f),i);
                 }
             if(!habitat) Ark(b,new Vector3(length+1,0,0));
+            FrontierTerrain.AddDetail(b, length, pockets, habitat);
             var mesh=b.Finish(habitat?"frontier-habitat":"frontier-defile");_environmentMeshes.Add(mesh);
             return Draw(parent,mesh.name,mesh);
         }
