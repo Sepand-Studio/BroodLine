@@ -1,14 +1,14 @@
 ---
 status: current
 folder: 01-companions
-verified-against: broodline_bible.md (2026-09-05)
+verified-against: broodline_bible.md (2026-09-24)
 note: >
   34 screens, build priority, rework column for the designed prototypes.
   Supersedes broodline_screen_inventory.md. Revised 2026-09-05 for register
   Part 6: Relocate Ark loses its risk column, Route Plotter gains a per-gate
   one, Roulette becomes a permanent Lab tab, the alliance Founder badge
-  becomes Leader, the Mythic store card is removed, and the Splice Census
-  and Marks Shop are corrected.
+  becomes Leader, and the Splice Census and Marks Shop are corrected. Store
+  contents were reconciled to the September 24 product decision.
 ---
 
 # Broodline — Screen Inventory
@@ -26,7 +26,7 @@ Twenty screens exist as design prototypes. This maps them against what the bible
 
 **Total: 34 screens.** Twenty designed, of which thirteen need rework; fourteen missing.
 
-**Revised 2026-09-05** against register Part 6. Screens changed by that pass carry a **`⚠`** marker and a register reference; nothing else in this document moved.
+**Revised 2026-09-24** against register Part 6 and the approved Store economy. Screens changed by the register pass carry a **`⚠`** marker.
 
 ---
 
@@ -125,7 +125,7 @@ Pushed sub-screens carry a back chevron and no bottom nav.
 
 | Screen | Status | Notes | Bible |
 |---|---|---|---|
-| **Store** | 🔧 ⚠ | Three tabs current. **Rewrite four pack descriptions** — sample pulls, never trait pulls. Free daily gift leads the Packs tab. **Remove the Mythic Lab Access card**; add **Double Regen at $9.99** as the anchor and only permanent purchase. "Breeder Bundle" is **Lab Bundle**. Shard values are 100 / 600 / 1,400 / 3,200, with $49.99 and $99.99 as plain direct-shard rows — the $99.99 row is never surfaced in a banner or offer. | §8.3, register 6.5–6.6 |
+| **Store** | 🔧 ⚠ | Three tabs current. Free daily gift leads the Packs tab. Five mixed-content bundles use **sample pulls**, never trait pulls: Starter Splice, Lab Bundle, Lab Expansion, the restored 48-hour Mythic Lab Access, and Geneticist's Vault. **Double Regen at $9.99 remains the anchor and only permanent purchase.** The $49.99 and $99.99 products are plain direct-shard rows; the $99.99 row is never surfaced in a banner or offer. Custom Chest has explicit Small/Standard/Large quantities and makes no savings claim without separate-item reference prices. | §8.3, September 24 Store decision |
 | **Geneticist Profile** | 🔧 | Renamed from Breeder Profile. **Tier 6 perk becomes a sample pull.** Tier 12 title unchanged. | §7.5 |
 | **Splice Census** | 🔧 ⚠ | Formerly "Gene Lab Event" — **renamed, because Gene Lab is the facility.** Server goal, personal contribution tiers, community milestones at 40/70/100%, five-day run then two days dark. | §8.4, register 6.10 |
 | **Event Hub** | 🆕 | Live-ops calendar, active events, timers, themed offers. | §8.4 |

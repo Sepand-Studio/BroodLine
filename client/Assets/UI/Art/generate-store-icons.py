@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate six white, tintable pack marks from one 24-unit geometry set."""
+"""Generate seven white, tintable pack marks from one 24-unit geometry set."""
 
 import importlib.util
 import sys
@@ -31,6 +31,12 @@ def marks():
                     .stroke([(8,8),(8,5),(16,5),(16,8)],2)
                     .stroke([(3,14),(21,14)],1.8)
                     .fill([(12,10),(14,13),(12,16),(10,13)])),
+        "pack-15": (Glyph().oval((3,3,21,21),2.1)
+                    .stroke([(12,3),(12,7)],1.8)
+                    .stroke([(12,17),(12,21)],1.8)
+                    .stroke([(3,12),(7,12)],1.8)
+                    .stroke([(17,12),(21,12)],1.8)
+                    .fill([(12,7),(16,12),(12,17),(8,12)])),
         "pack-20": (Glyph().stroke([(3,7),(12,3),(21,7),(21,19),(12,22),(3,19)],2.1,True)
                     .stroke([(3,7),(12,11),(21,7)],1.8)
                     .stroke([(12,11),(12,22)],1.8)
@@ -50,7 +56,8 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     SVG_OUT.mkdir(parents=True, exist_ok=True)
     icons = marks()
-    sheet = Image.new("RGB", (1060, 230), trait_art.token("surface-paper"))
+    sheet_width = 16 + len(icons) * 174
+    sheet = Image.new("RGB", (sheet_width, 230), trait_art.token("surface-paper"))
     draw = ImageDraw.Draw(sheet)
     font = ImageFont.load_default()
     for i, (name, glyph) in enumerate(icons.items()):

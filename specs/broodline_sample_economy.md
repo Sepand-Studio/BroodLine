@@ -233,7 +233,7 @@ Sixty percent tier I, 32% tier II, 8% tier III, with a tier-III sample guarantee
 
 Defining it as the same object does three things. It means one probability-table component rather than two, and that component is regulator-facing so building it once and correctly matters. It means the pity counter carries across free and paid pulls, which is the honest way to run it. And it means a pack's "8 sample pulls" has a stated, checkable value rather than being a number next to a word.
 
-**Where pulls come from:** Geneticist Tier 6 grants one daily; store packs grant 1, 3, 8, 20 and 50 by tier; the Custom Chest offers them as one of six slots; Splice Roulette sells them at 300 shards.
+**Where pulls come from:** Geneticist Tier 6 grants one daily; Lab Bundle grants 1, Lab Expansion 3 and Geneticist's Vault 8; the Custom Chest offers 1 Small, 2 Standard or 4 Large as one of its six selectable slots; Splice Roulette sells them at 300 shards. The direct-shard products and Mythic Lab Access grant none.
 
 ---
 

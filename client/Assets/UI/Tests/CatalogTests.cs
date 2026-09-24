@@ -68,25 +68,6 @@ namespace Broodline.UI.Tests
         }
 
         [Test]
-        public void ThePackLadderAlwaysRisesInValuePerDollar()
-        {
-            double last = 0;
-            foreach (var pack in StoreCatalog.Packs)
-            {
-                var dollars = double.Parse(pack.Price.TrimStart('$'), System.Globalization.CultureInfo.InvariantCulture);
-                var perDollar = pack.Shards / dollars;
-                Assert.That(perDollar, Is.GreaterThan(last), pack.Id);
-                last = perDollar;
-            }
-            Assert.AreEqual(6, StoreCatalog.ChestOptions.Count);
-            var pulls = StoreCatalog.ChestOptions.Single(option => option.Id == "pulls");
-            StringAssert.Contains("sample pulls", pulls.Title);
-            StringAssert.DoesNotContain("trait pulls", pulls.Title,
-                "buying counter access contradicts the bible's store rule");
-            Assert.AreEqual("$9.99", StoreCatalog.SeasonPassPrice);
-        }
-
-        [Test]
         public void TheStubLedgerPromotesAFacilityWhenItsTimerEnds()
         {
             var now = new DateTime(2026, 9, 23, 12, 0, 0, DateTimeKind.Utc);

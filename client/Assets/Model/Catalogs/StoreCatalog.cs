@@ -15,8 +15,24 @@ namespace Broodline.Model.Catalogs
     {
         public string Id;
         public string Title;
+        public string SmallTitle;
+        public string LargeTitle;
         public string Detail;
         public string Icon;       // an icons.uss glyph name
+
+        public string TitleFor(string tierId)
+        {
+            if (tierId == "small") return SmallTitle;
+            if (tierId == "large") return LargeTitle;
+            return Title;
+        }
+    }
+
+    public sealed class ChestTier
+    {
+        public string Id;
+        public string Label;
+        public string Price;
     }
 
     /// THE STORE'S CONTENTS, AS THE BIBLE LAYS THEM OUT - Phase 10 Task 1.5,
@@ -29,13 +45,18 @@ namespace Broodline.Model.Catalogs
         public const string DailyGiftId = "daily-gift";
         public const int DailyGiftShards = 40;
 
-        /// Value per dollar always rises down the ladder.
+        /// The five mixed-content bundles from the canonical economy ladder.
         public static readonly IReadOnlyList<StorePack> Packs = new[]
         {
-            new StorePack { Id = "pack-1",   Name = "Handful of shards", Price = "$0.99",  Shards = 100,   Note = "101 per dollar" },
-            new StorePack { Id = "pack-5",   Name = "Pouch of shards",   Price = "$4.99",  Shards = 600,   Note = "120 per dollar" },
-            new StorePack { Id = "pack-10",  Name = "Case of shards",    Price = "$9.99",  Shards = 1400,  Note = "140 per dollar" },
-            new StorePack { Id = "pack-20",  Name = "Crate of shards",   Price = "$19.99", Shards = 3200,  Note = "160 per dollar" },
+            new StorePack { Id = "pack-1",  Name = "Starter Splice",       Price = "$0.99",  Shards = 100,  Note = "5 charges · 500 XP" },
+            new StorePack { Id = "pack-5",  Name = "Lab Bundle",           Price = "$4.99",  Shards = 600,  Note = "15 charges · 1,500 XP · 1 sample pull" },
+            new StorePack { Id = "pack-10", Name = "Lab Expansion",        Price = "$9.99",  Shards = 1400, Note = "40 charges · 5,000 XP · 3 sample pulls" },
+            new StorePack { Id = "pack-15", Name = "Mythic Lab Access",    Price = "$14.99", Shards = 1500, Note = "Unlimited charges for 48h" },
+            new StorePack { Id = "pack-20", Name = "Geneticist's Vault",   Price = "$19.99", Shards = 3200, Note = "100 charges · 15,000 XP · 8 sample pulls · exclusive skin" },
+        };
+
+        public static readonly IReadOnlyList<StorePack> DirectShardPacks = new[]
+        {
             new StorePack { Id = "pack-50",  Name = "Vault of shards",   Price = "$49.99", Shards = 9000,  Note = "180 per dollar" },
             new StorePack { Id = "pack-100", Name = "Reserve of shards", Price = "$99.99", Shards = 20000, Note = "200 per dollar" },
         };
@@ -43,17 +64,19 @@ namespace Broodline.Model.Catalogs
         /// Pick three of six; the chest holds only what was picked.
         public static readonly IReadOnlyList<ChestOption> ChestOptions = new[]
         {
-            new ChestOption { Id = "charges",  Title = "15 charges",    Detail = "Splice all day",     Icon = "charge" },
-            new ChestOption { Id = "shards",   Title = "600 shards",    Detail = "Hard currency",      Icon = "shard" },
-            new ChestOption { Id = "xp",       Title = "2,500 XP",      Detail = "Geneticist tier",    Icon = "tier" },
-            new ChestOption { Id = "pulls",    Title = "2 sample pulls", Detail = "Coverage for held traits", Icon = "sparkle" },
-            new ChestOption { Id = "aura",     Title = "Hybrid aura",   Detail = "Cosmetic only",      Icon = "splice" },
-            new ChestOption { Id = "speedups", Title = "6h speed-ups",  Detail = "Facility timers",    Icon = "timer" },
+            new ChestOption { Id = "charges",  SmallTitle = "6 charges",              Title = "15 charges",              LargeTitle = "30 charges",              Detail = "Splice all day", Icon = "charge" },
+            new ChestOption { Id = "shards",   SmallTitle = "250 shards",              Title = "600 shards",              LargeTitle = "1,200 shards",            Detail = "Hard currency", Icon = "shard" },
+            new ChestOption { Id = "xp",       SmallTitle = "1,000 XP",                Title = "2,500 XP",                LargeTitle = "5,000 XP",                Detail = "Geneticist tier", Icon = "tier" },
+            new ChestOption { Id = "pulls",    SmallTitle = "1 sample pull",           Title = "2 sample pulls",          LargeTitle = "4 sample pulls",          Detail = "Coverage for held traits", Icon = "sparkle" },
+            new ChestOption { Id = "aura",     SmallTitle = "4 cosmetic fragments",    Title = "10 cosmetic fragments",    LargeTitle = "20 cosmetic fragments",   Detail = "Cosmetic only", Icon = "splice" },
+            new ChestOption { Id = "speedups", SmallTitle = "2h speed-ups",            Title = "6h speed-ups",            LargeTitle = "12h speed-ups",           Detail = "Facility timers", Icon = "timer" },
         };
         public const int ChestPicks = 3;
-        public static readonly IReadOnlyList<(string Id, string Price, string Label)> ChestPrices = new[]
+        public static readonly IReadOnlyList<ChestTier> ChestTiers = new[]
         {
-            ("small", "$1.99", "Small"), ("standard", "$4.99", "Standard"), ("large", "$9.99", "Large"),
+            new ChestTier { Id = "small", Label = "Small", Price = "$1.99" },
+            new ChestTier { Id = "standard", Label = "Standard", Price = "$4.99" },
+            new ChestTier { Id = "large", Label = "Large", Price = "$9.99" },
         };
 
         public const string SeasonPassId = "season-pass";

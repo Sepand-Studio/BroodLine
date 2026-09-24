@@ -69,6 +69,7 @@
 .icon--pack-1   { background-image: url("project:///Assets/UI/Art/icons/store/pack-1.png"); }
 .icon--pack-5   { background-image: url("project:///Assets/UI/Art/icons/store/pack-5.png"); }
 .icon--pack-10  { background-image: url("project:///Assets/UI/Art/icons/store/pack-10.png"); }
+.icon--pack-15  { background-image: url("project:///Assets/UI/Art/icons/store/pack-15.png"); }
 .icon--pack-20  { background-image: url("project:///Assets/UI/Art/icons/store/pack-20.png"); }
 .icon--pack-50  { background-image: url("project:///Assets/UI/Art/icons/store/pack-50.png"); }
 .icon--pack-100 { background-image: url("project:///Assets/UI/Art/icons/store/pack-100.png"); }

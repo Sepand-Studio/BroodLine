@@ -2,7 +2,7 @@
 status: current
 folder: 01-companions
 supersedes: 99-archive/broodline_monetization_era2.md
-verified-against: broodline_bible.md (2026-09-05)
+verified-against: broodline_bible.md (2026-09-24)
 note: >
   Offers addendum. Bible §8 owns the rule, currencies, store structure,
   live-ops offers, trial hook, never-sold list and guardrails; the economy
@@ -38,7 +38,7 @@ note: >
 
 This is what bible §8.5's trial converts to. The trial gives the effect free for 24 hours at the first charge wall; on expiry the player is offered two more days for Gene Shards or the permanent unlock. Every other purchase in the game is consumable; this is the one thing a player buys once and keeps, which is why it is the anchor.
 
-It replaces **Mythic Lab Access** (48 hours of unlimited charges, $14.99), which is dropped from §8.3. Unlimited is self-limiting in practice — splicing consumes parents and a player runs out of creatures before charges — but selling an unlimited *anything* invites the reading that throughput is purchasable without bound, and the pack also sat outside the shard ladder. Register 6.6.
+**Mythic Lab Access — $14.99** is a separate, consumable bundle: 48 hours of unlimited charges plus 1,500 shards. It does not replace Double Regen, renew automatically or become a second permanent purchase. The September 24 Store decision restores this tightly time-boxed exception to the earlier register 6.6 ruling; splicing still consumes parents, so the offer accelerates throughput without creating creatures or trait access.
 
 **Double Regen does not stack** with Geneticist Tier 4's 10% regen bonus multiplicatively; Tier 4 applies to the base, so a Tier 4 owner regenerates at 11.25 minutes, not 11.25 of a halved figure. The charge cap is unchanged by either.
 
@@ -96,7 +96,7 @@ Unaddressed until the localization plan exists. Two constraints it must satisfy 
 In addition to bible §8.7:
 
 - Exactly one permanent purchase exists, and it is throughput
-- Nothing sold is unlimited, for any duration
+- No permanent unlimited purchase exists; the only unlimited-charge exception is Mythic Lab Access's explicit 48-hour window
 - Two timed offers maximum; none under 48 hours
 - Upper tiers are direct shards, never themed packs
 - Rewarded ads only, never in play

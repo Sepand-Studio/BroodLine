@@ -14,10 +14,13 @@ namespace Broodline.UI.Screens
         public const string TabActiveUssClassName = "store__tab--active";
         public const string PackRowUssClassName = "store__pack";
         public const string ChestOptionUssClassName = "store__chest-option";
+        public const string ChestTierActiveUssClassName = "store__chest-tier--active";
 
         readonly VisualElement _tabs, _panels, _packs, _chest, _pass;
         readonly ScreenScaffold _scaffold;
-        readonly HashSet<string> _picked = new HashSet<string>();
+        readonly Dictionary<string, OptionRow> _chestRows = new Dictionary<string, OptionRow>();
+        readonly Dictionary<string, Button> _chestTierButtons = new Dictionary<string, Button>();
+        ChestSelectionModel _chestSelection;
         Button _chestCta;
         Label _chestSummary, _chestProgress;
 
@@ -80,50 +83,43 @@ namespace Broodline.UI.Screens
             gift.Body.Add(claim);
             _packs.Add(gift);
 
-            var ladder = new SectionCard(StoreScreen.PacksTab);
-            foreach (var pack in StoreCatalog.Packs)
-            {
-                var id = pack.Id;
-                var row = new VisualElement { name = "pack-" + pack.Id };
-                row.AddToClassList(PackRowUssClassName);
-                var main = new VisualElement(); main.AddToClassList("store__pack-main");
-                var crest = new VisualElement(); crest.AddToClassList("icon"); crest.AddToClassList("icon--" + pack.Id); crest.AddToClassList("store__pack-icon");
-                var text = new VisualElement(); text.AddToClassList("store__pack-text");
-                var title = new Label(pack.Name); title.AddToClassList("t-card-title");
-                var detail = new Label(StoreScreen.Shards(pack.Shards) + " · " + pack.Note); detail.AddToClassList("t-secondary");
-                text.Add(title); text.Add(detail);
-                main.Add(crest); main.Add(text);
-                var purchase = new VisualElement(); purchase.AddToClassList("store__purchase");
-                var price = new Label(pack.Price); price.AddToClassList("store__price");
-                var buy = new Button(() => onBuy?.Invoke(id)) { name = "buy", text = StoreScreen.Buy };
-                buy.AddToClassList("btn-secondary"); buy.AddToClassList("store__buy");
-                purchase.Add(price); purchase.Add(buy);
-                row.Add(main); row.Add(purchase);
-                ladder.Body.Add(row);
-            }
-            _packs.Add(ladder);
+            AddPackSection(StoreScreen.PacksTab, StoreCatalog.Packs, onBuy);
+            AddPackSection("Gene shards", StoreCatalog.DirectShardPacks, onBuy);
 
             // Chest: pick three of six.
-            _chest.Clear(); _picked.Clear();
+            _chest.Clear(); _chestRows.Clear(); _chestTierButtons.Clear();
+            _chestSelection = m.ChestSelection;
             var chest = new SectionCard(StoreScreen.ChestHeading);
+            var tiers = new VisualElement { name = "chest-tiers" };
+            tiers.AddToClassList("store__chest-tiers");
+            foreach (var tier in StoreCatalog.ChestTiers)
+            {
+                var tierId = tier.Id;
+                var tierButton = new Button(() =>
+                {
+                    _chestSelection.SelectTier(tierId);
+                    RefreshChest();
+                }) { name = "chest-tier-" + tier.Id, text = tier.Label + "\n" + tier.Price };
+                tierButton.AddToClassList("store__chest-tier");
+                tiers.Add(tierButton);
+                _chestTierButtons.Add(tier.Id, tierButton);
+            }
+            chest.Body.Add(tiers);
             var grid = new VisualElement(); grid.AddToClassList("store__chest-grid");
             foreach (var option in StoreCatalog.ChestOptions)
             {
                 var id = option.Id; OptionRow row = null;
-                row = new OptionRow(option.Title, option.Detail, () =>
+                row = new OptionRow(_chestSelection.TitleFor(option), option.Detail, () =>
                 {
-                    if (_picked.Contains(id)) _picked.Remove(id);
-                    else if (_picked.Count < StoreCatalog.ChestPicks) _picked.Add(id);
-                    row.Selected = _picked.Contains(id);
-                    _chestCta.text = StoreScreen.ChestPick(_picked.Count);
-                    _chestCta.SetEnabled(_picked.Count >= StoreCatalog.ChestPicks);
-                    RefreshChestSummary();
+                    _chestSelection.Toggle(id);
+                    RefreshChest();
                 }) { name = "chest-" + option.Id };
                 row.AddToClassList(ChestOptionUssClassName);
                 var glyph = new VisualElement();
                 glyph.AddToClassList("icon"); glyph.AddToClassList("icon--" + option.Icon); glyph.AddToClassList("store__chest-icon");
                 row.Add(glyph);
                 grid.Add(row);
+                _chestRows.Add(option.Id, row);
             }
             chest.Body.Add(grid);
             _chestProgress = new Label { name = "chest-progress" };
@@ -133,13 +129,12 @@ namespace Broodline.UI.Screens
             _chestSummary = new Label { name = "chest-selection" };
             _chestSummary.AddToClassList("store__chest-summary");
             chest.Body.Add(_chestSummary);
-            RefreshChestSummary();
             chest.Body.Add(new Label(StoreScreen.ChestNote) { name = "chest-note" }.WithClass("t-secondary"));
-            _chestCta = new Button(() => onBuy?.Invoke("chest")) { name = "chest-buy", text = StoreScreen.ChestPick(0) };
+            _chestCta = new Button(() => onBuy?.Invoke(_chestSelection.PurchaseId)) { name = "chest-buy" };
             _chestCta.AddToClassList("btn-primary");
-            _chestCta.SetEnabled(false);
             chest.Body.Add(_chestCta);
             _chest.Add(chest);
+            RefreshChest();
 
             // Pass and the one permanent purchase.
             _pass.Clear();
@@ -159,15 +154,49 @@ namespace Broodline.UI.Screens
             }
         }
 
-        void RefreshChestSummary()
+        void AddPackSection(string title, IReadOnlyList<StorePack> packs, Action<string> onBuy)
+        {
+            var section = new SectionCard(title);
+            foreach (var pack in packs)
+            {
+                var id = pack.Id;
+                var row = new VisualElement { name = "pack-" + pack.Id };
+                row.AddToClassList(PackRowUssClassName);
+                var main = new VisualElement(); main.AddToClassList("store__pack-main");
+                var crest = new VisualElement(); crest.AddToClassList("icon"); crest.AddToClassList("icon--" + pack.Id); crest.AddToClassList("store__pack-icon");
+                var text = new VisualElement(); text.AddToClassList("store__pack-text");
+                var packTitle = new Label(pack.Name); packTitle.AddToClassList("t-card-title");
+                var detail = new Label(StoreScreen.Shards(pack.Shards) + " · " + pack.Note); detail.AddToClassList("t-secondary");
+                text.Add(packTitle); text.Add(detail);
+                main.Add(crest); main.Add(text);
+                var purchase = new VisualElement(); purchase.AddToClassList("store__purchase");
+                var price = new Label(pack.Price); price.AddToClassList("store__price");
+                var buy = new Button(() => onBuy?.Invoke(id)) { name = "buy", text = StoreScreen.Buy };
+                buy.AddToClassList("btn-secondary"); buy.AddToClassList("store__buy");
+                purchase.Add(price); purchase.Add(buy);
+                row.Add(main); row.Add(purchase);
+                section.Body.Add(row);
+            }
+            _packs.Add(section);
+        }
+
+        void RefreshChest()
         {
             if (_chestSummary == null) return;
-            _chestProgress.text = StoreScreen.ChestProgress(_picked.Count);
-            var titles = new List<string>();
+            _chestProgress.text = StoreScreen.ChestProgress(_chestSelection.Count);
+            _chestSummary.text = _chestSelection.Summary;
+            _chestCta.text = _chestSelection.Cta;
+            _chestCta.SetEnabled(_chestSelection.Count >= StoreCatalog.ChestPicks);
+
+            foreach (var tier in StoreCatalog.ChestTiers)
+                _chestTierButtons[tier.Id].EnableInClassList(
+                    ChestTierActiveUssClassName, tier.Id == _chestSelection.Tier.Id);
             foreach (var option in StoreCatalog.ChestOptions)
-                if (_picked.Contains(option.Id)) titles.Add(option.Title);
-            _chestSummary.text = titles.Count == 0 ? "YOUR CHEST  ·  Choose three rewards"
-                : "YOUR CHEST  ·  " + string.Join(" + ", titles);
+            {
+                var row = _chestRows[option.Id];
+                row.Q<Label>("title").text = _chestSelection.TitleFor(option);
+                row.Selected = _chestSelection.IsPicked(option.Id);
+            }
         }
     }
 

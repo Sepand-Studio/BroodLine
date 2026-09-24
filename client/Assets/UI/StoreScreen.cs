@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Broodline.Model.Catalogs;
 
 namespace Broodline.UI
@@ -5,6 +6,60 @@ namespace Broodline.UI
     public sealed class StoreScreenModel
     {
         public bool GiftAvailable = true;
+        public ChestSelectionModel ChestSelection { get; } = new ChestSelectionModel();
+    }
+
+    public sealed class ChestSelectionModel
+    {
+        readonly HashSet<string> _picked = new HashSet<string>();
+
+        public ChestTier Tier { get; private set; }
+        public string PurchaseId => "chest:" + Tier.Id;
+        public int Count => _picked.Count;
+        public string Cta => Count >= StoreCatalog.ChestPicks
+            ? Tier.Price + " · Buy " + Tier.Label + " chest (preview)"
+            : Tier.Price + " · Pick " + (StoreCatalog.ChestPicks - Count) + " more";
+        public string Summary
+        {
+            get
+            {
+                var titles = new List<string>();
+                foreach (var option in StoreCatalog.ChestOptions)
+                    if (_picked.Contains(option.Id)) titles.Add(TitleFor(option));
+                var contents = titles.Count == 0
+                    ? "Choose three rewards"
+                    : string.Join(" + ", titles);
+                return Tier.Label.ToUpperInvariant() + " CHEST · " + Tier.Price + " · " + contents;
+            }
+        }
+
+        public ChestSelectionModel()
+        {
+            foreach (var tier in StoreCatalog.ChestTiers)
+                if (tier.Id == "standard") Tier = tier;
+        }
+
+        public bool Toggle(string optionId)
+        {
+            if (_picked.Remove(optionId)) return true;
+            if (_picked.Count >= StoreCatalog.ChestPicks) return false;
+            return _picked.Add(optionId);
+        }
+
+        public bool SelectTier(string tierId)
+        {
+            foreach (var tier in StoreCatalog.ChestTiers)
+            {
+                if (tier.Id != tierId) continue;
+                Tier = tier;
+                return true;
+            }
+            return false;
+        }
+
+        public bool IsPicked(string optionId) => _picked.Contains(optionId);
+
+        public string TitleFor(ChestOption option) => option.TitleFor(Tier.Id);
     }
 
     /// The Store's words - Phase 10 Task 1.5. Bible §8.3's layout: the free

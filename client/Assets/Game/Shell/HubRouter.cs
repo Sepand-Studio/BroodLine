@@ -208,11 +208,16 @@ namespace Broodline.Game.Shell
         public void ShowStore()
         {
             var view = new StoreView();
+            var model = new StoreScreenModel();
             Action bind = null;
-            bind = () => view.Bind(new StoreScreenModel { GiftAvailable = _ledger.DailyGiftAvailable() },
-                onGift: () => { _ledger.ClaimDailyGift(); _notice(StoreScreen.GiftNotice); bind(); },
-                onBuy: id => { _ledger.RecordPreviewPurchase(id); _notice(StoreScreen.PreviewNotice); },
-                onBack: () => _host.Pop());
+            bind = () =>
+            {
+                model.GiftAvailable = _ledger.DailyGiftAvailable();
+                view.Bind(model,
+                    onGift: () => { _ledger.ClaimDailyGift(); _notice(StoreScreen.GiftNotice); bind(); },
+                    onBuy: id => { _ledger.RecordPreviewPurchase(id); _notice(StoreScreen.PreviewNotice); },
+                    onBack: () => _host.Pop());
+            };
             bind();
             _host.Push(view);
         }

@@ -781,10 +781,17 @@ Free routes to more charges: escalating daily login streak rewards, a rewarded v
 | Pack | Contents | Price |
 |---|---|---|
 | Starter Splice | 5 charges · 100 shards · 500 XP | $0.99 |
-| Breeder Bundle | 15 charges · 300 shards · 1,500 XP · 1 **sample pull** | $4.99 |
-| Lab Expansion | 40 charges · 1,000 shards · 5,000 XP · 3 **sample pulls** | $9.99 |
-| Geneticist's Vault | 100 charges · 3,000 shards · 15,000 XP · 8 **sample pulls** · exclusive skin | $19.99 |
-| Mythic Lab Access | Unlimited charges for 48 hours · 5,000 shards | $14.99 |
+| Lab Bundle | 15 charges · 600 shards · 1,500 XP · 1 **sample pull** | $4.99 |
+| Lab Expansion | 40 charges · 1,400 shards · 5,000 XP · 3 **sample pulls** | $9.99 |
+| Mythic Lab Access | Unlimited charges for 48 hours · 1,500 shards | $14.99 |
+| Geneticist's Vault | 100 charges · 3,200 shards · 15,000 XP · 8 **sample pulls** · exclusive skin | $19.99 |
+
+These are the five mixed-content bundles. Direct shard purchases are separate products:
+
+| Product | Contents | Price |
+|---|---|---|
+| Vault of Shards | 9,000 shards | $49.99 |
+| Reserve of Shards | 20,000 shards | $99.99 |
 
 **Sample pulls, not trait pulls.** The original spec described these as rare trait pulls, which would have made counter access purchasable and broken the model on the store page. Pulls grant samples, which raise coverage on traits a player already holds.
 
@@ -792,7 +799,18 @@ First purchase of any pack grants **2× contents, one time only.**
 
 ### Custom Chest
 
-Pick any three of six reward slots — charges, shards, XP, sample pulls, cosmetic, speed-up — at $1.99, $4.99 or $9.99. A live value strip computes the saving against buying the picks separately.
+Pick any three of six reward slots — charges, shards, XP, sample pulls, cosmetic fragments, speed-ups. The selected tier sets the price and the amount in every slot:
+
+| Reward slot | Small · $1.99 | Standard · $4.99 | Large · $9.99 |
+|---|---:|---:|---:|
+| Charges | 6 | 15 | 30 |
+| Shards | 250 | 600 | 1,200 |
+| Geneticist XP | 1,000 | 2,500 | 5,000 |
+| Sample pulls | 1 | 2 | 4 |
+| Cosmetic fragments | 4 | 10 | 20 |
+| Speed-ups | 2h | 6h | 12h |
+
+Standard is the baseline reward set. Small is approximately 40% of Standard, with discrete rewards and timer rounding; Large is 200% of Standard. The store always shows the chosen tier, exact contents and price. **It makes no savings or discount claim:** separate-item reference prices do not exist, so a percentage would be invented. Add a live value strip only if a later economy revision establishes truthful reference prices.
 
 This is the highest-converting mechanic available, because players stop feeling like they are paying for things they do not want.
 
