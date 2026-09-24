@@ -10,7 +10,8 @@ namespace Broodline.Frontier
             trait == "chill" || trait == "taunt" || trait == "splash";
 
         static Color Hex(string value) { ColorUtility.TryParseHtmlString(value, out var c); return c; }
-        static readonly Color Cream = Hex("#f4dfb9"), Frost = Hex("#c6cede"), Gold = Hex("#c99a49"), Coral = Hex("#e5867a");
+        static readonly Color Cream = Hex("#f4dfb9"), Frost = Hex("#c6cede"), Gold = Hex("#c99a49"),
+            SplashCoral = Hex("#8f4550");
         public static void Build(FrontierMesh b, string trait)
         {
             switch (trait)
@@ -41,7 +42,10 @@ namespace Broodline.Frontier
                     for (int i = -1; i <= 1; i += 2) b.Sphere(new Vector3(i*.13f,.09f,0),new Vector3(.11f,.15f,.065f),Gold,10,6);
                     break;
                 case "splash":
-                    for (int i = -1; i <= 1; i += 2) b.Sphere(new Vector3(i*.14f,.07f,0),new Vector3(.12f,.12f,.13f),Coral,10,6);
+                    // Splash belongs to coral Ember, so the body hue itself
+                    // disappears on the creature that most often carries it.
+                    // Keep the family colour but use Ember's deep value step.
+                    for (int i = -1; i <= 1; i += 2) b.Sphere(new Vector3(i*.14f,.07f,0),new Vector3(.12f,.12f,.13f),SplashCoral,10,6);
                     break;
                 default: throw new ArgumentException("No proof part for " + trait);
             }

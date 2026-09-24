@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using Broodline.Frontier;
 using UnityEditor;
@@ -10,6 +11,7 @@ using UnityEngine.Rendering;
 public static class FrontierBaker
 {
     const int Size = 192;
+    const int CropPadding = 8;
     const int StudioLayer = 6;
     const string Root = "Assets/UI/Resources/Art/creatures";
     static readonly string[] Traits = { "cinder", "carapace", "chill", "taunt", "splash" };
@@ -47,20 +49,25 @@ public static class FrontierBaker
             art = new FrontierArt(shader);
             foreach (var species in FrontierRigDefinition.Companions)
             {
+                var paths = new List<string>();
                 var definition = FrontierVisuals.For(species);
                 var bounds = CombinedBounds(art, host.transform, species);
                 FrontierPortraitCamera.Frame(camera, host.transform, bounds, definition.Rig, definition.Portrait);
-                Shoot(art, host.transform, camera, texture, species, null, null,
-                    Root + "/bodies/" + species + ".png", null);
+                var bodyPath = Root + "/bodies/" + species + ".png";
+                Shoot(art, host.transform, camera, texture, species, null, null, bodyPath, null);
+                paths.Add(bodyPath);
                 count++;
                 foreach (var trait in Traits)
                 {
-                    Shoot(art, host.transform, camera, texture, species, trait, null,
-                        Root + "/parts/" + species + "-sk_dorsal-" + trait + ".png", "sk_dorsal");
-                    Shoot(art, host.transform, camera, texture, species, null, trait,
-                        Root + "/parts/" + species + "-sk_flank-" + trait + ".png", "sk_flank");
+                    var dorsalPath = Root + "/parts/" + species + "-sk_dorsal-" + trait + ".png";
+                    var flankPath = Root + "/parts/" + species + "-sk_flank-" + trait + ".png";
+                    Shoot(art, host.transform, camera, texture, species, trait, null, dorsalPath, "sk_dorsal");
+                    Shoot(art, host.transform, camera, texture, species, null, trait, flankPath, "sk_flank");
+                    paths.Add(dorsalPath);
+                    paths.Add(flankPath);
                     count += 2;
                 }
+                NormalizeLayers(paths);
             }
         }
         finally
@@ -130,4 +137,81 @@ public static class FrontierBaker
         root.layer = StudioLayer;
         foreach (Transform child in root.transform) SetLayer(child.gameObject);
     }
+
+    /// Crops every layer for one species through the same square. Body and
+    /// traits therefore remain pixel-aligned, while the fallback card no
+    /// longer inherits the large empty margin needed to frame every possible
+    /// attachment in world space. The padding is part of the crop before it
+    /// is scaled, so even the widest layer keeps a visible transparent inset.
+    static void NormalizeLayers(IReadOnlyList<string> paths)
+    {
+        var sources = new List<Texture2D>();
+        int minX = Size, minY = Size, maxX = -1, maxY = -1;
+        try
+        {
+            foreach (var path in paths)
+            {
+                var image = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                if (!image.LoadImage(File.ReadAllBytes(Absolute(path))))
+                    throw new IOException("Could not decode Frontier card layer " + path);
+                if (image.width != Size || image.height != Size)
+                    throw new IOException("Frontier card layer is not " + Size + "x" + Size + ": " + path);
+                sources.Add(image);
+                var pixels = image.GetPixels32();
+                for (int i = 0; i < pixels.Length; i++)
+                {
+                    if (pixels[i].a <= 127) continue;
+                    int x = i % Size;
+                    int y = i / Size;
+                    minX = Mathf.Min(minX, x); minY = Mathf.Min(minY, y);
+                    maxX = Mathf.Max(maxX, x); maxY = Mathf.Max(maxY, y);
+                }
+            }
+
+            if (maxX < minX || maxY < minY)
+                throw new IOException("Frontier card layers are all transparent for " + paths[0]);
+
+            int side = Mathf.Min(Size,
+                Mathf.Max(maxX - minX + 1, maxY - minY + 1) + CropPadding * 2);
+            float centerX = (minX + maxX + 1) * .5f;
+            float centerY = (minY + maxY + 1) * .5f;
+            int cropX = Mathf.Clamp(Mathf.RoundToInt(centerX - side * .5f), 0, Size - side);
+            int cropY = Mathf.Clamp(Mathf.RoundToInt(centerY - side * .5f), 0, Size - side);
+
+            for (int i = 0; i < sources.Count; i++)
+            {
+                var crop = new Texture2D(side, side, TextureFormat.RGBA32, false);
+                var output = new Texture2D(Size, Size, TextureFormat.RGBA32, false);
+                var target = RenderTexture.GetTemporary(Size, Size, 0,
+                    RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
+                var previous = RenderTexture.active;
+                try
+                {
+                    crop.SetPixels(sources[i].GetPixels(cropX, cropY, side, side));
+                    crop.Apply();
+                    crop.filterMode = FilterMode.Bilinear;
+                    crop.wrapMode = TextureWrapMode.Clamp;
+                    Graphics.Blit(crop, target);
+                    RenderTexture.active = target;
+                    output.ReadPixels(new Rect(0, 0, Size, Size), 0, 0);
+                    output.Apply();
+                    File.WriteAllBytes(Absolute(paths[i]), output.EncodeToPNG());
+                }
+                finally
+                {
+                    RenderTexture.active = previous;
+                    RenderTexture.ReleaseTemporary(target);
+                    Object.DestroyImmediate(crop);
+                    Object.DestroyImmediate(output);
+                }
+            }
+        }
+        finally
+        {
+            foreach (var source in sources) Object.DestroyImmediate(source);
+        }
+    }
+
+    static string Absolute(string path) =>
+        Path.GetFullPath(Path.Combine(Application.dataPath, "..", path));
 }

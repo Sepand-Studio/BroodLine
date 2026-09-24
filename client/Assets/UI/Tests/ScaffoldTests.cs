@@ -302,12 +302,15 @@ namespace Broodline.UI.Tests
             // WorldMapView, StoreView, LabView and AlliesView, the tab
             // destinations the skin pass added. All five compose the frame;
             // none joins the exemption list.
-            Assert.That(all.Count, Is.EqualTo(18),
-                "the namespace holds 18 constructible VisualElements; if this moved, the " +
+            // NINETEEN IN PHASE 10'S MAP PASS: RegionPreviewView is the
+            // pushed remote-region detail screen. It carries the same frame
+            // as RegionView and is neither a sheet nor a HUD overlay.
+            Assert.That(all.Count, Is.EqualTo(19),
+                "the namespace holds 19 constructible VisualElements; if this moved, the " +
                 "sweep's exemption list below needs re-deciding rather than silently widening");
 
             var screens = all.Where(t => !exempt.Contains(t.Name)).ToList();
-            Assert.That(screens.Count, Is.EqualTo(16), "16 screens must carry the frame");
+            Assert.That(screens.Count, Is.EqualTo(17), "17 screens must carry the frame");
 
             var bare = screens
                 .Where(t => ((VisualElement)Activator.CreateInstance(t))
@@ -392,8 +395,10 @@ namespace Broodline.UI.Tests
             // would have made that list mean two different things.
             // ELEVEN AS OF PHASE 10 TASK 1.5: WorldMapView, StoreView, LabView
             // and AlliesView all pass a title and draw the page header.
-            Assert.That(titled.Count, Is.EqualTo(11),
-                "eleven screens pass a non-empty title; if this moved, decide which list the " +
+            // RegionPreviewView is the twelfth: a pushed detail screen whose
+            // title names the selected remote region.
+            Assert.That(titled.Count, Is.EqualTo(12),
+                "twelve screens pass a non-empty title; if this moved, decide which list the " +
                 "new screen belongs in rather than widening one silently");
 
             var lost = titled

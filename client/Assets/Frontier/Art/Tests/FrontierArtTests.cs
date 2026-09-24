@@ -1,6 +1,6 @@
+using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
-using UnityEngine.TestTools;
 using Object = UnityEngine.Object;
 
 namespace Broodline.Frontier.Art.Tests
@@ -32,29 +32,43 @@ namespace Broodline.Frontier.Art.Tests
         [Test]
         public void NewlyCreatedActiveAndInactiveCreaturesApplyTheirFirstPoseWithoutErrors()
         {
-            foreach (bool active in new[] { true, false })
+            var errors = new List<string>();
+            Application.LogCallback capture = (message, stack, type) =>
             {
-                var root = new GameObject("initialization regression");
-                root.SetActive(active);
-                using (var art = new FrontierArt(Shader.Find("Broodline/FrontierSurface")))
+                if (type == LogType.Error || type == LogType.Exception || type == LogType.Assert)
+                    errors.Add(type + ": " + message);
+            };
+            Application.logMessageReceived += capture;
+            try
+            {
+                foreach (bool active in new[] { true, false })
                 {
-                    try
+                    var root = new GameObject("initialization regression");
+                    root.SetActive(active);
+                    using (var art = new FrontierArt(Shader.Find("Broodline/FrontierSurface")))
                     {
-                        var creature = art.Creature(root.transform, "vetch");
-                        creature.Chilled = true;
-                        Assert.DoesNotThrow(() => creature.Pose(0, true));
-                        var renderer = creature.GetComponentInChildren<SkinnedMeshRenderer>(true);
-                        var properties = new MaterialPropertyBlock();
-                        renderer.GetPropertyBlock(properties);
-                        var tint = properties.GetColor(Shader.PropertyToID("_Tint"));
-                        Assert.That(tint.r, Is.EqualTo(.65f).Within(.001f));
-                        Assert.That(tint.g, Is.EqualTo(.85f).Within(.001f));
-                        Assert.That(tint.b, Is.EqualTo(1f).Within(.001f));
-                        LogAssert.NoUnexpectedReceived();
+                        try
+                        {
+                            var creature = art.Creature(root.transform, "vetch");
+                            creature.Chilled = true;
+                            Assert.DoesNotThrow(() => creature.Pose(0, true));
+                            var renderer = creature.GetComponentInChildren<SkinnedMeshRenderer>(true);
+                            var properties = new MaterialPropertyBlock();
+                            renderer.GetPropertyBlock(properties);
+                            var tint = properties.GetColor(Shader.PropertyToID("_Tint"));
+                            Assert.That(tint.r, Is.EqualTo(.65f).Within(.001f));
+                            Assert.That(tint.g, Is.EqualTo(.85f).Within(.001f));
+                            Assert.That(tint.b, Is.EqualTo(1f).Within(.001f));
+                        }
+                        finally { Object.DestroyImmediate(root); }
                     }
-                    finally { Object.DestroyImmediate(root); }
                 }
             }
+            finally { Application.logMessageReceived -= capture; }
+
+            Assert.IsEmpty(errors,
+                "creating and posing an active or inactive creature logged an error:\n" +
+                string.Join("\n", errors));
         }
 
         static void ValidMesh(Mesh mesh, bool checkWinding)

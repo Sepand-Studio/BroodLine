@@ -3,12 +3,43 @@ using System.Reflection;
 using Broodline.Model.Catalogs;
 using Broodline.UI.Screens;
 using NUnit.Framework;
+using UnityEditor;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Broodline.UI.Tests
 {
     public sealed class StoreAlliesArtTests
     {
+        [Test]
+        public void StoreAndFacilityMarksImportAsTwoDimensionalUiSprites()
+        {
+            var paths = new[]
+            {
+                "Assets/UI/Art/icons/facilities/core.png",
+                "Assets/UI/Art/icons/facilities/splicing.png",
+                "Assets/UI/Art/icons/facilities/hatchery.png",
+                "Assets/UI/Art/icons/facilities/vault.png",
+                "Assets/UI/Art/icons/facilities/harvest.png",
+                "Assets/UI/Art/icons/facilities/drive.png",
+                "Assets/UI/Art/icons/store/pack-1.png",
+                "Assets/UI/Art/icons/store/pack-5.png",
+                "Assets/UI/Art/icons/store/pack-10.png",
+                "Assets/UI/Art/icons/store/pack-15.png",
+                "Assets/UI/Art/icons/store/pack-20.png",
+                "Assets/UI/Art/icons/store/pack-50.png",
+                "Assets/UI/Art/icons/store/pack-100.png",
+            };
+
+            foreach (var path in paths)
+            {
+                Assert.AreEqual(typeof(Texture2D), AssetDatabase.GetMainAssetTypeAtPath(path),
+                    path + " must import as a 2D texture so UI Toolkit can use it in USS");
+                Assert.IsNotNull(AssetDatabase.LoadAssetAtPath<Sprite>(path),
+                    path + " must expose its UI sprite");
+            }
+        }
+
         [Test]
         public void EveryStorePackUsesItsOwnMarkAndPurchaseStaysAPreview()
         {
