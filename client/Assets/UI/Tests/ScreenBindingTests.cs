@@ -82,7 +82,7 @@ namespace Broodline.UI.Tests
         {
             var state = new RegionStateResponse
             {
-                RegionId = "region-1",
+                RegionId = "verdant-shelf",
                 Epoch = 1,
                 Roster = roster,
             };
@@ -687,6 +687,24 @@ namespace Broodline.UI.Tests
         // ---------------------------------------------------------------
         // RegionView
         // ---------------------------------------------------------------
+
+        [Test]
+        public void RegionView_LeavesUnmappedServerGeographyUninvented()
+        {
+            var state = new RegionStateResponse
+            {
+                RegionId = "verdant-shelf",
+                Epoch = 1,
+                Roster = new Roster { Count = 1, Cap = 20 },
+            };
+            var view = new RegionView();
+            view.Bind(RegionScreen.Build(state), _ => { });
+
+            Assert.AreEqual("SERVER REGION", view.Q<Label>("region-band").text);
+            Assert.AreEqual("Verdant Shelf", view.Q<Label>("region-name").text);
+            Assert.AreEqual("Live harvest data · Authored atlas link pending",
+                view.Q<Label>("region-detail").text);
+        }
 
         [Test]
         public void RegionView_ASpentNode_ShowsItsBlockerVerbatimAndDisablesClaim()

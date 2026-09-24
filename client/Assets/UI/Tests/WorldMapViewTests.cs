@@ -55,5 +55,21 @@ namespace Broodline.UI.Tests
             Assert.IsFalse(view.Select("unknown"));
             Assert.AreEqual("Sheerdown", view.Q<Label>("selected-region").text);
         }
+
+        [Test]
+        public void UnmappedServerRegionUsesPreviewOriginGlyphsAndCopy()
+        {
+            var view = new WorldMapView();
+            view.Bind(MapScreen.Build("verdant-shelf"), _ => { });
+
+            Assert.AreEqual("P", view.Q<Button>("marker-holdfast").text);
+            StringAssert.Contains("PREVIEW ORIGIN", view.Q<Label>("ark-region").text);
+            StringAssert.Contains("P  PREVIEW", view.Q<Label>("map-legend").text);
+            StringAssert.Contains("PREVIEW ORIGIN", view.Q<Label>("route-summary").text);
+
+            Assert.IsTrue(view.Select("sheerdown"));
+            Assert.AreEqual("P", view.Q<Button>("marker-holdfast").text);
+            StringAssert.Contains("PREVIEW ROUTE", view.Q<Label>("route-summary").text);
+        }
     }
 }

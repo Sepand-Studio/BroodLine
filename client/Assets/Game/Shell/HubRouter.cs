@@ -15,7 +15,8 @@ namespace Broodline.Game.Shell
     /// THE TABS GO SOMEWHERE - Phase 10 Task 1.3. `BootController.OnTabSelected`
     /// was empty from Phase 7 to Phase 9 ("the largest limitation of this
     /// build"); this is what it calls now. One destination per
-    /// `Progression.Order` entry: Map (the region list, live region marked),
+    /// `Progression.Order` entry: Map (the region list, with either a live
+    /// authored location or a clearly labelled preview origin),
     /// Ark (the home base), Splice (the roster in pick-parents mode, through
     /// the director's splice flow), Lab and Allies (stub-backed previews).
     /// The Store is not a tab (screen inventory §1) and is pushed from the
@@ -83,7 +84,7 @@ namespace Broodline.Game.Shell
             switch (tab)
             {
                 case "Map": await ShowMapAsync(); break;
-                case "Ark": ShowHome(); break;
+                case "Ark": await EnsureRegionIdAsync(); ShowHome(); break;
                 case "Splice":
                     if (SpliceFromRoster != null) await SpliceFromRoster();
                     else ShowHome();
@@ -111,10 +112,24 @@ namespace Broodline.Game.Shell
             _host.Show(view);
         }
 
+        async Task EnsureRegionIdAsync()
+        {
+            if (!string.IsNullOrEmpty(_regionId)) return;
+            try
+            {
+                var state = await _regionState();
+                _regionId = state?.RegionId ?? _regionId;
+            }
+            catch (Exception error)
+            {
+                Diagnostics.Defect("region/state did not arrive", error);
+            }
+        }
+
         async Task ShowRegionAsync(string id, RegionStateResponse state)
         {
             var here = RegionCatalog.Locate(_regionId);
-            if (id != here.Id)
+            if (here == null || id != here.Id)
             {
                 if (RegionCatalog.Find(id) == null) return;
                 ShowRegionPreview(id);
@@ -137,8 +152,9 @@ namespace Broodline.Game.Shell
             bind = () => view.Bind(RegionPreviewScreen.Build(_regionId, id, _ledger, _now()),
                 onStart: () =>
                 {
-                    var here = RegionCatalog.Locate(_regionId);
+                    var here = RegionCatalog.PreviewOrigin(_regionId);
                     var minutes = RegionCatalog.TravelMinutes(here.Id, id, out _);
+                    if (minutes <= 0) return;
                     if (!_ledger.StartPreviewTravel(here.Id, id, TimeSpan.FromMinutes(minutes)))
                     {
                         bind();
@@ -165,10 +181,11 @@ namespace Broodline.Game.Shell
 
         void ShowHome()
         {
+            var authoredRegion = RegionCatalog.Locate(_regionId);
             var view = new HomeBaseView();
             var model = new HomeScreenModel
             {
-                RegionName = RegionCatalog.Locate(_regionId).Name,
+                RegionName = authoredRegion != null ? authoredRegion.Name : RegionCatalog.DisplayName(_regionId),
                 CoreTier = _ledger.FacilityTier(FacilityCatalog.CoreId),
                 Hotspots = Hotspots(),
             };

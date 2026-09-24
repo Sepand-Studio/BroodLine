@@ -36,7 +36,7 @@ namespace Broodline.UI.Screens
             shade.Add(_band); shade.Add(_name); hero.Add(shade);
             _scaffold.Content.Add(hero);
 
-            var journeyCard = new SectionCard("JOURNEY FROM THE ARK");
+            var journeyCard = new SectionCard("PREVIEW JOURNEY");
             journeyCard.AddToClassList("region-preview__journey-card");
             _status = new Label { name = "travel-status" }; _status.AddToClassList("region-preview__status");
             _journey = new Label { name = "travel-time" }; _journey.AddToClassList("region-preview__journey");

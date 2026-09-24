@@ -16,6 +16,7 @@ namespace Broodline.UI.Screens
         readonly VisualElement _viewport;
         readonly VisualElement _atlas;
         readonly Label _arkLabel;
+        readonly Label _legend;
         readonly Label _selectedName, _selectedDetail, _routeSummary, _routeNames;
         readonly Button _selectedAction;
         readonly List<Button> _markers = new List<Button>();
@@ -52,9 +53,9 @@ namespace Broodline.UI.Screens
             MapControl(mapControls, "zoom-reset", "Reset", ResetView);
             MapControl(mapControls, "zoom-in", "+", () => SetZoom(_zoom + .25f));
             atlasCard.Body.Add(mapControls);
-            var legend = new Label("A  ARK   □  REACH GATE\nI–III  LANES   1–N  ROUTE HOPS") { name = "map-legend" };
-            legend.AddToClassList("world-map__legend");
-            atlasCard.Body.Add(legend);
+            _legend = new Label { name = "map-legend" };
+            _legend.AddToClassList("world-map__legend");
+            atlasCard.Body.Add(_legend);
             _viewport.RegisterCallback<PointerDownEvent>(OnMapDown);
             _viewport.RegisterCallback<PointerMoveEvent>(OnMapMove);
             _viewport.RegisterCallback<PointerUpEvent>(OnMapUp);
@@ -153,7 +154,7 @@ namespace Broodline.UI.Screens
                     var id = r.Id;
                     var row = new OptionRow(r.Name, r.Detail, () => onPick?.Invoke(id)) { name = "region-" + r.Id };
                     row.AddToClassList(RowUssClassName);
-                    row.Selected = r.Here;
+                    row.Selected = r.Id == m.CurrentRegionId;
                     card.Body.Add(row);
                 }
                 _bands.Add(card);
@@ -166,7 +167,12 @@ namespace Broodline.UI.Screens
             _markers.Clear();
             _edges.Clear();
             var here = RegionCatalog.Find(model.CurrentRegionId);
-            _arkLabel.text = "ARK POSITION  ·  " + (here != null ? here.Name : "Unknown");
+            var preview = UsesPreviewOrigin(model);
+            _arkLabel.text = (preview ? "PREVIEW ORIGIN  ·  " : "ARK POSITION  ·  ")
+                + (here != null ? here.Name : "Unknown");
+            _legend.text = preview
+                ? "P  PREVIEW   □  REACH GATE\nI–III  LANES   1–N  ROUTE HOPS"
+                : "A  ARK   □  REACH GATE\nI–III  LANES   1–N  ROUTE HOPS";
 
             foreach (var (name, diameter) in new[] { ("inner", 86), ("mid", 168), ("outer", 244) })
             {
@@ -224,11 +230,13 @@ namespace Broodline.UI.Screens
                 var marker = new Button(() => Select(id))
                 {
                     name = "marker-" + id,
-                    text = region.Here ? "A" : MapScreen.LaneGlyph(region.Lanes),
+                    text = region.Id == model.CurrentRegionId
+                        ? preview ? "P" : "A"
+                        : MapScreen.LaneGlyph(region.Lanes),
                     tooltip = region.Name + " · " + region.Detail
                 };
                 marker.AddToClassList("world-map__marker");
-                if (region.Here) marker.AddToClassList("world-map__marker--here");
+                if (region.Id == model.CurrentRegionId) marker.AddToClassList("world-map__marker--here");
                 if (region.Gate) marker.AddToClassList("world-map__marker--gate");
                 marker.style.left = position.x - 16f;
                 marker.style.top = position.y - 16f;
@@ -237,7 +245,15 @@ namespace Broodline.UI.Screens
             }
             foreach (var band in model.Bands)
                 foreach (var row in band.Rows)
-                    if (row.Here) { Select(row.Id); return; }
+                    if (row.Id == model.CurrentRegionId) { Select(row.Id); return; }
+        }
+
+        static bool UsesPreviewOrigin(MapScreenModel model)
+        {
+            foreach (var band in model.Bands)
+                foreach (var row in band.Rows)
+                    if (row.Here) return false;
+            return true;
         }
 
         /// Select through the same path as a marker tap, also useful for returning from detail.
@@ -252,6 +268,8 @@ namespace Broodline.UI.Screens
 
         void SelectRegion(MapRegionRow region)
         {
+            var preview = UsesPreviewOrigin(_model);
+            var origin = region.Id == _model.CurrentRegionId;
             _selectedId = region.Id;
             _selectedName.text = region.Name;
             _selectedDetail.text = region.Detail;
@@ -259,18 +277,21 @@ namespace Broodline.UI.Screens
             int minutes = RegionCatalog.TravelMinutes(_model.CurrentRegionId, region.Id, out var route);
             if (route == null)
             {
-                _routeSummary.text = "NO ROUTE FROM THE ARK";
+                _routeSummary.text = preview ? "NO ROUTE FROM PREVIEW ORIGIN" : "NO ROUTE FROM THE ARK";
                 _routeNames.text = "This region is beyond the known lanes.";
             }
-            else if (region.Here)
+            else if (origin)
             {
-                _routeSummary.text = "ARK POSITION";
-                _routeNames.text = "Your journey begins here.";
+                _routeSummary.text = preview ? "PREVIEW ORIGIN" : "ARK POSITION";
+                _routeNames.text = preview
+                    ? "Illustrative routes begin here; the Ark remains in its server region."
+                    : "Your journey begins here.";
             }
             else
             {
                 int hops = route.Count - 1;
-                _routeSummary.text = "ROUTE  ·  " + hops + (hops == 1 ? " HOP  ·  " : " HOPS  ·  ") + MapScreen.Travel(minutes).ToUpperInvariant();
+                _routeSummary.text = (preview ? "PREVIEW ROUTE  ·  " : "ROUTE  ·  ")
+                    + hops + (hops == 1 ? " HOP  ·  " : " HOPS  ·  ") + MapScreen.Travel(minutes).ToUpperInvariant();
                 var names = new string[route.Count];
                 for (int i = 0; i < route.Count; i++) names[i] = RegionCatalog.Find(route[i]).Name;
                 _routeNames.text = string.Join("  ›  ", names);
@@ -279,7 +300,7 @@ namespace Broodline.UI.Screens
             {
                 string id = marker.name.Substring("marker-".Length);
                 int step = route == null ? -1 : route.IndexOf(id);
-                marker.text = id == _model.CurrentRegionId ? "A" : step >= 0 ? step.ToString() : MapScreen.LaneGlyph(RegionCatalog.Find(id).Lanes);
+                marker.text = id == _model.CurrentRegionId ? preview ? "P" : "A" : step >= 0 ? step.ToString() : MapScreen.LaneGlyph(RegionCatalog.Find(id).Lanes);
                 marker.EnableInClassList("world-map__marker--route", step >= 0 && id != _model.CurrentRegionId);
                 marker.EnableInClassList("world-map__marker--muted", step < 0);
                 marker.EnableInClassList("world-map__marker--selected", marker.name == "marker-" + region.Id);

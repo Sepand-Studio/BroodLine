@@ -511,7 +511,7 @@ public static class ScreenFixtures
     {
         var state = new RegionStateResponse
         {
-            RegionId = "region-1",
+            RegionId = "verdant-shelf",
             Epoch = 1,
             Roster = new Roster { Count = 5, Cap = 20 },
         };
@@ -996,14 +996,14 @@ public static class ScreenFixtures
     static VisualElement WorldMap()
     {
         var view = new WorldMapView();
-        view.Bind(MapScreen.Build("holdfast"), null);
+        view.Bind(MapScreen.Build("verdant-shelf"), null);
         return view;
     }
 
     static VisualElement WorldMapRoute()
     {
         var view = new WorldMapView();
-        view.Bind(MapScreen.Build("holdfast"), null);
+        view.Bind(MapScreen.Build("verdant-shelf"), null);
         view.Select("sheerdown");
         return view;
     }
@@ -1013,7 +1013,7 @@ public static class ScreenFixtures
         var now = new DateTime(2026, 9, 24, 12, 0, 0, DateTimeKind.Utc);
         var ledger = new StubLedger(new StubLedger.MemoryStore(), now: () => now);
         var view = new RegionPreviewView();
-        view.Bind(RegionPreviewScreen.Build("holdfast", "sheerdown", ledger, now),
+        view.Bind(RegionPreviewScreen.Build("verdant-shelf", "sheerdown", ledger, now),
             null, null, now: () => now);
         return view;
     }

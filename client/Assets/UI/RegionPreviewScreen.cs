@@ -23,9 +23,11 @@ namespace Broodline.UI
         public static RegionPreviewModel Build(string serverRegionId, string targetId, StubLedger ledger, DateTime now)
         {
             if (ledger == null) throw new ArgumentNullException(nameof(ledger));
-            var here = RegionCatalog.Locate(serverRegionId);
+            var live = RegionCatalog.Locate(serverRegionId);
+            var here = RegionCatalog.PreviewOrigin(serverRegionId);
             var target = RegionCatalog.Find(targetId);
-            if (target == null || target.Id == here.Id) throw new ArgumentException("Target must be a remote catalog region", nameof(targetId));
+            if (target == null || (live != null && target.Id == live.Id))
+                throw new ArgumentException("Target must be a remote catalog region", nameof(targetId));
 
             var active = ledger.PreviewTravelActive();
             var lastTarget = ledger.PreviewTravelTarget();
@@ -38,7 +40,8 @@ namespace Broodline.UI
             var names = new List<string>();
             if (route != null) foreach (var id in route) names.Add(RegionCatalog.Find(id).Name);
             var complete = thisRoute && ends.HasValue && ends.Value <= now;
-            var status = active
+            var previewOrigin = live == null && target.Id == here.Id;
+            var status = previewOrigin ? "Preview route origin · Ark has not moved" : active
                 ? thisRoute ? "Preview journey underway" : "Another preview journey is underway"
                 : complete ? "Preview journey complete · Ark has not moved"
                 : "Ready to preview this route";
@@ -47,13 +50,13 @@ namespace Broodline.UI
             {
                 Id = target.Id, Name = target.Name,
                 Band = MapScreen.BandHeadings[(int)target.Band].ToUpperInvariant(),
-                Origin = origin.Name,
+                Origin = live == null ? origin.Name + " (preview)" : origin.Name,
                 Route = names.Count > 0 ? string.Join("  →  ", names) : "No route available",
                 Neighbours = string.Join(" · ", neighbours),
                 Lanes = target.Lanes, Minutes = minutes, Hops = route == null ? 0 : route.Count - 1,
                 Status = status,
-                Action = active ? "Journey in progress" : "Relocate Ark (preview)",
-                CanStart = !active && minutes > 0,
+                Action = previewOrigin ? "Preview origin" : active ? "Journey in progress" : "Relocate Ark (preview)",
+                CanStart = !previewOrigin && !active && minutes > 0,
                 Active = active && thisRoute,
                 Complete = complete,
                 EndsAt = thisRoute ? ends : null,

@@ -25,6 +25,7 @@ namespace Broodline.UI
         public const string Title = "World Map";
         public const string Eyebrow = "THE FRONTIER";
         public const string HereDetail = "Your Ark is here";
+        public const string PreviewOriginDetail = "Preview route origin";
         public static readonly string[] BandHeadings = { "Inner Reach", "Mid Reach", "Outer Reach" };
 
         public static string Lanes(int lanes) => lanes == 1 ? "1 lane" : lanes + " lanes";
@@ -50,7 +51,9 @@ namespace Broodline.UI
 
         public static MapScreenModel Build(string serverRegionId)
         {
-            var here = RegionCatalog.Locate(serverRegionId);
+            var live = RegionCatalog.Locate(serverRegionId);
+            var here = live ?? RegionCatalog.PreviewOrigin(serverRegionId);
+            var preview = live == null;
             var bands = new List<(string, IReadOnlyList<MapRegionRow>)>();
             foreach (Band band in new[] { Band.Inner, Band.Mid, Band.Outer })
             {
@@ -63,9 +66,9 @@ namespace Broodline.UI
                     var minutes = isHere ? 0 : RegionCatalog.TravelMinutes(here.Id, r.Id, out _);
                     rows.Add(new MapRegionRow
                     {
-                        Id = r.Id, Name = r.Name, Lanes = r.Lanes, Here = isHere,
+                        Id = r.Id, Name = r.Name, Lanes = r.Lanes, Here = isHere && !preview,
                         Gate = gate,
-                        Detail = (isHere ? HereDetail + " · " + Lanes(r.Lanes) : Lanes(r.Lanes) + " · " + Travel(minutes))
+                        Detail = (isHere ? (preview ? PreviewOriginDetail : HereDetail) + " · " + Lanes(r.Lanes) : Lanes(r.Lanes) + " · " + Travel(minutes))
                             + (gate ? " · Reach gate" : string.Empty),
                     });
                 }

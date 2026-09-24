@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 
 namespace Broodline.Model.Catalogs
 {
@@ -20,7 +21,8 @@ namespace Broodline.Model.Catalogs
     /// §2–§8, which is authoritative over the older roster's names. Hop times
     /// are §8's: 25 minutes within a band, 50 across a gate. This is a
     /// catalog, not state: which region the Ark is in comes from the server's
-    /// `region/state`, whose ids do not yet name these regions (`Locate`).
+    /// `region/state`, whose current placeholder id does not name one of
+    /// these regions (`Locate`).
     public static class RegionCatalog
     {
         static RegionInfo R(string name, Band band, int lanes, params string[] neighbours)
@@ -141,19 +143,29 @@ namespace Broodline.Model.Catalogs
             int degree = 0; foreach (var r in All) degree += r.Neighbours.Length; return degree / 2;
         }
 
-        /// WHERE THE ARK IS, given the server's region id. The API names
-        /// regions "region-N" today, not by these slugs, so N indexes this
-        /// catalog; an unknown or absent id is the starting region. Replace
-        /// when `region/state` learns the graph.
+        /// The authored region named by a server id, when the server has
+        /// joined the authored atlas. The current API placeholder
+        /// (`verdant-shelf`) deliberately names no authored region, so it
+        /// and any other unknown value remain unresolved rather than being
+        /// presented as Holdfast.
         public static RegionInfo Locate(string serverRegionId)
         {
-            if (string.IsNullOrEmpty(serverRegionId)) return Find(Start);
-            var direct = Find(serverRegionId);
-            if (direct != null) return direct;
-            var dash = serverRegionId.LastIndexOf('-');
-            if (dash >= 0 && int.TryParse(serverRegionId.Substring(dash + 1), out var n) && n >= 1 && n <= All.Count)
-                return All[n - 1];
-            return Find(Start);
+            return Find(serverRegionId);
+        }
+
+        /// Routes on the authored preview need a deterministic origin even
+        /// before the live server region is part of that atlas. This is a
+        /// preview coordinate only; it never claims the Ark is in Holdfast.
+        public static RegionInfo PreviewOrigin(string serverRegionId)
+            => Locate(serverRegionId) ?? Find(Start);
+
+        /// A neutral display label for a server-owned region that is not in
+        /// the authored atlas. It derives only typography from the id.
+        public static string DisplayName(string serverRegionId)
+        {
+            if (string.IsNullOrWhiteSpace(serverRegionId)) return "Unknown Region";
+            var words = serverRegionId.Replace('-', ' ').Replace('_', ' ');
+            return CultureInfo.InvariantCulture.TextInfo.ToTitleCase(words.ToLowerInvariant());
         }
     }
 }

@@ -157,6 +157,7 @@ namespace Broodline.UI
         /// handoff and no region property reaches the client at all.
         public const string AccruedStatLabel = "Accrued";
         public const string RemainingStatLabel = "Harvests left";
+        public const string UnmappedGeographyDetail = "Live harvest data · Authored atlas link pending";
 
         /// Stated only when it is non-zero - `RegionView.CardFor` has why.
         public const string GrantsStatLabel = "Creatures";
@@ -207,7 +208,8 @@ namespace Broodline.UI
 
             var region = RegionCatalog.Locate(state.RegionId);
             var neighbours = new List<string>();
-            foreach (var id in region.Neighbours) neighbours.Add(RegionCatalog.Find(id).Name);
+            if (region != null)
+                foreach (var id in region.Neighbours) neighbours.Add(RegionCatalog.Find(id).Name);
 
             var count = state.Roster == null ? 0 : state.Roster.Count;
             var cap = state.Roster == null ? 0 : state.Roster.Cap;
@@ -225,10 +227,10 @@ namespace Broodline.UI
             return new RegionScreenModel
             {
                 RegionId = state.RegionId,
-                Name = region.Name,
-                Band = MapScreen.BandHeadings[(int)region.Band].ToUpperInvariant(),
+                Name = region != null ? region.Name : RegionCatalog.DisplayName(state.RegionId),
+                Band = region != null ? MapScreen.BandHeadings[(int)region.Band].ToUpperInvariant() : "SERVER REGION",
                 Neighbours = string.Join(" · ", neighbours),
-                Lanes = region.Lanes,
+                Lanes = region != null ? region.Lanes : 0,
                 Epoch = state.Epoch,
                 Nodes = rows,
                 RosterCount = count,

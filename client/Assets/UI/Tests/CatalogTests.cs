@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using Broodline.Api;
 using Broodline.Model.Catalogs;
 using Broodline.Model.Stub;
 using NUnit.Framework;
@@ -44,13 +45,12 @@ namespace Broodline.UI.Tests
         }
 
         [Test]
-        public void LocateMapsTheServersRegionIdsOntoTheCatalog()
+        public void UnmappedServerRegionDoesNotMasqueradeAsAuthoredRegion()
         {
-            Assert.AreEqual("holdfast", RegionCatalog.Locate(null).Id);
-            Assert.AreEqual("holdfast", RegionCatalog.Locate("region-1").Id);
-            Assert.AreEqual("tellin", RegionCatalog.Locate("region-2").Id);
+            Assert.IsNull(RegionCatalog.Locate(null));
+            Assert.IsNull(RegionCatalog.Locate("verdant-shelf"));
+            Assert.IsNull(RegionCatalog.Locate("region-1"));
             Assert.AreEqual("weltering", RegionCatalog.Locate("weltering").Id);
-            Assert.AreEqual("holdfast", RegionCatalog.Locate("region-99").Id);
         }
 
         [Test]
@@ -112,20 +112,49 @@ namespace Broodline.UI.Tests
         }
 
         [Test]
-        public void TheMapModelMarksHereAndGroupsByRing()
+        public void TheMapUsesALabelledPreviewOriginWhenServerRegionIsUnmapped()
         {
-            var m = MapScreen.Build("region-1");
+            var m = MapScreen.Build("verdant-shelf");
             Assert.AreEqual("holdfast", m.CurrentRegionId);
             Assert.AreEqual(3, m.Bands.Count);
             Assert.AreEqual(8, m.Bands[0].Rows.Count);
             Assert.AreEqual(12, m.Bands[1].Rows.Count);
             Assert.AreEqual(10, m.Bands[2].Rows.Count);
-            Assert.IsTrue(m.Bands[0].Rows[0].Here);
+            Assert.IsFalse(m.Bands[0].Rows[0].Here,
+                "a preview origin must not claim that the Ark is here");
             Assert.IsFalse(m.Bands[0].Rows[0].Gate);
             Assert.IsTrue(m.Bands[0].Rows[1].Gate);
             StringAssert.Contains("Reach gate", m.Bands[0].Rows[1].Detail);
-            StringAssert.Contains(MapScreen.HereDetail, m.Bands[0].Rows[0].Detail);
+            StringAssert.Contains("Preview route origin", m.Bands[0].Rows[0].Detail);
+            StringAssert.DoesNotContain(MapScreen.HereDetail, m.Bands[0].Rows[0].Detail);
             StringAssert.Contains("3 h 45 min away", m.Bands[2].Rows[8].Detail);
+        }
+
+        [Test]
+        public void AuthoredServerRegionStillMarksTheRealArkLocation()
+        {
+            var model = MapScreen.Build("holdfast");
+
+            Assert.IsTrue(model.Bands[0].Rows[0].Here);
+            StringAssert.Contains(MapScreen.HereDetail, model.Bands[0].Rows[0].Detail);
+            StringAssert.DoesNotContain("Preview", model.Bands[0].Rows[0].Detail);
+        }
+
+        [Test]
+        public void LivePlaceholderRegionDoesNotBorrowAuthoredGeography()
+        {
+            var state = new RegionStateResponse
+            {
+                RegionId = "verdant-shelf",
+                Epoch = 1,
+                Roster = new Roster { Count = 1, Cap = 20 },
+            };
+            var model = RegionScreen.Build(state);
+
+            Assert.AreEqual("Verdant Shelf", model.Name);
+            Assert.AreEqual("SERVER REGION", model.Band);
+            Assert.AreEqual(0, model.Lanes);
+            Assert.AreEqual(string.Empty, model.Neighbours);
         }
 
         [Test]
@@ -134,7 +163,7 @@ namespace Broodline.UI.Tests
             var now = new DateTime(2026, 9, 23, 12, 0, 0, DateTimeKind.Utc);
             var store = new StubLedger.MemoryStore();
             var ledger = new StubLedger(store, now: () => now);
-            var initial = RegionPreviewScreen.Build("region-1", "greyspan", ledger, now);
+            var initial = RegionPreviewScreen.Build("verdant-shelf", "greyspan", ledger, now);
             Assert.AreEqual(75, initial.Minutes);
             Assert.AreEqual("Holdfast  →  Tellin  →  Greyspan", initial.Route);
 
@@ -142,14 +171,31 @@ namespace Broodline.UI.Tests
             var restored = new StubLedger(store, now: () => now);
             Assert.IsTrue(restored.PreviewTravelActive());
             Assert.IsFalse(restored.StartPreviewTravel("holdfast", "deepscree", TimeSpan.FromMinutes(175)));
-            Assert.IsTrue(RegionPreviewScreen.Build("region-1", "greyspan", restored, now).Active);
-            Assert.AreEqual("holdfast", RegionCatalog.Locate("region-1").Id);
+            Assert.IsTrue(RegionPreviewScreen.Build("verdant-shelf", "greyspan", restored, now).Active);
+            Assert.IsNull(RegionCatalog.Locate("verdant-shelf"));
 
             now = now.AddMinutes(76);
-            var completed = RegionPreviewScreen.Build("region-1", "greyspan", restored, now);
+            var completed = RegionPreviewScreen.Build("verdant-shelf", "greyspan", restored, now);
             Assert.IsTrue(completed.Complete);
             Assert.IsTrue(completed.CanStart);
-            Assert.AreEqual("holdfast", RegionCatalog.Locate("region-1").Id);
+            Assert.IsNull(RegionCatalog.Locate("verdant-shelf"));
+        }
+
+        [Test]
+        public void PreviewOriginCanBeInspectedWithoutPretendingTheArkIsThere()
+        {
+            var now = new DateTime(2026, 9, 24, 12, 0, 0, DateTimeKind.Utc);
+            var ledger = new StubLedger(new StubLedger.MemoryStore(), now: () => now);
+
+            RegionPreviewModel model = null;
+            Assert.DoesNotThrow(() =>
+                model = RegionPreviewScreen.Build("verdant-shelf", "holdfast", ledger, now));
+
+            Assert.AreEqual(0, model.Minutes);
+            Assert.AreEqual("Holdfast (preview)", model.Origin);
+            Assert.IsFalse(model.CanStart);
+            StringAssert.Contains("Preview route origin", model.Status);
+            Assert.AreEqual("Preview origin", model.Action);
         }
     }
 }

@@ -96,7 +96,9 @@ namespace Broodline.UI.Screens
             _scaffold.OnBack = onBack;
             _regionBand.text = m.Band;
             _regionName.text = m.Name;
-            _regionDetail.text = "Your Ark is here · " + MapScreen.Lanes(m.Lanes) + "\nBorders  " + m.Neighbours;
+            _regionDetail.text = m.Lanes <= 0
+                ? RegionScreen.UnmappedGeographyDetail
+                : "Your Ark is here · " + MapScreen.Lanes(m.Lanes) + "\nBorders  " + m.Neighbours;
 
             // The model's own string either way - `RegionScreen.RosterHeadline`
             // holds both the `HasRosterCounts` gate and the formatting, on the

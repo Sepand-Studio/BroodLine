@@ -32,7 +32,7 @@ namespace Broodline.Game.Tests
 
         static RegionStateResponse State()
         {
-            var state = new RegionStateResponse { RegionId = "region-1", Epoch = 1, Roster = new Roster { Count = 1, Cap = 20 } };
+            var state = new RegionStateResponse { RegionId = "verdant-shelf", Epoch = 1, Roster = new Roster { Count = 1, Cap = 20 } };
             state.Nodes.Add(new Nodes { Slot = 1, Type = "Shard", Accrued = 3, Remaining = 2, Grants = 0 });
             return state;
         }
@@ -76,14 +76,27 @@ namespace Broodline.Game.Tests
         }
 
         [Test]
-        public async Task TheMapMarksTheArksOwnRegionFromRegionState()
+        public async Task TheMapLabelsHoldfastAsAPreviewOriginForTheUnmappedServerRegion()
         {
             var (router, hostElement, _, _) = Make(State());
             await router.ShowAsync("Map");
             var here = hostElement.Q<OptionRow>("region-holdfast");
             Assert.IsNotNull(here);
-            Assert.IsTrue(here.Selected, "region-1 is the first catalog region until the API names the graph");
+            Assert.IsTrue(here.Selected, "Holdfast is the authored preview origin until the API names the graph");
             Assert.IsFalse(hostElement.Q<OptionRow>("region-tellin").Selected);
+            Assert.AreEqual("P", hostElement.Q<Button>("marker-holdfast").text);
+            StringAssert.Contains("PREVIEW ORIGIN", hostElement.Q<Label>("ark-region").text);
+        }
+
+        [Test]
+        public async Task TheArkNamesTheServerRegionWithoutBorrowingAnAuthoredOne()
+        {
+            var (router, hostElement, _, _) = Make(State());
+            await router.ShowAsync("Map");
+            await router.ShowAsync("Ark");
+
+            StringAssert.Contains("Verdant Shelf", hostElement.Q<Label>("ark-subtitle").text);
+            StringAssert.DoesNotContain("Holdfast", hostElement.Q<Label>("ark-subtitle").text);
         }
 
         [Test]
