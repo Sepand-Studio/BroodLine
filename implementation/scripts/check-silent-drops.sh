@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The two TEXT-LEVEL silent-drop scans, for .uxml and .uss.
+# Text-level silent-drop scans for .uxml, .uss and USS importer metadata.
 #
 # WHY THIS EXISTS AS A GATE AND NOT AS PROSE IN A BRIEF. This project's
 # recurring failure is the SILENT DROP: markup that still imports, still
@@ -15,15 +15,15 @@
 #   - Task 19's OWN FIX ROUND then left a stray `*/` in CodexSheet.uss - the
 #     .uss half of the same family, which drops every rule below it.
 #
-# Every task since has re-run these two scans BY HAND from prose in a brief,
+# Every task since has re-run the first two scans BY HAND from prose in a brief,
 # and one of those hand-runs caught a real instance. That is the whole
 # argument for making them a gate. Deferred to Task 20 across four tasks.
 #
 # WHAT THIS DOES NOT DO, stated because a comment claiming a gate that does
 # not exist is worse than no comment (that shipped twice in Task 18):
 #   - It does NOT compile USS. `check-stylesheets.sh` does that, and only a
-#     full Editor run can. This is the two-second text scan that finds the
-#     delimiter defect without paying for an Editor lock.
+#     full Editor run can. This is a fast text scan that finds source and
+#     importer-metadata defects without paying for an Editor lock.
 #   - It does NOT verify that Unity resolves every element a .uxml names, nor
 #     that a `Q<>` finds it. It verifies the DOCUMENT, not the binding.
 #
@@ -35,7 +35,7 @@ cd "$(dirname "$0")/../.."
 [ -d client/Assets ] || { echo "FAIL: no client/Assets"; exit 1; }
 
 python3 - <<'PY'
-import glob, sys, xml.etree.ElementTree as ET
+import glob, os, re, sys, xml.etree.ElementTree as ET
 
 fail = 0
 
@@ -139,7 +139,37 @@ if bad_uss:
     fail = 1
 print(f"[uss]  {len(uss)} files, {bad_uss} delimiter defects.")
 
+# ---------------------------------------------------------------------------
+# SCAN 3 - .uss.meta: EVERY STYLESHEET HAS THE SUPPORTED IMPORTER RECORD.
+# A bare GUID-only metadata file can appear valid in Edit mode but lose its
+# StyleSheet reference when the generated Frontier Proof enters Play mode.
+# Unity 6000.6 warns that the missing importer record is version 1, below
+# the supported minimum (2). Assert the importer identity used by the other
+# USS files, not just the presence of a sibling .meta file.
+# ---------------------------------------------------------------------------
+bad_meta = []
+importer_script = 'script: {fileID: 12385, guid: 0000000000000000e000000000000000, type: 0}'
+for f in uss:
+    meta = f + '.meta'
+    if not os.path.isfile(meta):
+        bad_meta.append((meta, 'missing metadata file'))
+        continue
+    with open(meta, encoding='utf-8') as fh:
+        src = fh.read()
+    if not re.search(r'^ScriptedImporter:\s*$', src, re.M):
+        bad_meta.append((meta, 'missing ScriptedImporter record'))
+    elif not re.search(r'^  serializedVersion: 2\s*$', src, re.M):
+        bad_meta.append((meta, 'ScriptedImporter is not serializedVersion 2'))
+    elif not re.search(r'^  ' + re.escape(importer_script) + r'\s*$', src, re.M):
+        bad_meta.append((meta, 'wrong USS importer script'))
+
+for f, msg in bad_meta:
+    print(f"FAIL: {f}: {msg}")
+if bad_meta:
+    fail = 1
+print(f"[uss.meta] {len(uss)} files, {len(bad_meta)} importer defects.")
+
 if fail:
     sys.exit(1)
-print("OK: both silent-drop scans clean.")
+print("OK: all silent-drop scans clean.")
 PY
