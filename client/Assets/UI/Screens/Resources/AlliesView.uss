@@ -1,18 +1,10 @@
 .allies { flex-grow: 1; }
-.allies__seal {
-    width: 84px; height: 84px;
-    flex-shrink: 0;
-    align-items: center;
-    justify-content: center;
-    background-color: var(--hud-frame);
-    border-width: 2px;
-    border-color: var(--brass);
-    border-radius: 42px;
-    margin-bottom: var(--space-2);
-}
 .allies .allies__pennant {
-    width: 50px; height: 50px;
-    -unity-background-image-tint-color: var(--brass-light);
+    width: 125px; height: 156px;
+    flex-shrink: 0;
+    background-image: url("project:///Assets/UI/Art/icons/alliance-pennant.png");
+    -unity-background-scale-mode: scale-to-fit;
+    margin-bottom: var(--space-2);
 }
 .allies .allies__banner-kicker {
     color: var(--brass-light);

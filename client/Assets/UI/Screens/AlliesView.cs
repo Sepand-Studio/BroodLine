@@ -28,12 +28,9 @@ namespace Broodline.UI.Screens
         {
             _body.Clear();
             var band = new HeroBand(ring: false);
-            var seal = new VisualElement { name = "alliance-seal" };
-            seal.AddToClassList("allies__seal");
-            var pennant = new VisualElement { name = "pennant" };
-            pennant.AddToClassList("icon"); pennant.AddToClassList("icon--allies"); pennant.AddToClassList("allies__pennant");
-            seal.Add(pennant);
-            band.Subject.Add(seal);
+            var pennant = new VisualElement { name = "alliance-pennant" };
+            pennant.AddToClassList("allies__pennant");
+            band.Subject.Add(pennant);
             var kicker = new Label(AlliesScreen.BannerKicker) { name = "banner-kicker" };
             kicker.AddToClassList("allies__banner-kicker");
             band.Subject.Add(kicker);
@@ -42,7 +39,7 @@ namespace Broodline.UI.Screens
             motto.AddToClassList("allies__banner-title");
             band.Subject.Add(motto);
             band.AddToClassList("hero-band--deep");
-            band.Fix(180f);
+            band.Fix(240f);
             _body.Add(band);
 
             var card = new SectionCard();

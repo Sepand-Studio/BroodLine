@@ -24,11 +24,11 @@ namespace Broodline.UI.Tests
         }
 
         [Test]
-        public void AllianceBannerHasItsOwnSealAndKeepsThePreviewAction()
+        public void AllianceBannerHasAFullPennantAndKeepsThePreviewAction()
         {
             var view = new AlliesView();
             view.Bind(null, () => { });
-            Assert.IsNotNull(view.Q<VisualElement>("alliance-seal"));
+            Assert.IsNotNull(view.Q<VisualElement>("alliance-pennant"));
             Assert.AreEqual(AlliesScreen.BannerKicker, view.Q<Label>("banner-kicker").text);
             StringAssert.Contains("(preview)", view.Q<Button>("create").text);
         }
