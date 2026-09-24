@@ -24,7 +24,8 @@ namespace Broodline.Frontier
             float period=rig.Id=="ember"?3.6f:rig.Id=="pale"?5.6f:rig.Id=="skitter"?3.1f:rig.Id=="loam"?6.0f:4.8f;
             float blinkTime=Mathf.Repeat(phase+1.7f,period);
             float blink=animate&&blinkTime<.16f?1-Mathf.Sin(blinkTime/.16f*Mathf.PI)*.96f:1;
-            float speed=rig.Id=="hollow"?3.2f:rig.Id=="skitter"?12:9;
+            float speed=rig.Id=="hollow"?3.2f:rig.Id=="skitter"?12:
+                rig.Id=="breaker"||rig.Id=="bulwark"||rig.Id=="sunder"?5:9;
             for(int i=0;i<rig.Bones.Length;i++)
             {
                 var def=rig.Bones[i];var p=new FrontierBonePose { Position=rig.LocalPosition(i), Rotation=Quaternion.identity, Scale=Vector3.one };
@@ -33,9 +34,11 @@ namespace Broodline.Frontier
                 {
                     case FrontierBoneRole.Root:
                         float breath=animate?Mathf.Sin(phase*2.4f)*.018f:0;
-                        float hover=animate&&rig.Id=="pale"?Mathf.Sin(phase*1.5f)*.035f:0;
+                        float hover=animate&&rig.Id=="pale"?Mathf.Sin(phase*1.5f)*.035f:
+                            rig.Id=="drift"?.24f+Mathf.Sin(phase*2.1f)*.06f:0;
+                        float burrow=animate&&rig.Id=="delver"&&state.Moving?-.13f:0;
                         float bounce=animate&&state.Moving&&rig.Id=="ember"?Mathf.Abs(Mathf.Sin(phase*speed))*.022f:0;
-                        p.Position+=Vector3.up*(hover+cheer*.07f+bounce+(rig.Id=="skitter"?Mathf.Abs(greeting)*.035f:0));
+                        p.Position+=Vector3.up*(hover+burrow+cheer*.07f+bounce+(rig.Id=="skitter"?Mathf.Abs(greeting)*.035f:0));
                         float g=1+growth*.14f;p.Scale=new Vector3(g,g*(1+breath-recoil*.055f),g);
                         p.Rotation=Quaternion.Euler(0,0,-hurt*9+recoil*4-flinch*3);break;
                     case FrontierBoneRole.Head:

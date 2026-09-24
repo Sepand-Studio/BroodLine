@@ -87,7 +87,8 @@ namespace Broodline.Frontier
         /// the proof's original dome; a glider wants less). `MembraneY` is the
         /// same curve, exposed so a species can put spars exactly on the surface.
         public static float MembraneY(float t, float u, float rise) => .66f+rise*Mathf.Sin(t*Mathf.PI*.65f)+.085f*Mathf.Sin(u*Mathf.PI)*(1-t);
-        public void Membrane(float side, int shoulder, int tip, Color color, float rise = .24f)
+        public void Membrane(float side, int shoulder, int tip, Color color, float rise = .24f,
+            float heightOffset = 0f, float span = 1.18f)
         {
             const int spans=10, chords=8;
             int start=_vertices.Count, firstIndex=_indices.Count, previousBone=Bone;
@@ -98,8 +99,8 @@ namespace Broodline.Frontier
                     {
                         float t=s/(float)spans, u=c/(float)chords;
                         float leading=.34f-.43f*t*t, trailing=-.40f-.34f*Mathf.Sin(t*Mathf.PI)+.28f*t;
-                        float x=Mathf.Lerp(leading,trailing,u), z=side*(.15f+1.18f*t);
-                        float y=MembraneY(t,u,rise);
+                        float x=Mathf.Lerp(leading,trailing,u), z=side*(.15f+span*t);
+                        float y=MembraneY(t,u,rise)+heightOffset;
                         y+=(face==0?1:-1)*(.014f+.022f*(1-t));
                         Bone=shoulder;SecondBone=tip;BoneBlend=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.40f,.90f,t));
                         Vertex(new Vector3(x,y,z),Vector3.up,Color.Lerp(color,Color.white,.12f*Mathf.Sin(u*Mathf.PI)));

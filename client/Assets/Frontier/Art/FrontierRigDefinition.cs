@@ -31,13 +31,15 @@ namespace Broodline.Frontier
         public readonly string Id;
         public readonly FrontierBoneDefinition[] Bones;
         public readonly FrontierSocketDefinition Dorsal, Flank, Crown;
+        public readonly FrontierSocketDefinition? Kit;
         public readonly Vector3 MotionAllowance;
         public int Head { get; private set; }
 
         public FrontierRigDefinition(string id, FrontierBoneDefinition[] bones, FrontierSocketDefinition dorsal,
-            FrontierSocketDefinition flank, FrontierSocketDefinition crown, Vector3 allowance)
+            FrontierSocketDefinition flank, FrontierSocketDefinition crown, Vector3 allowance,
+            FrontierSocketDefinition? kit = null)
         {
-            Id = id; Bones = bones; Dorsal = dorsal; Flank = flank; Crown = crown; MotionAllowance = allowance;
+            Id = id; Bones = bones; Dorsal = dorsal; Flank = flank; Crown = crown; Kit = kit; MotionAllowance = allowance;
             Head = -1;
             var names = new System.Collections.Generic.HashSet<string>();
             for (int i = 0; i < bones.Length; i++)
@@ -50,6 +52,8 @@ namespace Broodline.Frontier
             if (Head < 0) throw new ArgumentException("Rig needs a head: " + id);
             foreach (var socket in new[] { dorsal, flank, crown })
                 if (socket.Bone < 0 || socket.Bone >= bones.Length || socket.Scale <= 0) throw new ArgumentException("Invalid socket: " + id);
+            if (kit.HasValue && (kit.Value.Bone < 0 || kit.Value.Bone >= bones.Length || kit.Value.Scale <= 0))
+                throw new ArgumentException("Invalid kit socket: " + id);
         }
 
         public Vector3 LocalPosition(int index) => Bones[index].Position - (Bones[index].Parent < 0 ? Vector3.zero : Bones[Bones[index].Parent].Position);
@@ -76,7 +80,8 @@ namespace Broodline.Frontier
                 case "hollow": return FrontierHollow.Rig;
                 case "loam": return FrontierLoam.Rig;
                 case "vetch": return VetchRig();
-                case "courser": case "skirmisher": case "lash": return RaiderRig(id);
+                case "courser": case "skirmisher": case "lash": case "drift":
+                case "breaker": case "bulwark": case "delver": case "brood": case "sunder": return RaiderRig(id);
                 default: throw new ArgumentException("No Frontier rig for " + id);
             }
         }
@@ -97,14 +102,62 @@ namespace Broodline.Frontier
         static FrontierRigDefinition RaiderRig(string id)
         {
             float s = FrontierRaiders.Scale(id);
-            var p = new[] { Vector3.zero, new Vector3(.5f,.47f,0), new Vector3(.32f,.24f,.32f), new Vector3(.32f,.24f,-.32f), new Vector3(-.34f,.24f,.32f), new Vector3(-.34f,.24f,-.32f) };
+            bool hauler = id == "breaker" || id == "bulwark" || id == "sunder";
+            bool lifter = id == "lash" || id == "drift";
+            bool segment = id == "delver" || id == "brood";
+            Vector3[] p;
+            FrontierBoneRole[] roles;
+            int[] parents;
+            if (hauler)
+            {
+                p = new[] { Vector3.zero, new Vector3(.58f,.68f,0), new Vector3(.38f,.42f,.30f),
+                    new Vector3(.38f,.42f,-.30f), new Vector3(-.48f,.42f,.30f), new Vector3(-.48f,.42f,-.30f),
+                    new Vector3(.72f,.72f,0) };
+                roles = new[] { FrontierBoneRole.Root, FrontierBoneRole.Head, FrontierBoneRole.Leg,
+                    FrontierBoneRole.Leg, FrontierBoneRole.Leg, FrontierBoneRole.Leg, FrontierBoneRole.Arm };
+                parents = new[] { -1, 0, 0, 0, 0, 0, 0 };
+            }
+            else if (lifter)
+            {
+                p = new[] { Vector3.zero, new Vector3(.31f,1.18f,0), new Vector3(-.13f,.58f,.21f),
+                    new Vector3(-.13f,.58f,-.21f), new Vector3(-.29f,1.02f,.18f), new Vector3(-.29f,1.02f,-.18f),
+                    new Vector3(.10f,.86f,.24f), new Vector3(.10f,.86f,-.24f) };
+                roles = new[] { FrontierBoneRole.Root, FrontierBoneRole.Head, FrontierBoneRole.Leg,
+                    FrontierBoneRole.Leg, FrontierBoneRole.Wing, FrontierBoneRole.Wing, FrontierBoneRole.Arm, FrontierBoneRole.Arm };
+                parents = new[] { -1, 0, 0, 0, 0, 0, 0, 0 };
+            }
+            else if (segment)
+            {
+                p = new[] { Vector3.zero, new Vector3(.59f,.35f,0), new Vector3(.27f,.32f,0),
+                    new Vector3(-.04f,.32f,0), new Vector3(-.35f,.32f,0), new Vector3(-.66f,.32f,0),
+                    new Vector3(.57f,.29f,.24f), new Vector3(.57f,.29f,-.24f) };
+                roles = new[] { FrontierBoneRole.Root, FrontierBoneRole.Head, FrontierBoneRole.Segment,
+                    FrontierBoneRole.Segment, FrontierBoneRole.Segment, FrontierBoneRole.Segment,
+                    FrontierBoneRole.Arm, FrontierBoneRole.Arm };
+                parents = new[] { -1, 0, 0, 2, 3, 4, 1, 1 };
+            }
+            else
+            {
+                p = new[] { Vector3.zero, new Vector3(.5f,.47f,0), new Vector3(.32f,.24f,.32f),
+                    new Vector3(.32f,.24f,-.32f), new Vector3(-.34f,.24f,.32f), new Vector3(-.34f,.24f,-.32f) };
+                roles = new[] { FrontierBoneRole.Root, FrontierBoneRole.Head, FrontierBoneRole.Leg,
+                    FrontierBoneRole.Leg, FrontierBoneRole.Leg, FrontierBoneRole.Leg };
+                parents = new[] { -1, 0, 0, 0, 0, 0 };
+            }
             for (int i = 1; i < p.Length; i++) p[i] *= s;
-            var bones = new FrontierBoneDefinition[6];
-            for (int i = 0; i < 6; i++) bones[i] = new FrontierBoneDefinition(i == 0 ? "root" : i == 1 ? "head" : "leg-" + i,
-                i == 0 ? -1 : 0, p[i], i == 0 ? FrontierBoneRole.Root : i == 1 ? FrontierBoneRole.Head : FrontierBoneRole.Leg, i % 2 == 0 ? 1 : -1, i % 2 * Mathf.PI);
-            return new FrontierRigDefinition(id, bones, new FrontierSocketDefinition(0,new Vector3(-.13f,.84f,0)*s,Vector3.zero,.8f),
-                new FrontierSocketDefinition(0,new Vector3(-.07f,.47f,-.49f)*s,new Vector3(-90,0,0),.8f),
-                new FrontierSocketDefinition(1,p[1]+new Vector3(.06f,.18f,0)*s,Vector3.zero),new Vector3(.1f,.1f,.1f)*s);
+            var bones = new FrontierBoneDefinition[p.Length];
+            for (int i = 0; i < bones.Length; i++)
+            {
+                string name = i == 0 ? "root" : i == 1 ? "head" : i == 6 && hauler ? "kit" : roles[i].ToString().ToLowerInvariant() + "-" + i;
+                bones[i] = new FrontierBoneDefinition(name, parents[i], p[i], roles[i], i % 2 == 0 ? 1 : -1, i % 2 * Mathf.PI);
+            }
+            var kitBone = hauler ? 6 : lifter ? 4 : segment ? 2 : 0;
+            return new FrontierRigDefinition(id, bones,
+                new FrontierSocketDefinition(0, new Vector3(-.13f,.84f,0)*s, Vector3.zero,.8f),
+                new FrontierSocketDefinition(0, new Vector3(-.07f,.47f,-.49f)*s, new Vector3(-90,0,0),.8f),
+                new FrontierSocketDefinition(1, p[1]+new Vector3(.06f,.18f,0)*s, Vector3.zero),
+                new Vector3(.14f,.18f,.18f)*s,
+                new FrontierSocketDefinition(kitBone, p[kitBone], Vector3.zero, 1f));
         }
     }
 }

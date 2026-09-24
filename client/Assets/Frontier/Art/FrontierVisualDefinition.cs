@@ -64,7 +64,7 @@ namespace Broodline.Frontier
             Add(new FrontierVisualDefinition("skitter", FrontierKind.Companion, FrontierSkitter.Rig, FrontierSkitter.Build, new FrontierPortrait(-34, 16, .14f), 0, 1, 2));
             Add(new FrontierVisualDefinition("hollow", FrontierKind.Companion, FrontierHollow.Rig, FrontierHollow.Build, new FrontierPortrait(-30, 8, .12f), 0, 1, 2));
             Add(new FrontierVisualDefinition("loam", FrontierKind.Companion, FrontierLoam.Rig, FrontierLoam.Build, new FrontierPortrait(-36, 18, .12f), 0, 1, 3));
-            foreach (var raider in new[] { "courser", "skirmisher", "lash" })
+            foreach (var raider in FrontierRaiders.Ids)
             {
                 var id = raider;
                 Add(new FrontierVisualDefinition(id, FrontierKind.Raider, FrontierRigDefinition.For(id), b => FrontierRaiders.Build(b, id), new FrontierPortrait(-30, 10, .12f), 0, 0, 2));

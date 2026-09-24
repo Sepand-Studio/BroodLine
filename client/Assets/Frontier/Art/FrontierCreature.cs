@@ -9,6 +9,7 @@ namespace Broodline.Frontier
         public Transform Dorsal { get; private set; }
         public Transform Flank { get; private set; }
         public Transform Crown { get; private set; }
+        public Transform Kit { get; private set; }
         public Transform[] Bones { get; private set; }
         public Bounds PortraitBounds { get; internal set; }
         public bool Moving;
@@ -42,6 +43,7 @@ namespace Broodline.Frontier
             Dorsal = Socket("sk_dorsal", rig.Dorsal);
             Flank = Socket("sk_flank", rig.Flank);
             Crown = Socket("sk_crown", rig.Crown);
+            Kit = rig.Kit.HasValue ? Socket("sk_kit", rig.Kit.Value) : null;
         }
 
         Transform Socket(string name, FrontierSocketDefinition definition)
