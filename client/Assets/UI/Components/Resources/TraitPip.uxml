@@ -1,5 +1,6 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
     <ui:Style src="TraitPip.uss" />
     <ui:VisualElement name="icon" class="trait-pip__icon" />
+    <ui:VisualElement name="glyph" class="icon trait-pip__glyph" picking-mode="Ignore" />
     <ui:Label name="label" class="trait-pip__label" />
 </ui:UXML>

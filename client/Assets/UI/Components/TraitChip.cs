@@ -90,6 +90,10 @@ namespace Broodline.UI.Components
             EnableInClassList(AberrantUssClassName,
                 tier == null && !CreatureLabel.IsAbsentTrait(trait));
 
+            var glyph = this.Q<VisualElement>("glyph");
+            var iconClass = TraitGlyph.ClassFor(trait);
+            if (iconClass == null) glyph.style.display = DisplayStyle.None;
+            else glyph.AddToClassList(iconClass);
             this.Q<Label>("trait").text = CreatureLabel.TraitWithTier(trait, tier);
 
             var name = trait;

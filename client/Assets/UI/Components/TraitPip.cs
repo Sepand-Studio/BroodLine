@@ -18,6 +18,7 @@ namespace Broodline.UI.Components
         public const string CountersUssClassName = "trait-pip--counters";
 
         readonly Label _label;
+        string _iconClass;
 
         public TraitPip()
         {
@@ -27,6 +28,7 @@ namespace Broodline.UI.Components
             tree.CloneTree(this);
 
             _label = this.Q<Label>("label");
+            this.Q<VisualElement>("glyph").style.display = DisplayStyle.None;
         }
 
         /// `tier` null means Aberrant (data_model 2) - Aberrants carry no
@@ -38,6 +40,12 @@ namespace Broodline.UI.Components
         {
             var text = CreatureLabel.TraitWithTier(trait, tier);
             _label.text = text;
+            var glyph = this.Q<VisualElement>("glyph");
+            if (_iconClass != null) glyph.RemoveFromClassList(_iconClass);
+            var iconClass = TraitGlyph.ClassFor(trait);
+            glyph.style.display = iconClass == null ? DisplayStyle.None : DisplayStyle.Flex;
+            if (iconClass != null) glyph.AddToClassList(iconClass);
+            _iconClass = iconClass;
 
             EnableInClassList(AberrantUssClassName, tier == null);
 

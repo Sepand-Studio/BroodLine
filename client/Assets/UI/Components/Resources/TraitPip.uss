@@ -31,6 +31,13 @@
     margin-right: 5px;
 }
 
+.trait-pip .trait-pip__glyph {
+    width: 13px;
+    height: 13px;
+    margin-right: 4px;
+    -unity-background-image-tint-color: var(--violet-text);
+}
+
 .trait-pip__label {
     font-size: var(--text-micro);
     -unity-font-style: bold;
@@ -44,6 +51,7 @@
 .trait-pip--counters .trait-pip__icon {
     background-color: var(--green-deep);
 }
+.trait-pip--counters .trait-pip__glyph { -unity-background-image-tint-color: var(--green-deep); }
 
 .trait-pip.aberrant {
     background-color: var(--surface);
@@ -54,3 +62,4 @@
 .trait-pip.aberrant .trait-pip__icon {
     background-color: var(--violet-pale);
 }
+.trait-pip.aberrant .trait-pip__glyph { -unity-background-image-tint-color: var(--violet-pale); }

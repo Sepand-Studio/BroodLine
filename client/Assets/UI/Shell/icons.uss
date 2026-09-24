@@ -52,6 +52,22 @@
 .icon--warning { background-image: url("project:///Assets/UI/Art/icons/warning.png"); }
 .icon--mark    { background-image: url("project:///Assets/UI/Art/icons/mark.png"); }
 
+/* Bespoke trait silhouettes, generated together from the 24-unit geometry in
+ * Art/generate-trait-icons.py. The PNG masters are white so each carrier's
+ * TraitChip can tint the same mark without a second asset. */
+.icon--trait-carapace { background-image: url("project:///Assets/UI/Art/icons/traits/carapace.png"); }
+.icon--trait-taunt    { background-image: url("project:///Assets/UI/Art/icons/traits/taunt.png"); }
+.icon--trait-cinder   { background-image: url("project:///Assets/UI/Art/icons/traits/cinder.png"); }
+.icon--trait-splash   { background-image: url("project:///Assets/UI/Art/icons/traits/splash.png"); }
+.icon--trait-sprint   { background-image: url("project:///Assets/UI/Art/icons/traits/sprint.png"); }
+.icon--trait-litter   { background-image: url("project:///Assets/UI/Art/icons/traits/litter.png"); }
+.icon--trait-reach    { background-image: url("project:///Assets/UI/Art/icons/traits/reach.png"); }
+.icon--trait-pierce   { background-image: url("project:///Assets/UI/Art/icons/traits/pierce.png"); }
+.icon--trait-regrow   { background-image: url("project:///Assets/UI/Art/icons/traits/regrow.png"); }
+.icon--trait-burrow   { background-image: url("project:///Assets/UI/Art/icons/traits/burrow.png"); }
+.icon--trait-screen   { background-image: url("project:///Assets/UI/Art/icons/traits/screen.png"); }
+.icon--trait-chill    { background-image: url("project:///Assets/UI/Art/icons/traits/chill.png"); }
+
 /* Three more, and all three are BESPOKE rather than fetched - so all three
  * keep their .svg beside the raster, on the rule the thirteen established
  * (splice.svg was kept for exactly this reason; lucide.dev is a durable

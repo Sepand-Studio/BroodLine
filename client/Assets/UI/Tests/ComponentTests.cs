@@ -438,6 +438,28 @@ namespace Broodline.UI.Tests
             Assert.IsFalse(pip.ClassListContains("aberrant"));
         }
 
+        [Test]
+        public void TraitGlyphChangesWhenAPipIsReboundAndUnknownTraitsKeepTheirNames()
+        {
+            var pip = new TraitPip();
+            pip.Bind("Chill", 1, "Courser");
+            var glyph = pip.Q<VisualElement>("glyph");
+            Assert.IsTrue(glyph.ClassListContains("icon--trait-chill"));
+
+            pip.Bind("Carapace", 2, null);
+            Assert.IsFalse(glyph.ClassListContains("icon--trait-chill"));
+            Assert.IsTrue(glyph.ClassListContains("icon--trait-carapace"));
+
+            pip.Bind("Unknown", 1, null);
+            Assert.IsFalse(glyph.ClassListContains("icon--trait-carapace"));
+            Assert.AreEqual("Unknown I", pip.Q<Label>("label").text);
+            Assert.AreEqual(DisplayStyle.None, glyph.style.display.value);
+
+            var chip = new TraitChip("Splash", 1, "Ember");
+            Assert.IsTrue(chip.Q<VisualElement>("glyph").ClassListContains("icon--trait-splash"));
+            Assert.AreEqual("Splash I", chip.Q<Label>("trait").text);
+        }
+
         // ---------------------------------------------------------------
         // ResourceBar (replaced CurrencyHeader in Phase 10 Task 1.2)
         // ---------------------------------------------------------------

@@ -13,3 +13,9 @@ Review layout and interaction direction in `implementation/reviews/phase10-ui-re
 Map selections now lead to a region detail screen. The Ark's current region has a painted territory header above the existing server-backed harvest cards and a back path to the map. Remote regions show their reach, lanes, neighbours, shortest route and travel time from the server-owned Ark region. The relocation action starts a persisted local countdown in `StubLedger`, with every write logged as `[stub]`; it never changes the server region or exposes remote claim buttons. A second journey cannot start while a preview is active. The full route is visible both before and during the countdown, and completion explicitly leaves the Ark where the server says it is.
 
 The three design states are in `implementation/reviews/phase10-region-detail.html`. That page is a composition preview, not a Unity capture. Per the user's direction, Unity/device validation is still deferred until the end of the UI/design phase.
+
+## Trait icon language
+
+The twelve authored traits now each have a distinct 24-unit silhouette. `client/Assets/UI/Art/generate-trait-icons.py` draws white, tintable 3× PNGs from one geometry source and saves editable SVGs under `implementation/art-source/traits/`. The shared `TraitChip` and `TraitPip` bind those marks by trait name, so roster, splice, Codex and any later use of those components inherit the same icon. Species colour continues to tint the chip, while the icon shape and text carry identity without colour. Unknown traits keep their label and receive no invented icon.
+
+Review the contact sheet at `implementation/reviews/phase10-trait-icons.png`; it shows the large mark and a small chip-size sample for every trait. This is a source/design review. Unity rendering remains in the final validation batch.
