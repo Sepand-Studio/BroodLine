@@ -26,7 +26,7 @@ namespace Broodline.UI.Screens
             core.AddToClassList("lab__core-card");
             var coreLine = new VisualElement(); coreLine.AddToClassList("lab__core-line");
             var coreIcon = new VisualElement();
-            coreIcon.AddToClassList("icon"); coreIcon.AddToClassList("icon--ark"); coreIcon.AddToClassList("lab__core-icon");
+            coreIcon.AddToClassList("icon"); coreIcon.AddToClassList("icon--facility-core"); coreIcon.AddToClassList("lab__core-icon");
             var coreText = new VisualElement();
             _coreTier = new Label { name = "core-tier" };
             _coreTier.AddToClassList("lab__core-tier");

@@ -25,12 +25,12 @@ namespace Broodline.Model.Catalogs
 
         public static readonly IReadOnlyList<FacilityInfo> All = new[]
         {
-            new FacilityInfo { Id = CoreId,      Name = "Ark Core",       Role = "Caps every other facility",     Icon = "ark" },
-            new FacilityInfo { Id = "splicing",  Name = "Splice Chamber", Role = "Odds, locks and mutation",       Icon = "splice" },
-            new FacilityInfo { Id = "hatchery",  Name = "Hatchery",       Role = "Roster capacity",               Icon = "sparkle" },
-            new FacilityInfo { Id = "vault",     Name = "Gene Vault",     Role = "Samples and archive",           Icon = "lock" },
-            new FacilityInfo { Id = "harvest",   Name = "Harvest Rig",    Role = "Node yield and Collectors",     Icon = "map" },
-            new FacilityInfo { Id = "drive",     Name = "Travel Drive",   Role = "Relocation speed",              Icon = "timer" },
+            new FacilityInfo { Id = CoreId,      Name = "Ark Core",       Role = "Caps every other facility",     Icon = "facility-core" },
+            new FacilityInfo { Id = "splicing",  Name = "Splice Chamber", Role = "Odds, locks and mutation",       Icon = "facility-splicing" },
+            new FacilityInfo { Id = "hatchery",  Name = "Hatchery",       Role = "Roster capacity",               Icon = "facility-hatchery" },
+            new FacilityInfo { Id = "vault",     Name = "Gene Vault",     Role = "Samples and archive",           Icon = "facility-vault" },
+            new FacilityInfo { Id = "harvest",   Name = "Harvest Rig",    Role = "Node yield and Collectors",     Icon = "facility-harvest" },
+            new FacilityInfo { Id = "drive",     Name = "Travel Drive",   Role = "Relocation speed",              Icon = "facility-drive" },
         };
 
         public static FacilityInfo Find(string id)

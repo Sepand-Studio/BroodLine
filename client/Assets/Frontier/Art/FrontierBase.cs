@@ -50,10 +50,7 @@ namespace Broodline.Frontier
                 if (id == "core") continue;
                 b.Cone(at + new Vector3(0, -.04f, 0), at + new Vector3(0, .05f, 0), .95f, .86f, pad, 14);
                 b.Cone(at + new Vector3(0, .05f, 0), at + new Vector3(0, .07f, 0), .62f, .6f, sand, 14);
-                // A marker post with a small enamel panel, the plot's own
-                // "sign" until each facility gets its building in Batch 6.
-                b.Cone(at + new Vector3(.55f, 0, .45f), at + new Vector3(.55f, .72f, .45f), .05f, .04f, Hex("#806247"), 6);
-                b.Box(at + new Vector3(.55f, .62f, .45f), new Vector3(.34f, .22f, .04f), Cream);
+                Facility(b, id, at);
             }
 
             Ark(b, Plots[0].At);
@@ -90,6 +87,80 @@ namespace Broodline.Frontier
 
             var mesh = b.Finish("frontier-base"); _environmentMeshes.Add(mesh);
             return Draw(parent, mesh.name, mesh);
+        }
+
+        /// Five readable facility profiles at the same camera distance. The
+        /// structures stay inside their plot pads, leaving their UI hotspots
+        /// free to describe tier and action without supplying the silhouette.
+        static void Facility(FrontierMesh b, string id, Vector3 p)
+        {
+            var frame = Hex("#354554");
+            var brass = Hex("#c99a49");
+            var violet = Hex("#8668cf");
+            var coral = Hex("#e5867a");
+            var pale = Hex("#f4dfb9");
+            var green = Hex("#6b9361");
+            switch (id)
+            {
+                case "splicing":
+                    // Paired incubation columns and one visible joining arc.
+                    b.Box(p + new Vector3(0, .15f, 0), new Vector3(1.25f, .18f, .65f), frame);
+                    for (int side = -1; side <= 1; side += 2)
+                    {
+                        var x = side * .37f;
+                        b.Cone(p + new Vector3(x, .23f, 0), p + new Vector3(x, .94f, 0), .20f, .15f, pale, 10);
+                        b.Cone(p + new Vector3(x, .33f, 0), p + new Vector3(x, .38f, 0), .205f, .205f, coral, 10);
+                        b.Sphere(p + new Vector3(x, .73f, 0), new Vector3(.10f, .14f, .10f), violet, 8, 6);
+                    }
+                    b.Box(p + new Vector3(0, 1.01f, 0), new Vector3(.89f, .12f, .18f), frame);
+                    b.Sphere(p + new Vector3(0, 1.02f, 0), new Vector3(.13f, .16f, .14f), coral, 10, 7);
+                    break;
+                case "hatchery":
+                    // Warm low nest, with three separate eggs rather than a
+                    // generic tower that would duplicate the Splice Chamber.
+                    b.Sphere(p + new Vector3(0, .26f, 0), new Vector3(.68f, .24f, .53f), green, 14, 8);
+                    b.Sphere(p + new Vector3(0, .34f, 0), new Vector3(.57f, .17f, .45f), Hex("#b7a16e"), 14, 7);
+                    for (int i = -1; i <= 1; i++)
+                    {
+                        float z = i == 0 ? -.10f : .16f;
+                        b.Sphere(p + new Vector3(i * .29f, .52f, z), new Vector3(.19f, .30f, .20f), pale, 10, 8);
+                        b.Sphere(p + new Vector3(i * .29f - .04f, .55f, z - .13f), new Vector3(.05f, .08f, .025f), coral, 7, 5);
+                    }
+                    break;
+                case "vault":
+                    // Sealed archive: a monolith, door seam and brass lock.
+                    b.Box(p + new Vector3(0, .53f, 0), new Vector3(.91f, .89f, .67f), frame);
+                    b.Box(p + new Vector3(0, 1.02f, 0), new Vector3(1.10f, .16f, .82f), pale);
+                    b.Box(p + new Vector3(0, .55f, -.35f), new Vector3(.58f, .65f, .04f), Hex("#546274"));
+                    b.Box(p + new Vector3(0, .55f, -.39f), new Vector3(.045f, .52f, .035f), brass);
+                    b.Sphere(p + new Vector3(0, .55f, -.43f), new Vector3(.10f, .10f, .04f), brass, 10, 6);
+                    break;
+                case "harvest":
+                    // A raised extraction head with two grounded collector
+                    // arms, distinct from the base's trees and signposts.
+                    b.Box(p + new Vector3(0, .18f, 0), new Vector3(.96f, .22f, .72f), frame);
+                    b.Cone(p + new Vector3(0, .25f, 0), p + new Vector3(0, 1.13f, 0), .15f, .07f, brass, 9);
+                    b.Box(p + new Vector3(0, .91f, 0), new Vector3(1.18f, .12f, .20f), frame);
+                    for (int side = -1; side <= 1; side += 2)
+                    {
+                        b.Cone(p + new Vector3(side * .49f, .17f, 0), p + new Vector3(side * .49f, .85f, 0), .10f, .065f, green, 8);
+                        b.Box(p + new Vector3(side * .49f, .18f, -.22f), new Vector3(.25f, .17f, .30f), pale);
+                    }
+                    b.Sphere(p + new Vector3(0, 1.16f, 0), new Vector3(.15f, .13f, .15f), coral, 10, 7);
+                    break;
+                case "drive":
+                    // Low propulsion drum and four radial vanes.
+                    b.Cone(p + new Vector3(0, .12f, 0), p + new Vector3(0, .62f, 0), .55f, .39f, frame, 16);
+                    b.Cone(p + new Vector3(0, .63f, 0), p + new Vector3(0, .70f, 0), .39f, .36f, brass, 16);
+                    b.Sphere(p + new Vector3(0, .77f, 0), new Vector3(.28f, .24f, .28f), violet, 12, 8);
+                    for (int i = 0; i < 4; i++)
+                    {
+                        float angle = i * 90f;
+                        b.Box(p + Quaternion.Euler(0, angle, 0) * new Vector3(.55f, .37f, 0),
+                            new Vector3(.49f, .28f, .12f), pale, angle);
+                    }
+                    break;
+            }
         }
     }
 }

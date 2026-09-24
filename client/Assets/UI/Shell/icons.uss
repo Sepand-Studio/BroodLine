@@ -52,6 +52,14 @@
 .icon--warning { background-image: url("project:///Assets/UI/Art/icons/warning.png"); }
 .icon--mark    { background-image: url("project:///Assets/UI/Art/icons/mark.png"); }
 
+/* Each facility has its own profile, matching its Ark structure. */
+.icon--facility-core     { background-image: url("project:///Assets/UI/Art/icons/facilities/core.png"); }
+.icon--facility-splicing { background-image: url("project:///Assets/UI/Art/icons/facilities/splicing.png"); }
+.icon--facility-hatchery { background-image: url("project:///Assets/UI/Art/icons/facilities/hatchery.png"); }
+.icon--facility-vault    { background-image: url("project:///Assets/UI/Art/icons/facilities/vault.png"); }
+.icon--facility-harvest  { background-image: url("project:///Assets/UI/Art/icons/facilities/harvest.png"); }
+.icon--facility-drive    { background-image: url("project:///Assets/UI/Art/icons/facilities/drive.png"); }
+
 /* Bespoke trait silhouettes, generated together from the 24-unit geometry in
  * Art/generate-trait-icons.py. The PNG masters are white so each carrier's
  * TraitChip can tint the same mark without a second asset. */
