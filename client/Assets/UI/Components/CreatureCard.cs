@@ -63,10 +63,21 @@ namespace Broodline.UI.Components
         public const string CommittedUssClassName = "committed";
 
         readonly VisualElement _silhouette;
+        readonly VisualElement _portrait;
         readonly VisualElement _gen;
         readonly VisualElement _traits;
         readonly Label _name;
         readonly Label _instinct;
+        int _portraitVersion;
+        ICreaturePortraitSource _portraitSource;
+        Texture2D _portraitTexture;
+        string _portraitSpecies, _portraitFirst, _portraitSecond;
+
+        public static ICreaturePortraitSource PortraitSource
+        {
+            get => CreaturePortraits.Source;
+            set => CreaturePortraits.Source = value;
+        }
 
         public CreatureCard()
         {
@@ -76,10 +87,13 @@ namespace Broodline.UI.Components
             tree.CloneTree(this);
 
             _silhouette = this.Q<VisualElement>("silhouette");
+            _portrait = this.Q<VisualElement>("portrait");
             _gen = this.Q<VisualElement>("gen");
             _traits = this.Q<VisualElement>("traits");
             _name = this.Q<Label>("name");
             _instinct = this.Q<Label>("instinct");
+            RegisterCallback<AttachToPanelEvent>(_ => RequestPortrait());
+            RegisterCallback<DetachFromPanelEvent>(_ => ReleasePortrait());
         }
 
         /// `counters` maps a trait name to the single raider/name it answers
@@ -166,6 +180,15 @@ namespace Broodline.UI.Components
             SetLayer("part-dorsal", CreatureSprites.Part(creature.Species, "sk_dorsal", creature.Trait1));
             SetLayer("part-flank", CreatureSprites.Part(creature.Species, "sk_flank", creature.Trait2));
 
+            // A card first has a readable baked silhouette. The shared
+            // renderer replaces it when the queued 3D portrait is ready.
+            // A version guards a recycled card from a late prior callback.
+            ReleasePortrait();
+            _portraitSpecies = creature.Species;
+            _portraitFirst = creature.Trait1;
+            _portraitSecond = creature.Trait2;
+            RequestPortrait();
+
             EnableInClassList(FounderUssClassName, creature.IsFounder);
             EnableInClassList(CommittedUssClassName, creature.CommittedTo.HasValue);
 
@@ -184,6 +207,51 @@ namespace Broodline.UI.Components
             EnableInClassList(AberrantUssClassName,
                 IsAberrant(creature.Trait1, creature.Tier1)
                 || IsAberrant(creature.Trait2, creature.Tier2));
+        }
+
+        void RequestPortrait()
+        {
+            if (_portraitSpecies == null || _portraitTexture != null) return;
+            var source = PortraitSource;
+            if (source == null) return;
+            if (!ReferenceEquals(_portraitSource, source))
+            {
+                if (_portraitSource != null) _portraitSource.Evicted -= OnPortraitEvicted;
+                _portraitSource = source;
+                source.Evicted += OnPortraitEvicted;
+            }
+            var version = ++_portraitVersion;
+            var texture = source.Request(_portraitSpecies, _portraitFirst, _portraitSecond, 1f,
+                ready =>
+                {
+                    if (version == _portraitVersion && ready != null) ShowPortrait(ready);
+                });
+            if (texture != null) ShowPortrait(texture);
+        }
+
+        void ShowPortrait(Texture2D texture)
+        {
+            _portraitTexture = texture;
+            _portrait.style.backgroundImage = new StyleBackground(texture);
+            _portrait.style.display = DisplayStyle.Flex;
+        }
+
+        void OnPortraitEvicted(Texture2D texture)
+        {
+            if (!ReferenceEquals(texture, _portraitTexture)) return;
+            _portraitTexture = null;
+            _portrait.style.backgroundImage = new StyleBackground(StyleKeyword.None);
+            _portrait.style.display = DisplayStyle.None;
+        }
+
+        void ReleasePortrait()
+        {
+            ++_portraitVersion;
+            if (_portraitSource != null) _portraitSource.Evicted -= OnPortraitEvicted;
+            _portraitSource = null;
+            _portraitTexture = null;
+            _portrait.style.backgroundImage = new StyleBackground(StyleKeyword.None);
+            _portrait.style.display = DisplayStyle.None;
         }
 
         /// A slot holds an Aberrant when it holds a TRAIT whose coverage tier

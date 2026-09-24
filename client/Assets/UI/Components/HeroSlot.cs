@@ -59,8 +59,13 @@ namespace Broodline.UI.Components
         readonly VisualElement _body;
         readonly VisualElement _dorsal;
         readonly VisualElement _flank;
+        readonly VisualElement _portrait;
 
         string _speciesClass;
+        int _portraitVersion;
+        ICreaturePortraitSource _portraitSource;
+        Texture2D _portraitTexture;
+        string _portraitSpecies, _portraitFirst, _portraitSecond;
 
         /// The sprite form: three stacked layers inside the ring.
         public HeroSlot()
@@ -69,6 +74,9 @@ namespace Broodline.UI.Components
             _body = this.Q<VisualElement>("body");
             _dorsal = this.Q<VisualElement>("dorsal");
             _flank = this.Q<VisualElement>("flank");
+            _portrait = this.Q<VisualElement>("portrait");
+            RegisterCallback<AttachToPanelEvent>(_ => RequestPortrait());
+            RegisterCallback<DetachFromPanelEvent>(_ => ReleasePortrait());
         }
 
         /// The live form: the same ring and disc around a turning portrait.
@@ -110,11 +118,64 @@ namespace Broodline.UI.Components
             // forms and only its second half is conditional.
             if (_body == null) return;
 
+            ReleasePortrait();
+
             SetLayer(_body, creature == null ? null : CreatureSprites.Body(creature.Species));
             SetLayer(_dorsal, creature == null
                 ? null : CreatureSprites.Part(creature.Species, "sk_dorsal", creature.Trait1));
             SetLayer(_flank, creature == null
                 ? null : CreatureSprites.Part(creature.Species, "sk_flank", creature.Trait2));
+            if (creature == null) { _portraitSpecies = null; return; }
+            _portraitSpecies = creature.Species;
+            _portraitFirst = creature.Trait1;
+            _portraitSecond = creature.Trait2;
+            RequestPortrait();
+        }
+
+        void RequestPortrait()
+        {
+            if (_portraitSpecies == null || _portraitTexture != null) return;
+            var source = CreaturePortraits.Source;
+            if (source == null) return;
+            if (!ReferenceEquals(_portraitSource, source))
+            {
+                if (_portraitSource != null) _portraitSource.Evicted -= OnPortraitEvicted;
+                _portraitSource = source;
+                source.Evicted += OnPortraitEvicted;
+            }
+            var version = ++_portraitVersion;
+            var texture = source.Request(_portraitSpecies, _portraitFirst, _portraitSecond, 1f,
+                ready =>
+                {
+                    if (version == _portraitVersion && ready != null) ShowPortrait(ready);
+                });
+            if (texture != null) ShowPortrait(texture);
+        }
+
+        void ShowPortrait(Texture2D texture)
+        {
+            _portraitTexture = texture;
+            SetLayer(_portrait, texture);
+            _portrait.style.display = DisplayStyle.Flex;
+        }
+
+        void OnPortraitEvicted(Texture2D texture)
+        {
+            if (!ReferenceEquals(texture, _portraitTexture)) return;
+            _portraitTexture = null;
+            SetLayer(_portrait, null);
+            _portrait.style.display = DisplayStyle.None;
+        }
+
+        void ReleasePortrait()
+        {
+            ++_portraitVersion;
+            if (_portraitSource != null) _portraitSource.Evicted -= OnPortraitEvicted;
+            _portraitSource = null;
+            _portraitTexture = null;
+            if (_portrait == null) return;
+            SetLayer(_portrait, null);
+            _portrait.style.display = DisplayStyle.None;
         }
 
         /// One `hero-slot--&lt;species&gt;` at a time, and the previous one is

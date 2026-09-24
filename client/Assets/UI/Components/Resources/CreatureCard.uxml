@@ -7,6 +7,7 @@
         <ui:VisualElement name="silhouette" class="creature-card__layer" />
         <ui:VisualElement name="part-dorsal" class="creature-card__layer" />
         <ui:VisualElement name="part-flank" class="creature-card__layer" />
+        <ui:VisualElement name="portrait" class="creature-card__layer creature-card__portrait" />
     </ui:VisualElement>
     <ui:Label name="name" class="creature-card__name" />
     <ui:Label name="instinct" class="creature-card__instinct" />

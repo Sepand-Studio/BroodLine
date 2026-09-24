@@ -19,3 +19,9 @@ The three design states are in `implementation/reviews/phase10-region-detail.htm
 The twelve authored traits now each have a distinct 24-unit silhouette. `client/Assets/UI/Art/generate-trait-icons.py` draws white, tintable 3× PNGs from one geometry source and saves editable SVGs under `implementation/art-source/traits/`. The shared `TraitChip` and `TraitPip` bind those marks by trait name, so roster, splice, Codex and any later use of those components inherit the same icon. Species colour continues to tint the chip, while the icon shape and text carry identity without colour. Unknown traits keep their label and receive no invented icon.
 
 Review the contact sheet at `implementation/reviews/phase10-trait-icons.png`; it shows the large mark and a small chip-size sample for every trait. This is a source/design review. Unity rendering remains in the final validation batch.
+
+## Portrait and atlas interaction follow-up
+
+The roster card and sprite-form hero slot now request a Frontier portrait through a UI-facing source. One 256px offscreen camera paints at most one queued portrait each frame; duplicate requests share the job. The cache keeps 64 textures (about 16 MiB of RGBA pixel data), keyed by species, ordered traits, growth stage and art revision. The old baked layers remain visible while a request is queued or if a portrait is evicted; cards clear stale images on rebind, detachment and eviction. The Boot composition root owns the cache. Unity still needs to confirm appearance, capture memory and run the new eviction/rebind tests before the old baked art can be retired.
+
+The atlas now has a clipped pan/zoom surface and 44px zoom controls. Rings, markers and the painted terrain move as one. Zoom stays between 1× and 2.25×, and panning clamps to the enlarged image. The labelled region list remains the larger-target alternate path. Unity touch input and narrow-screen composition remain part of final validation.

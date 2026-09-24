@@ -49,6 +49,7 @@
     top: 0; left: 0; right: 0; bottom: 0;
     -unity-background-scale-mode: scale-to-fit;
 }
+.creature-card__portrait { display: none; }
 
 /* THE HEADER IS THE GENERATION CHIP'S ROW AND NOTHING ELSE NOW, which is
  * the handoff's own card: `Creature Roster.dc.html:56-58` opens each tile

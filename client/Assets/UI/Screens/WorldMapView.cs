@@ -13,6 +13,7 @@ namespace Broodline.UI.Screens
         public const string RowUssClassName = "world-map__region";
 
         readonly VisualElement _bands;
+        readonly VisualElement _viewport;
         readonly VisualElement _atlas;
         readonly Label _arkLabel;
         readonly Label _selectedName, _selectedDetail;
@@ -20,6 +21,9 @@ namespace Broodline.UI.Screens
         readonly List<Button> _markers = new List<Button>();
         Action<string> _onPick;
         string _selectedId;
+        float _zoom = 1f;
+        Vector2 _pan, _lastPointer;
+        bool _dragging;
 
         public WorldMapView()
         {
@@ -32,11 +36,25 @@ namespace Broodline.UI.Screens
             _arkLabel = new Label { name = "ark-region" };
             _arkLabel.AddToClassList("world-map__ark-label");
             atlasCard.Body.Add(_arkLabel);
+            _viewport = new VisualElement { name = "atlas-viewport" };
+            _viewport.AddToClassList("world-map__viewport");
             _atlas = new VisualElement { name = "atlas" };
             _atlas.AddToClassList("world-map__atlas");
             var terrain = Resources.Load<Texture2D>("Art/map/frontier-atlas");
             if (terrain != null) _atlas.style.backgroundImage = new StyleBackground(terrain);
-            atlasCard.Body.Add(_atlas);
+            _viewport.Add(_atlas);
+            atlasCard.Body.Add(_viewport);
+            var mapControls = new VisualElement { name = "map-controls" };
+            mapControls.AddToClassList("world-map__controls");
+            MapControl(mapControls, "zoom-out", "−", () => SetZoom(_zoom - .25f));
+            MapControl(mapControls, "zoom-reset", "Reset", ResetView);
+            MapControl(mapControls, "zoom-in", "+", () => SetZoom(_zoom + .25f));
+            atlasCard.Body.Add(mapControls);
+            _viewport.RegisterCallback<PointerDownEvent>(OnMapDown);
+            _viewport.RegisterCallback<PointerMoveEvent>(OnMapMove);
+            _viewport.RegisterCallback<PointerUpEvent>(OnMapUp);
+            _viewport.RegisterCallback<PointerCaptureOutEvent>(_ => _dragging = false);
+            _viewport.RegisterCallback<WheelEvent>(e => { SetZoom(_zoom + (e.delta.y < 0 ? .25f : -.25f)); e.StopPropagation(); });
             var selection = new VisualElement { name = "selection" };
             selection.AddToClassList("world-map__selection");
             _selectedName = new Label { name = "selected-region" };
@@ -53,6 +71,60 @@ namespace Broodline.UI.Screens
             scaffold.Content.Add(atlasCard);
             scaffold.Content.Add(_bands);
             Add(scaffold);
+        }
+
+        static void MapControl(VisualElement parent, string name, string label, Action action)
+        {
+            var button = new Button(action) { name = name, text = label };
+            button.AddToClassList("btn-secondary");
+            button.AddToClassList("world-map__control");
+            parent.Add(button);
+        }
+
+        void OnMapDown(PointerDownEvent e)
+        {
+            if (e.target is Button || e.button != 0) return;
+            _dragging = true;
+            _lastPointer = new Vector2(e.position.x, e.position.y);
+            _viewport.CapturePointer(e.pointerId);
+        }
+
+        void OnMapMove(PointerMoveEvent e)
+        {
+            if (!_dragging || !_viewport.HasPointerCapture(e.pointerId)) return;
+            var current = new Vector2(e.position.x, e.position.y);
+            _pan += current - _lastPointer;
+            _lastPointer = current;
+            ApplyView();
+        }
+
+        void OnMapUp(PointerUpEvent e)
+        {
+            if (!_viewport.HasPointerCapture(e.pointerId)) return;
+            _dragging = false;
+            _viewport.ReleasePointer(e.pointerId);
+        }
+
+        void SetZoom(float zoom)
+        {
+            _zoom = Mathf.Clamp(zoom, 1f, 2.25f);
+            ApplyView();
+        }
+
+        void ResetView()
+        {
+            _zoom = 1f;
+            _pan = Vector2.zero;
+            ApplyView();
+        }
+
+        void ApplyView()
+        {
+            var limit = (_zoom - 1f) * 140f;
+            _pan.x = Mathf.Clamp(_pan.x, -limit, limit);
+            _pan.y = Mathf.Clamp(_pan.y, -limit, limit);
+            _atlas.transform.scale = new Vector3(_zoom, _zoom, 1f);
+            _atlas.transform.position = new Vector3(_pan.x, _pan.y, 0f);
         }
 
         public void Bind(MapScreenModel m, Action<string> onPick)

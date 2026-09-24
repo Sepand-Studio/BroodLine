@@ -47,6 +47,7 @@ namespace Broodline.Game.Shell
         OutboxPump _pump;
         WaveHost _waves;
         PortraitStudio _studio;
+        PortraitCache _portraits;
         LaneStage _stage;
         FtueDirector _ftue;
         NoticeToast _toast;
@@ -254,6 +255,8 @@ namespace Broodline.Game.Shell
             // PortraitStudio.Create.
             _studio = PortraitStudio.Create(transform);
             _screenHost.ScreenChanging += () => _studio.ClearIfPending();
+            _portraits = PortraitCache.Create(transform);
+            CreatureCard.PortraitSource = _portraits;
 
             // Task 17, and created here for Task 11's reason: the deploy
             // screen asks for a lane the moment the first beat reaches it,
@@ -382,6 +385,12 @@ namespace Broodline.Game.Shell
             if (_router == null) return;
             if (_ftue != null && _ftue.Busy) { OnNotice(FtueNotice.TabsAfterFirstHour); return; }
             _ = _router.ShowAsync(tab);
+        }
+
+        void OnDestroy()
+        {
+            if (ReferenceEquals(CreatureCard.PortraitSource, _portraits))
+                CreatureCard.PortraitSource = null;
         }
 
         static string LoadApiBaseUrl()

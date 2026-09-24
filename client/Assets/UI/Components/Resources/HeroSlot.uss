@@ -85,6 +85,7 @@
     bottom: 0;
     -unity-background-scale-mode: scale-to-fit;
 }
+.hero-slot__portrait { display: none; }
 
 /* The six species tints, on the ring and the disc together. The handoff
  * tints both - a Vetch parent gets a #8fc4d8 ring over an #e7f3f9 disc, an

@@ -6,19 +6,29 @@
     -unity-font-style: bold;
     margin-bottom: var(--space-2);
 }
-.world-map__atlas {
+.world-map__viewport {
     position: relative;
     width: 280px;
     height: 280px;
     align-self: center;
-    background-color: var(--surface-sunk);
-    -unity-background-scale-mode: scale-and-crop;
     border-radius: var(--radius-card);
     border-width: 2px;
     border-color: var(--brass);
-    margin-bottom: var(--space-2);
     overflow: hidden;
 }
+.world-map__atlas {
+    position: relative;
+    width: 280px;
+    height: 280px;
+    background-color: var(--surface-sunk);
+    -unity-background-scale-mode: scale-and-crop;
+}
+.world-map__controls {
+    flex-direction: row;
+    justify-content: center;
+    margin-bottom: var(--space-2);
+}
+.world-map__control { min-width: 44px; min-height: 44px; margin-left: var(--space-2); margin-right: var(--space-2); }
 .world-map__ring {
     position: absolute;
     border-width: 1px;
