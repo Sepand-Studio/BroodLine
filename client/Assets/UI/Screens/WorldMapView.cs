@@ -127,7 +127,7 @@ namespace Broodline.UI.Screens
             _selectedId = region.Id;
             _selectedName.text = region.Name;
             _selectedDetail.text = region.Detail;
-            _selectedAction.text = region.Here ? "Open region" : "Travel preview";
+            _selectedAction.text = region.Here ? "Open region" : "View region";
             foreach (var marker in _markers)
                 marker.EnableInClassList("world-map__marker--selected", marker.name == "marker-" + region.Id);
         }

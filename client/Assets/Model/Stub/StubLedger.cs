@@ -4,8 +4,8 @@ using System.Collections.Generic;
 namespace Broodline.Model.Stub
 {
     /// LOCAL STATE FOR THE SCREENS WHOSE BACKEND DOES NOT EXIST YET - Phase 10
-    /// Task 1.5. Store purchases, facility tiers and upgrade timers, alliance
-    /// membership: none has an endpoint, so their screens read and write this
+    /// Task 1.5. Store purchases, facility tiers and upgrade timers, map
+    /// travel previews and alliance membership: none has an endpoint, so their screens read and write this
     /// ledger instead, through a key/value store the Game layer supplies
     /// (PlayerPrefs in the client, a dictionary in tests). EVERY write logs a
     /// `[stub]` line through `Log`, every CTA that lands here is labelled
@@ -94,6 +94,31 @@ namespace Broodline.Model.Stub
         public void ClaimDailyGift() => Write("store.gift.at", _now().Ticks.ToString());
 
         public void RecordPreviewPurchase(string id) => Write("store.preview." + id, _now().Ticks.ToString());
+
+        // ---- map travel (local presentation only; never changes server region) ----
+        public string PreviewTravelTarget() => _store.Get("map.travel.target");
+        public string PreviewTravelOrigin() => _store.Get("map.travel.origin");
+        public DateTime? PreviewTravelEndsAt()
+            => long.TryParse(_store.Get("map.travel.ends"), out var ticks)
+                ? new DateTime(ticks, DateTimeKind.Utc) : (DateTime?)null;
+
+        public bool PreviewTravelActive()
+        {
+            var ends = PreviewTravelEndsAt();
+            return !string.IsNullOrEmpty(PreviewTravelTarget()) && ends.HasValue && ends.Value > _now();
+        }
+
+        /// A completed preview remains visible until the next route starts.
+        /// No real region or claim state is ever written here.
+        public bool StartPreviewTravel(string origin, string target, TimeSpan duration)
+        {
+            if (string.IsNullOrEmpty(origin) || string.IsNullOrEmpty(target) || duration <= TimeSpan.Zero || PreviewTravelActive())
+                return false;
+            Write("map.travel.origin", origin);
+            Write("map.travel.target", target);
+            Write("map.travel.ends", (_now() + duration).Ticks.ToString());
+            return true;
+        }
 
         // ---- allies ----
         public string AllianceName() => _store.Get("allies.name");

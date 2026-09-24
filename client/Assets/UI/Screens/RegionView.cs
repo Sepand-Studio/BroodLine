@@ -6,20 +6,11 @@ using UnityEngine.UIElements;
 
 namespace Broodline.UI.Screens
 {
-    /// The map tab, bound to `RegionScreenModel`
+    /// The server-backed Ark region detail, bound to `RegionScreenModel`
     /// (`client/Assets/UI/RegionScreen.cs`).
-    ///
-    /// INTERIM, AND `RegionView.uss`'s HEADER IS THE RECORD OF WHY. It states
-    /// what the handoff's Splice World Map v2 needs, what of it exists, what
-    /// the plan that specified this task got wrong about that, and who owns
-    /// the rest. The short version: this is a node LIST with Phase 8's
-    /// foundation applied, deferred to Phase 10, and it is not the map.
-    ///
-    /// Every `NodeRow.CanClaim`/`.Blocker` is the model's own verdict -
-    /// `map/claim.ts`'s roster-room check, mirrored there only so the screen
-    /// can say so before the tap. This view renders that verdict; it does
-    /// not recompute "does this grant fit the roster" from `RosterCount`/
-    /// `RosterCap` itself.
+    /// It pairs catalog geography with server-owned harvest nodes. Every
+    /// `NodeRow.CanClaim`/`.Blocker` is the model's verdict; this view only
+    /// renders it and never guesses whether a claim will fit the roster.
     [UxmlElement]
     public partial class RegionView : VisualElement
     {
@@ -38,6 +29,7 @@ namespace Broodline.UI.Screens
 
         readonly ScreenScaffold _scaffold;
         readonly Label _roster;
+        readonly Label _regionBand, _regionName, _regionDetail;
         readonly VisualElement _nodes;
 
         public RegionView()
@@ -57,17 +49,26 @@ namespace Broodline.UI.Screens
             // derived from the scaffold would read as bare. This is the last
             // of the ten the sweep was listing.
             //
-            // pushed: false, AND IT IS THE ONE SCREEN THE HANDOFF ANSWERS
-            // OUTRIGHT. Its navigation model names five tab destinations -
-            // Map, Ark, Splice, Lab, Allies - and the table under them reads
-            // "Map -> World Map", which is this screen. A tab destination is
-            // top-level by definition, so there is no back stack to leave and
-            // no `onBack` on `Bind`: `ATopLevelScreenHasNoChevronEvenWithABackAction`
-            // would discard one anyway. The plan's step 1 asks for `onBack`
-            // calling `ScreenHost.Pop`; `Broodline.UI.asmdef` references
-            // Model, Net and Generated.Api and not `Broodline.Game`, so this
-            // assembly cannot name that type at all - see RosterView.Bind.
-            _scaffold = new ScreenScaffold(RegionScreen.Title);
+            // The map is now the top-level tab. This detail is pushed from a
+            // selected Ark marker and receives its back action from the Game
+            // layer; UI does not depend on ScreenHost.
+            _scaffold = new ScreenScaffold("Region Detail", pushed: true, eyebrow: "WORLD MAP · ARK TERRITORY");
+
+            var hero = new VisualElement { name = "region-art" };
+            hero.AddToClassList("region-view__hero");
+            var terrain = Resources.Load<Texture2D>("Art/map/frontier-atlas");
+            if (terrain != null) hero.style.backgroundImage = new StyleBackground(terrain);
+            var shade = new VisualElement(); shade.AddToClassList("region-view__hero-shade");
+            _regionBand = new Label { name = "region-band" }; _regionBand.AddToClassList("region-view__band");
+            _regionName = new Label { name = "region-name" }; _regionName.AddToClassList("region-view__name");
+            shade.Add(_regionBand); shade.Add(_regionName); hero.Add(shade);
+            _scaffold.Content.Add(hero);
+
+            var territory = new SectionCard("ARK TERRITORY");
+            _regionDetail = new Label { name = "region-detail" };
+            _regionDetail.AddToClassList("region-view__detail");
+            territory.Body.Add(_regionDetail);
+            _scaffold.Content.Add(territory);
 
             // THE ROSTER HEADLINE IS THE HEADER SLOT'S, AND IT IS THE ONLY
             // THING IN IT. The handoff puts three currency chips across the
@@ -88,9 +89,14 @@ namespace Broodline.UI.Screens
             Add(_scaffold);
         }
 
-        public void Bind(RegionScreenModel m, Action<int> onClaim)
+        public void Bind(RegionScreenModel m, Action<int> onClaim, Action onBack = null)
         {
             if (m == null) throw new ArgumentNullException(nameof(m));
+
+            _scaffold.OnBack = onBack;
+            _regionBand.text = m.Band;
+            _regionName.text = m.Name;
+            _regionDetail.text = "Your Ark is here · " + MapScreen.Lanes(m.Lanes) + "\nBorders  " + m.Neighbours;
 
             // The model's own string either way - `RegionScreen.RosterHeadline`
             // holds both the `HasRosterCounts` gate and the formatting, on the

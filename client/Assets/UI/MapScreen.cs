@@ -25,7 +25,6 @@ namespace Broodline.UI
         public const string Title = "World Map";
         public const string Eyebrow = "THE FRONTIER";
         public const string HereDetail = "Your Ark is here";
-        public static string NotHere(string name) => name + " is beyond the Ark. Relocation is coming in a later preview.";
         public static readonly string[] BandHeadings = { "Inner Reach", "Mid Reach", "Outer Reach" };
 
         public static string Lanes(int lanes) => lanes == 1 ? "1 lane" : lanes + " lanes";

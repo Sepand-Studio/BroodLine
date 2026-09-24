@@ -1,0 +1,61 @@
+.region-preview { flex-grow: 1; }
+.region-preview__hero {
+    height: 180px;
+    flex-shrink: 0;
+    justify-content: flex-end;
+    overflow: hidden;
+    border-width: 2px;
+    border-color: var(--brass);
+    border-radius: var(--radius-card);
+    background-color: var(--surface-deep);
+    -unity-background-scale-mode: scale-and-crop;
+    margin-bottom: var(--space-3);
+}
+.region-preview__hero-shade {
+    background-color: rgba(22, 17, 32, 0.82);
+    padding: var(--space-3);
+}
+.region-preview__band {
+    color: var(--brass-light);
+    font-size: var(--text-secondary);
+    -unity-font-style: bold;
+}
+.region-preview__name {
+    color: var(--surface-paper);
+    font-size: var(--text-screen-title);
+    -unity-font-style: bold;
+    white-space: normal;
+}
+.region-preview__journey-card .section-card__surface {
+    background-color: var(--surface-deep);
+    border-color: var(--brass);
+}
+.region-preview__journey-card .section-card__heading { color: var(--brass-light); }
+.region-preview__status {
+    color: var(--brass-light);
+    font-size: var(--text-card-title);
+    -unity-font-style: bold;
+    white-space: normal;
+    margin-bottom: var(--space-2);
+}
+.region-preview__journey {
+    color: var(--surface-paper);
+    font-size: var(--text-body);
+    white-space: normal;
+    margin-bottom: var(--space-2);
+}
+.region-preview__route {
+    color: var(--surface-paper);
+    font-size: var(--text-secondary);
+    white-space: normal;
+    padding: var(--space-2);
+    border-left-width: 3px;
+    border-left-color: var(--brass);
+    background-color: rgba(0, 0, 0, 0.18);
+}
+.region-preview__territory {
+    color: var(--ink-secondary);
+    font-size: var(--text-body);
+    white-space: normal;
+    margin-bottom: var(--space-2);
+}

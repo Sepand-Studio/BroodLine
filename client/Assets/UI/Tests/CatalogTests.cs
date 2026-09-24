@@ -134,5 +134,29 @@ namespace Broodline.UI.Tests
             StringAssert.Contains(MapScreen.HereDetail, m.Bands[0].Rows[0].Detail);
             StringAssert.Contains("3 h 45 min away", m.Bands[2].Rows[8].Detail);
         }
+
+        [Test]
+        public void PreviewTravelPersistsAndNeverChangesTheServerRegion()
+        {
+            var now = new DateTime(2026, 9, 23, 12, 0, 0, DateTimeKind.Utc);
+            var store = new StubLedger.MemoryStore();
+            var ledger = new StubLedger(store, now: () => now);
+            var initial = RegionPreviewScreen.Build("region-1", "greyspan", ledger, now);
+            Assert.AreEqual(75, initial.Minutes);
+            Assert.AreEqual("Holdfast  →  Tellin  →  Greyspan", initial.Route);
+
+            Assert.IsTrue(ledger.StartPreviewTravel("holdfast", "greyspan", TimeSpan.FromMinutes(initial.Minutes)));
+            var restored = new StubLedger(store, now: () => now);
+            Assert.IsTrue(restored.PreviewTravelActive());
+            Assert.IsFalse(restored.StartPreviewTravel("holdfast", "deepscree", TimeSpan.FromMinutes(175)));
+            Assert.IsTrue(RegionPreviewScreen.Build("region-1", "greyspan", restored, now).Active);
+            Assert.AreEqual("holdfast", RegionCatalog.Locate("region-1").Id);
+
+            now = now.AddMinutes(76);
+            var completed = RegionPreviewScreen.Build("region-1", "greyspan", restored, now);
+            Assert.IsTrue(completed.Complete);
+            Assert.IsTrue(completed.CanStart);
+            Assert.AreEqual("holdfast", RegionCatalog.Locate("region-1").Id);
+        }
     }
 }

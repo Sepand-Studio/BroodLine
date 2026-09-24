@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading.Tasks;
 using Broodline.Api;
+using Broodline.Model.Catalogs;
 
 namespace Broodline.UI
 {
@@ -50,6 +51,10 @@ namespace Broodline.UI
     public sealed class RegionScreenModel
     {
         public string RegionId { get; internal set; }
+        public string Name { get; internal set; }
+        public string Band { get; internal set; }
+        public string Neighbours { get; internal set; }
+        public int Lanes { get; internal set; }
         public int Epoch { get; internal set; }
         public IReadOnlyList<NodeRow> Nodes { get; internal set; }
 
@@ -200,6 +205,10 @@ namespace Broodline.UI
         {
             if (state == null) throw new ArgumentNullException("state");
 
+            var region = RegionCatalog.Locate(state.RegionId);
+            var neighbours = new List<string>();
+            foreach (var id in region.Neighbours) neighbours.Add(RegionCatalog.Find(id).Name);
+
             var count = state.Roster == null ? 0 : state.Roster.Count;
             var cap = state.Roster == null ? 0 : state.Roster.Cap;
 
@@ -216,6 +225,10 @@ namespace Broodline.UI
             return new RegionScreenModel
             {
                 RegionId = state.RegionId,
+                Name = region.Name,
+                Band = MapScreen.BandHeadings[(int)region.Band].ToUpperInvariant(),
+                Neighbours = string.Join(" · ", neighbours),
+                Lanes = region.Lanes,
                 Epoch = state.Epoch,
                 Nodes = rows,
                 RosterCount = count,

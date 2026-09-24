@@ -1,83 +1,22 @@
-/* The map tab, INTERIM. The handoff's Splice World Map v2 needs eight polygon
- * regions with five yield states, Ark pins, ally and hostile markers, animated
- * collector routes and an apex vein pulse. None of the systems behind those
- * are built: /v1/region/state returns node slots and a roster headline, and
- * config/bundles/0.1.3/nodes.json is two node types with hourly rates.
- * Neither relocation nor a collector system is implemented, so there is
- * nothing to drive an overlay with.
- *
- * So this is a node LIST with the foundation applied, and it is deferred to
- * Phase 10 rather than finished here. Phase 8 design section 5.3. Do not
- * approximate the map against two node types; a polygon viewport over this
- * data would be a mock, not a screen.
- *
- * THREE CORRECTIONS TO THE PARAGRAPH ABOVE, MEASURED IN TASK 12 AGAINST THE
- * PLAN THAT WROTE IT. Each one makes the deferral narrower and better
- * evidenced, which is the point of recording them rather than quietly
- * shipping the looser claim.
- *
- * 1. "THERE IS NO GEOMETRY ANYWHERE" IS FALSE AS WRITTEN, and the true
- *    statement is narrower and more useful.
- *    specs/broodline_region_graph.md (status: current) authors THIRTY
- *    regions and forty-three edges with full adjacency, and
- *    specs/broodline_region_roster.md section 2 authors each of those
- *    thirty with a band, a lane count, a Common Vein count, Rich Deposit
- *    slots, Apex eligibility, adjacency and claimability. That is already
- *    enough to colour a region by yield.
- *
- *    What exists NOWHERE - specs, config, services or client - is
- *    COORDINATE geometry: no vertices, no polygons, no positions, nothing
- *    an outline could be drawn from. The roster says so itself, in as many
- *    words: regions differ "in look and lane arrangement only", and
- *    "visual identity is an art task". So the shapes are owed by a
- *    pipeline that does not exist rather than missing from a table.
- *
- *    None of that region data reaches the client either. The bundle has no
- *    regions.json, and /v1/region/state sends one regionId and its nodes.
- *    Worth knowing before Phase 10 starts: the handoff draws EIGHT regions
- *    where the roster authors thirty, so the two sources disagree about
- *    the map before anyone tries to draw it.
- *
- * 2. THE NODE RATE IS NOT ON THE WIRE, which is why the stat cells below
- *    state accrual and depletion rather than the plan's "rate and yield".
- *    nodes.json authors ratePerHour and totalYield and
- *    services/api/src/map/rotation.ts reads both, but RegionStateResponse's
- *    node object is slot, type, accrued, remaining, grants - and carries
- *    neither. A cell stating 20 an hour would be this client inventing a
- *    number. Richness is worse: it is a REGION property in the handoff and
- *    no region property reaches the client, so the plan's "a ProgressBar
- *    for richness" has nothing to fill and this screen draws no bar.
- *
- * 3. THERE ARE TWO NODES, NOT AN OPEN LIST. rotation.ts's nodesFor returns
- *    slot 0 Common Vein and slot 1 Rich Deposit for every region, epoch and
- *    seed - "with one region and no relocation, the epoch boundary respawns
- *    the Rich Deposit in place". So the list is two rows long in
- *    production, which is the other half of why a viewport over it would be
- *    a mock.
- *
- * SEVENTEEN DECLARATIONS LEFT THIS FILE AND SIX ARRIVED, and none of the six
- * is a copy of one that left - which is the test of whether a screen
- * composes the layer or re-derives it:
- *   - the root's `flex-direction: column` is UI Toolkit's default, and its
- *     `padding: var(--gutter)` is the scaffold's content region.
- *   - `__roster`'s row direction, wrap and bottom margin described a Label
- *     stacked above a list. It is the scaffold's header slot now, which is
- *     already a centred row, and the 12px bottom margin was the blank strip
- *     an unset roster headline drew.
- *   - `__nodes`' column is the default again.
- *   - `.node-row`'s nine - fill, radius, hairline border, padding, bottom
- *     margin, row direction, space-between, centring - are `SectionCard`
- *     plus its `.elev-1` wrapper. The class name survives as a handle and
- *     carries no rule.
- *   - `.node-row > Label`'s font-size and colour are Theme's own `Label`
- *     rule, value for value.
- *
- * THE STAT ROW IS THIS FILE'S AND NOT StatCell.uss's, for the reason that
- * sheet's closing note records: a stylesheet attached through `<ui:Style>` in
- * a component's UXML reaches that component and its descendants and never its
- * parent, so a row of cells belongs to whatever holds them.
- */
+/* The Ark region detail keeps claims server-backed and adds catalog context. */
 .region-view { flex-grow: 1; }
+
+.region-view__hero {
+    height: 180px;
+    flex-shrink: 0;
+    justify-content: flex-end;
+    overflow: hidden;
+    border-width: 2px;
+    border-color: var(--brass);
+    border-radius: var(--radius-card);
+    background-color: var(--surface-deep);
+    -unity-background-scale-mode: scale-and-crop;
+    margin-bottom: var(--space-3);
+}
+.region-view__hero-shade { background-color: rgba(22, 17, 32, 0.82); padding: var(--space-3); }
+.region-view__band { color: var(--brass-light); font-size: var(--text-secondary); -unity-font-style: bold; }
+.region-view__name { color: var(--surface-paper); font-size: var(--text-screen-title); -unity-font-style: bold; }
+.region-view__detail { color: var(--ink-secondary); font-size: var(--text-body); white-space: normal; }
 
 .region-view__stats { flex-direction: row; }
 

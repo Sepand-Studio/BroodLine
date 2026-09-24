@@ -115,7 +115,8 @@ namespace Broodline.Game.Shell
             var here = RegionCatalog.Locate(_regionId);
             if (id != here.Id)
             {
-                _notice(MapScreen.NotHere(RegionCatalog.Find(id)?.Name ?? id));
+                if (RegionCatalog.Find(id) == null) return;
+                ShowRegionPreview(id);
                 return;
             }
             if (state == null)
@@ -124,8 +125,31 @@ namespace Broodline.Game.Shell
                 catch (Exception error) { Diagnostics.Defect("region/state did not arrive", error); _notice(ServerError.UnexpectedProblem); return; }
             }
             var view = new RegionView();
-            view.Bind(RegionScreen.Build(state), onClaim: slot => _ = ClaimAsync(slot));
-            _host.Show(view);
+            view.Bind(RegionScreen.Build(state), onClaim: slot => _ = ClaimAsync(slot), onBack: () => _host.Pop());
+            _host.Push(view);
+        }
+
+        void ShowRegionPreview(string id)
+        {
+            var view = new RegionPreviewView();
+            Action bind = null;
+            bind = () => view.Bind(RegionPreviewScreen.Build(_regionId, id, _ledger, _now()),
+                onStart: () =>
+                {
+                    var here = RegionCatalog.Locate(_regionId);
+                    var minutes = RegionCatalog.TravelMinutes(here.Id, id, out _);
+                    if (!_ledger.StartPreviewTravel(here.Id, id, TimeSpan.FromMinutes(minutes)))
+                    {
+                        bind();
+                        return;
+                    }
+                    bind();
+                },
+                onBack: () => _host.Pop(),
+                now: _now,
+                onTimerComplete: bind);
+            bind();
+            _host.Push(view);
         }
 
         async Task ClaimAsync(int slot)
