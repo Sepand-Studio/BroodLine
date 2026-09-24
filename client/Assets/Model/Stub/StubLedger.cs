@@ -63,7 +63,7 @@ namespace Broodline.Model.Stub
                 var ends = UpgradeEndsAt(key);
                 if (ends == null || ends > _now()) continue;
                 Write("facility." + key + ".tier", (FacilityTier(key) + 1).ToString());
-                _store.Set("facility." + key + ".ends", null);
+                Write("facility." + key + ".ends", null);
             }
         }
 
@@ -78,7 +78,7 @@ namespace Broodline.Model.Stub
         {
             var seen = _store.Get("facility.keys") ?? string.Empty;
             if (("," + seen + ",").Contains("," + id + ",")) return;
-            _store.Set("facility.keys", seen.Length == 0 ? id : seen + "," + id);
+            Write("facility.keys", seen.Length == 0 ? id : seen + "," + id);
         }
 
         // ---- store ----

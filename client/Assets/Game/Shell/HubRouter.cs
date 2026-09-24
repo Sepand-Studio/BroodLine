@@ -183,10 +183,12 @@ namespace Broodline.Game.Shell
         public void ShowStore()
         {
             var view = new StoreView();
-            view.Bind(new StoreScreenModel { GiftAvailable = _ledger.DailyGiftAvailable() },
-                onGift: () => { _ledger.ClaimDailyGift(); _notice(StoreScreen.GiftNotice); ShowStore(); },
+            Action bind = null;
+            bind = () => view.Bind(new StoreScreenModel { GiftAvailable = _ledger.DailyGiftAvailable() },
+                onGift: () => { _ledger.ClaimDailyGift(); _notice(StoreScreen.GiftNotice); bind(); },
                 onBuy: id => { _ledger.RecordPreviewPurchase(id); _notice(StoreScreen.PreviewNotice); },
                 onBack: () => _host.Pop());
+            bind();
             _host.Push(view);
         }
 
@@ -202,7 +204,7 @@ namespace Broodline.Game.Shell
                 _ledger.StartUpgrade(id, FacilityCatalog.UpgradeTime(id, tier));
                 _notice(LabScreen.PreviewNotice);
                 ShowLab();
-            });
+            }, now: _now, onTimerComplete: ShowLab);
             _host.Show(view);
         }
 

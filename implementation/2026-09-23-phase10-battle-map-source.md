@@ -6,6 +6,8 @@ The live `WaveView` now assembles all six companions and the three implemented r
 
 The World Map now has a tappable three-ring atlas of the 30 catalog regions, with the Ark region highlighted. Its existing labeled list stays underneath as the readable and larger-target way to choose a region. The atlas uses the existing region model and navigation callback; relocation and nonlocal region detail remain future work.
 
+The Store daily-gift action now refreshes its presented page in place, leaving a single Store on the navigation stack. Lab upgrade chips count down while the Lab is visible and rebind the screen when the local timer completes. Facility key registration and timer settlement now go through the stub ledger's logged write path, including the timer clear. No real balance is changed.
+
 Local checks: Roslyn syntax parsing of changed C# files, `git diff --check`, token verification and silent-drop scans passed. The companion browser geometry pass covered all six companions, 216 assemblies, 504 poses and 18,144 framing combinations. Three new raider meshes passed finite geometry and channel checks and were below 1,400 triangles each. Unity compilation, EditMode/PlayMode tests, portrait captures, battle animation, camera framing and map touch targets still require the Unity machine. The new `BattleCameraFrameTests` and `WorldMapViewTests` are included for that run.
 
 Next visual review should inspect `Boot.unity` through a deploy and live wave, plus the Map at 430×932, 390×844 and 360×640. The current atlas is a code-native layout pass; illustrated terrain, pan/zoom, remote region detail and the later performance/device gate are not yet complete.

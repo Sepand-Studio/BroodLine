@@ -27,9 +27,11 @@ namespace Broodline.UI.Screens
             Add(_scaffold);
         }
 
-        public void Bind(LabScreenModel m, Action<string> onUpgrade)
+        public void Bind(LabScreenModel m, Action<string> onUpgrade,
+            Func<DateTime> now = null, Action onTimerComplete = null)
         {
             if (m == null) throw new ArgumentNullException(nameof(m));
+            now = now ?? (() => DateTime.UtcNow);
             _rows.Clear();
             foreach (var f in m.Rows)
             {
@@ -46,6 +48,17 @@ namespace Broodline.UI.Screens
                     timer.Bind(f.Upgrading.Value);
                     timer.AddToClassList("lab__timer");
                     row.Add(timer);
+                    var endsAt = now() + f.Upgrading.Value;
+                    var clock = now;
+                    bool completed = false;
+                    timer.schedule.Execute(() =>
+                    {
+                        var remaining = endsAt - clock();
+                        timer.Bind(remaining);
+                        if (remaining > TimeSpan.Zero || completed) return;
+                        completed = true;
+                        onTimerComplete?.Invoke();
+                    }).Every(1000);
                 }
                 else if (f.CanUpgrade)
                 {

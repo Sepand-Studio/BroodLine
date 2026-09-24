@@ -92,7 +92,9 @@ namespace Broodline.UI.Tests
             ledger.Settle();
             Assert.AreEqual(2, ledger.FacilityTier("core"));
             Assert.IsNull(ledger.UpgradeEndsAt("core"));
-            Assert.That(lines, Has.Some.StartsWith("[stub]"), "every write is logged as a stub");
+            Assert.AreEqual(4, lines.Count, "remember, start, tier and timer clear must all be logged");
+            foreach (var line in lines)
+                StringAssert.StartsWith("[stub]", line, "every local write must be identifiable in diagnostics");
 
             Assert.IsTrue(ledger.DailyGiftAvailable());
             ledger.ClaimDailyGift();
