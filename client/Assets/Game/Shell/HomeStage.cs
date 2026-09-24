@@ -15,6 +15,7 @@ namespace Broodline.Game.Shell
     {
         public const int Width = 720, Height = 1280;
         public const float FieldOfView = 45f;
+        public const string BackdropResourcePath = "Art/home-backdrop";
 
         static readonly Vector3 Far = new Vector3(0f, -1600f, 0f);
 
@@ -22,6 +23,8 @@ namespace Broodline.Game.Shell
         RenderTexture _texture;
         FrontierArt _art;
         GameObject _base;
+        Mesh _backdropMesh;
+        Material _backdropMaterial;
 
         public static HomeStage Create(Transform host)
         {
@@ -62,7 +65,47 @@ namespace Broodline.Game.Shell
             stage._texture = new RenderTexture(Width, Height, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
             cam.targetTexture = stage._texture;
             cam.enabled = false;
+            stage.BuildBackdrop();
             return stage;
+        }
+
+        // The painting faces the off-screen camera at a fixed distance. It has
+        // no world-space presence in the base, so plot projections stay fixed.
+        void BuildBackdrop()
+        {
+            var painting = Resources.Load<Texture2D>(BackdropResourcePath);
+            if (painting == null)
+            {
+                Debug.LogWarning("[home-stage] missing Resources/" + BackdropResourcePath + "; using camera clear colour.");
+                return;
+            }
+
+            const float distance = 55f; // Behind the Ark, inside the camera's 80-unit far plane.
+            float halfHeight = distance * Mathf.Tan(FieldOfView * .5f * Mathf.Deg2Rad) * 1.02f;
+            float halfWidth = halfHeight * Width / Height;
+            _backdropMesh = new Mesh
+            {
+                name = "Ark valley painting",
+                vertices = new[]
+                {
+                    new Vector3(-halfWidth, -halfHeight, 0f),
+                    new Vector3(halfWidth, -halfHeight, 0f),
+                    new Vector3(halfWidth, halfHeight, 0f),
+                    new Vector3(-halfWidth, halfHeight, 0f)
+                },
+                uv = new[] { new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(0f, 1f) },
+                normals = new[] { Vector3.back, Vector3.back, Vector3.back, Vector3.back },
+                triangles = new[] { 0, 2, 1, 0, 3, 2 }
+            };
+            _backdropMesh.RecalculateBounds();
+            _backdropMaterial = new Material(RuntimeShaders.Require(RuntimeShaders.Unlit)) { name = "Ark valley painting" };
+            _backdropMaterial.SetTexture("_BaseMap", painting);
+
+            var quad = new GameObject("ark-valley-backdrop") { layer = CreatureAssembler.StudioLayer };
+            quad.transform.SetParent(_camera.transform, false);
+            quad.transform.localPosition = new Vector3(0f, 0f, distance);
+            quad.AddComponent<MeshFilter>().sharedMesh = _backdropMesh;
+            quad.AddComponent<MeshRenderer>().sharedMaterial = _backdropMaterial;
         }
 
         /// Builds the base on first use, paints one frame, returns the texture.
@@ -104,7 +147,9 @@ namespace Broodline.Game.Shell
         void OnDestroy()
         {
             if (_camera != null) _camera.targetTexture = null;
-            if (_texture != null) _texture.Release();
+            if (_texture != null) { _texture.Release(); FrontierArt.Release(_texture); }
+            FrontierArt.Release(_backdropMesh);
+            FrontierArt.Release(_backdropMaterial);
             _art?.Dispose();
         }
     }
