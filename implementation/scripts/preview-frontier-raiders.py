@@ -42,10 +42,10 @@ def project(point, yaw):
     return flat_x, y * math.cos(elevation) - depth * math.sin(elevation), y * math.sin(elevation) + depth * math.cos(elevation)
 
 
-def render(mesh, size, yaw=-48, silhouette=False, shared_span=None):
+def render(mesh, size, yaw=-48, silhouette=False, shared_span=None, background=None):
     scale = 2
     w, h = size[0] * scale, size[1] * scale
-    image = Image.new("RGB", (w, h), (255, 248, 235))
+    image = background.convert("RGB").resize((w, h), Image.Resampling.LANCZOS) if background is not None else Image.new("RGB", (w, h), (255, 248, 235))
     draw = ImageDraw.Draw(image)
     values = mesh["positions"]
     points = [project(values[i:i+3], yaw) for i in range(0, len(values), 3)]

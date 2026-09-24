@@ -73,19 +73,10 @@
    `Camera` already set on the same view ("not a `Bind` parameter: the brief
    pins Bind(Func<HudSnapshot>) and the camera outlives any one binding").
 
-   WHAT IS STILL NOT DRAWN, AND IT IS THE REST OF THE HANDOFF'S TOP ROW.
-   `Wave Defense.dc.html:35` is a pause tile and `:42` a speed pill, one each
-   side of the wave counter, and neither is here. Three measurements, each on
-   its own sufficient: there is no `icon--pause` and no `icon--speed` in
-   `icons.uss` (sixteen `.icon--*` rules, none of them either); every element in this
-   view is `PickingMode.Ignore` and `WaveScreensTests
-   .WaveHud_AcceptsNoPointerEventAnywhere` sweeps the whole subtree to keep it
-   that way; and `WaveRunner.Update` makes a tap ANYWHERE Rally creature 0,
-   which combat_engine section 8 makes the player's only input during a wave.
-   So a pause glyph here would not be an inert control - it would be a control
-   whose tap does something else, which is strictly worse than not drawing it.
-   `WaveDefeatView.Bind` already states the rule this follows: a control that
-   does nothing reads as an app that is broken.
+   THE PRESENTATION CONTROLS sit below the readout. Pause, speed and reduced
+   motion are the only pickable elements in this overlay; `PicksControlAt`
+   exempts their taps from the runner's tap-anywhere Rally input. They are
+   text pills rather than missing pause/speed glyphs, and have 44px targets.
 
    AND THE LEFT STAT PILL - `Gene energy`, `:54` - IS NOT DRAWN EITHER.
    `WaveHudScreen.IntegrityLabel`'s comment has that one: there is no energy
@@ -300,7 +291,7 @@
  * ITS OWN SCRIM, BECAUSE IT IS NOT INSIDE ANYTHING ELSE'S. Both other pieces
  * of chrome on this screen carry white ink on --hud-scrim - the band at :129
  * and the pill at :208 - and they can, because each is a filled box. This
- * Label is a direct child of `#chrome`, so with no fill of its own it would
+ * The feedback row is inside `#chrome`, so with no fill of its own it would
  * be white text laid straight on a pale-green battlefield. Same recipe as the
  * band, one step smaller in padding because it holds one short line rather
  * than a two-line column, and `align-items: flex-start` on `#chrome` already
@@ -321,6 +312,11 @@
  *
  * 6px MATCHES `.wave-hud-view__pills`' OWN TOP MARGIN, which is the handoff's
  * measured distance between two stacked chrome rows on this screen. */
+.wave-hud-view__feedback {
+    flex-direction: row;
+    align-items: center;
+    margin-top: 6px;
+}
 .wave-hud-view .wave-hud-view__tick {
     height: 15px;
     color: var(--surface);
@@ -331,7 +327,21 @@
     padding-bottom: var(--space-1);
     padding-left: var(--space-2);
     padding-right: var(--space-2);
-    margin-top: 6px;
+    margin-top: 0;
+}
+.wave-hud-view .wave-hud-view__rally {
+    color: var(--brass-light);
+    background-color: var(--hud-frame);
+    border-radius: var(--radius-row);
+    padding-top: var(--space-1);
+    padding-bottom: var(--space-1);
+    padding-left: var(--space-2);
+    padding-right: var(--space-2);
+    margin-left: var(--space-2);
+}
+.wave-hud-view .wave-hud-view__rally.spent {
+    color: var(--surface-paper);
+    opacity: 0.7;
 }
 
 .wave-hud-view__bars {
@@ -449,14 +459,15 @@
     color: var(--surface);
 }
 
-/* THE TWO CONTROLS - Phase 10 Task 1.7. Slate pills on the brass-edged
- * frame's vocabulary; no foot, because a 28px pill that drops 2px reads as
+/* THREE CONTROLS. Slate pills on the brass-edged
+ * frame's vocabulary; no foot, because a compact pill that drops 2px reads as
  * a glitch rather than a press. */
 .wave-hud-view__controls {
     flex-direction: row;
     margin-top: var(--space-2);
 }
 .wave-hud-view .wave-hud-view__control {
+    min-height: 44px;
     background-color: var(--hud-frame);
     color: var(--surface-paper);
     border-width: 1px;

@@ -158,7 +158,7 @@ namespace Broodline.Game.Tests
                 // colour - so it scored every one of its 307,200 pixels and passed.
                 // The message described exactly the case it could not detect.
                 // Only a real render writes alpha 1, because the camera clears to
-                // `LaneDressing.Field`, so opacity is what separates painted from
+                // `BattleBackdrop.FallbackField`, so opacity separates painted from
                 // unpainted. (`Show` used to reach that transparent state through
                 // `Clear()`'s own `GL.Clear`; Task 21f removed it, and a
                 // `RenderTexture` nothing has rendered into reads the same way, so
@@ -485,14 +485,14 @@ namespace Broodline.Game.Tests
             return pixels;
         }
 
-        /// The camera clears to `LaneDressing.Field`, so "the stage drew
+        /// The camera clears to `BattleBackdrop.FallbackField`, so "the stage drew
         /// something" means "pixels that are not that colour" rather than
         /// `PortraitStudio`'s "pixels that are not transparent". One channel
         /// level of tolerance, which is the threshold `capture-screens.sh`
         /// uses to tell antialiasing from a real change.
         static int PixelsUnlikeTheField(Color[] pixels)
         {
-            var field = LaneDressing.Field;
+            var field = BattleBackdrop.FallbackField;
             var unlike = 0;
             foreach (var p in pixels)
             {

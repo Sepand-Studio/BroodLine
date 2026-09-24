@@ -42,11 +42,10 @@ namespace Broodline.View
         /// entity from this.
         public const string Lit = "Universal Render Pipeline/Lit";
 
-        /// Flat dressing. `LaneDressing.Paint` colours the field, the path,
-        /// every dash, the four trees and the Ark with this.
+        /// The painted ground and pooled battle cues use this unlit shader.
         ///
         /// THIS IS THE ONE THAT WAS MISSING, and it was missing because no
-        /// material ASSET uses it - the dressing builds its materials in code.
+        /// material ASSET uses it - these effects build their materials in code.
         /// URP/Lit was on the list from Phase 0 and so never showed the
         /// problem, which is why the failure waited for the first rig that
         /// wanted a second shader.

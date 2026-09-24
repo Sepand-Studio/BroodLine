@@ -108,6 +108,8 @@ namespace Broodline.Game
         SafeAreaBinder _safeArea;
         bool _written;
         bool _inputEnabled = true;
+        bool _reducedMotion;
+        const string ReducedMotionPreference = "Broodline.ReducedMotion";
 
         TaskCompletionSource<bool> _completed = new TaskCompletionSource<bool>();
 
@@ -190,6 +192,8 @@ namespace Broodline.Game
 
             _view = gameObject.AddComponent<WaveView>();
             _view.Build(_runner, deployment, wave);
+            _reducedMotion = PlayerPrefs.GetInt(ReducedMotionPreference, 0) != 0;
+            _view.SetReducedMotion(_reducedMotion);
 
             // The checked-in scene may predate this framing pass. Use its own
             // camera so the additive Boot scene cannot redirect the wave HUD.
@@ -262,8 +266,18 @@ namespace Broodline.Game
             root.Add(_hud);
             _view.OnFloatingCue = _hud.ShowCue;
             _hud.Bind(Snapshot);
+            _hud.SetRallyState(_inputEnabled, _runner.RallyUsed);
             _hud.OnPause += () => { _clock.Paused = !_clock.Paused; _view.SetPaused(_clock.Paused); _hud.SetPaused(_clock.Paused); };
             _hud.OnSpeed += () => { _clock.Scale = _clock.Scale >= 2.0 ? 1.0 : 2.0; _view.SetSpeed((float)_clock.Scale); _hud.SetSpeed(_clock.Scale); };
+            _hud.SetReducedMotion(_reducedMotion);
+            _hud.OnMotion += () =>
+            {
+                _reducedMotion = !_reducedMotion;
+                PlayerPrefs.SetInt(ReducedMotionPreference, _reducedMotion ? 1 : 0);
+                PlayerPrefs.Save();
+                _view.SetReducedMotion(_reducedMotion);
+                _hud.SetReducedMotion(_reducedMotion);
+            };
         }
 
         /// True on the frame a tap or click begins.
@@ -302,6 +316,7 @@ namespace Broodline.Game
         {
             _pair.Advance(_runner);
             _feedback.Observe(_runner, _onCue);
+            _hud?.SetRallyState(_inputEnabled, _runner.RallyUsed);
         }
 
         void OnCue(FrontierCue cue) => _view.Present(cue, _pair.Current);
@@ -330,7 +345,7 @@ namespace Broodline.Game
             // wave.
             _clock.Advance(_runner, Time.deltaTime, _onTick);
             _view.Render(_pair, _clock.Alpha);
-            _hud?.AdvanceCues(_clock.Paused ? 0f : Time.deltaTime * (float)_clock.Scale);
+            _hud?.AdvanceCues(_clock.Paused ? 0f : Time.deltaTime * (float)_clock.Scale, _reducedMotion);
 
             if (!_runner.Done) return;
 

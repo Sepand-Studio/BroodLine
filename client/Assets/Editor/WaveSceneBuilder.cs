@@ -42,9 +42,9 @@ public static class WaveSceneBuilder
         cameraGo.tag = "MainCamera";
         var camera = cameraGo.AddComponent<Camera>();
         camera.clearFlags = CameraClearFlags.SolidColor;
-        // The field colour (LaneDressing.Field, #e8f5ec), so the lane's edges
-        // do not show black past the dressing's finite quads.
-        camera.backgroundColor = new Color(0.91f, 0.96f, 0.93f);
+        // The painted plane normally fills the frame; this is its soft
+        // fallback when the texture is absent or the camera sees past it.
+        camera.backgroundColor = BattleBackdrop.FallbackField;
         // Everything but Studio (layer 6) - CreatureBaker's isolated bake rig
         // lives there so no scene camera sees it; this camera is a scene
         // camera.

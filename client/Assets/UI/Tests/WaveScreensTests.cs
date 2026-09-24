@@ -878,11 +878,11 @@ namespace Broodline.UI.Tests
                 Assert.Contains(bar.Q<Label>("tag"), elements);
             }
 
-            // EXACTLY TWO EXCEPTIONS AS OF PHASE 10 TASK 1.7: pause and speed,
+            // Exactly three exceptions: pause, speed and reduced motion,
             // which WaveRunner tells apart from a Rally by asking
             // `PicksControlAt` before it rallies. Named, so a third pickable
             // thing still fails here.
-            var controls = new[] { "pause", "speed" };
+            var controls = new[] { "pause", "speed", "motion" };
             foreach (var name in controls)
                 Assert.AreEqual(PickingMode.Position, view.Q<Button>(name).pickingMode, name + " must be tappable");
             foreach (var element in elements)
@@ -894,16 +894,25 @@ namespace Broodline.UI.Tests
         }
 
         [Test]
-        public void WaveHud_PauseAndSpeedControls_SayTheirState()
+        public void WaveHud_PresentationControls_SayTheirState()
         {
             var view = new WaveHudView();
             Assert.AreEqual(WaveHudScreen.PauseLabel, view.Q<Button>("pause").text);
             Assert.AreEqual(WaveHudScreen.SpeedLabel(1), view.Q<Button>("speed").text);
+            Assert.AreEqual(WaveHudScreen.MotionLabel(false), view.Q<Button>("motion").text);
             view.SetPaused(true);
             view.SetSpeed(2);
+            view.SetReducedMotion(true);
             Assert.AreEqual(WaveHudScreen.ResumeLabel, view.Q<Button>("pause").text);
             Assert.AreEqual(WaveHudScreen.SpeedLabel(2), view.Q<Button>("speed").text);
+            Assert.AreEqual(WaveHudScreen.MotionLabel(true), view.Q<Button>("motion").text);
             Assert.AreNotEqual(WaveHudScreen.SpeedLabel(1), WaveHudScreen.SpeedLabel(2));
+            view.SetRallyState(true, false);
+            Assert.AreEqual(WaveHudScreen.RallyReady, view.Q<Label>("rally-readiness").text);
+            view.SetRallyState(true, true);
+            Assert.AreEqual(WaveHudScreen.RallySpent, view.Q<Label>("rally-readiness").text);
+            view.SetRallyState(false, false);
+            Assert.AreEqual(WaveHudScreen.RallyDisabled, view.Q<Label>("rally-readiness").text);
         }
 
         [Test]

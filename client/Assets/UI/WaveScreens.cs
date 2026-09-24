@@ -515,11 +515,15 @@ namespace Broodline.UI
         /// otherwise and was wrong.
         public const string WaveWord = "Wave";
 
-        /// The two controls that arrived in Phase 10 Task 1.7, once a tap on
-        /// them could be told from a Rally tap (`WaveHudView.PicksControlAt`).
+        /// Pause and speed arrived in Task 1.7; reduced motion follows the
+        /// same `PicksControlAt` path so its tap never becomes a Rally.
         public const string PauseLabel = "Pause";
         public const string ResumeLabel = "Resume";
         public static string SpeedLabel(double scale) => scale >= 2 ? "2\u00d7" : "1\u00d7";
+        public static string MotionLabel(bool reduced) => reduced ? "Motion: Low" : "Motion: Full";
+        public const string RallyReady = "TAP FIELD TO RALLY";
+        public const string RallySpent = "RALLY SPENT";
+        public const string RallyDisabled = "RALLY DISABLED";
 
         /// `Wave Defense.dc.html:40` - "Wave {{ wave }} / 12", both numerals
         /// in one `t-num` Label because they are one reading ("six of twelve")

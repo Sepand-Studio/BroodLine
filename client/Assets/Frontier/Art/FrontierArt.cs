@@ -98,7 +98,7 @@ namespace Broodline.Frontier
             return go;
         }
 
-        public GameObject Environment(Transform parent,int length,int[] pockets,bool habitat)
+        public GameObject Environment(Transform parent,int length,int[] pockets,bool habitat,bool paintedGround=false)
         {
             var b=new FrontierMesh();
             var grass=Hex("#6b9361");var sand=Hex("#d2bd94");var rock=Hex("#8a9485");
@@ -109,7 +109,8 @@ namespace Broodline.Frontier
             }
             else
             {
-                b.Box(new Vector3(length*.5f,-.25f,0),new Vector3(length+8,.45f,12),grass);
+                if(!paintedGround)
+                    b.Box(new Vector3(length*.5f,-.25f,0),new Vector3(length+8,.45f,12),grass);
                 b.Box(new Vector3(length*.5f,-.018f,0),new Vector3(length+4,.06f,1.8f),sand);
                 // Broken stone edging and grass tufts soften the straight route without changing it.
                 for (int i = -1; i <= length + 1; i++)

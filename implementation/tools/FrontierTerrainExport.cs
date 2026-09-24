@@ -53,9 +53,10 @@ class FrontierTerrainExport
     static void Main(string[] args)
     {
         var b = new FrontierMesh();
+        bool painted = args.Length > 1 && args[1] == "painted";
         var grass = FrontierTerrainColor("#6b9361");
         var sand = FrontierTerrainColor("#d2bd94");
-        b.Box(new Vector3(12, -.25f, 0), new Vector3(32, .45f, 12), grass);
+        if (!painted) b.Box(new Vector3(12, -.25f, 0), new Vector3(32, .45f, 12), grass);
         b.Box(new Vector3(12, -.018f, 0), new Vector3(28, .06f, 1.8f), sand);
         FrontierTerrain.AddDetail(b, 24, new[] { 2, 6, 10, 14, 18 }, false);
         var mesh = b.Finish("frontier-terrain-detail");

@@ -67,13 +67,11 @@ namespace Broodline.UI.Screens
     ///
     /// PHASE 9 TASK 18 GAVE IT THE HANDOFF'S TOP BAND - the kicker and the
     /// wave counter over the scrim, with the integrity readout beneath them in
-    /// the handoff's pill anatomy. Two things are deliberately NOT drawn and
-    /// each is measured rather than declined: the pause and speed controls
-    /// (`WaveHudView.uss`'s header - there is no such icon, every element here
-    /// is unpickable, and a tap anywhere Rallies) and the `Gene energy` pill
-    /// (`WaveHudScreen.IntegrityLabel` - this game's combat loop has no
-    /// energy). `HudSnapshot` gained nothing; `Wave` is a property, on
-    /// `Camera`'s own precedent.
+    /// the handoff's pill anatomy. The `Gene energy` pill is omitted because
+    /// this game's combat loop has no energy. Pause, speed and reduced motion
+    /// now sit below the readout; `PicksControlAt` keeps their taps from
+    /// becoming Rally. `HudSnapshot` gained nothing; `Wave` is a property,
+    /// on `Camera`'s own precedent.
     ///
     /// AND IT STOPPED ALLOCATING PER FRAME, which on this view is a
     /// correctness property rather than a polish one. `Refresh` rebuilt the
@@ -105,6 +103,7 @@ namespace Broodline.UI.Screens
 
         readonly Label _integrity;
         readonly Label _tick;
+        readonly Label _rallyReadiness;
         readonly Label _waveNumber;
         readonly VisualElement _waveLine;
         readonly VisualElement _bars;
@@ -114,11 +113,12 @@ namespace Broodline.UI.Screens
         /// ONE direct child of this root. `Place` measures it; see the note
         /// there, and the UXML's own beside `#chrome`.
         readonly VisualElement _chrome;
-        readonly Button _pause, _speed;
+        readonly Button _pause, _speed, _motion;
 
-        /// Raised by the two controls; `WaveRunner` owns the clock they act on.
+        /// Raised by the presentation controls; `WaveRunner` owns their state.
         public event Action OnPause;
         public event Action OnSpeed;
+        public event Action OnMotion;
 
         /// The last integrity and tick each readout was written for, so an
         /// unchanged frame does not rebuild its string.
@@ -139,6 +139,7 @@ namespace Broodline.UI.Screens
         /// rates.
         int _drawnIntegrity = int.MinValue;
         int _drawnTick = int.MinValue;
+        int _drawnRally = -1;
 
         /// Constructed once and re-attached, never re-allocated. This view
         /// redraws every frame of a scene with a defended per-frame budget;
@@ -262,20 +263,25 @@ namespace Broodline.UI.Screens
             foreach (var element in this.Query<VisualElement>().ToList())
                 element.pickingMode = PickingMode.Ignore;
 
-            // Exactly two exceptions, re-enabled AFTER the sweep so the sweep
-            // stays a sweep. WaveScreensTests pins that these are the only two.
+            // Exactly three exceptions, re-enabled AFTER the sweep so the sweep
+            // stays a sweep. WaveScreensTests pins the three named controls.
             _pause = this.Q<Button>("pause");
             _speed = this.Q<Button>("speed");
+            _motion = this.Q<Button>("motion");
             _pause.pickingMode = PickingMode.Position;
             _speed.pickingMode = PickingMode.Position;
+            _motion.pickingMode = PickingMode.Position;
             _pause.clicked += () => OnPause?.Invoke();
             _speed.clicked += () => OnSpeed?.Invoke();
+            _motion.clicked += () => OnMotion?.Invoke();
             SetPaused(false);
             SetSpeed(1.0);
+            SetReducedMotion(false);
 
             _chrome = this.Q<VisualElement>("chrome");
             _integrity = this.Q<Label>("integrity");
             _tick = this.Q<Label>("tick");
+            _rallyReadiness = this.Q<Label>("rally-readiness");
             _waveNumber = this.Q<Label>("wave-number");
             _waveLine = this.Q<VisualElement>("wave-line");
             _bars = this.Q<VisualElement>("bars");
@@ -300,13 +306,24 @@ namespace Broodline.UI.Screens
         /// clock disagreeing with `WaveClock`'s interpolation.
         public void SetPaused(bool paused) => _pause.text = paused ? WaveHudScreen.ResumeLabel : WaveHudScreen.PauseLabel;
         public void SetSpeed(double scale) => _speed.text = WaveHudScreen.SpeedLabel(scale);
+        public void SetReducedMotion(bool reduced) => _motion.text = WaveHudScreen.MotionLabel(reduced);
+
+        public void SetRallyState(bool inputEnabled, bool used)
+        {
+            int state = !inputEnabled ? 2 : used ? 1 : 0;
+            if (_drawnRally == state) return;
+            _drawnRally = state;
+            _rallyReadiness.text = state == 0 ? WaveHudScreen.RallyReady
+                : state == 1 ? WaveHudScreen.RallySpent : WaveHudScreen.RallyDisabled;
+            _rallyReadiness.EnableInClassList("spent", state != 0);
+        }
 
         public void ShowCue(string text, Vector3 world, bool danger) => _floatingCues.Show(text, world, danger);
         public void AdvanceCues(float delta, bool reducedMotion = false) => _floatingCues.Advance(Camera, delta, reducedMotion);
 
         /// WHETHER A TAP AT THIS SCREEN POSITION LANDS ON A CONTROL. Everything
         /// else in the view ignores picking, so the panel's pick is null over
-        /// the battlefield and non-null only over the two buttons; the runner
+        /// the battlefield and non-null only over the three buttons; the runner
         /// uses this to keep "tap anywhere is Rally" true everywhere else.
         public bool PicksControlAt(Vector2 screenPosition)
         {
@@ -314,7 +331,8 @@ namespace Broodline.UI.Screens
             if (p == null) return false;
             var local = RuntimePanelUtils.ScreenToPanel(p, new Vector2(screenPosition.x, Screen.height - screenPosition.y));
             var picked = p.Pick(local);
-            return picked != null && (picked == _pause || picked == _speed || _pause.Contains(picked) || _speed.Contains(picked));
+            return picked != null && (picked == _pause || picked == _speed || picked == _motion ||
+                _pause.Contains(picked) || _speed.Contains(picked) || _motion.Contains(picked));
         }
 
         public void Bind(Func<HudSnapshot> read)
@@ -327,6 +345,7 @@ namespace Broodline.UI.Screens
             // otherwise leave the previous binding's text on screen.
             _drawnIntegrity = int.MinValue;
             _drawnTick = int.MinValue;
+            _drawnRally = -1;
 
             // Drawn NOW as well as scheduled, so a bound HUD is already
             // correct before the first frame elapses - and so this is

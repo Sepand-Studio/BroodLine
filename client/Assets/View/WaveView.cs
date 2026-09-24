@@ -31,6 +31,7 @@ namespace Broodline.View
         private FrontierArt _art;
         private BattleVfx _vfx;
         private bool _paused;
+        private bool _reducedMotion;
         private float _effectSpeed = 1f;
         private static readonly Color HitColor = new Color32(229, 134, 122, 255); // --species-ember
         private static readonly Color StrikeColor = new Color32(226, 192, 122, 255); // --brass-light
@@ -49,7 +50,8 @@ namespace Broodline.View
             _vfx = new BattleVfx(transform);
             var pocketTiles = new int[r.Lane.PocketCount];
             for (int i = 0; i < pocketTiles.Length; i++) pocketTiles[i] = r.Lane.PocketTiles[i];
-            var terrain = _art.Environment(transform, r.LaneTiles, pocketTiles, false);
+            var backdrop = BattleBackdrop.Create(transform, r.LaneTiles, gameObject.layer);
+            var terrain = _art.Environment(transform, r.LaneTiles, pocketTiles, false, paintedGround: backdrop != null);
             terrain.name = "dressing";
 
             var creaturesRoot = new GameObject("creatures").transform;
@@ -229,7 +231,16 @@ namespace Broodline.View
             }
         }
 
-        void Update() => _vfx?.Advance(_paused ? 0f : Time.deltaTime * _effectSpeed, false);
+        void Update() => _vfx?.Advance(_paused ? 0f : Time.deltaTime * _effectSpeed, _reducedMotion);
+
+        public void SetReducedMotion(bool reduced)
+        {
+            _reducedMotion = reduced;
+            if (_creatureMotion != null)
+                foreach (var creature in _creatureMotion) if (creature != null) creature.ReducedMotion = reduced;
+            if (_raiderMotion != null)
+                foreach (var raider in _raiderMotion) if (raider != null) raider.ReducedMotion = reduced;
+        }
 
         public void SetPaused(bool paused)
         {

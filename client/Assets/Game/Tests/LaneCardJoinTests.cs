@@ -361,7 +361,7 @@ namespace Broodline.Game.Tests
         }
 
         /// `--green-tint`, which is `.lane-preview-card`'s fill AND
-        /// `LaneStage`'s clear colour AND `LaneDressing.Field` - the three
+        /// `LaneStage`'s clear colour AND `BattleBackdrop.FallbackField` - the three
         /// were made one colour on purpose so the seam between the texture
         /// and the card behind it is invisible. The cost of that decision is
         /// this test: a correct render and a missing one are the same colour
@@ -369,7 +369,7 @@ namespace Broodline.Game.Tests
         /// tell them apart.
         static int PixelsUnlikeTheFill(Color[] pixels)
         {
-            var fill = LaneDressing.Field;
+            var fill = BattleBackdrop.FallbackField;
             var unlike = 0;
             foreach (var p in pixels)
             {

@@ -123,6 +123,7 @@ namespace Broodline.Game.Shell
         FrontierArt _art;
         FrontierArt _terrainArt;
         GameObject _dressing;
+        BattleBackdrop _backdrop;
         int _terrainWaveId = -1;
 
         public static LaneStage Create(Transform host)
@@ -139,16 +140,10 @@ namespace Broodline.Game.Shell
             cam.orthographicSize = OrthographicSize;
             cam.clearFlags = CameraClearFlags.SolidColor;
 
-            // THE FIELD COLOUR, NOT BLACK AND NOT TRANSPARENT, AND
-            // `WaveSceneBuilder` ALREADY MADE THIS CALL FOR THE SAME REASON:
-            // "so the lane's edges do not show black past the dressing's
-            // finite quads". The dressing's field quad is 8 units deep in z
-            // and this camera's ground coverage is ~14, so there IS ground
-            // past it in every frame. `LaneDressing.Field` is #e8f5ec, which
-            // is --green-tint, which is `.lane-preview-card`'s own fill - so
-            // the band past the dressing is the same colour as the card
-            // behind the texture and the seam is invisible either way.
-            cam.backgroundColor = LaneDressing.Field;
+            // The same fallback as the card's green tint. The painted plane
+            // normally covers the frame; a missing texture still clears to
+            // the card's fill rather than leaving a black border.
+            cam.backgroundColor = BattleBackdrop.FallbackField;
 
             cam.cullingMask = 1 << CreatureAssembler.StudioLayer;
             cam.nearClipPlane = 0.1f;
@@ -165,6 +160,7 @@ namespace Broodline.Game.Shell
             light.intensity = 1.1f;
 
             stage._art = new FrontierArt(RuntimeShaders.Require(RuntimeShaders.Frontier));
+            stage._backdrop = BattleBackdrop.Create(stage.transform, WaveRunner.LaneTiles, CreatureAssembler.StudioLayer);
 
             stage._camera = cam;
             stage._texture = new RenderTexture(Width, Height, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
@@ -228,7 +224,8 @@ namespace Broodline.Game.Shell
                 var pocketTiles = new int[lane.PocketCount];
                 for (int p = 0; p < pocketTiles.Length; p++) pocketTiles[p] = lane.PocketTiles[p];
                 _terrainArt = new FrontierArt(RuntimeShaders.Require(RuntimeShaders.Frontier));
-                _dressing = _terrainArt.Environment(transform, WaveRunner.LaneTiles, pocketTiles, false);
+                _dressing = _terrainArt.Environment(transform, WaveRunner.LaneTiles, pocketTiles, false,
+                    paintedGround: _backdrop != null);
                 _dressing.name = "dressing";
                 CreatureAssembler.SetLayerRecursively(_dressing, CreatureAssembler.StudioLayer);
                 _terrainWaveId = waveId;
@@ -355,7 +352,7 @@ namespace Broodline.Game.Shell
         public void Clear()
         {
             // DEFERRED IN PLAY MODE, IMMEDIATE OUTSIDE IT, which is
-            // `LaneDressing.Paint`'s own branch and is here for its reason:
+            // the previous dressing's branch and is here for its reason:
             // `Object.Destroy` runs at the end of the frame, and an EditMode
             // test (or a batch `-executeMethod`) never reaches one - so the
             // creatures would still be standing when the next `Show` built a

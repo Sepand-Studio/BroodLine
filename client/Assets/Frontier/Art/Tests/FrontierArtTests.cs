@@ -97,6 +97,27 @@ namespace Broodline.Frontier.Art.Tests
         }
 
         [Test]
+        public void PaintedBattlefieldOmitsOnlyTheFallbackGroundSlab()
+        {
+            var root = new GameObject("painted-ground-test");
+            try
+            {
+                using (var art = new FrontierArt(Shader.Find("Broodline/FrontierSurface")))
+                {
+                    var pockets = new[] { 2, 6, 10, 14, 18 };
+                    var fallback = art.Environment(root.transform, 24, pockets, false)
+                        .GetComponent<MeshFilter>().sharedMesh;
+                    var painted = art.Environment(root.transform, 24, pockets, false, paintedGround: true)
+                        .GetComponent<MeshFilter>().sharedMesh;
+                    Assert.AreEqual(36, fallback.triangles.Length - painted.triangles.Length,
+                        "the painted lane removes one box and keeps every authored detail");
+                    ValidMesh(painted, true);
+                }
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
+
+        [Test]
         public void ProofBodiesFitGeometryBudgetAndHaveValidBoneBindings()
         {
             var root = new GameObject("proof test");

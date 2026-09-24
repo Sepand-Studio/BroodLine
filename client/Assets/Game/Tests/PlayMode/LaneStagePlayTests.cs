@@ -228,7 +228,7 @@ namespace Broodline.Game.PlayTests
             return pixels;
         }
 
-        /// The camera clears to `LaneDressing.Field`, so "the stage drew
+        /// The camera clears to `BattleBackdrop.FallbackField`, so "the stage drew
         /// something" means "pixels that are not that colour" rather than
         /// `PortraitStudio`'s "pixels that are not transparent". The
         /// tolerance is one channel level either way, which is the same
@@ -236,7 +236,7 @@ namespace Broodline.Game.PlayTests
         /// real change.
         static int PixelsUnlikeTheField(Color[] pixels)
         {
-            var field = LaneDressing.Field;
+            var field = BattleBackdrop.FallbackField;
             var unlike = 0;
             foreach (var p in pixels)
             {
