@@ -19,6 +19,7 @@ namespace Broodline.UI.Screens
         readonly Label _selectedName, _selectedDetail, _routeSummary, _routeNames;
         readonly Button _selectedAction;
         readonly List<Button> _markers = new List<Button>();
+        readonly List<(VisualElement Line, string A, string B)> _edges = new List<(VisualElement, string, string)>();
         Action<string> _onPick;
         MapScreenModel _model;
         string _selectedId;
@@ -51,7 +52,7 @@ namespace Broodline.UI.Screens
             MapControl(mapControls, "zoom-reset", "Reset", ResetView);
             MapControl(mapControls, "zoom-in", "+", () => SetZoom(_zoom + .25f));
             atlasCard.Body.Add(mapControls);
-            var legend = new Label("A  ARK     □  REACH GATE     1–N  ROUTE STOPS") { name = "map-legend" };
+            var legend = new Label("A  ARK   □  REACH GATE\nI–III  LANES   1–N  ROUTE HOPS") { name = "map-legend" };
             legend.AddToClassList("world-map__legend");
             atlasCard.Body.Add(legend);
             _viewport.RegisterCallback<PointerDownEvent>(OnMapDown);
@@ -163,6 +164,7 @@ namespace Broodline.UI.Screens
         {
             _atlas.Clear();
             _markers.Clear();
+            _edges.Clear();
             var here = RegionCatalog.Find(model.CurrentRegionId);
             _arkLabel.text = "ARK POSITION  ·  " + (here != null ? here.Name : "Unknown");
 
@@ -177,6 +179,8 @@ namespace Broodline.UI.Screens
                 _atlas.Add(ring);
             }
 
+            var plotted = new List<(MapRegionRow Region, Vector2 Position)>();
+            var positions = new Dictionary<string, Vector2>();
             for (int band = 0; band < model.Bands.Count; band++)
             {
                 var rows = model.Bands[band].Rows;
@@ -185,21 +189,51 @@ namespace Broodline.UI.Screens
                 {
                     var region = rows[i];
                     float angle = (i / (float)rows.Count) * Mathf.PI * 2f - Mathf.PI * .5f;
-                    string id = region.Id;
-                    var marker = new Button(() => Select(id))
-                    {
-                        name = "marker-" + id,
-                        text = region.Here ? "A" : "•",
-                        tooltip = region.Name + " · " + region.Detail
-                    };
-                    marker.AddToClassList("world-map__marker");
-                    if (region.Here) marker.AddToClassList("world-map__marker--here");
-                    if (region.Gate) marker.AddToClassList("world-map__marker--gate");
-                    marker.style.left = 140f + Mathf.Cos(angle) * radius - 16f;
-                    marker.style.top = 140f + Mathf.Sin(angle) * radius - 16f;
-                    _atlas.Add(marker);
-                    _markers.Add(marker);
+                    var position = new Vector2(140f + Mathf.Cos(angle) * radius, 140f + Mathf.Sin(angle) * radius);
+                    plotted.Add((region, position));
+                    positions.Add(region.Id, position);
                 }
+            }
+
+            // Draw the catalog's actual borders. The decorative reach rings
+            // are not a promise of adjacency, especially on the Outer chain.
+            foreach (var region in RegionCatalog.All)
+            {
+                foreach (var neighbour in region.Neighbours)
+                {
+                    if (string.CompareOrdinal(region.Id, neighbour) >= 0) continue;
+                    if (!positions.TryGetValue(region.Id, out var from) ||
+                        !positions.TryGetValue(neighbour, out var to)) continue;
+                    var delta = to - from;
+                    var length = delta.magnitude;
+                    var line = new VisualElement { name = "edge-" + region.Id + "-" + neighbour };
+                    line.AddToClassList("world-map__edge");
+                    if (RegionCatalog.IsGate(region.Id, neighbour)) line.AddToClassList("world-map__edge--gate");
+                    line.style.left = (from.x + to.x - length) * .5f;
+                    line.style.top = (from.y + to.y) * .5f - 1f;
+                    line.style.width = length;
+                    line.transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg);
+                    _atlas.Add(line);
+                    _edges.Add((line, region.Id, neighbour));
+                }
+            }
+
+            foreach (var (region, position) in plotted)
+            {
+                string id = region.Id;
+                var marker = new Button(() => Select(id))
+                {
+                    name = "marker-" + id,
+                    text = region.Here ? "A" : MapScreen.LaneGlyph(region.Lanes),
+                    tooltip = region.Name + " · " + region.Detail
+                };
+                marker.AddToClassList("world-map__marker");
+                if (region.Here) marker.AddToClassList("world-map__marker--here");
+                if (region.Gate) marker.AddToClassList("world-map__marker--gate");
+                marker.style.left = position.x - 16f;
+                marker.style.top = position.y - 16f;
+                _atlas.Add(marker);
+                _markers.Add(marker);
             }
             foreach (var band in model.Bands)
                 foreach (var row in band.Rows)
@@ -245,10 +279,16 @@ namespace Broodline.UI.Screens
             {
                 string id = marker.name.Substring("marker-".Length);
                 int step = route == null ? -1 : route.IndexOf(id);
-                marker.text = id == _model.CurrentRegionId ? "A" : step >= 0 ? step.ToString() : "•";
+                marker.text = id == _model.CurrentRegionId ? "A" : step >= 0 ? step.ToString() : MapScreen.LaneGlyph(RegionCatalog.Find(id).Lanes);
                 marker.EnableInClassList("world-map__marker--route", step >= 0 && id != _model.CurrentRegionId);
                 marker.EnableInClassList("world-map__marker--muted", step < 0);
                 marker.EnableInClassList("world-map__marker--selected", marker.name == "marker-" + region.Id);
+            }
+            foreach (var (line, a, b) in _edges)
+            {
+                int from = route == null ? -1 : route.IndexOf(a);
+                int to = route == null ? -1 : route.IndexOf(b);
+                line.EnableInClassList("world-map__edge--route", from >= 0 && to >= 0 && Mathf.Abs(from - to) == 1);
             }
         }
     }

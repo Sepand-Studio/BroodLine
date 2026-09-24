@@ -29,6 +29,17 @@ namespace Broodline.UI
 
         public static string Lanes(int lanes) => lanes == 1 ? "1 lane" : lanes + " lanes";
 
+        public static string LaneGlyph(int lanes)
+        {
+            switch (lanes)
+            {
+                case 1: return "I";
+                case 2: return "II";
+                case 3: return "III";
+                default: return "?";
+            }
+        }
+
         public static string Travel(int minutes)
         {
             if (minutes < 0) return "unreachable";

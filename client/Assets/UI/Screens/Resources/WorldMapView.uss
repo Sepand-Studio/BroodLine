@@ -43,6 +43,18 @@
     border-radius: 140px;
     background-color: rgba(0, 0, 0, 0);
 }
+.world-map__edge {
+    position: absolute;
+    height: 2px;
+    background-color: var(--ink-secondary);
+    opacity: 0.55;
+}
+.world-map__edge--gate { background-color: var(--brass); opacity: 0.8; }
+.world-map__edge--route {
+    height: 4px;
+    background-color: var(--brass-light);
+    opacity: 1;
+}
 .world-map__marker {
     position: absolute;
     width: 32px;

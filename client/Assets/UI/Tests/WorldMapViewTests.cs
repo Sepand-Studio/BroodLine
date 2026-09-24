@@ -21,6 +21,8 @@ namespace Broodline.UI.Tests
             Assert.IsNotNull(view.Q<Button>("zoom-reset"));
             Assert.IsNotNull(view.Q<Button>("zoom-in"));
             Assert.AreEqual(30, atlas.Query<Button>(className: "world-map__marker").ToList().Count);
+            Assert.AreEqual(RegionCatalog.EdgeCount(), atlas.Query<VisualElement>(className: "world-map__edge").ToList().Count);
+            Assert.AreEqual(8, atlas.Query<VisualElement>(className: "world-map__edge--gate").ToList().Count);
             Assert.IsTrue(atlas.Q<Button>("marker-holdfast").ClassListContains("world-map__marker--here"));
             Assert.IsTrue(atlas.Q<Button>("marker-tellin").ClassListContains("world-map__marker--gate"));
             Assert.IsFalse(atlas.Q<Button>("marker-holdfast").ClassListContains("world-map__marker--gate"));
@@ -44,7 +46,12 @@ namespace Broodline.UI.Tests
                 var marker = view.Q<Button>("marker-" + route[step]);
                 Assert.AreEqual(step.ToString(), marker.text);
                 Assert.IsTrue(marker.ClassListContains("world-map__marker--route"));
+                var a = route[step - 1]; var b = route[step];
+                var edge = view.Q<VisualElement>(string.CompareOrdinal(a, b) < 0 ? "edge-" + a + "-" + b : "edge-" + b + "-" + a);
+                Assert.IsNotNull(edge, a + " to " + b);
+                Assert.IsTrue(edge.ClassListContains("world-map__edge--route"), a + " to " + b);
             }
+            Assert.AreEqual(MapScreen.LaneGlyph(RegionCatalog.Find("weltering").Lanes), view.Q<Button>("marker-weltering").text);
             Assert.IsFalse(view.Select("unknown"));
             Assert.AreEqual("Sheerdown", view.Q<Label>("selected-region").text);
         }
