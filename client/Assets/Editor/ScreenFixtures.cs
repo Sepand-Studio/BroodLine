@@ -112,7 +112,13 @@ public static class ScreenFixtures
         // whether its stub ledger is plausible.
         "HomeBaseView",
         "WorldMapView",
+        "WorldMapRoute",
+        "RegionPreviewView",
         "StoreView",
+        "StoreChestSmall",
+        "StoreChestStandard",
+        "StoreChestLarge",
+        "StorePass",
         "LabView",
         "LabFacilitySheet",
         "AlliesView",
@@ -199,7 +205,13 @@ public static class ScreenFixtures
             case "WaveHudView": return WaveHud();
             case "HomeBaseView": return HomeBase();
             case "WorldMapView": return WorldMap();
+            case "WorldMapRoute": return WorldMapRoute();
+            case "RegionPreviewView": return RegionPreview();
             case "StoreView": return Store();
+            case "StoreChestSmall": return Store("chest", "small");
+            case "StoreChestStandard": return Store("chest", "standard");
+            case "StoreChestLarge": return Store("chest", "large");
+            case "StorePass": return Store("pass", null);
             case "LabView": return Lab();
             case "LabFacilitySheet": return LabDetail();
             case "AlliesView": return Allies();
@@ -984,14 +996,44 @@ public static class ScreenFixtures
     static VisualElement WorldMap()
     {
         var view = new WorldMapView();
-        view.Bind(MapScreen.Build("region-1"), null);
+        view.Bind(MapScreen.Build("holdfast"), null);
+        return view;
+    }
+
+    static VisualElement WorldMapRoute()
+    {
+        var view = new WorldMapView();
+        view.Bind(MapScreen.Build("holdfast"), null);
+        view.Select("sheerdown");
+        return view;
+    }
+
+    static VisualElement RegionPreview()
+    {
+        var now = new DateTime(2026, 9, 24, 12, 0, 0, DateTimeKind.Utc);
+        var ledger = new StubLedger(new StubLedger.MemoryStore(), now: () => now);
+        var view = new RegionPreviewView();
+        view.Bind(RegionPreviewScreen.Build("holdfast", "sheerdown", ledger, now),
+            null, null, now: () => now);
         return view;
     }
 
     static VisualElement Store()
+        => Store("packs", null);
+
+    static VisualElement Store(string panel, string tier)
     {
+        var model = new StoreScreenModel { GiftAvailable = true };
+        if (tier != null)
+        {
+            model.ChestSelection.SelectTier(tier);
+            model.ChestSelection.Toggle("charges");
+            model.ChestSelection.Toggle("shards");
+            model.ChestSelection.Toggle("xp");
+        }
         var view = new StoreView();
-        view.Bind(new StoreScreenModel { GiftAvailable = true }, null, null);
+        view.Bind(model, null, null);
+        view.Select(panel);
         return view;
     }
 
