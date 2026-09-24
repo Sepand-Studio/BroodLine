@@ -16,10 +16,6 @@ namespace Broodline.Frontier
         public static Color Hex(string value) { ColorUtility.TryParseHtmlString(value, out var color); return color; }
         static readonly Color Cream = Hex("#f4dfb9"), Ink = Hex("#253345"), Gold = Hex("#c99a49");
         static readonly Color Coral = Hex("#e5867a"), Frost = Hex("#c6cede");
-        static readonly Vector3[] GroundBones = {
-            Vector3.zero, new Vector3(.5f,.47f,0), new Vector3(.32f,.24f,.32f),
-            new Vector3(.32f,.24f,-.32f), new Vector3(-.34f,.24f,.32f), new Vector3(-.34f,.24f,-.32f)
-        };
         public FrontierArt(Shader shader)
         {
             if (shader == null) throw new ArgumentNullException(nameof(shader), "Build the Frontier Proof scene to assign its surface shader.");
@@ -92,25 +88,6 @@ namespace Broodline.Frontier
             }
             var part = Draw(socket, trait, mesh);
             part.transform.localScale = Vector3.one;
-        }
-
-        internal static void BuildRaider(FrontierMesh b,string id)
-        {
-            var body=Hex("#414556");
-            b.Sphere(new Vector3(0,.45f,0),new Vector3(.54f,.25f,.3f),body,10,6);
-            b.Bone=1;
-            b.Sphere(new Vector3(.52f,.39f,0),new Vector3(.25f,.19f,.24f),Ink,8,5);
-            b.Cone(new Vector3(.60f,.48f,0),new Vector3(.94f,.41f,0),.12f,.008f,Hex("#83929d"),5);
-            for(int side=-1;side<=1;side+=2) b.Sphere(new Vector3(.69f,.46f,side*.16f),Vector3.one*.035f,Hex("#e57b57"),8,4);
-            for(int i=2;i<6;i++)
-            {
-                b.Bone=i;var p=GroundBones[i];
-                b.Cone(p+Vector3.up*.2f,new Vector3(p.x+.08f,.02f,p.z*1.2f),.10f,.025f,body,6);
-            }
-            b.Bone=0;
-            for(int i=0;i<3;i++) b.Cone(new Vector3(-.28f+i*.22f,.63f,0),new Vector3(-.42f+i*.22f,.9f,0),.11f,.006f,Hex("#647185"),5);
-            if(id=="lash")
-                for(int side=-1;side<=1;side+=2) b.Cone(new Vector3(.15f,.60f,side*.19f),new Vector3(.85f,.65f,side*.52f),.07f,.016f,body,6);
         }
 
         GameObject Draw(Transform parent,string name,Mesh mesh)

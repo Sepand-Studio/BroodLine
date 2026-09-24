@@ -14,6 +14,7 @@ namespace Broodline.Frontier
         public bool Moving;
         public bool ReducedMotion;
         public bool Paused;
+        public float TimeScale = 1f;
         public float Hurt;
         public float Growth;
         public bool Chilled;
@@ -88,6 +89,6 @@ namespace Broodline.Frontier
             Pose(_presentationTime);
         }
 
-        void Update() => AdvancePresentation(Time.deltaTime);
+        void Update() => AdvancePresentation(Time.deltaTime * TimeScale);
     }
 }

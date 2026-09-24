@@ -1,6 +1,6 @@
 using UnityEngine;
 using Broodline.Sim.Combat;
-using Broodline.Creatures;
+using Broodline.Frontier;
 
 namespace Broodline.View
 {
@@ -21,120 +21,97 @@ namespace Broodline.View
 
         private Transform[] _raiders;
         private Transform[] _creatures;
-        private CreatureMotion[] _raiderMotion;
-        private CreatureMotion[] _creatureMotion;
+        private FrontierCreature[] _raiderMotion;
+        private FrontierCreature[] _creatureMotion;
         private int[] _raiderMaxHp;
         private int[] _creatureMaxHp;
         private float[] _raiderLastTile;
+        private int[] _creatureLastTile;
+        private FrontierArt _art;
 
         public void Build(SimRunner r) => Build(r, null, null);
 
-        /// Bodies through the assembler - the recipe/prefab pipeline Tasks
-        /// 7-9 built - instead of the synthetic-mesh placeholder this method
-        /// used to call directly. `deployment` may be null: the one-argument
-        /// `Build` above still works, drawing every creature from
-        /// `r.CreatureSpecies` alone with no traits mounted. Raider bodies
-        /// come from `wave.Spawns[i].Type`.
-        ///
-        /// NOT EVERY SPECIES OR RAIDER TYPE HAS A RECIPE YET - Task 15
-        /// finishes the roster; today only Vetch and no raider at all do.
-        /// `CreatureAssembler.Build` answers an unrecognised one with a
-        /// magenta "missing" sphere and a Debug.LogError, which is the right
-        /// answer for a body that SHOULD exist and does not - but Unity's
-        /// Test Framework fails a PlayMode test on any unhandled LogError,
-        /// and the standard Wave 6 deployment already carries a Loam
-        /// alongside a Courser raider, neither of which has a recipe. Built
-        /// straight through the assembler, every PlayMode run of this wave -
-        /// including the capture test the next checkpoint runs - would log
-        /// two errors and fail on them alone, every time, until Task 15.
-        ///
-        /// So this method checks the recipe ITSELF before handing a look to
-        /// the assembler: a body with no recipe yet becomes an empty, inert
-        /// placeholder - still occupies its slot, still counted by the tests
-        /// that check childCount, draws nothing - and the gap is reported
-        /// ONCE per Build call, as a warning rather than an error, which is
-        /// loud enough to see in the log without failing a test or repeating
-        /// once per body. A recipe that DOES exist but whose prefab fails to
-        /// load still reaches CreatureAssembler.Build unguarded, so that
-        /// failure mode - content that should be there and is not building -
-        /// keeps its loud, per-body Debug.LogError. This only softens "not
-        /// authored yet", never "authored but broken".
+        /// Draws the sim's roster through the shared Frontier art core. Unknown
+        /// future ids keep their slot but do not interrupt the wave.
         public void Build(SimRunner r, CreatureSpec[] deployment, WaveDef wave)
         {
             LaneDressing.Build(transform, r.LaneTiles, TileSize, PocketOffset);
+            _art = new FrontierArt(RuntimeShaders.Require(RuntimeShaders.Frontier));
 
             var creaturesRoot = new GameObject("creatures").transform;
             creaturesRoot.SetParent(transform, false);
             _creatures = new Transform[r.CreatureCount];
-            _creatureMotion = new CreatureMotion[r.CreatureCount];
+            _creatureMotion = new FrontierCreature[r.CreatureCount];
             _creatureMaxHp = new int[r.CreatureCount];
+            _creatureLastTile = new int[r.CreatureCount];
             bool warnedMissingSpecies = false;
             for (int c = 0; c < r.CreatureCount; c++)
             {
                 var species = r.CreatureSpecies[c].ToString();
+                FrontierCreature creature = null;
                 GameObject body;
-                if (SpeciesRecipes.For(species) == null)
+                if (!FrontierVisuals.Has(species))
                 {
                     if (!warnedMissingSpecies)
                     {
-                        Debug.LogWarning("[view] no body recipe yet for creature species '" + species +
-                            "' (there may be others on this lane) - drawing nothing for them until " +
-                            "SpeciesRecipes carries it (Task 15).");
+                        Debug.LogWarning("[view] no Frontier body for species '" + species + "'; unknown bodies are hidden.");
                         warnedMissingSpecies = true;
                     }
-                    body = new GameObject("creature" + c + "-" + species + "-norecipe");
+                    body = new GameObject("creature" + c + "-" + species + "-unavailable");
+                    body.transform.SetParent(creaturesRoot, false);
                 }
                 else
                 {
-                    var look = new CreatureLook { Species = species };
+                    string first = null, second = null;
                     if (deployment != null && c < deployment.Length)
                     {
-                        look.Trait1 = deployment[c].Trait1 == Trait.None ? null : deployment[c].Trait1.ToString();
-                        look.Trait2 = deployment[c].Trait2 == Trait.None ? null : deployment[c].Trait2.ToString();
+                        first = deployment[c].Trait1 == Trait.None ? null : deployment[c].Trait1.ToString();
+                        second = deployment[c].Trait2 == Trait.None ? null : deployment[c].Trait2.ToString();
                     }
-                    body = CreatureAssembler.Build(look);
+                    creature = _art.Creature(creaturesRoot, species, first, second, c * .37f);
+                    body = creature.gameObject;
                     body.name = "creature" + c + "-" + species;
                 }
-                body.transform.SetParent(creaturesRoot, false);
-                body.transform.position = new Vector3(r.Lane.PocketTiles[r.CreaturePocket[c]] * TileSize, 0f, PocketOffset);
-                body.transform.rotation = Quaternion.LookRotation(Vector3.back, Vector3.up) * Quaternion.Euler(0f, 90f, 0f); // snout (+X) toward the lane (-Z)
+                var tile = r.Lane.PocketTiles[r.CreaturePocket[c]];
+                body.transform.position = new Vector3(tile * TileSize, 0f, PocketOffset);
+                body.transform.rotation = Quaternion.LookRotation(Vector3.back, Vector3.up) * Quaternion.Euler(0f, 90f, 0f);
                 _creatures[c] = body.transform;
-                _creatureMotion[c] = body.GetComponent<CreatureMotion>();
-                _creatureMaxHp[c] = 0;
+                _creatureMotion[c] = creature;
+                _creatureLastTile[c] = tile;
             }
 
             var raidersRoot = new GameObject("raiders").transform;
             raidersRoot.SetParent(transform, false);
             _raiders = new Transform[r.RaiderHp.Length];
-            _raiderMotion = new CreatureMotion[_raiders.Length];
+            _raiderMotion = new FrontierCreature[_raiders.Length];
             _raiderMaxHp = new int[_raiders.Length];
             _raiderLastTile = new float[_raiders.Length];
             bool warnedMissingRaider = false;
             for (int i = 0; i < _raiders.Length; i++)
             {
                 var type = wave != null && i < wave.Spawns.Length ? wave.Spawns[i].Type.ToString() : "courser";
+                FrontierCreature raider = null;
                 GameObject body;
-                if (RaiderRecipes.For(type) == null)
+                if (!FrontierVisuals.Has(type))
                 {
                     if (!warnedMissingRaider)
                     {
-                        Debug.LogWarning("[view] no body recipe yet for raider type '" + type +
-                            "' (there may be others on this wave) - drawing nothing for them until " +
-                            "RaiderRecipes carries it (Task 15).");
+                        Debug.LogWarning("[view] no Frontier body for raider '" + type + "'; unknown bodies are hidden.");
                         warnedMissingRaider = true;
                     }
-                    body = new GameObject("raider" + i + "-" + type + "-norecipe");
+                    body = new GameObject("raider" + i + "-" + type + "-unavailable");
+                    body.transform.SetParent(raidersRoot, false);
                 }
                 else
                 {
-                    body = CreatureAssembler.Build(new CreatureLook { RaiderType = type });
+                    raider = _art.Creature(raidersRoot, type, phase: i * .23f);
+                    body = raider.gameObject;
                     body.name = "raider" + i + "-" + type;
                 }
-                body.transform.SetParent(raidersRoot, false);
-                body.transform.rotation = Quaternion.identity;   // raiders walk +X, snout forward
+                body.transform.rotation = Quaternion.identity;
                 body.SetActive(false);
                 _raiders[i] = body.transform;
-                _raiderMotion[i] = body.GetComponent<CreatureMotion>();
+                _raiderMotion[i] = raider;
             }
         }
 
@@ -171,8 +148,9 @@ namespace Broodline.View
                     int hp = current.RaiderHp(i);
                     if (_raiderMaxHp[i] == 0) _raiderMaxHp[i] = hp;
                     _raiderMotion[i].Moving = !Mathf.Approximately(tile, _raiderLastTile[i]);
-                    _raiderMotion[i].Hurt01 = _raiderMaxHp[i] > 0 ? 1f - (float)hp / _raiderMaxHp[i] : 0f;
-                    if (hp < pair.Previous.RaiderHp(i)) _raiderMotion[i].Flinch();
+                    _raiderMotion[i].Hurt = _raiderMaxHp[i] > 0 ? 1f - (float)hp / _raiderMaxHp[i] : 0f;
+                    _raiderMotion[i].Chilled = current.RaiderChilled(i);
+                    if (hp < pair.Previous.RaiderHp(i)) _raiderMotion[i].Hit();
                     _raiderLastTile[i] = tile;
                 }
             }
@@ -191,10 +169,31 @@ namespace Broodline.View
                 {
                     int hp = current.CreatureHp(c);
                     if (_creatureMaxHp[c] == 0) _creatureMaxHp[c] = hp;
-                    _creatureMotion[c].Hurt01 = _creatureMaxHp[c] > 0 ? 1f - (float)hp / _creatureMaxHp[c] : 0f;
-                    if (hp < pair.Previous.CreatureHp(c)) _creatureMotion[c].Flinch();
+                    _creatureMotion[c].Hurt = _creatureMaxHp[c] > 0 ? 1f - (float)hp / _creatureMaxHp[c] : 0f;
+                    var tile = current.CreatureTile(c);
+                    _creatureMotion[c].Moving = tile != _creatureLastTile[c];
+                    if (hp < pair.Previous.CreatureHp(c)) _creatureMotion[c].Hit();
+                    _creatureLastTile[c] = tile;
                 }
             }
         }
+
+        public void SetPaused(bool paused)
+        {
+            if (_creatureMotion != null)
+                foreach (var creature in _creatureMotion) if (creature != null) creature.Paused = paused;
+            if (_raiderMotion != null)
+                foreach (var raider in _raiderMotion) if (raider != null) raider.Paused = paused;
+        }
+
+        public void SetSpeed(float scale)
+        {
+            if (_creatureMotion != null)
+                foreach (var creature in _creatureMotion) if (creature != null) creature.TimeScale = scale;
+            if (_raiderMotion != null)
+                foreach (var raider in _raiderMotion) if (raider != null) raider.TimeScale = scale;
+        }
+
+        void OnDestroy() => _art?.Dispose();
     }
 }

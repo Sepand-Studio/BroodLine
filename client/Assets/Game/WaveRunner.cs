@@ -245,8 +245,8 @@ namespace Broodline.Game
             _hud = new WaveHudView { Camera = Camera.main, Wave = waveId };
             root.Add(_hud);
             _hud.Bind(Snapshot);
-            _hud.OnPause += () => { _clock.Paused = !_clock.Paused; _hud.SetPaused(_clock.Paused); };
-            _hud.OnSpeed += () => { _clock.Scale = _clock.Scale >= 2.0 ? 1.0 : 2.0; _hud.SetSpeed(_clock.Scale); };
+            _hud.OnPause += () => { _clock.Paused = !_clock.Paused; _view.SetPaused(_clock.Paused); _hud.SetPaused(_clock.Paused); };
+            _hud.OnSpeed += () => { _clock.Scale = _clock.Scale >= 2.0 ? 1.0 : 2.0; _view.SetSpeed((float)_clock.Scale); _hud.SetSpeed(_clock.Scale); };
         }
 
         /// True on the frame a tap or click begins.

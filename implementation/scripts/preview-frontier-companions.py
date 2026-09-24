@@ -37,7 +37,7 @@ static readonly Vector3[] EmberBones={Vector3.zero,new Vector3(.16f,1.01f,0),new
 baseline += '\n'.join(method(n) for n in ['void Ember(', 'void Pale(', 'void Eyes(', 'void FaceDetails(', 'Vector3 FacePoint(', 'void Smile('])
 baseline += '\npublic static void Build(FrontierMesh b,string id) { if(id=="ember")Ember(b);else Pale(b); } }}'
 vetch = subprocess.check_output(['git', 'show', baseline_ref + ':client/Assets/Frontier/FrontierVetch.cs'], cwd=root, text=True).replace('class FrontierVetch', 'class BaselineVetch')
-names = ['FrontierMesh', 'FrontierRigDefinition', 'FrontierPose', 'FrontierFace', 'FrontierParts', 'FrontierVetch', 'FrontierEmber', 'FrontierPale', 'FrontierSkitter', 'FrontierHollow', 'FrontierLoam']
+names = ['FrontierMesh', 'FrontierRigDefinition', 'FrontierPose', 'FrontierFace', 'FrontierParts', 'FrontierRaiders', 'FrontierVetch', 'FrontierEmber', 'FrontierPale', 'FrontierSkitter', 'FrontierHollow', 'FrontierLoam']
 with tempfile.TemporaryDirectory(prefix='frontier-companions-') as temp:
     temp = Path(temp)
     (temp / 'Baseline.cs').write_text(baseline)

@@ -96,13 +96,15 @@ namespace Broodline.Frontier
 
         static FrontierRigDefinition RaiderRig(string id)
         {
+            float s = FrontierRaiders.Scale(id);
             var p = new[] { Vector3.zero, new Vector3(.5f,.47f,0), new Vector3(.32f,.24f,.32f), new Vector3(.32f,.24f,-.32f), new Vector3(-.34f,.24f,.32f), new Vector3(-.34f,.24f,-.32f) };
+            for (int i = 1; i < p.Length; i++) p[i] *= s;
             var bones = new FrontierBoneDefinition[6];
             for (int i = 0; i < 6; i++) bones[i] = new FrontierBoneDefinition(i == 0 ? "root" : i == 1 ? "head" : "leg-" + i,
                 i == 0 ? -1 : 0, p[i], i == 0 ? FrontierBoneRole.Root : i == 1 ? FrontierBoneRole.Head : FrontierBoneRole.Leg, i % 2 == 0 ? 1 : -1, i % 2 * Mathf.PI);
-            return new FrontierRigDefinition(id, bones, new FrontierSocketDefinition(0,new Vector3(-.13f,.84f,0),Vector3.zero,.8f),
-                new FrontierSocketDefinition(0,new Vector3(-.07f,.47f,-.49f),new Vector3(-90,0,0),.8f),
-                new FrontierSocketDefinition(1,p[1]+new Vector3(.06f,.18f,0),Vector3.zero),new Vector3(.1f,.1f,.1f));
+            return new FrontierRigDefinition(id, bones, new FrontierSocketDefinition(0,new Vector3(-.13f,.84f,0)*s,Vector3.zero,.8f),
+                new FrontierSocketDefinition(0,new Vector3(-.07f,.47f,-.49f)*s,new Vector3(-90,0,0),.8f),
+                new FrontierSocketDefinition(1,p[1]+new Vector3(.06f,.18f,0)*s,Vector3.zero),new Vector3(.1f,.1f,.1f)*s);
         }
     }
 }
