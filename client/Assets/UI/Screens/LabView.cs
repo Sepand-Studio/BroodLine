@@ -1,4 +1,5 @@
 using System;
+using Broodline.Model.Catalogs;
 using Broodline.UI.Components;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -12,6 +13,7 @@ namespace Broodline.UI.Screens
 
         readonly VisualElement _rows;
         readonly ScreenScaffold _scaffold;
+        readonly Label _coreTier;
 
         public LabView()
         {
@@ -20,7 +22,22 @@ namespace Broodline.UI.Screens
             _rows = this.Q<VisualElement>("rows");
             _rows.RemoveFromHierarchy();
             _scaffold = new ScreenScaffold(LabScreen.Title, eyebrow: LabScreen.Eyebrow);
-            var card = new SectionCard();
+            var core = new SectionCard("ARK CORE");
+            core.AddToClassList("lab__core-card");
+            var coreLine = new VisualElement(); coreLine.AddToClassList("lab__core-line");
+            var coreIcon = new VisualElement();
+            coreIcon.AddToClassList("icon"); coreIcon.AddToClassList("icon--ark"); coreIcon.AddToClassList("lab__core-icon");
+            var coreText = new VisualElement();
+            _coreTier = new Label { name = "core-tier" };
+            _coreTier.AddToClassList("lab__core-tier");
+            coreText.Add(_coreTier);
+            var coreDetail = new Label("The Core sets the ceiling for every facility.");
+            coreDetail.AddToClassList("lab__core-detail");
+            coreText.Add(coreDetail);
+            coreLine.Add(coreIcon); coreLine.Add(coreText);
+            core.Body.Add(coreLine);
+            _scaffold.Content.Add(core);
+            var card = new SectionCard("FACILITIES");
             card.Body.Add(_rows);
             _scaffold.Content.Add(card);
             _scaffold.FooterNote = LabScreen.Preview;
@@ -31,13 +48,16 @@ namespace Broodline.UI.Screens
             Func<DateTime> now = null, Action onTimerComplete = null)
         {
             if (m == null) throw new ArgumentNullException(nameof(m));
+            _coreTier.text = "Tier " + m.CoreTier + " / " + FacilityCatalog.MaxTier;
             now = now ?? (() => DateTime.UtcNow);
             _rows.Clear();
             foreach (var f in m.Rows)
             {
                 var id = f.Id;
-                var row = new OptionRow(f.Name + " · " + LabScreen.TierLabel(f.Tier), f.Detail, null) { name = "facility-" + f.Id };
+                var row = new OptionRow(f.Name + " · " + LabScreen.TierLabel(f.Tier),
+                    f.Upgrading != null || !f.CanUpgrade ? f.Role : f.Detail, null) { name = "facility-" + f.Id };
                 row.AddToClassList(RowUssClassName);
+                if (f.Id == "core") row.AddToClassList("lab__facility--core");
                 var glyph = new VisualElement { name = "glyph" };
                 glyph.AddToClassList("icon"); glyph.AddToClassList("icon--" + f.Icon); glyph.AddToClassList("lab__glyph");
                 glyph.pickingMode = PickingMode.Ignore;
@@ -65,6 +85,12 @@ namespace Broodline.UI.Screens
                     var up = new Button(() => onUpgrade?.Invoke(id)) { name = "upgrade", text = LabScreen.Upgrade };
                     up.AddToClassList("btn-secondary"); up.AddToClassList("lab__upgrade");
                     row.Add(up);
+                }
+                else if (!string.IsNullOrEmpty(f.Blocker))
+                {
+                    var blocker = new Label(f.Blocker) { name = "blocker" };
+                    blocker.AddToClassList("lab__blocker");
+                    row.Add(blocker);
                 }
                 _rows.Add(row);
             }

@@ -22,6 +22,27 @@
  * own PARENT, which is upward rather than downward.
  */
 .campaign-select-view { flex-grow: 1; }
+.campaign-select-view__chapter {
+    height: 158px;
+    background-color: var(--surface-deep);
+    -unity-background-scale-mode: scale-and-crop;
+    border-width: 2px;
+    border-color: var(--brass);
+    border-radius: var(--radius-card);
+    justify-content: flex-end;
+    padding: var(--space-3);
+    margin-bottom: var(--space-3);
+}
+.campaign-select-view__chapter-label {
+    color: var(--brass-light);
+    font-size: var(--text-micro);
+    -unity-font-style: bold;
+}
+.campaign-select-view__chapter-name {
+    color: var(--surface-paper);
+    font-size: var(--text-section);
+    -unity-font-style: bold;
+}
 
 /* Unity's default theme dims a disabled element to 50% opacity, which would
  * take the row's border and the padlock with it and read as damage rather

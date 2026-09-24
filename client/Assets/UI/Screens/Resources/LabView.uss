@@ -1,6 +1,20 @@
 .lab { flex-grow: 1; }
+.lab__core-card .section-card__surface {
+    background-color: var(--surface-deep);
+    border-color: var(--brass);
+}
+.lab__core-card .section-card__heading { color: var(--brass-light); }
+.lab__core-line { flex-direction: row; align-items: center; }
+.lab__core-icon {
+    width: 46px; height: 46px;
+    margin-right: var(--space-3);
+    -unity-background-image-tint-color: var(--brass-light);
+}
+.lab__core-tier { color: var(--surface-paper); font-size: var(--text-section); -unity-font-style: bold; }
+.lab__core-detail { color: var(--surface-paper); font-size: var(--text-secondary); white-space: normal; }
 /* Two classes, so this outranks OptionRow.uss's own `padding` shorthand. */
 .lab .lab__facility { padding-left: 48px; }
+.lab .lab__facility--core { border-color: var(--brass); background-color: var(--surface); }
 .lab__facility .lab__glyph {
     position: absolute;
     left: var(--space-3);
@@ -16,3 +30,13 @@
     font-size: var(--text-body);
 }
 .lab__facility .lab__timer { align-self: flex-start; margin-top: var(--space-2); }
+.lab__blocker {
+    align-self: flex-start;
+    background-color: var(--violet-tint);
+    color: var(--violet-text);
+    border-radius: var(--radius-tile);
+    padding-top: 4px; padding-bottom: 4px;
+    padding-left: var(--space-2); padding-right: var(--space-2);
+    margin-top: var(--space-2);
+    font-size: var(--text-secondary);
+}

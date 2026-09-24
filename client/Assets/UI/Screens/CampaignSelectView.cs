@@ -83,6 +83,18 @@ namespace Broodline.UI.Screens
             _scaffold = new ScreenScaffold(
                 CampaignSelectScreen.Title, eyebrow: CampaignSelectScreen.Eyebrow);
 
+            var chapter = new VisualElement { name = "chapter-art" };
+            chapter.AddToClassList("campaign-select-view__chapter");
+            var illustration = Resources.Load<Texture2D>("Art/campaign/hollow-reach");
+            if (illustration != null) chapter.style.backgroundImage = new StyleBackground(illustration);
+            var chapterLabel = new Label(CampaignSelectScreen.ChapterLabel);
+            chapterLabel.AddToClassList("campaign-select-view__chapter-label");
+            var chapterName = new Label(CampaignSelectScreen.ChapterName);
+            chapterName.AddToClassList("campaign-select-view__chapter-name");
+            chapter.Add(chapterLabel);
+            chapter.Add(chapterName);
+            _scaffold.Content.Add(chapter);
+
             // ONE CARD FOR THE WHOLE LIST, NOT ONE PER ROW. The rows are a
             // single list of one kind of thing, which is what the handoff
             // puts on one surface; a card each would give every wave its own

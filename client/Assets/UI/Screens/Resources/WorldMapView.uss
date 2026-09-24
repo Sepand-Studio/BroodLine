@@ -12,10 +12,12 @@
     height: 280px;
     align-self: center;
     background-color: var(--surface-sunk);
-    border-radius: 140px;
+    -unity-background-scale-mode: scale-and-crop;
+    border-radius: var(--radius-card);
     border-width: 2px;
     border-color: var(--brass);
     margin-bottom: var(--space-2);
+    overflow: hidden;
 }
 .world-map__ring {
     position: absolute;
@@ -45,4 +47,31 @@
     border-color: var(--action-shadow);
     color: var(--action-text);
 }
+.world-map__marker--selected {
+    border-width: 3px;
+    border-color: var(--brass-light);
+}
 .world-map__marker:active { background-color: var(--violet-pressed); }
+.world-map__selection {
+    background-color: var(--surface-deep);
+    border-width: 1px;
+    border-color: var(--brass);
+    border-radius: var(--radius-row);
+    padding: var(--space-3);
+}
+.world-map__selected-name {
+    color: var(--brass-light);
+    font-size: var(--text-section);
+    -unity-font-style: bold;
+}
+.world-map__selected-detail {
+    color: var(--surface-paper);
+    font-size: var(--text-body);
+    white-space: normal;
+    margin-top: var(--space-1);
+}
+.world-map__selected-action {
+    align-self: flex-start;
+    margin-top: var(--space-2);
+    margin-bottom: 0;
+}

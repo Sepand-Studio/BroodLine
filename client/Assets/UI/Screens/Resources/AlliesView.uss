@@ -1,5 +1,21 @@
 .allies { flex-grow: 1; }
 .allies .allies__pennant {
-    width: 96px; height: 96px;
-    -unity-background-image-tint-color: var(--action);
+    width: 64px; height: 64px;
+    -unity-background-image-tint-color: var(--brass-light);
+    margin-bottom: var(--space-2);
 }
+.allies__banner-title {
+    color: var(--surface-paper);
+    font-size: var(--text-section);
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+.allies .btn-primary { align-self: flex-start; margin-top: var(--space-3); }
+.allies__benefit { flex-direction: row; align-items: center; padding-top: var(--space-2); padding-bottom: var(--space-2); }
+.allies__benefit-icon {
+    width: 24px; height: 24px;
+    margin-right: var(--space-3);
+    -unity-background-image-tint-color: var(--violet-text);
+}
+.allies__benefit-title { color: var(--ink-primary); font-size: var(--text-body); -unity-font-style: bold; }
+.allies__benefit-detail { color: var(--ink-secondary); font-size: var(--text-secondary); white-space: normal; }

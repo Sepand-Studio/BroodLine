@@ -27,11 +27,16 @@ namespace Broodline.UI.Screens
         public void Bind(string allianceName, Action onCreate)
         {
             _body.Clear();
-            var band = new HeroBand(ring: true);
+            var band = new HeroBand(ring: false);
             var pennant = new VisualElement { name = "pennant" };
             pennant.AddToClassList("icon"); pennant.AddToClassList("icon--allies"); pennant.AddToClassList("allies__pennant");
             band.Subject.Add(pennant);
-            band.Fix(220f);
+            var motto = new Label(string.IsNullOrEmpty(allianceName) ? "A banner worth raising" : allianceName)
+                { name = "banner-title" };
+            motto.AddToClassList("allies__banner-title");
+            band.Subject.Add(motto);
+            band.AddToClassList("hero-band--deep");
+            band.Fix(180f);
             _body.Add(band);
 
             var card = new SectionCard();
@@ -49,6 +54,21 @@ namespace Broodline.UI.Screens
                 card.Body.Add(member);
             }
             _body.Add(card);
+
+            var planned = new SectionCard(AlliesScreen.PlannedHeading);
+            foreach (var (icon, title, detail) in AlliesScreen.PlannedTools)
+            {
+                var row = new VisualElement(); row.AddToClassList("allies__benefit");
+                var glyph = new VisualElement();
+                glyph.AddToClassList("icon"); glyph.AddToClassList("icon--" + icon); glyph.AddToClassList("allies__benefit-icon");
+                var words = new VisualElement();
+                var heading = new Label(title); heading.AddToClassList("allies__benefit-title");
+                var explanation = new Label(detail); explanation.AddToClassList("allies__benefit-detail");
+                words.Add(heading); words.Add(explanation);
+                row.Add(glyph); row.Add(words);
+                planned.Body.Add(row);
+            }
+            _body.Add(planned);
         }
     }
 }

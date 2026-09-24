@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Broodline.Model.Catalogs;
 using Broodline.UI.Components;
 using UnityEngine;
@@ -14,6 +15,11 @@ namespace Broodline.UI.Screens
         readonly VisualElement _bands;
         readonly VisualElement _atlas;
         readonly Label _arkLabel;
+        readonly Label _selectedName, _selectedDetail;
+        readonly Button _selectedAction;
+        readonly List<Button> _markers = new List<Button>();
+        Action<string> _onPick;
+        string _selectedId;
 
         public WorldMapView()
         {
@@ -28,7 +34,22 @@ namespace Broodline.UI.Screens
             atlasCard.Body.Add(_arkLabel);
             _atlas = new VisualElement { name = "atlas" };
             _atlas.AddToClassList("world-map__atlas");
+            var terrain = Resources.Load<Texture2D>("Art/map/frontier-atlas");
+            if (terrain != null) _atlas.style.backgroundImage = new StyleBackground(terrain);
             atlasCard.Body.Add(_atlas);
+            var selection = new VisualElement { name = "selection" };
+            selection.AddToClassList("world-map__selection");
+            _selectedName = new Label { name = "selected-region" };
+            _selectedName.AddToClassList("world-map__selected-name");
+            _selectedDetail = new Label { name = "selected-detail" };
+            _selectedDetail.AddToClassList("world-map__selected-detail");
+            _selectedAction = new Button(() => _onPick?.Invoke(_selectedId)) { name = "selected-action" };
+            _selectedAction.AddToClassList("btn-secondary");
+            _selectedAction.AddToClassList("world-map__selected-action");
+            selection.Add(_selectedName);
+            selection.Add(_selectedDetail);
+            selection.Add(_selectedAction);
+            atlasCard.Body.Add(selection);
             scaffold.Content.Add(atlasCard);
             scaffold.Content.Add(_bands);
             Add(scaffold);
@@ -37,7 +58,8 @@ namespace Broodline.UI.Screens
         public void Bind(MapScreenModel m, Action<string> onPick)
         {
             if (m == null) throw new ArgumentNullException(nameof(m));
-            BuildAtlas(m, onPick);
+            _onPick = onPick;
+            BuildAtlas(m);
             _bands.Clear();
             foreach (var (heading, rows) in m.Bands)
             {
@@ -54,9 +76,10 @@ namespace Broodline.UI.Screens
             }
         }
 
-        void BuildAtlas(MapScreenModel model, Action<string> onPick)
+        void BuildAtlas(MapScreenModel model)
         {
             _atlas.Clear();
+            _markers.Clear();
             var here = RegionCatalog.Find(model.CurrentRegionId);
             _arkLabel.text = "ARK POSITION  ·  " + (here != null ? here.Name : "Unknown");
 
@@ -80,7 +103,7 @@ namespace Broodline.UI.Screens
                     var region = rows[i];
                     float angle = (i / (float)rows.Count) * Mathf.PI * 2f - Mathf.PI * .5f;
                     string id = region.Id;
-                    var marker = new Button(() => onPick?.Invoke(id))
+                    var marker = new Button(() => SelectRegion(region))
                     {
                         name = "marker-" + id,
                         text = region.Here ? "A" : "•",
@@ -91,8 +114,22 @@ namespace Broodline.UI.Screens
                     marker.style.left = 140f + Mathf.Cos(angle) * radius - 16f;
                     marker.style.top = 140f + Mathf.Sin(angle) * radius - 16f;
                     _atlas.Add(marker);
+                    _markers.Add(marker);
                 }
             }
+            foreach (var band in model.Bands)
+                foreach (var row in band.Rows)
+                    if (row.Here) { SelectRegion(row); return; }
+        }
+
+        void SelectRegion(MapRegionRow region)
+        {
+            _selectedId = region.Id;
+            _selectedName.text = region.Name;
+            _selectedDetail.text = region.Detail;
+            _selectedAction.text = region.Here ? "Open region" : "Travel preview";
+            foreach (var marker in _markers)
+                marker.EnableInClassList("world-map__marker--selected", marker.name == "marker-" + region.Id);
         }
     }
 }

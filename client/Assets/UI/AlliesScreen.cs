@@ -14,5 +14,12 @@ namespace Broodline.UI
         public const string Preview = "Alliances are a preview in this build.";
         public const string DefaultName = "the Frontier Compact";
         public const string PreviewNotice = "Alliance created (preview) - it lives on this device only.";
+        public const string PlannedHeading = "PLANNED TOGETHER";
+        public static readonly (string Icon, string Title, string Detail)[] PlannedTools =
+        {
+            ("map", "Shared claims", "Hold territory as a group."),
+            ("timer", "Convoys", "Move supplies together."),
+            ("sparkle", "Alliance rallies", "Answer danger with friends."),
+        };
     }
 }

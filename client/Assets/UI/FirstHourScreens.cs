@@ -508,6 +508,8 @@ namespace Broodline.UI
     public static class CampaignSelectScreen
     {
         public const string Title = "Campaign";
+        public const string ChapterLabel = "CHAPTER 01";
+        public const string ChapterName = "Hollow Reach";
 
         /// The handoff's kicker, over the title: the region these waves are
         /// fought in. design 5.2 gives this screen no `.dc.html` of its own,
