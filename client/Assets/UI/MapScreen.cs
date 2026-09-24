@@ -18,15 +18,14 @@ namespace Broodline.UI
 
     /// The World Map's words and model - Phase 10 Task 1.5, skin fidelity:
     /// the thirty regions grouped by ring, the Ark's own region marked, each
-    /// row saying its lane count and its hop time from here. The drawn map
-    /// with terrain, markers and routes is Batch 5; this is the same
-    /// information as a list so the tab has a real destination now.
+    /// row saying its lane count and its hop time from here. WorldMapView
+    /// places the same rows on a tappable three-ring atlas.
     public static class MapScreen
     {
         public const string Title = "World Map";
         public const string Eyebrow = "THE FRONTIER";
         public const string HereDetail = "Your Ark is here";
-        public static string NotHere(string name) => name + " is a hop away - the drawn map and relocation arrive in a later batch.";
+        public static string NotHere(string name) => name + " is beyond the Ark. Relocation is coming in a later preview.";
         public static readonly string[] BandHeadings = { "Inner Reach", "Mid Reach", "Outer Reach" };
 
         public static string Lanes(int lanes) => lanes == 1 ? "1 lane" : lanes + " lanes";

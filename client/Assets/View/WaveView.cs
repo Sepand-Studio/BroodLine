@@ -28,6 +28,7 @@ namespace Broodline.View
         private float[] _raiderLastTile;
         private int[] _creatureLastTile;
         private FrontierArt _art;
+        private int _lastRenderedTick = -1;
 
         public void Build(SimRunner r) => Build(r, null, null);
 
@@ -35,8 +36,11 @@ namespace Broodline.View
         /// future ids keep their slot but do not interrupt the wave.
         public void Build(SimRunner r, CreatureSpec[] deployment, WaveDef wave)
         {
-            LaneDressing.Build(transform, r.LaneTiles, TileSize, PocketOffset);
             _art = new FrontierArt(RuntimeShaders.Require(RuntimeShaders.Frontier));
+            var pocketTiles = new int[r.Lane.PocketCount];
+            for (int i = 0; i < pocketTiles.Length; i++) pocketTiles[i] = r.Lane.PocketTiles[i];
+            var terrain = _art.Environment(transform, r.LaneTiles, pocketTiles, false);
+            terrain.name = "dressing";
 
             var creaturesRoot = new GameObject("creatures").transform;
             creaturesRoot.SetParent(transform, false);
@@ -129,6 +133,7 @@ namespace Broodline.View
         {
             float a = (float)alpha;
             var current = pair.Current;
+            bool newTick = current.Tick != _lastRenderedTick;
 
             for (int i = 0; i < _raiders.Length; i++)
             {
@@ -150,7 +155,7 @@ namespace Broodline.View
                     _raiderMotion[i].Moving = !Mathf.Approximately(tile, _raiderLastTile[i]);
                     _raiderMotion[i].Hurt = _raiderMaxHp[i] > 0 ? 1f - (float)hp / _raiderMaxHp[i] : 0f;
                     _raiderMotion[i].Chilled = current.RaiderChilled(i);
-                    if (hp < pair.Previous.RaiderHp(i)) _raiderMotion[i].Hit();
+                    if (newTick && hp < pair.Previous.RaiderHp(i)) _raiderMotion[i].Hit();
                     _raiderLastTile[i] = tile;
                 }
             }
@@ -172,10 +177,11 @@ namespace Broodline.View
                     _creatureMotion[c].Hurt = _creatureMaxHp[c] > 0 ? 1f - (float)hp / _creatureMaxHp[c] : 0f;
                     var tile = current.CreatureTile(c);
                     _creatureMotion[c].Moving = tile != _creatureLastTile[c];
-                    if (hp < pair.Previous.CreatureHp(c)) _creatureMotion[c].Hit();
+                    if (newTick && hp < pair.Previous.CreatureHp(c)) _creatureMotion[c].Hit();
                     _creatureLastTile[c] = tile;
                 }
             }
+            _lastRenderedTick = current.Tick;
         }
 
         public void SetPaused(bool paused)

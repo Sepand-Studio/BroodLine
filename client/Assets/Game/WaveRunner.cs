@@ -103,6 +103,7 @@ namespace Broodline.Game
         WavePair _pair;
         WaveView _view;
         WaveHudView _hud;
+        Camera _waveCamera;
         SafeAreaBinder _safeArea;
         bool _written;
         bool _inputEnabled = true;
@@ -186,6 +187,17 @@ namespace Broodline.Game
             _view = gameObject.AddComponent<WaveView>();
             _view.Build(_runner, deployment, wave);
 
+            // The checked-in scene may predate this framing pass. Use its own
+            // camera so the additive Boot scene cannot redirect the wave HUD.
+            foreach (var root in gameObject.scene.GetRootGameObjects())
+            {
+                var sceneCamera = root.GetComponentInChildren<Camera>();
+                if (sceneCamera == null || !sceneCamera.CompareTag("MainCamera")) continue;
+                _waveCamera = sceneCamera;
+                BattleCameraFrame.Apply(_waveCamera, _runner.LaneTiles);
+                break;
+            }
+
             BuildHud(wave.Id);
         }
 
@@ -242,7 +254,7 @@ namespace Broodline.Game
             _safeArea.ApplyIfChanged();
             root.RegisterCallback<GeometryChangedEvent>(_ => _safeArea.ApplyIfChanged());
 
-            _hud = new WaveHudView { Camera = Camera.main, Wave = waveId };
+            _hud = new WaveHudView { Camera = _waveCamera != null ? _waveCamera : Camera.main, Wave = waveId };
             root.Add(_hud);
             _hud.Bind(Snapshot);
             _hud.OnPause += () => { _clock.Paused = !_clock.Paused; _view.SetPaused(_clock.Paused); _hud.SetPaused(_clock.Paused); };

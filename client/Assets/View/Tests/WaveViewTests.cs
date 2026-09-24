@@ -28,8 +28,8 @@ namespace Broodline.View.Tests
                 Assert.AreEqual(2, creatures.childCount);
                 Assert.AreEqual("carapace", creatures.GetChild(0).GetComponent<FrontierCreature>().Dorsal.GetChild(0).name);
                 Assert.AreEqual("taunt", creatures.GetChild(1).GetComponent<FrontierCreature>().Dorsal.GetChild(0).name, "slot index, not trait, picks the socket");
-                Assert.IsNotNull(go.transform.Find("dressing/ark"));
-                Assert.IsNotNull(go.transform.Find("dressing/path"));
+                Assert.IsNotNull(go.transform.Find("dressing")?.GetComponentInChildren<MeshRenderer>(),
+                    "the shared Frontier terrain should draw behind the bodies");
                 Assert.AreEqual(runner.RaiderHp.Length, go.transform.Find("raiders").childCount, "one body per raider slot, inactive until visible");
             }
             finally { Object.DestroyImmediate(go); }

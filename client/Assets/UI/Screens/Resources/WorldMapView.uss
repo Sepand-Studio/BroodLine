@@ -1,2 +1,48 @@
 .world-map { flex-grow: 1; }
 .world-map__region .option-row__title { font-size: var(--text-card-title); }
+.world-map__ark-label {
+    color: var(--ink-secondary);
+    font-size: var(--text-secondary);
+    -unity-font-style: bold;
+    margin-bottom: var(--space-2);
+}
+.world-map__atlas {
+    position: relative;
+    width: 280px;
+    height: 280px;
+    align-self: center;
+    background-color: var(--surface-sunk);
+    border-radius: 140px;
+    border-width: 2px;
+    border-color: var(--brass);
+    margin-bottom: var(--space-2);
+}
+.world-map__ring {
+    position: absolute;
+    border-width: 1px;
+    border-color: var(--brass-light);
+    border-radius: 140px;
+    background-color: rgba(0, 0, 0, 0);
+}
+.world-map__marker {
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    padding: 0;
+    margin: 0;
+    border-radius: 16px;
+    border-width: 2px;
+    border-color: var(--brass);
+    background-color: var(--surface);
+    color: var(--ink-primary);
+    font-size: var(--text-card-title);
+    -unity-text-align: middle-center;
+}
+.world-map__marker--here {
+    background-color: var(--action);
+    border-color: var(--action-shadow);
+    color: var(--action-text);
+}
+.world-map__marker:active { background-color: var(--violet-pressed); }

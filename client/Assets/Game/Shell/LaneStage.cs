@@ -121,6 +121,9 @@ namespace Broodline.Game.Shell
         RenderTexture _texture;
         GameObject _creatures;
         FrontierArt _art;
+        FrontierArt _terrainArt;
+        GameObject _dressing;
+        int _terrainWaveId = -1;
 
         public static LaneStage Create(Transform host)
         {
@@ -161,15 +164,7 @@ namespace Broodline.Game.Shell
             light.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
             light.intensity = 1.1f;
 
-            // ONCE, IN `Create`, AND NEVER AGAIN. The dressing is the same
-            // for every wave this build authors - `LaneDressing.Build` takes
-            // the lane's LENGTH and not its pockets - so rebuilding it per
-            // `Show` would allocate four trees, an Ark and twenty-four dashes
-            // to draw the identical picture. `Show` rebuilds only the
-            // creatures.
-            var dressing = LaneDressing.Build(
-                go.transform, WaveRunner.LaneTiles, WaveView.TileSize, WaveView.PocketOffset);
-            CreatureAssembler.SetLayerRecursively(dressing, CreatureAssembler.StudioLayer);
+            stage._art = new FrontierArt(RuntimeShaders.Require(RuntimeShaders.Frontier));
 
             stage._camera = cam;
             stage._texture = new RenderTexture(Width, Height, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
@@ -219,6 +214,24 @@ namespace Broodline.Game.Shell
                 Debug.LogWarning("[lane-stage] no authored wave " + waveId +
                     " to draw - the lane card falls back to its own fill: " + error.Message);
                 return null;
+            }
+
+            if (_terrainWaveId != waveId)
+            {
+                if (_dressing != null)
+                {
+                    _dressing.SetActive(false);
+                    if (Application.isPlaying) Destroy(_dressing);
+                    else DestroyImmediate(_dressing);
+                    _terrainArt?.Dispose();
+                }
+                var pocketTiles = new int[lane.PocketCount];
+                for (int p = 0; p < pocketTiles.Length; p++) pocketTiles[p] = lane.PocketTiles[p];
+                _terrainArt = new FrontierArt(RuntimeShaders.Require(RuntimeShaders.Frontier));
+                _dressing = _terrainArt.Environment(transform, WaveRunner.LaneTiles, pocketTiles, false);
+                _dressing.name = "dressing";
+                CreatureAssembler.SetLayerRecursively(_dressing, CreatureAssembler.StudioLayer);
+                _terrainWaveId = waveId;
             }
 
             Aim(PocketSpanCentre(lane));
@@ -482,6 +495,7 @@ namespace Broodline.Game.Shell
             if (_camera != null) _camera.targetTexture = null;
             if (_texture != null) _texture.Release();
             _art?.Dispose();
+            _terrainArt?.Dispose();
         }
     }
 }
