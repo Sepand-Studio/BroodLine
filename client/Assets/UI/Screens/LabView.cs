@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Broodline.Model.Catalogs;
 using Broodline.UI.Components;
 using UnityEngine;
@@ -14,6 +15,9 @@ namespace Broodline.UI.Screens
         readonly VisualElement _rows;
         readonly ScreenScaffold _scaffold;
         readonly Label _coreTier;
+        readonly VisualElement _stageFrame, _stage, _hotspots;
+        IReadOnlyList<HomeHotspot> _placedHotspots;
+        Action<string> _onInspect;
 
         public LabView()
         {
@@ -37,6 +41,20 @@ namespace Broodline.UI.Screens
             coreLine.Add(coreIcon); coreLine.Add(coreText);
             core.Body.Add(coreLine);
             _scaffold.Content.Add(core);
+
+            var plots = new SectionCard(LabScreen.PlotHeading);
+            _stageFrame = new VisualElement { name = "lab-stage-frame" };
+            _stageFrame.AddToClassList("lab__stage-frame");
+            _stage = new VisualElement { name = "lab-stage" };
+            _stage.AddToClassList("lab__stage");
+            _hotspots = new VisualElement { name = "lab-hotspots" };
+            _hotspots.AddToClassList("lab__hotspots");
+            _stageFrame.Add(_stage); _stageFrame.Add(_hotspots);
+            _stageFrame.RegisterCallback<GeometryChangedEvent>(_ => LayoutHotspots());
+            plots.Body.Add(_stageFrame);
+            plots.Body.Add(new Label(LabScreen.PlotHint).WithClass("lab__stage-hint"));
+            _scaffold.Content.Add(plots);
+
             var card = new SectionCard("FACILITIES");
             card.Body.Add(_rows);
             _scaffold.Content.Add(card);
@@ -44,18 +62,22 @@ namespace Broodline.UI.Screens
             Add(_scaffold);
         }
 
-        public void Bind(LabScreenModel m, Action<string> onUpgrade,
-            Func<DateTime> now = null, Action onTimerComplete = null)
+        public void Bind(LabScreenModel m, Action<string> onInspect,
+            Func<DateTime> now = null, Action onTimerComplete = null,
+            IReadOnlyList<HomeHotspot> hotspots = null)
         {
             if (m == null) throw new ArgumentNullException(nameof(m));
             _coreTier.text = "Tier " + m.CoreTier + " / " + FacilityCatalog.MaxTier;
+            _onInspect = onInspect;
+            PlaceHotspots(hotspots);
             now = now ?? (() => DateTime.UtcNow);
             _rows.Clear();
             foreach (var f in m.Rows)
             {
                 var id = f.Id;
                 var row = new OptionRow(f.Name + " · " + LabScreen.TierLabel(f.Tier),
-                    f.Upgrading != null || !f.CanUpgrade ? f.Role : f.Detail, null) { name = "facility-" + f.Id };
+                    f.Upgrading != null || !f.CanUpgrade ? f.Role : f.Detail,
+                    () => _onInspect?.Invoke(id)) { name = "facility-" + f.Id };
                 row.AddToClassList(RowUssClassName);
                 if (f.Id == "core") row.AddToClassList("lab__facility--core");
                 var glyph = new VisualElement { name = "glyph" };
@@ -68,23 +90,17 @@ namespace Broodline.UI.Screens
                     timer.Bind(f.Upgrading.Value);
                     timer.AddToClassList("lab__timer");
                     row.Add(timer);
-                    var endsAt = now() + f.Upgrading.Value;
+                    var endsAt = f.UpgradeEndsAt ?? now() + f.Upgrading.Value;
                     var clock = now;
                     bool completed = false;
                     timer.schedule.Execute(() =>
                     {
                         var remaining = endsAt - clock();
-                        timer.Bind(remaining);
+                        timer.Bind(remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero);
                         if (remaining > TimeSpan.Zero || completed) return;
                         completed = true;
                         onTimerComplete?.Invoke();
                     }).Every(1000);
-                }
-                else if (f.CanUpgrade)
-                {
-                    var up = new Button(() => onUpgrade?.Invoke(id)) { name = "upgrade", text = LabScreen.Upgrade };
-                    up.AddToClassList("btn-secondary"); up.AddToClassList("lab__upgrade");
-                    row.Add(up);
                 }
                 else if (!string.IsNullOrEmpty(f.Blocker))
                 {
@@ -92,7 +108,59 @@ namespace Broodline.UI.Screens
                     blocker.AddToClassList("lab__blocker");
                     row.Add(blocker);
                 }
+                var inspect = new Label("DETAILS  ›") { name = "inspect" };
+                inspect.AddToClassList("lab__inspect");
+                inspect.pickingMode = PickingMode.Ignore;
+                row.Add(inspect);
                 _rows.Add(row);
+            }
+        }
+
+        public void SetStage(Texture texture)
+        {
+            if (texture == null) _stage.style.backgroundImage = new StyleBackground(StyleKeyword.None);
+            else if (texture is RenderTexture rt) _stage.style.backgroundImage = new StyleBackground(Background.FromRenderTexture(rt));
+            else _stage.style.backgroundImage = new StyleBackground((Texture2D)texture);
+        }
+
+        void PlaceHotspots(IReadOnlyList<HomeHotspot> hotspots)
+        {
+            _placedHotspots = hotspots;
+            _hotspots.Clear();
+            if (hotspots == null) return;
+            foreach (var h in hotspots)
+            {
+                var id = h.Id;
+                var marker = new Button(() => _onInspect?.Invoke(id))
+                    { name = "lab-plot-" + id, tooltip = h.Label + " · " + LabScreen.TierLabel(h.Tier) };
+                marker.AddToClassList("lab__hotspot");
+                var facility = FacilityCatalog.Find(id);
+                if (facility != null)
+                {
+                    var glyph = new VisualElement();
+                    glyph.AddToClassList("icon");
+                    glyph.AddToClassList("icon--" + facility.Icon);
+                    glyph.AddToClassList("lab__hotspot-icon");
+                    glyph.pickingMode = PickingMode.Ignore;
+                    marker.Add(glyph);
+                }
+                _hotspots.Add(marker);
+            }
+            LayoutHotspots();
+        }
+
+        void LayoutHotspots()
+        {
+            if (_placedHotspots == null) return;
+            float width = _stageFrame.resolvedStyle.width, height = _stageFrame.resolvedStyle.height;
+            if (width <= 0f || height <= 0f) return;
+            foreach (var h in _placedHotspots)
+            {
+                var marker = _hotspots.Q<Button>("lab-plot-" + h.Id);
+                if (marker == null) continue;
+                var point = ArkStageProjection.Point(h.X01, h.Y01, width, height);
+                marker.style.left = point.x;
+                marker.style.top = point.y;
             }
         }
     }

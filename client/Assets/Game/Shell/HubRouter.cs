@@ -6,6 +6,7 @@ using Broodline.Model;
 using Broodline.Model.Catalogs;
 using Broodline.Model.Stub;
 using Broodline.UI;
+using Broodline.UI.Components;
 using Broodline.UI.Screens;
 using UnityEngine.UIElements;
 
@@ -176,7 +177,7 @@ namespace Broodline.Game.Shell
                 onRoster: () => { if (SpliceFromRoster != null) _ = ShowAsync("Splice"); },
                 onCodex: () => OpenCodex?.Invoke(),
                 onStore: ShowStore,
-                onPlot: plot => { _ = ShowAsync("Lab"); });
+                onPlot: plot => { _ = ShowLabPlotAsync(plot); });
             if (_home != null) view.SetStage(_home.Show());
             _host.Show(view);
         }
@@ -218,18 +219,42 @@ namespace Broodline.Game.Shell
 
         // ---------------------------------------------------------- Lab
 
+        async Task ShowLabPlotAsync(string id)
+        {
+            await ShowAsync("Lab");
+            ShowFacilitySheet(id);
+        }
+
         void ShowLab()
         {
             var view = new LabView();
-            view.Bind(LabScreen.Build(_ledger, _now()), onUpgrade: id =>
+            view.Bind(LabScreen.Build(_ledger, _now()), onInspect: ShowFacilitySheet,
+                now: _now, onTimerComplete: () => { _host.HideSheet(); ShowLab(); }, hotspots: Hotspots());
+            if (_home != null) view.SetStage(_home.Show());
+            _host.Show(view);
+        }
+
+        void ShowFacilitySheet(string id)
+        {
+            FacilityRow selected = null;
+            foreach (var row in LabScreen.Build(_ledger, _now()).Rows)
+                if (row.Id == id) { selected = row; break; }
+            if (selected == null) return;
+
+            var sheet = new FacilitySheet();
+            sheet.Bind(selected, onUpgrade: () =>
             {
+                if (!selected.CanUpgrade) return;
                 var tier = _ledger.FacilityTier(id);
                 _ledger.RememberFacility(id);
                 _ledger.StartUpgrade(id, FacilityCatalog.UpgradeTime(id, tier));
                 _notice(LabScreen.PreviewNotice);
+                _host.HideSheet();
                 ShowLab();
-            }, now: _now, onTimerComplete: ShowLab);
-            _host.Show(view);
+                ShowFacilitySheet(id);
+            }, onDismiss: _host.HideSheet, now: _now,
+                onTimerComplete: () => { _host.HideSheet(); ShowLab(); ShowFacilitySheet(id); });
+            _host.ShowSheet(sheet);
         }
 
         // ---------------------------------------------------------- Allies

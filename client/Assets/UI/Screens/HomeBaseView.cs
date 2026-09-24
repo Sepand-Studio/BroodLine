@@ -18,10 +18,12 @@ namespace Broodline.UI.Screens
         public const string HotspotUssClassName = "home-base__hotspot";
 
         readonly VisualElement _stage;
+        readonly VisualElement _stageFrame;
         readonly VisualElement _hotspots;
         readonly Label _name, _subtitle;
         readonly Button _defend, _roster, _codex, _store;
         Action<string> _onPlot;
+        IReadOnlyList<HomeHotspot> _placedHotspots;
 
         public HomeBaseView()
         {
@@ -34,8 +36,10 @@ namespace Broodline.UI.Screens
             scaffold.Content.Add(body);
             Add(scaffold);
 
+            _stageFrame = this.Q<VisualElement>("stage-frame");
             _stage = this.Q<VisualElement>("stage");
             _hotspots = this.Q<VisualElement>("hotspots");
+            _stageFrame.RegisterCallback<GeometryChangedEvent>(_ => LayoutHotspots());
             _name = this.Q<Label>("ark-name");
             _subtitle = this.Q<Label>("ark-subtitle");
             _defend = this.Q<Button>("defend");
@@ -71,22 +75,50 @@ namespace Broodline.UI.Screens
             else _stage.style.backgroundImage = new StyleBackground((Texture2D)texture);
         }
 
-        /// Markers by fraction of the stage, so a resize never moves them off
-        /// their plots: `left`/`top` are percentages and each marker is
-        /// translated back by half its own size to sit centred on the point.
+        /// Marker positions are projected from the source image into the
+        /// visible scale-and-crop frame after each resize. CSS centres each
+        /// marker over that point with a half-size translation.
         public void PlaceHotspots(IReadOnlyList<HomeHotspot> hotspots)
         {
             _hotspots.Clear();
+            _placedHotspots = hotspots;
             if (hotspots == null) return;
             foreach (var h in hotspots)
             {
                 var id = h.Id;
                 var marker = new Button(() => _onPlot?.Invoke(id)) { name = "plot-" + h.Id, text = HomeScreen.HotspotLabel(h.Label, h.Tier) };
                 marker.AddToClassList(HotspotUssClassName);
-                marker.style.left = Length.Percent(Mathf.Clamp01(h.X01) * 100f);
-                marker.style.top = Length.Percent(Mathf.Clamp01(h.Y01) * 100f);
                 _hotspots.Add(marker);
             }
+            LayoutHotspots();
+        }
+
+        void LayoutHotspots()
+        {
+            if (_placedHotspots == null) return;
+            float width = _stageFrame.resolvedStyle.width, height = _stageFrame.resolvedStyle.height;
+            if (width <= 0f || height <= 0f) return;
+            foreach (var h in _placedHotspots)
+            {
+                var marker = _hotspots.Q<Button>("plot-" + h.Id);
+                if (marker == null) continue;
+                var point = ArkStageProjection.Point(h.X01, h.Y01, width, height);
+                marker.style.left = point.x;
+                marker.style.top = point.y;
+            }
+        }
+    }
+
+    /// Maps a 720×1280 stage point into a centred scale-and-crop frame. Both
+    /// home and Lab use this so their markers stay over the painted plot when
+    /// a short phone crops the source vertically.
+    public static class ArkStageProjection
+    {
+        public static Vector2 Point(float x01, float y01, float frameWidth, float frameHeight)
+        {
+            float scale = Mathf.Max(frameWidth / 720f, frameHeight / 1280f);
+            return new Vector2((frameWidth - 720f * scale) * .5f + Mathf.Clamp01(x01) * 720f * scale,
+                (frameHeight - 1280f * scale) * .5f + Mathf.Clamp01(y01) * 1280f * scale);
         }
     }
 }

@@ -1,0 +1,20 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="FacilitySheet.uss" />
+    <ui:VisualElement name="scrim" class="facility-sheet__scrim" />
+    <ui:VisualElement name="surface" class="facility-sheet__surface">
+        <ui:VisualElement class="facility-sheet__header">
+            <ui:VisualElement name="icon" class="facility-sheet__icon icon" />
+            <ui:VisualElement class="facility-sheet__heading">
+                <ui:Label name="name" class="facility-sheet__name" />
+                <ui:Label name="tier" class="facility-sheet__tier t-num" />
+            </ui:VisualElement>
+            <ui:Button name="dismiss" class="facility-sheet__dismiss btn-secondary" />
+        </ui:VisualElement>
+        <ui:Label name="role" class="facility-sheet__role" />
+        <ui:Label name="cost" class="facility-sheet__cost t-num" />
+        <ui:VisualElement name="timer-host" class="facility-sheet__timer" />
+        <ui:Label name="blocker" class="facility-sheet__blocker" />
+        <ui:Button name="upgrade" class="facility-sheet__upgrade btn-primary" />
+        <ui:Label name="preview" class="facility-sheet__preview" />
+    </ui:VisualElement>
+</ui:UXML>

@@ -9,8 +9,11 @@ namespace Broodline.UI
     {
         public string Id, Name, Role, Icon, Detail, Blocker;
         public int Tier;
+        public int NextCostShards;
+        public TimeSpan NextUpgradeTime;
         public bool CanUpgrade;
         public TimeSpan? Upgrading;
+        public DateTime? UpgradeEndsAt;
     }
 
     public sealed class LabScreenModel
@@ -27,6 +30,8 @@ namespace Broodline.UI
     {
         public const string Title = "Gene Lab";
         public const string Eyebrow = "FACILITIES";
+        public const string PlotHeading = "THE ARK'S FACILITIES";
+        public const string PlotHint = "Tap a plot or facility below to inspect its next tier.";
         public const string Upgrade = "Upgrade (preview)";
         public const string Preview = "Facility upgrades are previews in this build - nothing is spent.";
         public const string PreviewNotice = "Upgrade started (preview) - the timer is real, the shards are not spent.";
@@ -57,7 +62,10 @@ namespace Broodline.UI
                 rows.Add(new FacilityRow
                 {
                     Id = f.Id, Name = f.Name, Role = f.Role, Icon = f.Icon, Tier = tier,
-                    Upgrading = upgrading, CanUpgrade = can, Blocker = blocker,
+                    NextCostShards = FacilityCatalog.UpgradeCost(f.Id, tier),
+                    NextUpgradeTime = FacilityCatalog.UpgradeTime(f.Id, tier),
+                    Upgrading = upgrading, UpgradeEndsAt = upgrading != null ? ends : null,
+                    CanUpgrade = can, Blocker = blocker,
                     Detail = upgrading != null ? "Upgrading · " + Duration(upgrading.Value)
                            : can ? f.Role + " · " + Cost(FacilityCatalog.UpgradeCost(f.Id, tier), FacilityCatalog.UpgradeTime(f.Id, tier))
                            : f.Role + " · " + blocker,

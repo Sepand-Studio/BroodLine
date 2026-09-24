@@ -53,6 +53,7 @@ namespace Broodline.Game.Tests
             await router.ShowAsync("Lab");
             Assert.IsInstanceOf<LabView>(hostElement.ElementAt(0));
             Assert.IsNotNull(hostElement.Q("facility-core"));
+            Assert.IsNotNull(hostElement.Q<Button>("lab-plot-core"), "the Lab uses the Ark's plot positions");
 
             await router.ShowAsync("Allies");
             Assert.IsInstanceOf<AlliesView>(hostElement.ElementAt(0));

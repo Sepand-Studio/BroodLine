@@ -114,6 +114,7 @@ public static class ScreenFixtures
         "WorldMapView",
         "StoreView",
         "LabView",
+        "LabFacilitySheet",
         "AlliesView",
         // NOT SCREENS, and last for that reason - see Primitives(),
         // Icons(), Scaffold() and Components() below. Each exists because
@@ -137,7 +138,8 @@ public static class ScreenFixtures
     /// BY NAME, AND FOR THE SAME REASON `ScaffoldTests`' exemption list is by
     /// name: a fixture that is not a pushed-or-shown screen must not be
     /// rendered inside a slot the shell would never put it in, and an
-    /// accident of ordering in `Names` is not a reason. The three that answer
+    /// accident of ordering in `Names` is not a reason. The overlays and
+    /// reference fixtures that answer
     /// false:
     ///   CodexSheet  - ScreenHost.ShowSheet puts it in `#sheet-layer`, which
     ///                 is `position: absolute` and `display: none` until that
@@ -149,6 +151,9 @@ public static class ScreenFixtures
     ///                 The old reason given here - "it carries no padding" -
     ///                 stopped being true in that task: the padding moved one
     ///                 level in, to `#surface`, and the root positions.
+    ///   LabFacilitySheet - the Lab and its facility sheet composed in one
+    ///                 frame; the sheet overlays, so neither is wrapped in
+    ///                 a second screen-host slot.
     ///   WaveHudView - never reaches ScreenHost at all. `WaveRunner` adds it
     ///                 straight to the wave scene's own panel root.
     ///   the seven catalogues - Primitives, Icons, Scaffold, Components,
@@ -159,6 +164,7 @@ public static class ScreenFixtures
         switch (name)
         {
             case "CodexSheet":
+            case "LabFacilitySheet":
             case "WaveHudView":
             case "Primitives":
             case "Icons":
@@ -195,6 +201,7 @@ public static class ScreenFixtures
             case "WorldMapView": return WorldMap();
             case "StoreView": return Store();
             case "LabView": return Lab();
+            case "LabFacilitySheet": return LabDetail();
             case "AlliesView": return Allies();
             case "Primitives": return Primitives();
             case "Icons": return Icons();
@@ -954,18 +961,24 @@ public static class ScreenFixtures
     static VisualElement HomeBase()
     {
         var view = new HomeBaseView();
-        var hotspots = new List<HomeHotspot>();
-        foreach (var (id, x, y) in Broodline.Game.Shell.HubRouter.DefaultAnchors)
-        {
-            var f = FacilityCatalog.Find(id);
-            hotspots.Add(new HomeHotspot { Id = id, Label = f.Name, Tier = id == "core" ? 2 : 1, X01 = x, Y01 = y });
-        }
+        var hotspots = FacilityHotspots();
         view.Bind(new HomeScreenModel { ArkName = "The Ark", RegionName = "Holdfast", CoreTier = 2, Hotspots = hotspots },
             null, null, null, null, null);
         // No stage in a fixture: the frame shows its own deep fill, which is
         // what the screen shows for the frame before the first paint too.
         view.SetStage(null);
         return view;
+    }
+
+    static List<HomeHotspot> FacilityHotspots()
+    {
+        var hotspots = new List<HomeHotspot>();
+        foreach (var (id, x, y) in Broodline.Game.Shell.HubRouter.DefaultAnchors)
+        {
+            var f = FacilityCatalog.Find(id);
+            hotspots.Add(new HomeHotspot { Id = id, Label = f.Name, Tier = id == "core" ? 2 : 1, X01 = x, Y01 = y });
+        }
+        return hotspots;
     }
 
     static VisualElement WorldMap()
@@ -989,8 +1002,25 @@ public static class ScreenFixtures
         ledger.RememberFacility("splicing");
         ledger.StartUpgrade("splicing", TimeSpan.FromMinutes(42));
         var view = new LabView();
-        view.Bind(LabScreen.Build(ledger, now), null);
+        view.Bind(LabScreen.Build(ledger, now), null, hotspots: FacilityHotspots());
         return view;
+    }
+
+    static VisualElement LabDetail()
+    {
+        var now = new DateTime(2026, 9, 23, 12, 0, 0, DateTimeKind.Utc);
+        var ledger = new StubLedger(new StubLedger.MemoryStore(), now: () => now);
+        var lab = new LabView();
+        var model = LabScreen.Build(ledger, now);
+        lab.Bind(model, null, hotspots: FacilityHotspots());
+        var sheet = new FacilitySheet();
+        foreach (var row in model.Rows)
+            if (row.Id == "core") { sheet.Bind(row, null, null, now: () => now); break; }
+        var composition = new VisualElement { name = "lab-sheet-fixture" };
+        composition.style.flexGrow = 1;
+        composition.Add(lab);
+        composition.Add(sheet);
+        return composition;
     }
 
     static VisualElement Allies()
