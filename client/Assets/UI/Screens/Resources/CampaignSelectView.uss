@@ -23,7 +23,7 @@
  */
 .campaign-select-view { flex-grow: 1; }
 .campaign-select-view__chapter {
-    height: 158px;
+    height: 210px;
     background-color: var(--surface-deep);
     -unity-background-scale-mode: scale-and-crop;
     border-width: 2px;
@@ -33,6 +33,7 @@
     padding: var(--space-3);
     margin-bottom: var(--space-3);
 }
+.campaign-select-view--compact .campaign-select-view__chapter { height: 144px; }
 .campaign-select-view__chapter-label {
     color: var(--brass-light);
     font-size: var(--text-micro);
@@ -47,10 +48,20 @@
 /* Unity's default theme dims a disabled element to 50% opacity, which would
  * take the row's border and the padlock with it and read as damage rather
  * than as a state. The locked treatment is stated instead: the sunk fill it
- * already has, and its words in --mute-soft. */
+ * already has, and its words in --ink-secondary for readable contrast. */
 .campaign-row:disabled { opacity: 1; }
-.campaign-row:disabled .option-row__title { color: var(--mute-soft); }
-.campaign-row:disabled .option-row__detail { color: var(--mute-soft); }
+.campaign-row:disabled .option-row__title { color: var(--ink-secondary); }
+.campaign-row:disabled .option-row__detail { color: var(--ink-secondary); }
+
+/* The single next wave is the campaign's decision. The completed and locked
+ * rows retain their existing component treatment; the next one gets an
+ * inset violet field and a clear border that survives the ivory card. */
+.campaign-select-view .campaign-row--next {
+    background-color: var(--violet-tint);
+    border-color: var(--action);
+    border-width: 2px;
+}
+.campaign-select-view .campaign-row--next .option-row__title { color: var(--violet-text); }
 
 /* OUT OF FLOW at the row's right edge, for both marks. `.option-row` is a
  * column of two labels, so an in-flow glyph or chip would land under them as

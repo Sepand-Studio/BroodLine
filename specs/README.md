@@ -45,7 +45,7 @@ The tell for era: a document that says *chassis* is era 1 or 2. A document that 
 ### 01-companions
 | File | What it is |
 |---|---|
-| `broodline_screen_inventory_v2.md` | 34 screens, build priority, rework column for the designed prototypes. Revised 2026-09-05 for register Part 6; changed screens marked `⚠`. |
+| `broodline_screen_inventory_v2.md` | 48 named screen and flow entries, build priority, rework column for the designed prototypes. Counts reconciled 2026-09-24; changed screens marked `⚠`. |
 | `broodline_splice_confirm_spec.md` | Copy and interaction states for splice confirmation. Bible §2.7. |
 | `broodline_trait_utility.md` | What Carapace, Litter, Regrow and Screen do: pressure shapes, tier curves, stacking rules, the campaign's three utility waves. Bible §1.2, §4.4. Written 2026-09-05; register 6.13. |
 | `broodline_campaign_structure.md` | 60 waves, 7 chapters, 12 Core milestones, species guarantee. Bible §4.8, §7.3. Reconciled 2026-09-05. |
@@ -90,6 +90,8 @@ Nine era-1 originals (`genetics_system`, `combat_system`, `gene_vault`, `art_dir
 **Designer** — bible in full, then the screen inventory's rework column.
 
 **Illustrator** — bible §10, §1.2 for the six species, §4.4 for the eight raiders. Ignore `99-archive/enemy_archetypes` entirely; its names conflict.
+
+**Visual production** — `Designs/visual-upgrade-mockups-v1/` holds the approved Founder, battle and reveal concepts; `Designs/visual-production-v1/` maps all 48 inventory entries to compositions and review states, includes a 32-screen offline study gallery, and lists the remaining original art in an artist production brief. The Unity prefab contract is in `client/Assets/Frontier/Art/AUTHORED_ASSETS.md`.
 
 **Economy / live-ops** — bible §7.6 and §8, then the economy, monetization and live-ops companions.
 

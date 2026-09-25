@@ -13,6 +13,162 @@ namespace Broodline.Frontier.Art.Tests
     public sealed class FrontierArtTests
     {
         [Test]
+        public void FounderPortraitFillsTheFrameWithoutClippingItsBounds()
+        {
+            var host = new GameObject("portrait-framing-host");
+            var camera = new GameObject("portrait-camera").AddComponent<Camera>();
+            try
+            {
+                camera.orthographic = true;
+                camera.aspect = 1f;
+                using (var art = new FrontierArt(Shader.Find("Broodline/FrontierSurface")))
+                {
+                    var creature = art.Creature(host.transform, "vetch");
+                    var bounds = creature.PortraitBounds;
+                    FrontierPortraitCamera.Frame(camera, host.transform, bounds, creature.Rig,
+                        FrontierVisuals.For("vetch").Portrait);
+                    float left = 1f, right = 0f, bottom = 1f, top = 0f;
+                    for (int x = -1; x <= 1; x += 2)
+                    for (int y = -1; y <= 1; y += 2)
+                    for (int z = -1; z <= 1; z += 2)
+                    {
+                        var corner = bounds.center + Vector3.Scale(bounds.extents, new Vector3(x, y, z));
+                        var uv = camera.WorldToViewportPoint(host.transform.TransformPoint(corner));
+                        left = Mathf.Min(left, uv.x); right = Mathf.Max(right, uv.x);
+                        bottom = Mathf.Min(bottom, uv.y); top = Mathf.Max(top, uv.y);
+                    }
+                    Assert.That(right - left, Is.GreaterThan(.7f), "Vetch must read as a hero at phone size");
+                    Assert.That(left, Is.GreaterThan(.03f));
+                    Assert.That(right, Is.LessThan(.97f));
+                    Assert.That(bottom, Is.GreaterThan(.03f));
+                    Assert.That(top, Is.LessThan(.97f));
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(host);
+                Object.DestroyImmediate(camera.gameObject);
+            }
+        }
+
+        [Test]
+        public void AuthoredCreatureUsesTheSharedRigAndKeepsBothTraitSockets()
+        {
+            var host = new GameObject("authored-host");
+            var prefab = new GameObject("authored-vetch");
+            Mesh mesh = null;
+            Material material = null;
+            try
+            {
+                var rig = FrontierRigDefinition.For("vetch");
+                var bones = new Transform[rig.Bones.Length];
+                for (int i = 0; i < bones.Length; i++)
+                {
+                    bones[i] = new GameObject(rig.Bones[i].Name).transform;
+                    bones[i].SetParent(rig.Bones[i].Parent < 0 ? prefab.transform : bones[rig.Bones[i].Parent], false);
+                    bones[i].localPosition = rig.LocalPosition(i);
+                }
+                var author = new FrontierMesh();
+                FrontierVetch.Build(author);
+                mesh = author.FinishRig("authored-test-body", rig);
+                material = new Material(Shader.Find("Broodline/FrontierSurface"));
+                var renderer = new GameObject("authored-body").AddComponent<SkinnedMeshRenderer>();
+                renderer.transform.SetParent(prefab.transform, false);
+                renderer.sharedMesh = mesh;
+                renderer.sharedMaterial = material;
+                renderer.bones = bones;
+                renderer.rootBone = bones[0];
+
+                string requestedPath = null;
+                using (var art = new FrontierArt(material.shader, path => { requestedPath = path; return prefab; }))
+                {
+                    var creature = art.Creature(host.transform, "vetch", "cinder", "carapace");
+                    Assert.AreEqual("Frontier/Creatures/vetch", requestedPath);
+                    Assert.AreSame(mesh, creature.GetComponentInChildren<SkinnedMeshRenderer>().sharedMesh);
+                    Assert.IsNotNull(creature.Dorsal.Find("cinder"));
+                    Assert.IsNotNull(creature.Flank.Find("carapace"));
+                    Assert.DoesNotThrow(() => creature.Pose(0f, true));
+                }
+
+                // The asset contract requires an origin root at unit scale.
+                // An offset or scaled prefab must fall back before it shifts
+                // a battle unit or makes the portrait camera frame the wrong bounds.
+                prefab.transform.localPosition = new Vector3(.25f, 0f, 0f);
+                using (var art = new FrontierArt(material.shader, _ => prefab))
+                {
+                    var fallback = art.Creature(host.transform, "vetch");
+                    Assert.AreNotSame(mesh, fallback.GetComponentInChildren<SkinnedMeshRenderer>().sharedMesh);
+                }
+                prefab.transform.localPosition = Vector3.zero;
+                prefab.transform.localScale = Vector3.one;
+                prefab.transform.localRotation = Quaternion.Euler(0f, 15f, 0f);
+                using (var art = new FrontierArt(material.shader, _ => prefab))
+                {
+                    var fallback = art.Creature(host.transform, "vetch");
+                    Assert.AreNotSame(mesh, fallback.GetComponentInChildren<SkinnedMeshRenderer>().sharedMesh);
+                }
+                prefab.transform.localPosition = Vector3.zero;
+                prefab.transform.localRotation = Quaternion.identity;
+                prefab.transform.localScale = Vector3.one * 1.2f;
+                using (var art = new FrontierArt(material.shader, _ => prefab))
+                {
+                    var fallback = art.Creature(host.transform, "vetch");
+                    Assert.AreNotSame(mesh, fallback.GetComponentInChildren<SkinnedMeshRenderer>().sharedMesh);
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(host);
+                Object.DestroyImmediate(prefab);
+                if (mesh != null) Object.DestroyImmediate(mesh);
+                if (material != null) Object.DestroyImmediate(material);
+            }
+        }
+
+        [Test]
+        public void MissingAuthoredCreatureFallsBackToTheProceduralBody()
+        {
+            var host = new GameObject("fallback-host");
+            try
+            {
+                using (var art = new FrontierArt(Shader.Find("Broodline/FrontierSurface"), _ => null))
+                {
+                    var creature = art.Creature(host.transform, "vetch");
+                    Assert.IsNotNull(creature.GetComponentInChildren<SkinnedMeshRenderer>().sharedMesh);
+                    Assert.IsNotNull(creature.Dorsal);
+                }
+            }
+            finally { Object.DestroyImmediate(host); }
+        }
+
+        [Test]
+        public void EveryFounderTraitHasAVisiblePartInBothLiveSlots()
+        {
+            var root = new GameObject("all-trait-slots");
+            var traits = new[] { "carapace", "taunt", "cinder", "splash", "sprint", "litter",
+                "reach", "pierce", "regrow", "burrow", "screen", "chill" };
+            try
+            {
+                using (var art = new FrontierArt(Shader.Find("Broodline/FrontierSurface")))
+                {
+                    foreach (var trait in traits)
+                    {
+                        var creature = art.Creature(root.transform, "vetch", trait, trait);
+                        foreach (var socket in new[] { creature.Dorsal, creature.Flank })
+                        {
+                            var part = socket.Find(trait);
+                            Assert.IsNotNull(part, trait + " is missing from " + socket.name);
+                            var filter = part.GetComponent<MeshFilter>();
+                            Assert.IsNotNull(filter);
+                            ValidMesh(filter.sharedMesh, true);
+                        }
+                    }
+                }
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
+
+        [Test]
         public void ProductionSnapshotIdsRemainCaseInsensitive()
         {
             var root = new GameObject("snapshot-id-regression");

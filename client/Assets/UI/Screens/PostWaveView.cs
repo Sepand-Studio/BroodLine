@@ -125,6 +125,7 @@ namespace Broodline.UI.Screens
             // constructor has the same note.
             _scaffold.Content.Add(_kicker);
             _scaffold.Content.Add(_headline);
+            _scaffold.Content.Add(this.Q<VisualElement>("outcome-scene"));
             _scaffold.Content.Add(summary);
             _scaffold.Content.Add(_granted);
             _scaffold.CtaRow.Add(_next);
@@ -185,6 +186,8 @@ namespace Broodline.UI.Screens
             var won = response.Result == PostWaveScreen.WinResult;
             _headline.EnableInClassList("t-success", won);
             _headline.EnableInClassList("t-danger", !won);
+            EnableInClassList("post-wave-view--loss", !won);
+            this.Q<Label>("outcome-caption").text = won ? "THE ARK ENDURES" : "THE ARK REGROUPS";
 
             _reward.Value = PostWaveScreen.RewardLine(response.Reward);
             _integrity.Value = PostWaveScreen.IntegrityStatValue(response.IntegrityRemaining);

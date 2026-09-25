@@ -103,6 +103,8 @@ namespace Broodline.UI.Screens
         public DeployView()
         {
             AddToClassList(UssClassName);
+            RegisterCallback<GeometryChangedEvent>(e =>
+                EnableInClassList("deploy-view--compact", e.newRect.height > 0 && e.newRect.height < 720));
 
             var tree = Resources.Load<VisualTreeAsset>("DeployView");
             tree.CloneTree(this);

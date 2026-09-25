@@ -5,6 +5,7 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
+using Broodline.UI.Components;
 
 // No namespace: Assembly-CSharp-Editor, as with ScreenHarness and LabelBoxProbe.
 
@@ -74,7 +75,10 @@ public static class FrameProbe
         if (sizes.Count == 0) sizes.Add(new Vector2Int(DefaultWidth, DefaultHeight));
         if (screens.Count == 0) screens.AddRange(ScreenFixtures.Names);
 
-        foreach (var size in sizes) Sweep(size.x, size.y, screens);
+        var priorPortraitSource = CreatureCard.PortraitSource;
+        CreatureCard.PortraitSource = ScreenFixtures.CapturePortraits;
+        try { foreach (var size in sizes) Sweep(size.x, size.y, screens); }
+        finally { CreatureCard.PortraitSource = priorPortraitSource; }
     }
 
     static void Sweep(int width, int height, List<string> screens)

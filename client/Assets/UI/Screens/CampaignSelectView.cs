@@ -56,6 +56,7 @@ namespace Broodline.UI.Screens
         /// this file and the stylesheet - on `SectionCard`'s convention.
         public const string ClearedChipUssClassName = "campaign-select-view__cleared";
         public const string HeldUssClassName = "campaign-select-view__held";
+        public const string NextUssClassName = "campaign-row--next";
 
         readonly VisualElement _waves;
         readonly ScreenScaffold _scaffold;
@@ -63,6 +64,8 @@ namespace Broodline.UI.Screens
         public CampaignSelectView()
         {
             AddToClassList(UssClassName);
+            RegisterCallback<GeometryChangedEvent>(e =>
+                EnableInClassList("campaign-select-view--compact", e.newRect.height > 0 && e.newRect.height < 720));
 
             var tree = Resources.Load<VisualTreeAsset>("CampaignSelectView");
             tree.CloneTree(this);
@@ -182,6 +185,8 @@ namespace Broodline.UI.Screens
                 name = CampaignSelectScreen.RowName(id),
             };
             row.AddToClassList(RowUssClassName);
+            row.EnableInClassList(NextUssClassName,
+                playable && !CampaignSelectScreen.IsCleared(id, highestWaveCleared));
 
             // SetEnabled ON THE ROW, not on a button inside it: a locked wave
             // must not be reachable by tapping its label either, and

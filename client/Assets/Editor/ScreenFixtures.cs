@@ -8,8 +8,12 @@ using Broodline.UI;
 using Broodline.UI.Components;
 using Broodline.UI.Screens;
 using Broodline.UI.Shell;
+using Broodline.Frontier;
+using Broodline.Creatures;
+using Broodline.Game.Shell;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.UIElements;
 
 // UnityEngine.UIElements HAS ITS OWN `ProgressBar`, so the bare name in a
@@ -72,6 +76,115 @@ public static class ScreenFixtures
     static readonly Guid ParentAId = Guid.Parse("22222222-2222-2222-2222-222222222222");
     static readonly Guid ParentBId = Guid.Parse("33333333-3333-3333-3333-333333333333");
     static readonly Guid ChildId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+    static readonly Dictionary<string, Texture2D> HeroPortraits = new Dictionary<string, Texture2D>();
+    internal static readonly ICreaturePortraitSource CapturePortraits = new FixturePortraitSource();
+    static HomeStage ArkFixtureStage;
+    static LaneStage LaneFixtureStage;
+
+    static Texture ArkPicture()
+    {
+        if (ArkFixtureStage == null)
+        {
+            var host = new GameObject("fixture-ark-stage") { hideFlags = HideFlags.HideAndDontSave };
+            ArkFixtureStage = HomeStage.Create(host.transform);
+        }
+        return ArkFixtureStage.Show();
+    }
+
+    static Texture LanePicture()
+    {
+        if (LaneFixtureStage == null)
+        {
+            var host = new GameObject("fixture-lane-stage") { hideFlags = HideFlags.HideAndDontSave };
+            LaneFixtureStage = LaneStage.Create(host.transform);
+        }
+        return LaneFixtureStage.Show(7,
+            new[] { new FrontierLook { Species = "vetch", Trait1 = "carapace", Trait2 = "taunt" },
+                    new FrontierLook { Species = "ember", Trait1 = "cinder", Trait2 = "splash" } },
+            new[] { 0, 1 });
+    }
+
+    // Capture the same assembled Frontier mesh as the runtime portrait studio.
+    // The older layered sprite remains visible in the ordinary fixture, so
+    // the corpus makes fallback and authored/live presentation easy to compare.
+    sealed class FixturePortraitSource : ICreaturePortraitSource
+    {
+        public event Action<Texture2D> Evicted { add { } remove { } }
+
+        public Texture2D Request(string species, string first, string second, float growth01,
+            Action<Texture2D> ready)
+        {
+            species = species?.Trim().ToLowerInvariant();
+            if (!FrontierVisuals.Has(species) || FrontierVisuals.For(species).Kind != FrontierKind.Companion)
+                return null;
+            return HeroPortrait(species, first?.Trim().ToLowerInvariant(), second?.Trim().ToLowerInvariant(),
+                workshop: false, ground: false, size: 256, growth: growth01);
+        }
+    }
+
+    static Texture2D HeroPortrait(string species, string first = null, string second = null,
+        bool workshop = false, bool ground = true, int size = 512, float growth = 0f)
+    {
+        var key = species + "|" + first + "|" + second + "|" + workshop + "|" + ground + "|" + size + "|" + growth;
+        if (HeroPortraits.TryGetValue(key, out var cached)) return cached;
+        const int layer = CreatureAssembler.StudioLayer;
+        var host = new GameObject("fixture-hero-portrait");
+        host.transform.position = new Vector3(0f, -1200f, 0f);
+        var rt = new RenderTexture(size, size, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
+        var camera = new GameObject("camera").AddComponent<Camera>();
+        camera.transform.SetParent(host.transform, false);
+        camera.orthographic = true;
+        camera.clearFlags = CameraClearFlags.SolidColor;
+        camera.backgroundColor = Color.clear;
+        camera.cullingMask = 1 << layer;
+        camera.nearClipPlane = .1f;
+        camera.farClipPlane = 20f;
+        camera.targetTexture = rt;
+        camera.enabled = false;
+        var light = new GameObject("light").AddComponent<Light>();
+        light.transform.SetParent(host.transform, false);
+        light.type = LightType.Directional;
+        light.cullingMask = 1 << layer;
+        light.transform.rotation = Quaternion.Euler(42f, -35f, 0f);
+        light.intensity = 1.1f;
+        try
+        {
+            using (var art = new FrontierArt(Shader.Find("Broodline/FrontierSurface")))
+            {
+                var creature = art.Creature(host.transform, species, first, second);
+                creature.Growth = Mathf.Clamp01(growth);
+                creature.Pose(0f, true);
+                CreatureAssembler.SetLayerRecursively(creature.gameObject, layer);
+                if (ground)
+                {
+                    var plinth = art.PortraitPlinth(host.transform, workshop);
+                    CreatureAssembler.SetLayerRecursively(plinth, layer);
+                }
+                FrontierPortraitCamera.Frame(camera, host.transform, creature.PortraitBounds,
+                    creature.Rig, FrontierVisuals.For(species).Portrait);
+                if (GraphicsSettings.currentRenderPipeline != null)
+                    camera.SubmitRenderRequest(new RenderPipeline.StandardRequest { destination = rt });
+                else camera.Render();
+                var previous = RenderTexture.active;
+                try
+                {
+                    RenderTexture.active = rt;
+                    var image = new Texture2D(size, size, TextureFormat.RGBA32, false);
+                    image.ReadPixels(new Rect(0, 0, size, size), 0, 0);
+                    image.Apply();
+                    HeroPortraits.Add(key, image);
+                    return image;
+                }
+                finally { RenderTexture.active = previous; }
+            }
+        }
+        finally
+        {
+            camera.targetTexture = null;
+            UnityEngine.Object.DestroyImmediate(rt);
+            UnityEngine.Object.DestroyImmediate(host);
+        }
+    }
 
     /// Every screen this harness knows how to build, in the order the picker
     /// and the capture both walk. `List<string>`, not `IReadOnlyList<string>`:
@@ -83,6 +196,7 @@ public static class ScreenFixtures
         "CodexSheet",
         "DeployView",
         "FounderNamingView",
+        "FounderPortraitSlot",
         // THE SCREEN NOBODY IS SUPPOSED TO SEE, WHICH IS EXACTLY WHY IT IS
         // CAPTURED - Phase 9 Task 21g. It goes up only when the walk stops,
         // so it is the one screen in the app a play-through does not reach on
@@ -104,6 +218,8 @@ public static class ScreenFixtures
         "RosterView",
         "SpliceChamberView",
         "SpliceRevealView",
+        "RevealPortraitSlot",
+        "RevealLongName",
         "WaveDefeatView",
         "WaveHudView",
         // PHASE 10 TASK 1.5: the four tab destinations that did not exist
@@ -193,6 +309,7 @@ public static class ScreenFixtures
             case "CodexSheet": return Codex();
             case "DeployView": return Deploy();
             case "FounderNamingView": return FounderNaming();
+            case "FounderPortraitSlot": return FounderNaming(withPortrait: true);
             case "InterruptedView": return Interrupted();
             case "LineageView": return Lineage();
             case "PostWaveView": return PostWave();
@@ -201,6 +318,8 @@ public static class ScreenFixtures
             case "RosterView": return Roster();
             case "SpliceChamberView": return SpliceChamber();
             case "SpliceRevealView": return SpliceReveal();
+            case "RevealPortraitSlot": return SpliceReveal(withPortrait: true);
+            case "RevealLongName": return SpliceReveal(withPortrait: true, longName: true);
             case "WaveDefeatView": return WaveDefeat();
             case "WaveHudView": return WaveHud();
             case "HomeBaseView": return HomeBase();
@@ -413,6 +532,7 @@ public static class ScreenFixtures
         view.Bind(
             model,
             onStart: () => { },
+            lane: LanePicture(),
             roster: roster.Known,
             onToggle: _ => { },
             facts: new DeployWaveFacts
@@ -425,11 +545,14 @@ public static class ScreenFixtures
         return view;
     }
 
-    static VisualElement FounderNaming()
+    static VisualElement FounderNaming(bool withPortrait = false)
     {
         var founder = Creature("Vetch", 1, name: null, founder: true, id: FounderId);
         var view = new FounderNamingView();
-        view.Bind(founder, FounderNamingScreen.DefaultFor(founder), onName: _ => { }, onSkip: () => { });
+        // Ordinary fixture checks the baked fallback; this one captures the
+        // real assembled three-dimensional Vetch in the live portrait slot.
+        view.Bind(founder, FounderNamingScreen.DefaultFor(founder), onName: _ => { }, onSkip: () => { },
+            portrait: withPortrait ? HeroPortrait("vetch") : null);
         return view;
     }
 
@@ -615,7 +738,7 @@ public static class ScreenFixtures
         return view;
     }
 
-    static VisualElement SpliceReveal()
+    static VisualElement SpliceReveal(bool withPortrait = false, bool longName = false)
     {
         // THE SAME PAIR THE CHAMBER SPLICED, AND A CHILD THAT ACTUALLY
         // MUTATED. One trait carries from parent A (Carapace III) and the
@@ -630,7 +753,8 @@ public static class ScreenFixtures
             trait1: "Carapace", tier1: 3, trait2: "Taunt", tier2: 1);
         var b = Creature("Skitter", 6, name: null, founder: false, id: ParentBId,
             trait1: "Sprint", tier1: 2, trait2: "Litter", tier2: 1);
-        var child = Creature("Vetch", 7, name: null, founder: false, id: ChildId,
+        var child = Creature("Vetch", 7, name: longName ? "Cinderplate of Holdfast" : null,
+            founder: false, id: ChildId,
             trait1: "Carapace", tier1: 3, trait2: "Cinder", tier2: 1);
         var committed = new SpliceCommitResponse
         {
@@ -641,7 +765,8 @@ public static class ScreenFixtures
         };
 
         var view = new SpliceRevealView();
-        view.Bind(committed, a, b, mutated: true, next: () => { });
+        view.Bind(committed, a, b, mutated: true, next: () => { },
+            portrait: withPortrait ? HeroPortrait("vetch", "carapace", "cinder", workshop: true) : null);
         return view;
     }
 
@@ -976,9 +1101,7 @@ public static class ScreenFixtures
         var hotspots = FacilityHotspots();
         view.Bind(new HomeScreenModel { ArkName = "The Ark", RegionName = "Holdfast", CoreTier = 2, Hotspots = hotspots },
             null, null, null, null, null);
-        // No stage in a fixture: the frame shows its own deep fill, which is
-        // what the screen shows for the frame before the first paint too.
-        view.SetStage(null);
+        view.SetStage(ArkPicture());
         return view;
     }
 
@@ -1045,6 +1168,7 @@ public static class ScreenFixtures
         ledger.StartUpgrade("splicing", TimeSpan.FromMinutes(42));
         var view = new LabView();
         view.Bind(LabScreen.Build(ledger, now), null, hotspots: FacilityHotspots());
+        view.SetStage(ArkPicture());
         return view;
     }
 

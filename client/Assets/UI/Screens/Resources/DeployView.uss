@@ -281,6 +281,7 @@
  * the same two things the handoff measures between. The 6px is where the
  * drop shadow falls, which is what the handoff's own `box-shadow` fills. */
 .deploy-view__lane { margin-bottom: 5px; }
+.deploy-view--compact .lane-preview-card { height: 220px; }
 
 /* --------------------------------------------------------- the two cards */
 

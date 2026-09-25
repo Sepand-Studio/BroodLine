@@ -6,19 +6,20 @@ using UnityEngine;
 
 namespace Broodline.Game.Shell
 {
-    /// One camera, one render texture, one creature, turning. Phase 9 design
+    /// One camera, one render texture, one creature. Phase 9 design
     /// §3.8. Far below the origin on the Studio layer so no scene camera
     /// sees it and it sees no scene. Created once by BootController; the
     /// director shows and clears it around the three hero moments.
     public sealed class PortraitStudio : MonoBehaviour
     {
+        public enum Setting { None, Habitat, Workshop }
         public const int Size = 512;
-        public const float TurnDegreesPerSecond = 28f;
         static readonly Vector3 Far = new Vector3(0f, -400f, 0f);
 
         Camera _camera;
         RenderTexture _texture;
         GameObject _creature;
+        GameObject _plinth;
         FrontierArt _art;
 
         public static PortraitStudio Create(Transform host)
@@ -69,7 +70,8 @@ namespace Broodline.Game.Shell
             Clear();
         }
 
-        public Texture Show(string species, string trait1, string trait2, float growth01)
+        public Texture Show(string species, string trait1, string trait2, float growth01,
+            Setting setting = Setting.None)
         {
             _clearPending = false;
             Clear();
@@ -85,6 +87,11 @@ namespace Broodline.Game.Shell
             creature.Pose(0f, true);
             _creature = creature.gameObject;
             CreatureAssembler.SetLayerRecursively(_creature, CreatureAssembler.StudioLayer);
+            if (setting != Setting.None)
+            {
+                _plinth = _art.PortraitPlinth(transform, setting == Setting.Workshop);
+                CreatureAssembler.SetLayerRecursively(_plinth, CreatureAssembler.StudioLayer);
+            }
             FrontierPortraitCamera.Frame(_camera, transform, creature.PortraitBounds,
                 creature.Rig, FrontierVisuals.For(species).Portrait);
             _camera.enabled = true;
@@ -100,6 +107,13 @@ namespace Broodline.Game.Shell
                 else DestroyImmediate(_creature);
             }
             _creature = null;
+            if (_plinth != null)
+            {
+                _plinth.SetActive(false);
+                if (Application.isPlaying) Destroy(_plinth);
+                else DestroyImmediate(_plinth);
+            }
+            _plinth = null;
             if (_camera != null) _camera.enabled = false;
 
             // Disabling the camera does not reset the texture it was
@@ -119,10 +133,9 @@ namespace Broodline.Game.Shell
             }
         }
 
-        void Update()
-        {
-            if (_creature != null) _creature.transform.Rotate(0f, TurnDegreesPerSecond * Time.deltaTime, 0f, Space.World);
-        }
+        // FrontierCreature animates its own idle and reactions. Holding the
+        // authored three-quarter angle keeps its face and trait sockets
+        // visible inside the tighter hero framing.
 
         void OnDestroy()
         {

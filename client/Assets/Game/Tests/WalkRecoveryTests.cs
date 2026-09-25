@@ -484,7 +484,8 @@ namespace Broodline.Game.Tests
             // not two - the same hazard the single `clicked` subscription in
             // the constructor avoids.
             bare.Bind("Something specific.", () => { });
-            Assert.AreEqual(1, bare.Q<VisualElement>("reason").childCount);
+            Assert.AreEqual(1, bare.Q<VisualElement>("reason")
+                .Query<VisualElement>(className: EmptyState.UssClassName).ToList().Count);
             Assert.AreEqual("Something specific.", bare.Q<Label>("message").text);
         }
 

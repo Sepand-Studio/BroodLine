@@ -124,10 +124,11 @@ namespace Broodline.Game.Tests
 
                 foreach (var file in Directory.GetFiles(dir, "*.cs", SearchOption.AllDirectories))
                 {
-                    // Generated clients are not ours to edit, and this test's
-                    // own text would otherwise match itself.
+                    // Production code owns this rule. Test-only HTTP stubs
+                    // intentionally resume off-thread and never build UI;
+                    // scanning them reported a false production violation.
                     if (file.Contains("/Generated/")) continue;
-                    if (Path.GetFileName(file) == "MainThreadAffinityTests.cs") continue;
+                    if (file.Contains("/Tests/")) continue;
 
                     scanned++;
                     var text = StripCommentsAndStrings(File.ReadAllText(file));

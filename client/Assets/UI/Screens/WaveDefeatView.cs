@@ -47,6 +47,7 @@ namespace Broodline.UI.Screens
 
         readonly ScreenScaffold _scaffold;
         readonly HeroBand _band;
+        readonly VisualElement _scene;
         readonly Label _kicker;
         readonly Label _headline;
         readonly Label _diagnosis;
@@ -80,6 +81,7 @@ namespace Broodline.UI.Screens
             tree.CloneTree(this);
 
             _kicker = this.Q<Label>("kicker");
+            _scene = this.Q<VisualElement>("breach-scene");
             _headline = this.Q<Label>("headline");
             _diagnosis = this.Q<Label>("diagnosis");
             _granted = this.Q<Label>("granted");
@@ -184,6 +186,7 @@ namespace Broodline.UI.Screens
             // `__cta-row` is `flex-direction: column`, so the retry sits over
             // the roster in the handoff's order of weight rather than beside
             // it at half width.
+            _scaffold.Content.Add(_scene);
             _scaffold.Content.Add(_band);
             _scaffold.Content.Add(_diagnosisCard);
             _scaffold.Content.Add(_resupply);

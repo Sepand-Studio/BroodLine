@@ -33,7 +33,7 @@
  * content-sized and centring them was the whole layout. The band and the
  * traits card are full-bleed in the handoff (`:43` and `:71` are both
  * `margin: <n>px 12px` on a 430 frame), and a centred flex child shrinks to
- * its content - so `center` here would have drawn a 372px band around
+ * its content - so `center` here would have drawn a narrow band around
  * whatever width its subject came to. The headline centres its own text
  * instead, one rule down. */
 .splice-reveal-view .unity-scroll-view__content-container { align-items: stretch; }
@@ -77,7 +77,7 @@
 
 /* THE BAND IS `HeroBand` AND IT NEEDS NO RADIUS OVERRIDE, which is the one
  * instance of six that can say so: `Splice Reveal.dc.html:43` is 26 and
- * `--radius-band` IS 26. Its height comes from `HeroBand.Fix(372)` in C#,
+ * `--radius-band` IS 26. Its height comes from `HeroBand.Fix` in C#,
  * where both halves of the fix (the surface, never the elevation wrapper)
  * are written from one method - see that component's class comment for the
  * 160px of shadow-around-bare-paper that rule exists to prevent.
@@ -86,52 +86,35 @@
  * drop has somewhere to fall, and the card below it carries its own
  * `margin-bottom` from `SectionCard`. */
 
-/* `:45` is `r 140` - a 280px ring against `--band-ring`'s 264 - and `:46` is
- * `r 106`, a 212px pool against the component's 196. Both are stretched
- * textures, so a different diameter is the same 52 dashes at a different
- * scale (generate-textures.py's band-ring block has the arithmetic and says
- * so in as many words). `Tokens.uss`'s own note names 280 as one of the two
- * band rings that are NOT the token, which is exactly this. 106 is half of
- * 212. */
-.splice-reveal-view__child .hero-band__ring { width: 280px; height: 280px; }
+/* The approved concept makes the child the focus. The original 186px stage
+ * rendered the assembled animal at roughly 110px wide in the 430px capture.
+ * A 236px stage and slightly larger halo preserve its full feet and trait
+ * attachments while letting the live animal carry the band. */
+.splice-reveal-view__child .hero-band__ring { width: 300px; height: 300px; }
 .splice-reveal-view__child .hero-band__glow {
-    width: 212px;
-    height: 212px;
-    border-radius: 106px;
+    width: 230px;
+    height: 230px;
+    border-radius: 115px;
 }
 
-/* `:57` - the child is drawn at 186x186 inside the 212px pool, leaving 13px
- * of violet visible on each side. `HeroBand.uss` sizes a HALOED subject's
- * slot to 160 by default and says what is left: "Remaining room on the 61%
- * is HeroSlot's disc size, traded against pool visibility." This screen has
- * the handoff's own number for that trade, so it takes it: 186 of 280 is
- * 66%, against the component's 160-of-264 61%.
- *
- * THE SLOT'S OWN RING IS ALREADY HIDDEN by `.hero-band__subject--haloed` -
- * the band's ring replaces it - so only the slot and its disc move. 93 is
- * half of 186. Three rules, the same three `HeroBand.uss` writes, because
- * `--hero-slot` and `.hero-slot__disc` are both flat numbers in the
- * component's sheet and moving one without the other overflows the disc. */
+/* Keep the slot, disc and live stage in one frame. The HeroBand hides the
+ * slot's small ring; the larger band ring remains the single ornament. */
 .splice-reveal-view__child .hero-band__subject--haloed .hero-slot {
-    width: 186px;
-    height: 186px;
+    width: 236px;
+    height: 236px;
 }
 .splice-reveal-view__child .hero-band__subject--haloed .hero-slot__disc {
-    width: 186px;
-    height: 186px;
-    border-radius: 93px;
-    /* AND IT IS TRANSPARENT, BECAUSE THE POOL IS ALREADY THE BACKDROP.
-     * `Splice Reveal.dc.html:57-58` draws the child as a bare 186px art slot
-     * with NOTHING behind it - `:46`'s `r 106` violet circle IS what it sits
-     * on - where `HeroSlot`'s disc is a species tint sized for a slot
-     * standing alone on paper. Left opaque, a 186px teal circle covered all
-     * but 13px of the pool and put Vetch's own colour where the screen's
-     * brand violet belongs; it is in the first capture of this screen.
-     * `HeroSlot.uss` makes exactly this call one level down, for exactly
-     * this reason, when a `CreatureStage` is placed in the disc. rgba rather
-     * than a hex so verify-uss-tokens.sh's check 1 sees a colour that is not
-     * a colour. */
+    width: 236px;
+    height: 236px;
+    border-radius: 118px;
+    /* The band pool supplies the backdrop; the slot does not paint a second
+     * species disc over it. */
     background-color: rgba(0, 0, 0, 0);
+}
+.splice-reveal-view__child .hero-band__subject--haloed .hero-slot .creature-stage__frame {
+    width: 236px;
+    height: 236px;
+    border-radius: 118px;
 }
 
 .splice-reveal-view__child-slot { align-items: center; }
@@ -202,12 +185,12 @@
 /* `:64` - 30px Baloo, 8px under the pill. `.t-hero` is 28. `:65` is 11.5px
  * muted, 1px under it. */
 .splice-reveal-view__child-name {
-    margin-top: var(--space-2);
+    margin-top: var(--space-3);
     -unity-text-align: middle-center;
     white-space: normal;
 }
 .splice-reveal-view__child-line {
-    margin-top: 1px;
+    margin-top: 5px;
     -unity-text-align: middle-center;
     white-space: normal;
 }

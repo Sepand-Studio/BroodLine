@@ -90,6 +90,51 @@
     margin-bottom: var(--space-3);
 }
 
+/* The outcome gets a place and a scale before the reward ledger. The Ark
+ * symbol and caption stay live UI over the Frontier painting. */
+.post-wave-view__scene {
+    height: 260px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-band);
+    overflow: hidden;
+    background-image: url("project:///Assets/Game/Resources/Art/home-backdrop.png");
+    -unity-background-scale-mode: scale-and-crop;
+    background-color: var(--surface-deep);
+    margin-bottom: var(--space-3);
+}
+.post-wave-view__seal {
+    width: 92px;
+    height: 92px;
+    border-radius: 46px;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--hud-frame);
+    border-width: 2px;
+    border-color: var(--brass);
+}
+.post-wave-view .post-wave-view__ark-icon {
+    width: 52px;
+    height: 52px;
+    -unity-background-image-tint-color: var(--brass-light);
+}
+.post-wave-view .post-wave-view__scene-caption {
+    color: var(--surface);
+    background-color: var(--hud-frame);
+    border-radius: var(--radius-row);
+    font-size: var(--text-secondary);
+    -unity-font-style: bold;
+    letter-spacing: 1px;
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+    padding-left: var(--space-3);
+    padding-right: var(--space-3);
+    margin-top: var(--space-3);
+}
+.post-wave-view--loss .post-wave-view__seal { border-color: var(--coral); }
+.post-wave-view--loss .post-wave-view__ark-icon { -unity-background-image-tint-color: var(--coral-alert); }
+
 /* THE -4px IS `StatCell.uss`'s OWN PRESCRIPTION AND NOT A NUDGE. A cell
  * carries half the handoff's 8px gap on each of its own sides, because USS
  * here has no `gap` and no `:last-child`, and that file says what a caller

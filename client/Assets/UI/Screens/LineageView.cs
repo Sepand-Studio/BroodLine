@@ -256,6 +256,20 @@ namespace Broodline.UI.Screens
             element.EnableInClassList(HighlightUssClassName,
                 highlight != Guid.Empty && node.CreatureId == highlight);
 
+            // HeroSlot uses the same portrait source as CreatureCard. Its
+            // sprite layers keep the ancestry readable while an assembled
+            // portrait is loading, and the source resolves both trait sockets
+            // without this UI assembly depending on Frontier art.
+            var portrait = new HeroSlot { name = "portrait" };
+            portrait.Bind(new CreatureDto
+            {
+                CreatureId = node.CreatureId,
+                Species = node.Species,
+                Trait1 = node.Trait1,
+                Trait2 = node.Trait2,
+            });
+            element.Add(portrait);
+
             element.Add(new Label { name = "label", text = LineageScreen.NodeLabel(node) });
 
             // THE SECOND CHANNEL, AND IT IS NOT DECORATION. See MarksFor.
@@ -276,12 +290,10 @@ namespace Broodline.UI.Screens
         /// bible 10.4: "Colour never carries information alone." This screen
         /// was the one place in the app that broke it. A lineage node draws
         /// NO CREATURE - it is a label, a state line and two pips - so there
-        /// is no silhouette here to reinforce anything, and Founder and
-        /// Mutated were each carried by a 3px coloured border and by nothing
-        /// else. `Consumed` was already a word, which is the pattern the
-        /// other two now follow; `LineageScreen.ConsumedLabel`'s own comment
-        /// had said so all along - "the screen says so in words as well as in
-        /// a class name".
+        /// was no silhouette here to reinforce anything, and Founder and
+        /// Mutated were each carried by a 3px coloured border alone. The
+        /// portrait now carries species and inherited traits, while these
+        /// words still state lineage status without relying on colour.
         ///
         /// It is also what closes Task 6's deferred palette collision without
         /// moving a colour. The amber rail IS Skitter and the violet rail IS

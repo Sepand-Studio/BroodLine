@@ -1,4 +1,11 @@
 .allies { flex-grow: 1; }
+.allies__territory {
+    position: absolute;
+    top: 0; bottom: 0; left: 0; right: 0;
+    background-image: url("project:///Assets/UI/Resources/Art/map/frontier-atlas.png");
+    -unity-background-scale-mode: scale-and-crop;
+    opacity: 0.22;
+}
 .allies .allies__pennant {
     width: 125px; height: 156px;
     flex-shrink: 0;
@@ -7,7 +14,9 @@
     margin-bottom: var(--space-2);
 }
 .allies .allies__banner-kicker {
-    color: var(--brass-light);
+    /* The atlas can be light beneath this line; paper stays above 4.5:1
+       even against a white texel composited at the stage's 0.22 opacity. */
+    color: var(--surface-paper);
     font-size: var(--text-micro);
     -unity-font-style: bold;
     -unity-text-align: middle-center;

@@ -13,6 +13,9 @@
     background-color: var(--surface-deep);
     overflow: hidden;
 }
+/* The short phone keeps every facility marker in the cropped stage while
+ * bringing the Defend action above the bottom edge. */
+.home-base--compact .home-base__stage-frame { height: 420px; }
 .home-base__stage {
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;

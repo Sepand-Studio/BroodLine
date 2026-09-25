@@ -105,10 +105,12 @@ DEFINES_IPHONE=$(defines_for iPhone)
 declare -a SHADER_NAMES=(
   "Universal Render Pipeline/Lit"
   "Universal Render Pipeline/Unlit"
+  "Broodline/FrontierSurface"
 )
 declare -a SHADER_GUIDS=(
   933532a4fcc9baf4fa0491de14d08ed7
   650dd9526735d5b46b79224bc6e94025
+  ffeb41a12b324028a09668b1dceb8e25
 )
 for i in "${!SHADER_NAMES[@]}"; do
   grep -q "${SHADER_GUIDS[$i]}" "$G" \

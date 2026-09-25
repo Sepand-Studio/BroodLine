@@ -3,7 +3,7 @@ status: current
 folder: 01-companions
 verified-against: broodline_bible.md (2026-09-24)
 note: >
-  34 screens, build priority, rework column for the designed prototypes.
+  48 named screen and flow entries, build priority, rework column for the designed prototypes.
   Supersedes broodline_screen_inventory.md. Revised 2026-09-05 for register
   Part 6: Relocate Ark loses its risk column, Route Plotter gains a per-gate
   one, Roulette becomes a permanent Lab tab, the alliance Founder badge
@@ -19,12 +19,12 @@ note: >
 
 ## 1. How to read this
 
-Twenty screens exist as design prototypes. This maps them against what the bible now requires, names what changed, and lists what was never designed.
+Twenty-one entries have design prototypes. This maps them against what the bible now requires, names what changed, and lists what was never designed. The counts below describe design coverage, not which screens are implemented in Unity.
 
 **Status key:**
 `✅` designed and current · `🔧` designed, needs rework · `🆕` not designed
 
-**Total: 34 screens.** Twenty designed, of which thirteen need rework; fourteen missing.
+**Total: 48 named screen and flow entries.** Twenty-one designed (six current, fifteen needing rework); twenty-seven have no design prototype. Counted from the rows in sections 3–9 on 2026-09-24.
 
 **Revised 2026-09-24** against register Part 6 and the approved Store economy. Screens changed by the register pass carry a **`⚠`** marker.
 

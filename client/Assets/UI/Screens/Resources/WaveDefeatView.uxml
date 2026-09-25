@@ -16,6 +16,12 @@
     <ui:Label name="verdict" class="wave-defeat-view__verdict t-hero t-danger" />
     <ui:Label name="headline" class="wave-defeat-view__headline t-card-title t-danger" />
     <ui:VisualElement name="stats" class="wave-defeat-view__stats" />
+    <ui:VisualElement name="breach-scene" class="wave-defeat-view__scene">
+        <ui:VisualElement class="wave-defeat-view__scene-shade" picking-mode="Ignore" />
+        <ui:VisualElement class="wave-defeat-view__scene-seal" picking-mode="Ignore">
+            <ui:VisualElement class="icon icon--ark wave-defeat-view__scene-icon" picking-mode="Ignore" />
+        </ui:VisualElement>
+    </ui:VisualElement>
 
     <!-- `t-micro` ALONE: the handoff's `.lbl` carries all four of this
          heading's values (10px, the mute ink, bold, the uppercase tracking)

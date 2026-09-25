@@ -1159,7 +1159,8 @@ namespace Broodline.Game
                 // screen it showed before.
                 var portrait = _studio == null
                     ? null
-                    : _studio.Show(founder.Species, founder.Trait1, founder.Trait2, 0f);
+                    : _studio.Show(founder.Species, founder.Trait1, founder.Trait2, 0f,
+                        PortraitStudio.Setting.Habitat);
 
                 var view = new FounderNamingView();
                 var chosen = await _flow.ShowAsync<string>(view, resume => view.Bind(
@@ -1344,7 +1345,7 @@ namespace Broodline.Game
                     parentA.Species,
                     PredictedTrait(model.Forecast, 0, parentA.Trait1),
                     PredictedTrait(model.Forecast, 1, parentB.Trait2),
-                    0.3f);
+                    0.3f, PortraitStudio.Setting.Workshop);
 
                 var chamber = new SpliceChamberView();
                 await _flow.ShowAsync(chamber, resume =>
@@ -1468,7 +1469,8 @@ namespace Broodline.Game
             // the other two turns take: `SpliceRevealView.Bind` branches on a
             // null portrait and `Child` is required on the wire anyway.
             var portrait = _studio == null || child == null ? null
-                : _studio.Show(child.Species, child.Trait1, child.Trait2, 0f);
+                : _studio.Show(child.Species, child.Trait1, child.Trait2, 0f,
+                    PortraitStudio.Setting.Workshop);
 
             var reveal = new SpliceRevealView();
             await _flow.ShowAsync(reveal, resume =>

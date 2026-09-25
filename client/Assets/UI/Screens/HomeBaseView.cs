@@ -28,6 +28,8 @@ namespace Broodline.UI.Screens
         public HomeBaseView()
         {
             AddToClassList(UssClassName);
+            RegisterCallback<GeometryChangedEvent>(e =>
+                EnableInClassList("home-base--compact", e.newRect.height > 0 && e.newRect.height < 720));
             Resources.Load<VisualTreeAsset>("HomeBaseView").CloneTree(this);
 
             var scaffold = new ScreenScaffold(null);

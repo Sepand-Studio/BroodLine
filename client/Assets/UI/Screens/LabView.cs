@@ -40,7 +40,6 @@ namespace Broodline.UI.Screens
             coreText.Add(coreDetail);
             coreLine.Add(coreIcon); coreLine.Add(coreText);
             core.Body.Add(coreLine);
-            _scaffold.Content.Add(core);
 
             var plots = new SectionCard(LabScreen.PlotHeading);
             _stageFrame = new VisualElement { name = "lab-stage-frame" };
@@ -54,6 +53,7 @@ namespace Broodline.UI.Screens
             plots.Body.Add(_stageFrame);
             plots.Body.Add(new Label(LabScreen.PlotHint).WithClass("lab__stage-hint"));
             _scaffold.Content.Add(plots);
+            _scaffold.Content.Add(core);
 
             var card = new SectionCard("FACILITIES");
             card.Body.Add(_rows);

@@ -25,8 +25,8 @@ namespace Broodline.UI.Screens
         MapScreenModel _model;
         string _selectedId;
         float _zoom = 1f;
-        Vector2 _pan, _lastPointer;
-        bool _dragging;
+        Vector2 _pan, _lastPointer, _tapStart;
+        bool _dragging, _panned;
 
         public WorldMapView()
         {
@@ -38,7 +38,13 @@ namespace Broodline.UI.Screens
             var atlasCard = new SectionCard("THE THREE REACHES");
             _arkLabel = new Label { name = "ark-region" };
             _arkLabel.AddToClassList("world-map__ark-label");
-            atlasCard.Body.Add(_arkLabel);
+            var mapStatus = new VisualElement { name = "map-status" };
+            mapStatus.AddToClassList("world-map__status");
+            _selectedName = new Label { name = "selected-region" };
+            _selectedName.AddToClassList("world-map__selected-name");
+            mapStatus.Add(_arkLabel);
+            mapStatus.Add(_selectedName);
+            atlasCard.Body.Add(mapStatus);
             _viewport = new VisualElement { name = "atlas-viewport" };
             _viewport.AddToClassList("world-map__viewport");
             _atlas = new VisualElement { name = "atlas" };
@@ -56,15 +62,16 @@ namespace Broodline.UI.Screens
             _legend = new Label { name = "map-legend" };
             _legend.AddToClassList("world-map__legend");
             atlasCard.Body.Add(_legend);
-            _viewport.RegisterCallback<PointerDownEvent>(OnMapDown);
+            // The 44px touch areas overlap on the dense inner ring. Capture
+            // taps before a Button chooses its sibling by draw order, then
+            // resolve the nearest visible marker center on release.
+            _viewport.RegisterCallback<PointerDownEvent>(OnMapDown, TrickleDown.TrickleDown);
             _viewport.RegisterCallback<PointerMoveEvent>(OnMapMove);
             _viewport.RegisterCallback<PointerUpEvent>(OnMapUp);
             _viewport.RegisterCallback<PointerCaptureOutEvent>(_ => _dragging = false);
             _viewport.RegisterCallback<WheelEvent>(e => { SetZoom(_zoom + (e.delta.y < 0 ? .25f : -.25f)); e.StopPropagation(); });
             var selection = new VisualElement { name = "selection" };
             selection.AddToClassList("world-map__selection");
-            _selectedName = new Label { name = "selected-region" };
-            _selectedName.AddToClassList("world-map__selected-name");
             _selectedDetail = new Label { name = "selected-detail" };
             _selectedDetail.AddToClassList("world-map__selected-detail");
             _routeSummary = new Label { name = "route-summary" };
@@ -74,7 +81,6 @@ namespace Broodline.UI.Screens
             _selectedAction = new Button(() => _onPick?.Invoke(_selectedId)) { name = "selected-action" };
             _selectedAction.AddToClassList("btn-secondary");
             _selectedAction.AddToClassList("world-map__selected-action");
-            selection.Add(_selectedName);
             selection.Add(_selectedDetail);
             selection.Add(_routeSummary);
             selection.Add(_routeNames);
@@ -95,26 +101,51 @@ namespace Broodline.UI.Screens
 
         void OnMapDown(PointerDownEvent e)
         {
-            if (e.target is Button || e.button != 0) return;
+            if (e.button != 0) return;
             _dragging = true;
-            _lastPointer = new Vector2(e.position.x, e.position.y);
+            _tapStart = new Vector2(e.position.x, e.position.y);
+            _lastPointer = _tapStart;
+            _panned = false;
             _viewport.CapturePointer(e.pointerId);
+            e.StopPropagation();
         }
 
         void OnMapMove(PointerMoveEvent e)
         {
             if (!_dragging || !_viewport.HasPointerCapture(e.pointerId)) return;
             var current = new Vector2(e.position.x, e.position.y);
+            if (!_panned && (current - _tapStart).sqrMagnitude < 36f) return;
+            _panned = true;
             _pan += current - _lastPointer;
             _lastPointer = current;
             ApplyView();
+            e.StopPropagation();
         }
 
         void OnMapUp(PointerUpEvent e)
         {
             if (!_viewport.HasPointerCapture(e.pointerId)) return;
+            if (!_panned) SelectNearest(new Vector2(e.position.x, e.position.y));
             _dragging = false;
             _viewport.ReleasePointer(e.pointerId);
+            e.StopPropagation();
+        }
+
+        void SelectNearest(Vector2 point)
+        {
+            Button nearest = null;
+            var best = float.PositiveInfinity;
+            foreach (var marker in _markers)
+            {
+                var bounds = marker.worldBound;
+                var center = new Vector2(bounds.center.x, bounds.center.y);
+                var distance = (point - center).sqrMagnitude;
+                var radius = bounds.width * .5f;
+                if (distance > radius * radius || distance >= best) continue;
+                nearest = marker;
+                best = distance;
+            }
+            if (nearest != null) Select(nearest.name.Substring("marker-".Length));
         }
 
         void SetZoom(float zoom)
@@ -132,7 +163,7 @@ namespace Broodline.UI.Screens
 
         void ApplyView()
         {
-            var limit = (_zoom - 1f) * 140f;
+            var limit = (_zoom - 1f) * 150f;
             _pan.x = Mathf.Clamp(_pan.x, -limit, limit);
             _pan.y = Mathf.Clamp(_pan.y, -limit, limit);
             _atlas.transform.scale = new Vector3(_zoom, _zoom, 1f);
@@ -174,14 +205,14 @@ namespace Broodline.UI.Screens
                 ? "P  PREVIEW   □  REACH GATE\nI–III  LANES   1–N  ROUTE HOPS"
                 : "A  ARK   □  REACH GATE\nI–III  LANES   1–N  ROUTE HOPS";
 
-            foreach (var (name, diameter) in new[] { ("inner", 86), ("mid", 168), ("outer", 244) })
+            foreach (var (name, diameter) in new[] { ("inner", 96), ("mid", 180), ("outer", 252) })
             {
                 var ring = new VisualElement { name = "ring-" + name };
                 ring.AddToClassList("world-map__ring");
                 ring.style.width = diameter;
                 ring.style.height = diameter;
-                ring.style.left = (280 - diameter) * .5f;
-                ring.style.top = (280 - diameter) * .5f;
+                ring.style.left = (300 - diameter) * .5f;
+                ring.style.top = (300 - diameter) * .5f;
                 _atlas.Add(ring);
             }
 
@@ -190,12 +221,12 @@ namespace Broodline.UI.Screens
             for (int band = 0; band < model.Bands.Count; band++)
             {
                 var rows = model.Bands[band].Rows;
-                float radius = band == 0 ? 43f : band == 1 ? 84f : 122f;
+                float radius = band == 0 ? 48f : band == 1 ? 90f : 126f;
                 for (int i = 0; i < rows.Count; i++)
                 {
                     var region = rows[i];
                     float angle = (i / (float)rows.Count) * Mathf.PI * 2f - Mathf.PI * .5f;
-                    var position = new Vector2(140f + Mathf.Cos(angle) * radius, 140f + Mathf.Sin(angle) * radius);
+                    var position = new Vector2(150f + Mathf.Cos(angle) * radius, 150f + Mathf.Sin(angle) * radius);
                     plotted.Add((region, position));
                     positions.Add(region.Id, position);
                 }
@@ -238,8 +269,11 @@ namespace Broodline.UI.Screens
                 marker.AddToClassList("world-map__marker");
                 if (region.Id == model.CurrentRegionId) marker.AddToClassList("world-map__marker--here");
                 if (region.Gate) marker.AddToClassList("world-map__marker--gate");
-                marker.style.left = position.x - 16f;
-                marker.style.top = position.y - 16f;
+                marker.style.left = position.x - 22f;
+                marker.style.top = position.y - 22f;
+                var face = new Label(marker.text) { name = "marker-face", pickingMode = PickingMode.Ignore };
+                face.AddToClassList("world-map__marker-face");
+                marker.Add(face);
                 _atlas.Add(marker);
                 _markers.Add(marker);
             }
@@ -272,6 +306,7 @@ namespace Broodline.UI.Screens
             var origin = region.Id == _model.CurrentRegionId;
             _selectedId = region.Id;
             _selectedName.text = region.Name;
+            _selectedName.style.display = origin ? DisplayStyle.None : DisplayStyle.Flex;
             _selectedDetail.text = region.Detail;
             _selectedAction.text = region.Here ? "Open region" : "View region";
             int minutes = RegionCatalog.TravelMinutes(_model.CurrentRegionId, region.Id, out var route);
@@ -301,6 +336,7 @@ namespace Broodline.UI.Screens
                 string id = marker.name.Substring("marker-".Length);
                 int step = route == null ? -1 : route.IndexOf(id);
                 marker.text = id == _model.CurrentRegionId ? preview ? "P" : "A" : step >= 0 ? step.ToString() : MapScreen.LaneGlyph(RegionCatalog.Find(id).Lanes);
+                marker.Q<Label>("marker-face").text = marker.text;
                 marker.EnableInClassList("world-map__marker--route", step >= 0 && id != _model.CurrentRegionId);
                 marker.EnableInClassList("world-map__marker--muted", step < 0);
                 marker.EnableInClassList("world-map__marker--selected", marker.name == "marker-" + region.Id);

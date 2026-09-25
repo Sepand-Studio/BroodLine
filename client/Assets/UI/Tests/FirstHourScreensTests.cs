@@ -564,7 +564,7 @@ namespace Broodline.UI.Tests
         /// test rather than losing the gradient, the ring and the pool
         /// silently.
         [Test]
-        public void SpliceReveal_TheHeroCardIsAHeroBandFixedAtTheHandoffsOwnHeight()
+        public void SpliceReveal_TheHeroCardIsAHeroBandAtLeastAsTallAsTheConcept()
         {
             var view = BoundReveal(mutated: true, Creature("Vetch", id: A), Creature("Ember", id: B));
 
@@ -577,8 +577,10 @@ namespace Broodline.UI.Tests
             // root would size the shadow and leave the fill at its content
             // height, which is the defect rather than the fix.
             var surface = band.Q<VisualElement>("surface");
-            Assert.AreEqual(372f, surface.style.height.value.value,
-                "the band is not fixed at Splice Reveal.dc.html:43's own 372px");
+            // The live portrait and text can require more than the 372px
+            // concept band. Phone-size captures check the final spacing.
+            Assert.GreaterOrEqual(surface.style.height.value.value, 372f,
+                "the reveal's hero band is shorter than the approved concept");
 
             // `ring: true`, which is what the handoff's `:45` dashed circle
             // and `:46` pool are. `HeroBand` REMOVES the halo when there is
@@ -934,6 +936,19 @@ namespace Broodline.UI.Tests
             // creatures of one species apart.
             StringAssert.Contains("Vetch", view.Q(A.ToString()).Q<Label>("label").text);
             StringAssert.Contains("G2", view.Q(A.ToString()).Q<Label>("label").text);
+        }
+
+        [Test]
+        public void Lineage_EachAncestorCarriesItsAssembledAppearance()
+        {
+            var founder = Node("Vetch", F, founder: true, name: "Ash");
+            founder.Trait1 = "Carapace";
+            founder.Trait2 = "Cinder";
+            var child = Node("Hollow", C, generation: 2, parentA: F);
+            var view = BoundLineage(F, founder, child);
+
+            Assert.IsNotNull(view.Q(F.ToString()).Q<HeroSlot>("portrait"));
+            Assert.IsNotNull(view.Q(C.ToString()).Q<HeroSlot>("portrait"));
         }
 
         /// THE KICKER EVERY OTHER SCREEN HAS AND THIS ONE DID NOT. Phase 9

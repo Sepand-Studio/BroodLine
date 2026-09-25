@@ -38,6 +38,43 @@
  */
 .wave-defeat-view { flex-grow: 1; }
 
+/* The defended region becomes the consequence of the loss. This is the same
+ * authored Hollow Reach panorama used by Campaign Select, cropped low enough
+ * to keep the Ark emblem clear at phone width. Text stays in the band below. */
+.wave-defeat-view__scene {
+    height: 158px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-band);
+    overflow: hidden;
+    background-image: url("project:///Assets/UI/Resources/Art/campaign/hollow-reach.png");
+    -unity-background-scale-mode: scale-and-crop;
+    background-color: var(--surface-deep);
+    margin-top: var(--space-2);
+    margin-bottom: var(--space-2);
+}
+.wave-defeat-view__scene-shade {
+    position: absolute;
+    left: 0; right: 0; top: 0; bottom: 0;
+    background-color: rgba(28, 24, 38, .38);
+}
+.wave-defeat-view__scene-seal {
+    width: 82px;
+    height: 82px;
+    border-radius: 41px;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--hud-frame);
+    border-width: 2px;
+    border-color: var(--coral-alert);
+}
+.wave-defeat-view .wave-defeat-view__scene-icon {
+    width: 47px;
+    height: 47px;
+    -unity-background-image-tint-color: var(--coral-alert);
+}
+
 /* ---------------------------------------------------------------- the band */
 
 /* `:31` - `margin: 10px 12px 0`. The 12 is the scaffold's gutter and is not

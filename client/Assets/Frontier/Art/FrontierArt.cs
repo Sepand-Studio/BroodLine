@@ -11,15 +11,17 @@ namespace Broodline.Frontier
         readonly Dictionary<string, Mesh> _meshes = new Dictionary<string, Mesh>();
         readonly List<Mesh> _environmentMeshes = new List<Mesh>();
         readonly Material _surface;
+        readonly Func<string, GameObject> _authoredPrefabLoader;
         bool _disposed;
 
         public static Color Hex(string value) { ColorUtility.TryParseHtmlString(value, out var color); return color; }
         static readonly Color Cream = Hex("#f4dfb9"), Ink = Hex("#253345"), Gold = Hex("#c99a49");
         static readonly Color Coral = Hex("#e5867a"), Frost = Hex("#c6cede");
-        public FrontierArt(Shader shader)
+        public FrontierArt(Shader shader, Func<string, GameObject> authoredPrefabLoader = null)
         {
             if (shader == null) throw new ArgumentNullException(nameof(shader), "Build the Frontier Proof scene to assign its surface shader.");
             _surface = new Material(shader) { name = "Frontier shared surface" };
+            _authoredPrefabLoader = authoredPrefabLoader ?? (path => Resources.Load<GameObject>(path));
         }
 
         public FrontierCreature Creature(Transform parent, string id, string first = null, string second = null, float phase = 0)
@@ -29,14 +31,22 @@ namespace Broodline.Frontier
             id = id?.Trim().ToLowerInvariant();
             first = first?.Trim().ToLowerInvariant();
             second = second?.Trim().ToLowerInvariant();
-            var rig = FrontierRigDefinition.For(id);
+            var visual = FrontierVisuals.For(id);
+            var rig = visual.Rig;
+            var authored = TryAuthoredCreature(parent, visual, rig, phase);
+            if (authored != null)
+            {
+                Mount(authored.Dorsal, first); Mount(authored.Flank, second);
+                IncludePartsInPortrait(authored);
+                return authored;
+            }
             string key = "body-" + id;
             if (!_meshes.TryGetValue(key, out var mesh))
             {
                 // The builder comes from the visual definition - Phase 10 Task
                 // 2.1 - so a species is one entry there, not a branch here.
                 var author = new FrontierMesh();
-                FrontierVisuals.For(id).Build(author);
+                visual.Build(author);
                 mesh = author.FinishRig(key, rig); _meshes.Add(key, mesh);
             }
             var go = new GameObject(id); go.transform.SetParent(parent, false);
@@ -57,7 +67,60 @@ namespace Broodline.Frontier
             var creature = go.AddComponent<FrontierCreature>();
             creature.Initialize(rig, bones, renderer, phase);
             Mount(creature.Dorsal, first); Mount(creature.Flank, second);
-            var portrait = mesh.bounds;
+            creature.PortraitBounds = mesh.bounds;
+            IncludePartsInPortrait(creature);
+            return creature;
+        }
+
+        FrontierCreature TryAuthoredCreature(Transform parent, FrontierVisualDefinition definition,
+            FrontierRigDefinition rig, float phase)
+        {
+            var prefab = _authoredPrefabLoader(definition.AuthoredResourcePath);
+            if (prefab == null) return null;
+            var sourceRoot = prefab.transform;
+            if (sourceRoot.localPosition.sqrMagnitude > .000001f
+                || Quaternion.Angle(sourceRoot.localRotation, Quaternion.identity) > .01f
+                || (sourceRoot.localScale - Vector3.one).sqrMagnitude > .000001f)
+            {
+                Debug.LogWarning("[frontier-art] invalid authored root for " + definition.Id + "; using procedural body");
+                return null;
+            }
+            var go = UnityEngine.Object.Instantiate(prefab, parent, false);
+            go.name = definition.Id;
+            var renderer = go.GetComponentInChildren<SkinnedMeshRenderer>(true);
+            var bones = renderer != null ? renderer.bones : null;
+            bool valid = renderer != null && renderer.sharedMesh != null && renderer.sharedMaterial != null
+                && bones != null && bones.Length == rig.Bones.Length
+                && renderer.sharedMesh.bindposes.Length == rig.Bones.Length
+                && go.GetComponent<FrontierCreature>() == null;
+            if (valid)
+                for (int i = 0; i < bones.Length; i++)
+                {
+                    var expectedParent = rig.Bones[i].Parent < 0 ? go.transform : bones[rig.Bones[i].Parent];
+                    if (bones[i] == null || bones[i].name != rig.Bones[i].Name || bones[i].parent != expectedParent)
+                    { valid = false; break; }
+                }
+            if (!valid)
+            {
+                Debug.LogWarning("[frontier-art] invalid authored rig for " + definition.Id + "; using procedural body");
+                // Destroy is deferred during play. Hide the rejected body now
+                // so it never renders beside the procedural replacement.
+                go.SetActive(false);
+                Release(go);
+                return null;
+            }
+            var creature = go.AddComponent<FrontierCreature>();
+            renderer.localBounds = new Bounds(renderer.sharedMesh.bounds.center * 1.2f,
+                renderer.sharedMesh.bounds.size * 1.8f + rig.MotionAllowance * 2);
+            creature.Initialize(rig, bones, renderer, phase);
+            creature.PortraitBounds = renderer.sharedMesh.bounds;
+            return creature;
+        }
+
+        static void IncludePartsInPortrait(FrontierCreature creature)
+        {
+            var portrait = creature.PortraitBounds;
+            var go = creature.gameObject;
             foreach (var filter in go.GetComponentsInChildren<MeshFilter>())
             {
                 var partBounds = filter.sharedMesh.bounds;
@@ -68,7 +131,6 @@ namespace Broodline.Frontier
                                 partBounds.center + Vector3.Scale(partBounds.extents, new Vector3(x,y,z)))));
             }
             creature.PortraitBounds = portrait;
-            return creature;
         }
 
         void Mount(Transform socket, string trait)
@@ -96,6 +158,47 @@ namespace Broodline.Frontier
             go.AddComponent<MeshFilter>().sharedMesh=mesh;
             go.AddComponent<MeshRenderer>().sharedMaterial=_surface;
             return go;
+        }
+
+        /// A small grounded stage for the two emotional hero moments. It is
+        /// presentation scenery, separate from the assembled creature body.
+        public GameObject PortraitPlinth(Transform parent, bool workshop)
+        {
+            var key = workshop ? "workshop-portrait-plinth" : "habitat-portrait-plinth";
+            if (!_meshes.TryGetValue(key, out var mesh))
+            {
+                var b = new FrontierMesh();
+                var rim = workshop ? Hex("#c99a49") : Hex("#77836f");
+                var top = workshop ? Hex("#f4dfb9") : Hex("#789b68");
+                b.Cone(new Vector3(0f, -.20f, 0f), new Vector3(0f, -.09f, 0f),
+                    1.00f, 1.03f, workshop ? Ink : Hex("#777d71"), 20);
+                b.Cone(new Vector3(0f, -.09f, 0f), new Vector3(0f, -.035f, 0f),
+                    1.03f, .98f, rim, 20);
+                b.Cone(new Vector3(0f, -.035f, 0f), new Vector3(0f, 0f, 0f),
+                    .98f, .95f, top, 20);
+                if (workshop)
+                {
+                    for (int i = 0; i < 8; i++)
+                    {
+                        float angle = i * Mathf.PI / 4f;
+                        b.Sphere(new Vector3(Mathf.Cos(angle) * .89f, .012f, Mathf.Sin(angle) * .89f),
+                            new Vector3(.055f, .025f, .055f), Gold, 8, 4);
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < 9; i++)
+                    {
+                        float angle = i * Mathf.PI * 2f / 9f;
+                        var p = new Vector3(Mathf.Cos(angle) * .84f, .012f, Mathf.Sin(angle) * .84f);
+                        b.Sphere(p, new Vector3(.13f, .035f, .10f),
+                            i % 2 == 0 ? Hex("#60835e") : Hex("#9caf72"), 8, 4);
+                    }
+                }
+                mesh = b.Finish(key);
+                _meshes.Add(key, mesh);
+            }
+            return Draw(parent, mesh.name, mesh);
         }
 
         public GameObject Environment(Transform parent,int length,int[] pockets,bool habitat,bool paintedGround=false)

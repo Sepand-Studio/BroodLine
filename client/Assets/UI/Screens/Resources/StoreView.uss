@@ -97,7 +97,13 @@
     color: var(--violet-text);
 }
 .store__chest-grid { flex-direction: row; flex-wrap: wrap; justify-content: space-between; }
-.store__chest-option { width: 48%; padding-left: 38px; }
+.store .store__chest-option {
+    width: 48%;
+    min-height: 105px;
+    padding-left: 38px;
+}
+.store .store__chest-option .option-row__title,
+.store .store__chest-option .option-row__detail { white-space: normal; }
 .store__chest-icon {
     position: absolute;
     left: var(--space-2); top: var(--space-3);

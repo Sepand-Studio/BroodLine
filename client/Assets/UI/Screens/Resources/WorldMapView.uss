@@ -1,15 +1,22 @@
 .world-map { flex-grow: 1; }
 .world-map__region .option-row__title { font-size: var(--text-card-title); }
+.world-map__status {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-2);
+}
 .world-map__ark-label {
     color: var(--ink-secondary);
     font-size: var(--text-secondary);
     -unity-font-style: bold;
-    margin-bottom: var(--space-2);
+    flex-shrink: 1;
+    white-space: normal;
 }
 .world-map__viewport {
     position: relative;
-    width: 280px;
-    height: 280px;
+    width: 300px;
+    height: 300px;
     align-self: center;
     border-radius: var(--radius-card);
     border-width: 2px;
@@ -18,8 +25,8 @@
 }
 .world-map__atlas {
     position: relative;
-    width: 280px;
-    height: 280px;
+    width: 300px;
+    height: 300px;
     background-color: var(--surface-sunk);
     -unity-background-scale-mode: scale-and-crop;
 }
@@ -57,12 +64,24 @@
 }
 .world-map__marker {
     position: absolute;
-    width: 32px;
-    height: 32px;
-    min-width: 32px;
-    min-height: 32px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
     padding: 0;
     margin: 0;
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+    color: rgba(0, 0, 0, 0);
+    font-size: var(--text-card-title);
+    -unity-text-align: middle-center;
+}
+.world-map__marker-face {
+    position: absolute;
+    left: 6px;
+    top: 6px;
+    width: 32px;
+    height: 32px;
     border-radius: 16px;
     border-width: 2px;
     border-color: var(--ink-secondary);
@@ -71,26 +90,26 @@
     font-size: var(--text-card-title);
     -unity-text-align: middle-center;
 }
-.world-map__marker--gate {
-    border-radius: 7px;
+.world-map__marker--gate .world-map__marker-face {
+    border-radius: 10px;
     border-color: var(--brass);
 }
-.world-map__marker--route {
+.world-map__marker--route .world-map__marker-face {
     background-color: var(--brass-light);
     border-color: var(--brass);
     color: var(--ink-primary);
 }
 .world-map__marker--muted { opacity: 0.75; }
-.world-map__marker--here {
+.world-map__marker--here .world-map__marker-face {
     background-color: var(--action);
     border-color: var(--action-shadow);
     color: var(--action-text);
 }
-.world-map__marker--selected {
+.world-map__marker--selected .world-map__marker-face {
     border-width: 3px;
     border-color: var(--brass-light);
 }
-.world-map__marker:active { background-color: var(--violet-pressed); }
+.world-map__marker:active .world-map__marker-face { background-color: var(--violet-pressed); }
 .world-map__selection {
     background-color: var(--surface-deep);
     border-width: 1px;
@@ -99,9 +118,12 @@
     padding: var(--space-3);
 }
 .world-map__selected-name {
-    color: var(--brass-light);
+    color: var(--violet-text);
     font-size: var(--text-section);
     -unity-font-style: bold;
+    -unity-text-align: middle-right;
+    white-space: normal;
+    margin-left: var(--space-2);
 }
 .world-map__selected-detail {
     color: var(--surface-paper);

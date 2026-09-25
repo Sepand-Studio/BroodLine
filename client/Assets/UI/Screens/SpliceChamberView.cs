@@ -118,10 +118,19 @@ namespace Broodline.UI.Screens
         /// one can be removed by reference rather than by clearing the
         /// container it shares with the two required sentences.
         CostCtaRow _cta;
+        bool _compactOrder;
 
         public SpliceChamberView()
         {
             AddToClassList(UssClassName);
+            RegisterCallback<GeometryChangedEvent>(e =>
+            {
+                var compact = e.newRect.height > 0 && e.newRect.height < 720;
+                if (_compactOrder == compact) return;
+                _compactOrder = compact;
+                var column = ((ScrollView)_scaffold.Content).contentContainer;
+                column.Insert(compact ? 0 : 1, _predicted);
+            });
 
             var tree = Resources.Load<VisualTreeAsset>("SpliceChamberView");
             tree.CloneTree(this);

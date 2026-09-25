@@ -102,6 +102,8 @@ namespace Broodline.UI.Screens
         public FounderNamingView()
         {
             AddToClassList(UssClassName);
+            RegisterCallback<GeometryChangedEvent>(e =>
+                EnableInClassList("founder-naming-view--compact", e.newRect.height > 0 && e.newRect.height < 720));
 
             var tree = Resources.Load<VisualTreeAsset>("FounderNamingView");
             tree.CloneTree(this);
@@ -194,7 +196,7 @@ namespace Broodline.UI.Screens
             // getting that wrong is what cost Task 14b a capture, and
             // `HeroBand.Fill` is where that knowledge now lives so that no
             // screen has to carry it again.
-            var hero = new HeroBand(tint: HeroBand.Tint.Deep);
+            var hero = new HeroBand(ring: false, tint: HeroBand.Tint.Deep);
             hero.Fill(BandFloor);
             hero.Subject.Add(_founder);
 

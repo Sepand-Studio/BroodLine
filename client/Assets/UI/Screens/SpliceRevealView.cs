@@ -39,10 +39,9 @@ namespace Broodline.UI.Screens
     /// `border-radius: 26px` against `--radius-band`, which is 26 exactly;
     /// `box-shadow: 0 4px 16px rgba(63,58,82,.08)` against `.elev-2`, which
     /// Tokens.uss maps to that pair verbatim; `overflow: hidden`, which the
-    /// component sets; `height: 372px`, which is `Fix(372)` and is the
-    /// literal example in `HeroBand`'s own class comment; a dashed ring at
-    /// `:45` and a filled pool at `:46`, which is `ring: true`. Nothing was
-    /// adapted to make it fit. The `.elev-2` the Phase 8 wrapper carried is
+    /// component sets; a dashed ring at `:45` and a filled pool at `:46`,
+    /// which is `ring: true`. The deeper tint and taller live portrait are
+    /// this visual pass's screen-specific adaptations. The `.elev-2` the Phase 8 wrapper carried is
     /// the band's own now, because `HeroBand` adds it - so the element this
     /// screen's tests read as the hero card has not lost a class, it has
     /// stopped hand-rolling one.
@@ -193,6 +192,16 @@ namespace Broodline.UI.Screens
             _childName = new Label { name = "child-name" };
             _childName.AddToClassList("splice-reveal-view__child-name");
             _childName.AddToClassList("t-hero");
+            // A wrapped name needs a taller band so the final lineage line
+            // keeps its own space. Measure the rendered label: names of the
+            // same length wrap differently at each phone width and font scale.
+            _childName.RegisterCallback<GeometryChangedEvent>(e =>
+            {
+                // The display face measures 49px for one line. Each added
+                // line contributes its actual measured height.
+                var extra = Mathf.Max(0f, Mathf.Ceil(e.newRect.height - 49f));
+                _child.Fix(BandHeight + extra);
+            });
 
             _childLine = new Label { name = "child-line" };
             _childLine.AddToClassList("splice-reveal-view__child-line");
@@ -237,7 +246,8 @@ namespace Broodline.UI.Screens
             _next.clicked += () => { if (_onNext != null) _onNext(); };
         }
 
-        /// `Splice Reveal.dc.html:43`'s own `height: 372px`.
+        /// The concept's band is 372px. The larger live portrait, clearer
+        /// spacing, and a bottom inset for the lineage line need 405px here.
         ///
         /// THIS SCREEN'S NUMBER AND NOT `HeroBand`'s, on the rule
         /// `FounderNamingView.BandFloor` states: the other band in the bundle
@@ -245,7 +255,7 @@ namespace Broodline.UI.Screens
         /// them would be wrong on one screen in two. `Fix` rather than
         /// `Fill`, because this one is a fixed height and not a floor - the
         /// two are mutually exclusive by construction in that component.
-        const float BandHeight = 372f;
+        const float BandHeight = 405f;
 
         /// `onBack` is what the chevron does, and null means there is no
         /// chevron - `RosterView.Bind` has the full reasoning. Here it is

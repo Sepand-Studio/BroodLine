@@ -54,6 +54,9 @@
  * options", which is what a creature tile in a generation card is. */
 .node {
     flex-direction: column;
+    width: 112px;
+    flex-shrink: 0;
+    align-items: center;
     margin-right: var(--space-2);
     margin-bottom: var(--space-2);
     padding: var(--space-2);
@@ -62,6 +65,15 @@
     border-left-width: 3px;
     border-left-color: var(--divider);
 }
+
+.node > .hero-slot { margin-bottom: var(--space-1); }
+.node > #label {
+    align-self: stretch;
+    white-space: normal;
+    -unity-text-align: middle-center;
+}
+.node .node__marks { align-self: stretch; justify-content: center; }
+.node .node__traits { align-self: stretch; }
 
 .node.founder  { border-left-color: var(--reward); }
 .node.mutated  { border-left-color: var(--action); }
@@ -142,9 +154,9 @@
 
 .node__traits > .trait-chip { margin-bottom: var(--space-1); }
 
-/* Dimmed, never removed: a consumed parent still being in the record is the
- * thing this screen exists to show. */
-.node.consumed { opacity: 0.55; }
+/* Keep consumed names and traits at full text contrast. The explicit state
+ * word and neutral rail distinguish them without fading the information. */
+.node.consumed { border-left-color: var(--ink-secondary); }
 
 /* THE ONE NODE THE SCREEN IS ABOUT - bible 9.2's "a creature they named at
  * the bottom of it".

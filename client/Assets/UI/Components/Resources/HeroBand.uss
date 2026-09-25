@@ -291,6 +291,14 @@
     height: 160px;
     border-radius: 80px;
 }
+/* HeroSlot's default live stage is 80px for a compact slot. In a hero band
+ * that leaves the render at half the size of the 160px subject. Keep the
+ * portrait and its slot in the same frame. */
+.hero-band__subject--haloed .hero-slot .creature-stage__frame {
+    width: 160px;
+    height: 160px;
+    border-radius: 80px;
+}
 
 /* THE DEEP BAND - Phase 10 Task 1.6, the approved mockups' hero framing:
  * the creature on slate with a brass ring and a violet glow, every label

@@ -11,6 +11,12 @@
     <!-- NO VERDICT COLOUR HERE. This is the one screen that renders both a
          win and a loss, so the colour is Bind's to set - see PostWaveView. -->
     <ui:Label name="headline" class="post-wave-view__headline t-hero" />
+    <ui:VisualElement name="outcome-scene" class="post-wave-view__scene">
+        <ui:VisualElement name="outcome-seal" class="post-wave-view__seal">
+            <ui:VisualElement class="icon icon--ark post-wave-view__ark-icon" picking-mode="Ignore" />
+        </ui:VisualElement>
+        <ui:Label name="outcome-caption" class="post-wave-view__scene-caption" />
+    </ui:VisualElement>
     <ui:VisualElement name="stats" class="post-wave-view__stats" />
     <ui:VisualElement name="granted" class="post-wave-view__granted" />
     <ui:Button name="next" class="post-wave-view__next btn-primary" />

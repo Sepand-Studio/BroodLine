@@ -1,0 +1,34 @@
+.interrupted-view { flex-grow: 1; }
+.interrupted-view__reason { flex-grow: 1; }
+
+/* The recovery surface keeps the same Frontier landscape and Ark symbol as
+ * the home and outcome scenes. The explanation remains live text below it. */
+.interrupted-view__scene {
+    height: 250px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-band);
+    overflow: hidden;
+    background-image: url("project:///Assets/Game/Resources/Art/home-backdrop.png");
+    -unity-background-scale-mode: scale-and-crop;
+    background-color: var(--surface-deep);
+    margin-top: var(--space-2);
+}
+.interrupted-view__seal {
+    width: 92px;
+    height: 92px;
+    border-radius: 46px;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--hud-frame);
+    border-width: 2px;
+    border-color: var(--brass);
+}
+.interrupted-view .interrupted-view__ark-icon {
+    width: 52px;
+    height: 52px;
+    -unity-background-image-tint-color: var(--brass-light);
+}
+
+.interrupted-view--compact .interrupted-view__scene { height: 185px; }

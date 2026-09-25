@@ -27,12 +27,9 @@
 /* The slot final art drops into. Three aligned layers from one bake camera:
  * body, then combat one at the dorsal socket, then combat two at the flank.
  *
- * 74px, WHICH IS THE HANDOFF'S OWN AND 10px MORE THAN THIS CARD CARRIED FOR
- * TWO PHASES. `Creature Roster.dc.html:59` is `height: 74px; display: grid;
- * place-items: center` around art drawn at 46-66px - so the tile's picture
- * is the biggest thing on it, which at 64 it was not. The card grows by 10px
- * and the two-column grid is unaffected: `.creature-card` is a fixed 160px
- * wide and only the row heights move.
+ * The production 3D portrait needs more room than the prototype's 74px
+ * sprite slot. At 100px the body reads at phone size while two 160px cards
+ * still fit the roster's two-column grid. Additional cards scroll vertically.
  *
  * NO FILL. The handoff's roster tile draws its creature straight on the
  * card's own white, with no sunk plate behind it (`:59` sets only a height
@@ -41,7 +38,7 @@
  * parents keep a tinted disc because there it is `HeroSlot`'s ring and disc,
  * which the handoff DOES draw. */
 .creature-card__slot {
-    height: 74px;
+    height: 100px;
     margin-bottom: 8px;
 }
 .creature-card__layer {

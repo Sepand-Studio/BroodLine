@@ -1,5 +1,6 @@
 using System;
 using Broodline.UI.Components;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Broodline.UI.Screens
@@ -17,14 +18,9 @@ namespace Broodline.UI.Screens
     /// where that sentence goes instead, beside a button that is actually
     /// wired to something.
     ///
-    /// COMPOSED FROM WHAT ALREADY EXISTS, AND DELIBERATELY SO: a scaffold, an
-    /// `EmptyState` and a `btn-primary`. It authors no `.uxml` and no `.uss`
-    /// of its own. `EmptyState`'s class comment already settled the question
-    /// this screen would otherwise re-open - "THERE IS NO EMPTY-STATE DESIGN
-    /// IN THE HANDOFF ... this is the minimum the bible asks for and not a
-    /// reinterpretation of something that exists" - and the handoff has no
-    /// error screen either. Inventing a second visual language for the one
-    /// screen nobody is supposed to see would be the wrong place to spend it.
+    /// A quiet Frontier scene now grounds the recovery state in the same Ark
+    /// world as home and outcomes. The existing EmptyState still owns the
+    /// reason sentence, and the scaffold owns the live retry control.
     ///
     /// THE REASON IS THE WALK'S OWN SENTENCE, NOT THIS SCREEN'S. Everything
     /// the director can stop on already has copy in `FtueNotice` or in
@@ -93,6 +89,7 @@ namespace Broodline.UI.Screens
 
         readonly ScreenScaffold _scaffold;
         readonly VisualElement _reason;
+        readonly VisualElement _scene;
         readonly Button _retry;
 
         Action _onRetry;
@@ -100,30 +97,30 @@ namespace Broodline.UI.Screens
         public InterruptedView()
         {
             AddToClassList(UssClassName);
+            RegisterCallback<GeometryChangedEvent>(e =>
+                EnableInClassList("interrupted-view--compact", e.newRect.height > 0 && e.newRect.height < 720));
 
-            // THE THREE `flexGrow`s ARE THE WHOLE OF THIS SCREEN'S LAYOUT,
-            // AND THEY ARE INLINE BECAUSE THE ALTERNATIVE IS WORSE. Every
-            // other screen gets `flex-grow: 1` on its root from its own
-            // stylesheet, loaded by its own `.uxml`; this one authors
-            // neither, and an `.uxml` holding nothing but a `<ui:Style>` is
-            // exactly the empty tree `check-silent-drops.sh` exists to catch.
-            // So the one layout primitive it needs is written here.
-            //
-            // WITHOUT THE FIRST ONE THE SCREEN IS WRONG IN A WAY A TEST
-            // CANNOT SEE, and the first capture of it showed that: the column
-            // sized itself to its content, so the button sat a third of the
-            // way down the frame with 700px of bare paper under it while
-            // every other screen in the app pins its CTA to the bottom edge.
-            // The other two hand the reason the free space that buys, so
-            // `.empty-state`'s own `justify-content: center` has something to
-            // centre in.
-            style.flexGrow = 1;
+            // The root and reason grow so the button stays pinned to the
+            // bottom; the scene is shortened on compact phone heights.
+            styleSheets.Add(Resources.Load<StyleSheet>("InterruptedView"));
 
             _scaffold = new ScreenScaffold(Title);
 
             _reason = new VisualElement { name = "reason" };
-            _reason.style.flexGrow = 1;
+            _reason.AddToClassList("interrupted-view__reason");
             _scaffold.Content.Add(_reason);
+
+            _scene = new VisualElement { name = "recovery-scene" };
+            _scene.AddToClassList("interrupted-view__scene");
+            var seal = new VisualElement { name = "recovery-seal" };
+            seal.AddToClassList("interrupted-view__seal");
+            var mark = new VisualElement();
+            mark.AddToClassList("icon");
+            mark.AddToClassList("icon--ark");
+            mark.AddToClassList("interrupted-view__ark-icon");
+            mark.pickingMode = PickingMode.Ignore;
+            seal.Add(mark);
+            _scene.Add(seal);
 
             _retry = new Button { name = "retry", text = RetryLabel };
             _retry.AddToClassList("btn-primary");
@@ -164,6 +161,7 @@ namespace Broodline.UI.Screens
             // sentence appearing under the first is the same bug as a second
             // click handler.
             _reason.Clear();
+            _reason.Add(_scene);
 
             var said = new EmptyState(string.IsNullOrEmpty(reason) ? UnexplainedReason : reason, Glyph);
             said.style.flexGrow = 1;

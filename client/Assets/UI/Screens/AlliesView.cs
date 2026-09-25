@@ -28,6 +28,9 @@ namespace Broodline.UI.Screens
         {
             _body.Clear();
             var band = new HeroBand(ring: false);
+            var territory = new VisualElement { name = "alliance-territory", pickingMode = PickingMode.Ignore };
+            territory.AddToClassList("allies__territory");
+            band.Subject.Add(territory);
             var pennant = new VisualElement { name = "alliance-pennant" };
             pennant.AddToClassList("allies__pennant");
             band.Subject.Add(pennant);

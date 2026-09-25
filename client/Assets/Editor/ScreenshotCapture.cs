@@ -5,6 +5,7 @@ using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
+using Broodline.UI.Components;
 
 // No namespace: Assembly-CSharp-Editor, as with WaveBuilder and ScreenHarness.
 
@@ -103,27 +104,31 @@ public static class ScreenshotCapture
 
         var captured = 0;
         var threw = new List<string>();
-        foreach (var name in ScreenFixtures.Names)
+        var priorPortraitSource = CreatureCard.PortraitSource;
+        CreatureCard.PortraitSource = ScreenFixtures.CapturePortraits;
+        try
         {
-            byte[] png;
-            try
+            foreach (var name in ScreenFixtures.Names)
             {
-                png = Capture(ScreenFixtures.Build(name), ScreenFixtures.GoesInTheScreenHost(name));
-            }
-            catch (Exception e)
-            {
-                // Resolution 4: a screen that throws while binding is a
-                // finding to report, not a reason to abort the others - so
-                // the loop continues. But it is recorded and it fails the
-                // run below, which it did not used to.
-                Debug.LogError("[ScreenshotCapture] " + name + " threw and was not captured: " + e);
-                threw.Add(name);
-                continue;
-            }
+                byte[] png;
+                try
+                {
+                    png = Capture(ScreenFixtures.Build(name), ScreenFixtures.GoesInTheScreenHost(name));
+                }
+                catch (Exception e)
+                {
+                    // A screen that throws while binding is a finding, not a
+                    // reason to abort the other captures.
+                    Debug.LogError("[ScreenshotCapture] " + name + " threw and was not captured: " + e);
+                    threw.Add(name);
+                    continue;
+                }
 
-            File.WriteAllBytes(Path.Combine(dir, name + ".png"), png);
-            captured++;
+                File.WriteAllBytes(Path.Combine(dir, name + ".png"), png);
+                captured++;
+            }
         }
+        finally { CreatureCard.PortraitSource = priorPortraitSource; }
 
         Debug.Log($"captured {captured} of {ScreenFixtures.Names.Count} screens to {dir}");
 

@@ -30,6 +30,9 @@ namespace Broodline.Frontier
         public readonly FrontierPortrait Portrait;
         public readonly float MinGrowth, MaxGrowth;
         public readonly int ArtRevision;
+        // Optional Resources prefab. The procedural builder remains the fallback
+        // until an authored rig has passed the same portrait and battle checks.
+        public string AuthoredResourcePath => "Frontier/Creatures/" + Id;
 
         public FrontierVisualDefinition(string id, FrontierKind kind, FrontierRigDefinition rig, Action<FrontierMesh> build,
             FrontierPortrait portrait, float minGrowth, float maxGrowth, int artRevision)
@@ -58,12 +61,12 @@ namespace Broodline.Frontier
             void Add(FrontierVisualDefinition v) => d[v.Id] = v;
             // Revisions invalidate cached portraits whenever authored mesh
             // geometry changes. Vetch remains the accepted revision 02 reference.
-            Add(new FrontierVisualDefinition("vetch", FrontierKind.Companion, FrontierRigDefinition.For("vetch"), FrontierVetch.Build, new FrontierPortrait(-32, 12, .12f), 0, 1, 2));
-            Add(new FrontierVisualDefinition("ember", FrontierKind.Companion, FrontierEmber.Rig, FrontierEmber.Build, new FrontierPortrait(-30, 8, .14f), 0, 1, 3));
-            Add(new FrontierVisualDefinition("pale", FrontierKind.Companion, FrontierPale.Rig, FrontierPale.Build, new FrontierPortrait(-38, 14, .10f), 0, 1, 2));
-            Add(new FrontierVisualDefinition("skitter", FrontierKind.Companion, FrontierSkitter.Rig, FrontierSkitter.Build, new FrontierPortrait(-34, 16, .14f), 0, 1, 2));
-            Add(new FrontierVisualDefinition("hollow", FrontierKind.Companion, FrontierHollow.Rig, FrontierHollow.Build, new FrontierPortrait(-30, 8, .12f), 0, 1, 2));
-            Add(new FrontierVisualDefinition("loam", FrontierKind.Companion, FrontierLoam.Rig, FrontierLoam.Build, new FrontierPortrait(-36, 18, .12f), 0, 1, 3));
+            Add(new FrontierVisualDefinition("vetch", FrontierKind.Companion, FrontierRigDefinition.For("vetch"), FrontierVetch.Build, new FrontierPortrait(-32, 12, .12f), 0, 1, 3));
+            Add(new FrontierVisualDefinition("ember", FrontierKind.Companion, FrontierEmber.Rig, FrontierEmber.Build, new FrontierPortrait(-30, 8, .14f), 0, 1, 4));
+            Add(new FrontierVisualDefinition("pale", FrontierKind.Companion, FrontierPale.Rig, FrontierPale.Build, new FrontierPortrait(-38, 14, .10f), 0, 1, 3));
+            Add(new FrontierVisualDefinition("skitter", FrontierKind.Companion, FrontierSkitter.Rig, FrontierSkitter.Build, new FrontierPortrait(-34, 16, .14f), 0, 1, 3));
+            Add(new FrontierVisualDefinition("hollow", FrontierKind.Companion, FrontierHollow.Rig, FrontierHollow.Build, new FrontierPortrait(-30, 8, .12f), 0, 1, 3));
+            Add(new FrontierVisualDefinition("loam", FrontierKind.Companion, FrontierLoam.Rig, FrontierLoam.Build, new FrontierPortrait(-36, 18, .12f), 0, 1, 4));
             foreach (var raider in FrontierRaiders.Ids)
             {
                 var id = raider;
