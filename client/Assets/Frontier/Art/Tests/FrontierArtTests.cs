@@ -126,6 +126,46 @@ namespace Broodline.Frontier.Art.Tests
         }
 
         [Test]
+        public void AuthoredPartsUseBothOrderedSocketsAndRemainOwnedByTheAsset()
+        {
+            var host = new GameObject("part-host");
+            var prefab = new GameObject("authored-part");
+            var mesh = new Mesh { vertices = new[] { Vector3.zero, Vector3.up * 2, Vector3.right },
+                triangles = new[] { 0, 1, 2 } };
+            mesh.RecalculateBounds();
+            var material = new Material(Shader.Find("Broodline/FrontierSurface"));
+            prefab.AddComponent<MeshFilter>().sharedMesh = mesh;
+            prefab.AddComponent<MeshRenderer>().sharedMaterial = material;
+            try
+            {
+                using (var art = new FrontierArt(material.shader, _ => null,
+                    path => path == "Frontier/Parts/cinder" || path == "Frontier/Parts/carapace" ? prefab : null))
+                {
+                    var creature = art.Creature(host.transform, "vetch", " CINDER ", "CARAPACE");
+                    Assert.AreSame(mesh, creature.Dorsal.Find("cinder").GetComponent<MeshFilter>().sharedMesh);
+                    Assert.AreSame(mesh, creature.Flank.Find("carapace").GetComponent<MeshFilter>().sharedMesh);
+                    Assert.Greater(creature.PortraitBounds.max.y, 2f, "authored parts participate in framing");
+                    var reversed = art.Creature(host.transform, "vetch", "carapace", "cinder");
+                    Assert.AreSame(mesh, reversed.Dorsal.Find("carapace").GetComponent<MeshFilter>().sharedMesh);
+                    Assert.AreSame(mesh, reversed.Flank.Find("cinder").GetComponent<MeshFilter>().sharedMesh);
+                }
+                Assert.IsTrue(mesh != null, "disposing transient art must not destroy imported meshes");
+                Assert.IsTrue(material != null, "disposing transient art must not destroy imported materials");
+                prefab.transform.localScale = Vector3.one * 2;
+                using (var art = new FrontierArt(material.shader, _ => null, _ => prefab))
+                {
+                    var fallback = art.Creature(host.transform, "vetch", "cinder");
+                    Assert.AreNotSame(mesh, fallback.Dorsal.Find("cinder").GetComponent<MeshFilter>().sharedMesh);
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(host); Object.DestroyImmediate(prefab);
+                Object.DestroyImmediate(mesh); Object.DestroyImmediate(material);
+            }
+        }
+
+        [Test]
         public void MissingAuthoredCreatureFallsBackToTheProceduralBody()
         {
             var host = new GameObject("fallback-host");
@@ -136,6 +176,48 @@ namespace Broodline.Frontier.Art.Tests
                     var creature = art.Creature(host.transform, "vetch");
                     Assert.IsNotNull(creature.GetComponentInChildren<SkinnedMeshRenderer>().sharedMesh);
                     Assert.IsNotNull(creature.Dorsal);
+                }
+            }
+            finally { Object.DestroyImmediate(host); }
+        }
+
+        [Test]
+        public void InstalledFounderMeshesAndTraitsLoadThroughTheLiveCreaturePath()
+        {
+            var host = new GameObject("installed-art-smoke");
+            var species = new[] { "vetch", "ember", "skitter", "hollow", "loam", "pale" };
+            var traits = new[] { "carapace", "taunt", "cinder", "splash", "sprint", "litter",
+                "reach", "pierce", "regrow", "burrow", "screen", "chill" };
+            try
+            {
+                var shader = Shader.Find("Broodline/FrontierSurface");
+                Assert.IsNotNull(shader);
+                using (var art = new FrontierArt(shader))
+                {
+                    for (int i = 0; i < species.Length; i++)
+                    {
+                        var id = species[i];
+                        var asset = Resources.Load<GameObject>("Frontier/Creatures/" + id);
+                        Assert.IsNotNull(asset, "missing installed body: " + id);
+                        var creature = art.Creature(host.transform, id, "cinder", "carapace");
+                        Assert.AreSame(asset.GetComponentInChildren<SkinnedMeshRenderer>().sharedMesh,
+                            creature.GetComponentInChildren<SkinnedMeshRenderer>().sharedMesh,
+                            "body silently fell back: " + id);
+                        Assert.IsNotNull(creature.Dorsal.Find("cinder"));
+                        Assert.IsNotNull(creature.Flank.Find("carapace"));
+                        Assert.DoesNotThrow(() => creature.Pose(.3f));
+                    }
+                    foreach (var trait in traits)
+                    {
+                        var asset = Resources.Load<GameObject>("Frontier/Parts/" + trait);
+                        Assert.IsNotNull(asset, "missing installed part: " + trait);
+                        var creature = art.Creature(host.transform, "vetch", trait, trait);
+                        var sourceMesh = asset.GetComponent<MeshFilter>().sharedMesh;
+                        Assert.AreSame(sourceMesh, creature.Dorsal.Find(trait).GetComponent<MeshFilter>().sharedMesh,
+                            "dorsal part silently fell back: " + trait);
+                        Assert.AreSame(sourceMesh, creature.Flank.Find(trait).GetComponent<MeshFilter>().sharedMesh,
+                            "flank part silently fell back: " + trait);
+                    }
                 }
             }
             finally { Object.DestroyImmediate(host); }

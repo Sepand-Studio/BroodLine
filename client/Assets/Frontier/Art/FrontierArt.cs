@@ -4,24 +4,27 @@ using UnityEngine;
 
 namespace Broodline.Frontier
 {
-    /// Authored procedural proof assets; owns all transient meshes and materials.
-    /// No imported PNG, model, paid asset, or network call is required by this scene.
+    /// Shared creature presentation. Owns transient procedural fallback meshes;
+    /// imported authored bodies and parts remain owned by their Unity assets.
     public sealed partial class FrontierArt : IDisposable
     {
         readonly Dictionary<string, Mesh> _meshes = new Dictionary<string, Mesh>();
         readonly List<Mesh> _environmentMeshes = new List<Mesh>();
         readonly Material _surface;
         readonly Func<string, GameObject> _authoredPrefabLoader;
+        readonly Func<string, GameObject> _authoredPartLoader;
         bool _disposed;
 
         public static Color Hex(string value) { ColorUtility.TryParseHtmlString(value, out var color); return color; }
         static readonly Color Cream = Hex("#f4dfb9"), Ink = Hex("#253345"), Gold = Hex("#c99a49");
         static readonly Color Coral = Hex("#e5867a"), Frost = Hex("#c6cede");
-        public FrontierArt(Shader shader, Func<string, GameObject> authoredPrefabLoader = null)
+        public FrontierArt(Shader shader, Func<string, GameObject> authoredPrefabLoader = null,
+            Func<string, GameObject> authoredPartLoader = null)
         {
             if (shader == null) throw new ArgumentNullException(nameof(shader), "Build the Frontier Proof scene to assign its surface shader.");
             _surface = new Material(shader) { name = "Frontier shared surface" };
             _authoredPrefabLoader = authoredPrefabLoader ?? (path => Resources.Load<GameObject>(path));
+            _authoredPartLoader = authoredPartLoader ?? (path => Resources.Load<GameObject>(path));
         }
 
         public FrontierCreature Creature(Transform parent, string id, string first = null, string second = null, float phase = 0)
@@ -140,6 +143,29 @@ namespace Broodline.Frontier
             {
                 Debug.LogWarning("[frontier-art] no visual part for trait '" + trait + "'; body remains visible");
                 return;
+            }
+            // Parts remain independent of body identity and ordered trait slots.
+            // Imported meshes/materials belong to the asset, not this art cache.
+            var prefab = _authoredPartLoader("Frontier/Parts/" + trait);
+            if (prefab != null)
+            {
+                var filter = prefab.GetComponent<MeshFilter>();
+                var renderer = prefab.GetComponent<MeshRenderer>();
+                var t = prefab.transform;
+                bool valid = filter != null && filter.sharedMesh != null
+                    && renderer != null && renderer.sharedMaterial != null
+                    && t.childCount == 0 && prefab.GetComponents<MonoBehaviour>().Length == 0
+                    && t.localPosition.sqrMagnitude < .000001f
+                    && Quaternion.Angle(t.localRotation, Quaternion.identity) < .01f
+                    && (t.localScale - Vector3.one).sqrMagnitude < .000001f;
+                if (valid)
+                {
+                    var authored = UnityEngine.Object.Instantiate(prefab, socket, false);
+                    authored.name = trait;
+                    authored.SetActive(true);
+                    return;
+                }
+                Debug.LogWarning("[frontier-art] invalid authored part for " + trait + "; using procedural part");
             }
             string key = "part-" + trait;
             if (!_meshes.TryGetValue(key, out var mesh))

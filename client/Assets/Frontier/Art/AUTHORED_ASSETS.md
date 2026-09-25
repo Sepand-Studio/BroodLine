@@ -1,10 +1,10 @@
 # Authored Frontier creature handoff
 
-The runtime now looks for `Assets/Frontier/Resources/Frontier/Creatures/<id>.prefab` before building the procedural body. IDs are lower-case species or raider IDs from `FrontierVisuals`. Missing assets keep the current procedural appearance. An invalid rig logs a warning and also falls back. The caller remains `FrontierArt.Creature`, so the same appearance reaches the portrait studio, card portrait cache, Ark and lane stages, and live wave view.
+The runtime looks for a GameObject asset at `Assets/Frontier/Resources/Frontier/Creatures/<id>` before building the procedural body. The six founder bodies are installed as imported `.frontiermesh` assets; a future `.prefab` may replace one at the same resource path. IDs are lower-case species or raider IDs from `FrontierVisuals`. Missing assets keep the procedural appearance. An invalid rig logs a warning and also falls back. The caller remains `FrontierArt.Creature`, so the same appearance reaches the portrait studio, card portrait cache, Ark and lane stages, and live wave view.
 
-## Prefab contract
+## Authored GameObject contract
 
-- The prefab root is at local origin with unit scale. It has exactly one primary `SkinnedMeshRenderer` with a mesh, material, and bind poses for every bone in `FrontierRigDefinition.For(id)`.
+- The asset root is at local origin with unit scale. It has exactly one primary `SkinnedMeshRenderer` with a mesh, material, and bind poses for every bone in `FrontierRigDefinition.For(id)`.
 - Do not add `FrontierCreature` or socket nodes to the prefab. Runtime creates the controller and dorsal/flank sockets after validating the authored rig.
 - `renderer.bones` follows the definition's bone order. Names and direct parent relationships match the definition. Do not rename bones to suit DCC export defaults; retarget the export.
 - Put the body, eyes, shell, and material regions in that skinned mesh. The current `FrontierCreature` controller animates these bones and applies the existing chill, hurt, hit, movement, greeting, and celebration presentations. The prefab can contain passive decoration, but it must not replace the controller or write simulation state.
@@ -13,6 +13,31 @@ The runtime now looks for `Assets/Frontier/Resources/Frontier/Creatures/<id>.pre
 - When art or portrait framing changes, increment that species' `ArtRevision` in `FrontierVisualDefinition.cs` so the portrait cache refreshes.
 
 ## First production batch
+
+### Installed mesh batch
+
+`Assets/Frontier/ProductionCandidates/` contains editable offline-authored
+body and trait meshes. `tools/character-production/install_runtime.py` copies
+the six bodies into `Resources/Frontier/Creatures/` and the twelve independent
+parts into `Resources/Frontier/Parts/` with distinct Unity GUIDs. The
+`FrontierMeshImporter` makes each `.frontiermesh` a GameObject asset with an
+embedded mesh and material. These are now the live founder visuals, with
+procedural fallback if an imported asset is missing or invalid. They remain
+blockouts and have **not passed final visual or device acceptance**.
+Source references, portable rigged GLBs and the outstanding visual issues are in
+[the production work log](../../../../specs/Designs/visual-production-v1/source-v1/README.md).
+
+Runtime trait replacement now loads `Frontier/Parts/<trait>` independently of
+the body. An authored part has one MeshFilter and MeshRenderer on its root,
+a mesh and material, origin position, identity rotation and unit scale, no
+children and no MonoBehaviours. Its local +Y projects outward from either socket;
+the existing flank rotation is applied by the socket. Invalid or missing parts
+fall back to the procedural part. Imported meshes and materials remain owned by
+the asset, and both parts contribute to portrait bounds. The six founder
+`ArtRevision` values were incremented for this runtime replacement.
+
+The Vetch candidate uses the existing eight-bone animation contract. GLB clips
+are DCC review aids; do not attach a competing Animator to the runtime prefab.
 
 | Asset | Required visual read at 40px | Acting and material reference |
 |---|---|---|
